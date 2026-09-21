@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     setup_rearm_seconds: float = 20.0
     setup_reset_wait_seconds: float = 10.0
     arbiter_interval_seconds: float = 0.25
+    market_stale_seconds: float = 3.0
 
     replay_frame_seconds: float = 1.0
     replay_book_depth: int = 16

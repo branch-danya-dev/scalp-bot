@@ -108,12 +108,14 @@ def test_central_arbiter_chooses_stronger_setup_instead_of_first_worker(tmp_path
             candles=[candle()],
             orderbook=book(),
             last_price=100,
+            last_market_at=time(),
         )
         strong = ActiveSymbolSession(
             symbol="BBBUSDT",
             candles=[candle()],
             orderbook=book(),
             last_price=100,
+            last_market_at=time(),
         )
         weak.decisions["orderbook_density"] = StrategyDecision(
             strategy="orderbook_density",
@@ -168,5 +170,39 @@ def test_stop_button_finalizes_open_paper_position(tmp_path) -> None:
         assert not engine.broker.positions
         assert engine.broker.closed_trades
         assert engine.broker.closed_trades[-1]["reason"] == "bot_stop"
+    finally:
+        close_rest(engine)
+
+
+def test_central_arbiter_ignores_stale_market_snapshot(tmp_path) -> None:
+    engine = make_engine(tmp_path, market_stale_seconds=1)
+    try:
+        engine.running = True
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100,
+            last_market_at=time() - 10,
+        )
+        session.decisions["orderbook_density"] = StrategyDecision(
+            strategy="orderbook_density",
+            action=Action.LONG,
+            reasons=["stale"],
+            confidence=0.99,
+            entry=100,
+            stop=99.5,
+            target=101,
+            watched_level=99.8,
+            setup_id="stale-setup",
+        )
+        engine.sessions = {"AAAUSDT": session}
+        engine.candidates = [
+            Candidate("AAAUSDT", 200_000_000, 0, 100, activity_rank=1),
+        ]
+
+        engine._arbitrate_once()
+
+        assert not engine.broker.positions
     finally:
         close_rest(engine)

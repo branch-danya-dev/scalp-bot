@@ -35,6 +35,7 @@ class ActiveSymbolSession:
     last_ranked_at: float = field(default_factory=time)
     last_signal_at: float = 0.0
     last_trade_at: float = 0.0
+    last_market_at: float = 0.0
     last_eval: float = 0.0
     last_frame: float = 0.0
     last_risk_fingerprint: tuple | None = None
@@ -286,6 +287,7 @@ class TradingEngine:
             if session is None:
                 return
 
+            session.last_market_at = time()
             topic = message.get("topic", "")
             if topic.startswith("orderbook."):
                 session.orderbook = book_state.apply(message)
@@ -428,6 +430,8 @@ class TradingEngine:
 
         for session in self.sessions.values():
             if session.symbol in self.broker.positions:
+                continue
+            if session.last_market_at <= 0 or now - session.last_market_at > self.config.market_stale_seconds:
                 continue
 
             for decision in session.decisions.values():
@@ -685,6 +689,7 @@ class TradingEngine:
                     "trend": session.trend.value,
                     "position": position.public() if position else None,
                     "activeAgeSeconds": now - session.activated_at,
+                    "marketAgeSeconds": now - session.last_market_at if session.last_market_at > 0 else None,
                     "engaged": self._session_engaged(session),
                 }
             )
