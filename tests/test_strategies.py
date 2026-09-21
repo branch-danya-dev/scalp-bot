@@ -1,5 +1,5 @@
 from scalp_bot.domain import Action, Candle, OrderBook, TradeTick, Trend
-from scalp_bot.strategies import LevelBreakoutStrategy, classify_trend, detect_level_zones
+from scalp_bot.strategies import LevelBreakoutStrategy, WeakLevelRejectionStrategy, classify_trend, detect_level_zones
 
 
 def make_candle(i: int, base: float) -> Candle:
@@ -120,3 +120,73 @@ def test_breakout_state_is_isolated_per_symbol() -> None:
     )
     assert first.action == Action.LONG
     assert second.action == Action.LONG
+
+
+
+def weak_resistance_rejection_candles() -> list[Candle]:
+    candles: list[Candle] = []
+    for i in range(45):
+        base = 98.4 + (i % 7) * 0.05
+        high = base + 0.10
+        low = base - 0.10
+        close = base + 0.02
+        if i == 28:
+            base = 99.70
+            high = 100.00
+            low = 99.55
+            close = 99.72
+        candles.append(Candle(i * 60_000, base, high, low, close, 100, 10_000))
+
+    approach = [
+        (99.25, 99.40, 99.18, 99.36),
+        (99.38, 99.58, 99.32, 99.54),
+        (99.55, 99.76, 99.48, 99.72),
+        (99.73, 99.93, 99.66, 99.90),
+        (99.91, 100.08, 99.70, 99.78),
+    ]
+    start = len(candles)
+    for j, (o, h, l, c) in enumerate(approach):
+        candles.append(Candle((start + j) * 60_000, o, h, l, c, 180, 18_000))
+    return candles
+
+
+def rejection_sell_flow() -> list[TradeTick]:
+    start = 20_000_000
+    rows: list[TradeTick] = []
+    for i in range(16):
+        rows.append(TradeTick(start + i * 250, 99.78, 3, "Sell"))
+    for i in range(4):
+        rows.append(TradeTick(start + 4_000 + i * 200, 99.78, 1, "Buy"))
+    return rows
+
+
+def test_weak_level_rejection_allows_runner_when_bounce_is_with_trend() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    book = OrderBook(bids=[(99.77, 50)], asks=[(99.78, 50)])
+    decision = strategy.evaluate(
+        weak_resistance_rejection_candles(),
+        book,
+        Trend.DOWN,
+        symbol="TESTUSDT",
+        trades=rejection_sell_flow(),
+    )
+    assert decision.action == Action.SHORT
+    assert decision.details["tradeMode"] == "trend_following"
+    assert decision.details["allowRunner"] is True
+    assert 1 <= decision.details["zone"]["touches"] <= 3
+
+
+def test_weak_level_rejection_countertrend_takes_reaction_without_runner() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    book = OrderBook(bids=[(99.77, 50)], asks=[(99.78, 50)])
+    decision = strategy.evaluate(
+        weak_resistance_rejection_candles(),
+        book,
+        Trend.UP,
+        symbol="TESTUSDT",
+        trades=rejection_sell_flow(),
+    )
+    assert decision.action == Action.SHORT
+    assert decision.details["tradeMode"] == "countertrend_reaction"
+    assert decision.details["allowRunner"] is False
+    assert decision.details["exitMode"] == "reaction_only"

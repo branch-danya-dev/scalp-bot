@@ -154,8 +154,10 @@ class PaperBroker:
             return [self.close(symbol, book, "stop")]
 
         events: list[dict] = []
+        allow_runner = bool(pos.strategy_details.get("allowRunner", True))
         if (
             self.config.partial_take_enabled
+            and allow_runner
             and not pos.partial_taken
             and pos.mfe_r >= self.config.partial_take_at_r
         ):

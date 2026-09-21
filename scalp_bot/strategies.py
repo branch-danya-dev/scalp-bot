@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from enum import StrEnum
+from math import floor, log10
 from statistics import median
 from typing import Literal
 
@@ -172,6 +173,48 @@ def detect_level_zones(
     zones.sort(key=lambda zone: (zone.score, zone.last_touch_index), reverse=True)
     return zones
 
+
+
+def _nearby_round_level(price: float, tolerance_abs: float) -> float | None:
+    if price <= 0:
+        return None
+    exponent = floor(log10(price))
+    candidates: list[tuple[float, float]] = []
+    for power in range(exponent - 3, exponent + 1):
+        base = 10 ** power
+        for multiplier in (1.0, 2.0, 2.5, 5.0, 10.0):
+            step = base * multiplier
+            relative_step = step / price
+            if not 0.001 <= relative_step <= 0.05:
+                continue
+            rounded = round(price / step) * step
+            candidates.append((abs(price - rounded), rounded))
+    if not candidates:
+        return None
+    distance, rounded = min(candidates, key=lambda item: item[0])
+    return rounded if distance <= max(tolerance_abs, price * 0.0005) else None
+
+
+def _zone_overlap_count(candles: list[Candle], zone: LevelZone, lookback: int = 8) -> int:
+    return sum(
+        1
+        for candle in candles[-lookback:]
+        if candle.high >= zone.low and candle.low <= zone.high
+    )
+
+
+def _approach_is_directional(candles: list[Candle], kind: LevelKind) -> bool:
+    if len(candles) < 5:
+        return False
+    recent = candles[-5:-1]
+    closes = [c.close for c in recent]
+    if kind == "resistance":
+        return closes[-1] > closes[0] and sum(
+            right >= left for left, right in zip(closes, closes[1:], strict=True)
+        ) >= 2
+    return closes[-1] < closes[0] and sum(
+        right <= left for left, right in zip(closes, closes[1:], strict=True)
+    ) >= 2
 
 def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> dict:
     if not trades:
@@ -563,6 +606,296 @@ class DensityBounceStrategy(Strategy):
         )
 
 
+class RejectionStage(StrEnum):
+    SEARCH = "search"
+    FOUND = "found"
+    APPROACH = "approach"
+    TEST = "test"
+    REJECT = "reject"
+    REACTION = "reaction"
+
+
+@dataclass(slots=True)
+class RejectionWatchState:
+    zone_key: tuple[str, float, float] | None = None
+    stage: RejectionStage = RejectionStage.SEARCH
+
+
+class WeakLevelRejectionStrategy(Strategy):
+    key = "weak_level_rejection"
+    label = "Отбой от слабого уровня"
+
+    max_touches = 3
+    approach_pct = 0.005
+    max_stop_pct = 0.006
+
+    def __init__(self) -> None:
+        self._states: dict[str, RejectionWatchState] = {}
+
+    def reset(self, symbol: str) -> None:
+        self._states.pop(symbol, None)
+
+    @staticmethod
+    def _key(zone: LevelZone) -> tuple[str, float, float]:
+        return (zone.kind, round(zone.low, 10), round(zone.high, 10))
+
+    def _select_weak_zone(
+        self,
+        candles: list[Candle],
+        price: float,
+        kind: LevelKind,
+    ) -> LevelZone | None:
+        zones = detect_level_zones(candles, kind, lookback=100, min_touches=1)
+        eligible: list[LevelZone] = []
+        for zone in zones:
+            if not 1 <= zone.touches <= self.max_touches:
+                continue
+            if abs(zone.center - price) / price > self.approach_pct:
+                continue
+            if len(candles) - 1 - zone.last_touch_index > 60:
+                continue
+            # A weak/new level should not already contain prolonged acceptance.
+            if _zone_overlap_count(candles[:-1], zone, lookback=8) > 3:
+                continue
+            eligible.append(zone)
+        eligible.sort(
+            key=lambda zone: (
+                abs(zone.center - price),
+                zone.touches,
+                -zone.last_touch_index,
+            )
+        )
+        return eligible[0] if eligible else None
+
+    @staticmethod
+    def _trade_mode(action: Action, trend: Trend) -> tuple[str, bool]:
+        with_trend = (
+            (action == Action.LONG and trend == Trend.UP)
+            or (action == Action.SHORT and trend == Trend.DOWN)
+        )
+        return (
+            ("trend_following", True)
+            if with_trend
+            else ("countertrend_reaction", False)
+        )
+
+    def _decision_for_zone(
+        self,
+        candles: list[Candle],
+        book: OrderBook,
+        trend: Trend,
+        trades: list[TradeTick],
+        symbol: str,
+        zone: LevelZone,
+    ) -> StrategyDecision:
+        state = self._states.setdefault(symbol, RejectionWatchState())
+        zone_key = self._key(zone)
+        if state.zone_key != zone_key:
+            state.zone_key = zone_key
+            state.stage = RejectionStage.FOUND
+
+        last = candles[-1]
+        price = book.mid or last.close
+        flow = compute_trade_flow(trades)
+        visuals = _zone_visual(zone, "weak rejection zone")
+        approach = _approach_is_directional(candles, zone.kind)
+        range_abs = _typical_range_abs(candles)
+
+        if not approach:
+            state.stage = RejectionStage.FOUND
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Слабый уровень найден, но направленного подхода к нему пока нет"],
+                0.40,
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    "zone": zone.public(),
+                    "flow": flow,
+                    "weakLevel": True,
+                },
+            )
+
+        state.stage = RejectionStage.APPROACH
+        round_level = _nearby_round_level(zone.center, max(range_abs * 0.5, zone.width))
+        buffer = max(range_abs * 0.20, price * 0.00015)
+
+        if zone.kind == "resistance":
+            tested = last.high >= zone.low
+            failed_break = last.high >= zone.high * 0.9995 and last.close < zone.low
+            flow_reversed = flow["tradeCount5s"] >= 3 and flow["imbalance5s"] <= -0.05
+            action = Action.SHORT
+            stop_anchor = max(zone.high, round_level or zone.high)
+            stop = stop_anchor + buffer
+            risk = stop - price
+        else:
+            tested = last.low <= zone.high
+            failed_break = last.low <= zone.low * 1.0005 and last.close > zone.high
+            flow_reversed = flow["tradeCount5s"] >= 3 and flow["imbalance5s"] >= 0.05
+            action = Action.LONG
+            stop_anchor = min(zone.low, round_level or zone.low)
+            stop = stop_anchor - buffer
+            risk = price - stop
+
+        if tested:
+            state.stage = RejectionStage.TEST
+
+        if not (tested and failed_break):
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Цена тестирует слабый уровень, ждём отказ от пробоя и возврат за зону"],
+                0.50,
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    "zone": zone.public(),
+                    "flow": flow,
+                    "roundLevel": round_level,
+                    "weakLevel": True,
+                },
+            )
+
+        state.stage = RejectionStage.REJECT
+        if not flow_reversed:
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Пробой не удержался, но поток сделок ещё не подтвердил отскок"],
+                0.58,
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    "zone": zone.public(),
+                    "flow": flow,
+                    "roundLevel": round_level,
+                    "weakLevel": True,
+                },
+            )
+
+        if risk <= 0:
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["После возврата за уровень нет корректной точки инвалидации"],
+                visuals=visuals,
+            )
+
+        stop_pct = risk / price
+        if stop_pct > self.max_stop_pct:
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Структурный stop за уровнем слишком далеко для скальпа"],
+                0.45,
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    "zone": zone.public(),
+                    "roundLevel": round_level,
+                    "stopDistancePct": stop_pct,
+                    "weakLevel": True,
+                },
+            )
+
+        trade_mode, allow_runner = self._trade_mode(action, trend)
+        target_r = 1.6 if allow_runner else 1.25
+        target = (
+            price + risk * target_r
+            if action == Action.LONG
+            else price - risk * target_r
+        )
+        state.stage = RejectionStage.REACTION
+
+        trend_reason = (
+            "Отскок идёт по тренду: позицию можно вести после первого импульса"
+            if allow_runner
+            else "Отскок против тренда: берём только реакцию, runner запрещён"
+        )
+        confidence = 0.72 + min(zone.touches, 3) * 0.025
+        if allow_runner:
+            confidence += 0.05
+        if round_level is not None:
+            confidence += 0.03
+
+        return StrategyDecision(
+            strategy=self.key,
+            action=action,
+            reasons=[
+                f"Слабый уровень: {zone.touches} подход(а), без длительной проторговки",
+                "Попытка пробоя не удержалась, цена вернулась за границу зоны",
+                "Поток исполненных сделок развернулся от уровня",
+                trend_reason,
+            ],
+            confidence=min(confidence, 0.90),
+            watched_level=zone.center,
+            entry=price,
+            stop=stop,
+            target=target,
+            visuals=visuals,
+            details={
+                "state": state.stage.value,
+                "zone": zone.public(),
+                "flow": flow,
+                "roundLevel": round_level,
+                "weakLevel": True,
+                "tradeMode": trade_mode,
+                "allowRunner": allow_runner,
+                "exitMode": "runner_allowed" if allow_runner else "reaction_only",
+            },
+        )
+
+    def evaluate(
+        self,
+        candles: list[Candle],
+        book: OrderBook,
+        trend: Trend,
+        *,
+        symbol: str = "",
+        trades: list[TradeTick] | None = None,
+    ) -> StrategyDecision:
+        if len(candles) < 40 or trend == Trend.FLAT or not symbol:
+            if symbol:
+                self.reset(symbol)
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Нужен читаемый тренд и локальная история уровня"],
+                details={"state": RejectionStage.SEARCH.value},
+            )
+
+        price = book.mid or candles[-1].close
+        if price <= 0:
+            return StrategyDecision(self.key, Action.WAIT, ["Нет текущей цены"])
+
+        resistance = self._select_weak_zone(candles, price, "resistance")
+        support = self._select_weak_zone(candles, price, "support")
+        choices = [zone for zone in (resistance, support) if zone is not None]
+        if not choices:
+            self._states[symbol] = RejectionWatchState()
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Рядом нет молодого слабонаторгованного уровня"],
+                details={"state": RejectionStage.SEARCH.value},
+            )
+
+        zone = min(choices, key=lambda item: abs(item.center - price))
+        return self._decision_for_zone(
+            candles,
+            book,
+            trend,
+            trades or [],
+            symbol,
+            zone,
+        )
+
+
 class BreakoutStage(StrEnum):
     SEARCH = "search"
     FOUND = "found"
@@ -887,6 +1220,7 @@ class LevelBreakoutStrategy(Strategy):
 DEFAULT_STRATEGIES: list[Strategy] = [
     TrendStructureStrategy(),
     HorizontalLevelStrategy(),
+    WeakLevelRejectionStrategy(),
     DensityBounceStrategy(),
     LevelBreakoutStrategy(),
 ]
