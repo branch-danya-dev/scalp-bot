@@ -1,8 +1,10 @@
 import asyncio
+
+import pytest
 from time import time
 
 from scalp_bot.config import Settings
-from scalp_bot.domain import Action, Candidate, Candle, OrderBook, Side, StrategyDecision, TradePlan
+from scalp_bot.domain import Action, Candidate, Candle, OrderBook, Side, StrategyDecision, TradePlan, Trend
 from scalp_bot.engine import ActiveSymbolSession, TradingEngine
 
 
@@ -206,3 +208,141 @@ def test_central_arbiter_ignores_stale_market_snapshot(tmp_path) -> None:
         assert not engine.broker.positions
     finally:
         close_rest(engine)
+
+
+
+def test_replay_sampling_is_fast_only_for_engaged_market(tmp_path) -> None:
+    engine = make_engine(
+        tmp_path,
+        replay_engaged_frame_seconds=1,
+        replay_idle_frame_seconds=5,
+    )
+    try:
+        session = ActiveSymbolSession(symbol="AAAUSDT", candles=[candle()])
+        assert not engine._session_engaged(session)
+        session.decisions["watch"] = StrategyDecision(
+            strategy="watch",
+            action=Action.WAIT,
+            reasons=["watch"],
+            confidence=0.6,
+            watched_level=100,
+        )
+        assert engine._session_engaged(session)
+    finally:
+        close_rest(engine)
+
+
+@pytest.mark.asyncio
+async def test_duration_timer_auto_stops_and_finalizes_position(tmp_path) -> None:
+    engine = make_engine(
+        tmp_path,
+        paper_run_duration_seconds=0.05,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+    )
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100,
+        )
+        engine.sessions["AAAUSDT"] = session
+        engine.broker.open(plan("AAAUSDT"), book())
+
+        engine.set_running(True)
+        await asyncio.sleep(0.12)
+
+        assert not engine.running
+        assert not engine.broker.positions
+        assert engine.broker.closed_trades[-1]["reason"] == "duration_elapsed"
+        assert engine._last_run_summary is not None
+        assert engine._last_run_summary["reason"] == "duration_elapsed"
+    finally:
+        await engine.rest.close()
+
+
+
+def test_new_rejection_and_density_states_keep_symbol_engaged(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        for state in ("persisting", "test", "defended", "reject", "reaction"):
+            session = ActiveSymbolSession(symbol="AAAUSDT", candles=[candle()])
+            session.decisions["stateful"] = StrategyDecision(
+                strategy="stateful",
+                action=Action.WAIT,
+                reasons=["watch"],
+                confidence=0.2,
+                details={"state": state},
+            )
+            assert engine._session_engaged(session), state
+    finally:
+        close_rest(engine)
+
+
+def test_countertrend_reaction_is_not_misclassified_as_lost_trend_context(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=99.9,
+            trend=Trend.UP,
+        )
+        engine.sessions[session.symbol] = session
+        p = plan("AAAUSDT")
+        p.side = Side.SHORT
+        p.stop = 100.5
+        p.target = 99.0
+        p.strategy = "weak_level_rejection"
+        p.strategy_details = {
+            "tradeMode": "countertrend_reaction",
+            "allowRunner": False,
+        }
+        pos = engine.broker.open(p, book())
+        pos.opened_at -= 10
+        pos.unrealized_pnl = -0.1
+
+        engine._maybe_strategy_invalidation(session)
+
+        assert "AAAUSDT" in engine.broker.positions
+    finally:
+        close_rest(engine)
+
+
+
+@pytest.mark.asyncio
+async def test_start_survives_initial_scanner_failure(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    async def fail_scan() -> None:
+        raise RuntimeError("temporary rate limit")
+    engine._scan_once = fail_scan  # type: ignore[method-assign]
+
+    try:
+        await engine.start()
+
+        assert engine._tasks
+        assert any(event["event"] == "startup_scan_error" for event in engine.events)
+    finally:
+        await engine.close()
+
+
+@pytest.mark.asyncio
+async def test_promote_symbol_survives_bootstrap_failure(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    async def fail_bootstrap(symbol: str) -> None:
+        raise RuntimeError("temporary bootstrap rate limit")
+    engine._bootstrap_symbol = fail_bootstrap  # type: ignore[method-assign]
+
+    try:
+        await engine._promote_symbol("AAAUSDT", time())
+
+        assert "AAAUSDT" not in engine.sessions
+        assert any(
+            event["event"] == "symbol_bootstrap_error"
+            and event["symbol"] == "AAAUSDT"
+            for event in engine.events
+        )
+    finally:
+        await engine.rest.close()

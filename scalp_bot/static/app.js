@@ -28,6 +28,13 @@ function applyChartPrecision(value) {
   candleSeries.applyOptions({priceFormat:{type:"price", precision, minMove:10 ** -precision}});
 }
 const pct = value => value == null ? "—" : `${(Number(value) * 100).toFixed(2)}%`;
+function duration(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const h = String(Math.floor(total / 3600)).padStart(2, "0");
+  const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+  const s = String(total % 60).padStart(2, "0");
+  return `${h}:${m}:${s}`;
+}
 
 async function api(path, options={}) {
   const response = await fetch(path, options);
@@ -173,6 +180,8 @@ function eventText(event) {
   if (event.event === "decision") return `${payload.strategy}: ${(payload.reasons || []).join(" · ")}`;
   if (event.event === "symbol_activated") return "монета стала активной";
   if (event.event === "symbol_deactivated") return payload.reason || "deactivated";
+  if (event.event === "run_summary") return `${payload.reason} · elapsed ${duration(payload.elapsedSeconds)} · PnL ${money(payload.realizedPnl)} · trades ${payload.closedTrades}`;
+  if (event.event === "bot_stopped") return payload.reason || "stopped";
   return "";
 }
 
@@ -243,7 +252,10 @@ function renderTrades(rows) {
 
 function render(data) {
   const status = $("connection");
-  status.textContent = data.botRunning ? "PAPER TRADING ON" : "PAPER OFF · только наблюдение";
+  const lossCap = data.risk?.sessionLossLimitEnabled ? "LOSS CAP ON" : "RESEARCH · LOSS CAP OFF";
+  status.textContent = data.botRunning
+    ? `PAPER TRADING ON · ${lossCap}`
+    : `PAPER OFF · ${lossCap}`;
   status.className = data.botRunning ? "live trading-on" : "live observing";
   $("startBtn").disabled = data.botRunning;
   $("stopBtn").disabled = !data.botRunning;
@@ -259,8 +271,13 @@ function render(data) {
   $("netPnl").textContent = money(totalNet);
   $("netPnl").className = totalNet >= 0 ? "positive" : "negative";
   $("positionCount").textContent = data.positions.length;
-  $("availableExposure").textContent = money(data.portfolio.availableNotional);
-  $("costGate").textContent = `≥ ${money(data.risk.minNetProfitUsd)} net · RR≥${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}`;
+  const perPositionCap = Number(data.balance || 0) * Number(data.risk.maxLeverage || 0) * Number(data.risk.maxPositionExposureFraction || 0);
+  $("availableExposure").textContent = `${money(data.portfolio.availableNotional)} · ${money(perPositionCap)}/pos`;
+  const rrGate = data.risk.enforceNetRewardRiskGate ? `RR≥${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}` : `RR monitor ${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}`;
+  $("costGate").textContent = `≥ ${money(data.risk.minNetProfitUsd)} net · ${rrGate}`;
+  $("runTimer").textContent = data.botRunning
+    ? duration(data.run?.remainingSeconds)
+    : duration(data.run?.configuredDurationSeconds);
   $("sessionFile").textContent = data.sessionFile.split("/").pop();
 
   renderWorking(data.working);

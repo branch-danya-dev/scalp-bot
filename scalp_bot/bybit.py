@@ -19,17 +19,62 @@ class BybitRestClient:
     def __init__(self, config: Settings) -> None:
         self.config = config
         self.client = httpx.AsyncClient(base_url=config.bybit_rest_url, timeout=10.0)
+        self._request_lock = asyncio.Lock()
+        self._last_request_at = 0.0
 
     async def close(self) -> None:
         await self.client.aclose()
 
+    async def _pace_request(self) -> None:
+        minimum = max(0.0, self.config.rest_request_min_interval_seconds)
+        if minimum <= 0:
+            return
+        async with self._request_lock:
+            now = asyncio.get_running_loop().time()
+            wait = minimum - (now - self._last_request_at)
+            if wait > 0:
+                await asyncio.sleep(wait)
+            self._last_request_at = asyncio.get_running_loop().time()
+
+    def _retry_delay(self, response: httpx.Response | None, attempt: int) -> float:
+        if response is not None:
+            retry_after = response.headers.get("Retry-After")
+            if retry_after:
+                try:
+                    return max(0.0, float(retry_after))
+                except ValueError:
+                    pass
+
+        base = max(0.05, self.config.rest_rate_limit_backoff_seconds)
+        maximum = max(base, self.config.rest_rate_limit_max_backoff_seconds)
+        return min(maximum, base * (2 ** attempt))
+
     async def _get(self, path: str, params: dict[str, str | int]) -> dict:
-        response = await self.client.get(path, params=params)
-        response.raise_for_status()
-        payload = response.json()
-        if payload.get("retCode") != 0:
-            raise BybitError(f"Bybit error {payload.get('retCode')}: {payload.get('retMsg')}")
-        return payload["result"]
+        retries = max(0, self.config.rest_rate_limit_retries)
+
+        for attempt in range(retries + 1):
+            await self._pace_request()
+            response = await self.client.get(path, params=params)
+
+            if response.status_code == 429:
+                if attempt >= retries:
+                    response.raise_for_status()
+                await asyncio.sleep(self._retry_delay(response, attempt))
+                continue
+
+            response.raise_for_status()
+            payload = response.json()
+            code = payload.get("retCode")
+            if code == 0:
+                return payload["result"]
+
+            if code == 10006 and attempt < retries:
+                await asyncio.sleep(self._retry_delay(response, attempt))
+                continue
+
+            raise BybitError(f"Bybit error {code}: {payload.get('retMsg')}")
+
+        raise BybitError("Bybit REST retry loop exhausted")
 
     async def liquid_candidates(self, limit: int | None = None) -> list[Candidate]:
         result = await self._get("/v5/market/tickers", {"category": "linear"})

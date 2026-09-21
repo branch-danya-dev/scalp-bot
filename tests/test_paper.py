@@ -154,3 +154,57 @@ def test_current_risk_is_released_after_stop_moves_beyond_entry() -> None:
     assert broker.open_risk_usd > 0
     broker.mark("AAAUSDT", 100.53, book(100.53, 100.54))
     assert broker.open_risk_usd == 0
+
+
+
+def test_countertrend_reaction_does_not_create_runner_partial() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=True,
+        partial_take_at_r=1.0,
+        no_follow_through_seconds=999,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("AAAUSDT", Side.LONG, 1000)
+    p.strategy_details = {"tradeMode": "countertrend_reaction", "allowRunner": False}
+    broker.open(p, book(99.99, 100.00))
+
+    events = broker.mark("AAAUSDT", 100.60, book(100.60, 100.61))
+
+    assert events == []
+    assert "AAAUSDT" in broker.positions
+    assert broker.positions["AAAUSDT"].partial_taken is False
+
+
+
+def test_research_paper_run_does_not_stop_opening_after_session_loss_cap() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_daily_loss_fraction=0.03,
+        enforce_session_loss_limit=False,
+        max_leverage=1,
+    )
+    broker = PaperBroker(cfg)
+    broker.balance = 900
+
+    allowed, reason = broker.can_open("AAAUSDT")
+
+    assert allowed
+    assert reason == "allowed"
+
+
+def test_session_loss_limit_still_exists_when_explicitly_enabled() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_daily_loss_fraction=0.03,
+        enforce_session_loss_limit=True,
+        max_leverage=1,
+    )
+    broker = PaperBroker(cfg)
+    broker.balance = 969
+
+    allowed, reason = broker.can_open("AAAUSDT")
+
+    assert not allowed
+    assert reason == "session loss limit reached"

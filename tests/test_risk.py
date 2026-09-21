@@ -71,6 +71,7 @@ def test_rejects_trade_with_bad_net_reward_risk_even_if_profit_covers_costs() ->
     cfg = Settings(
         min_net_profit_usd=0.1,
         min_net_reward_risk=1.5,
+        enforce_net_reward_risk_gate=True,
         taker_fee_rate=0,
         slippage_bps=0,
         max_leverage=1,
@@ -85,3 +86,106 @@ def test_rejects_trade_with_bad_net_reward_risk_even_if_profit_covers_costs() ->
     )
     assert not result.allowed
     assert "reward/risk" in result.reason
+
+
+
+def test_single_trade_cannot_consume_whole_portfolio_exposure() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=1,
+        max_open_positions=4,
+        max_position_exposure_fraction=0.25,
+        risk_fraction=0.005,
+        min_net_profit_usd=0,
+        min_net_reward_risk=0,
+        taker_fee_rate=0,
+        slippage_bps=0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        decision(101.0, stop=99.9),
+        1000,
+        book(99.99, 100.00),
+        1000,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.notional == 250
+
+
+def test_position_exposure_cap_never_exceeds_remaining_portfolio_exposure() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=1,
+        max_position_exposure_fraction=0.25,
+        risk_fraction=0.005,
+        min_net_profit_usd=0,
+        min_net_reward_risk=0,
+        taker_fee_rate=0,
+        slippage_bps=0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        decision(101.0, stop=99.9),
+        1000,
+        book(99.99, 100.00),
+        80,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.notional == 80
+
+
+
+def test_research_mode_allows_positive_net_setup_even_when_net_rr_is_below_live_gate() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=1,
+        max_position_exposure_fraction=0.25,
+        risk_fraction=0.005,
+        min_net_profit_usd=0.10,
+        min_net_reward_risk=1.15,
+        enforce_net_reward_risk_gate=False,
+        taker_fee_rate=0.00055,
+        slippage_bps=1,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        decision(100.35, stop=99.80),
+        1000,
+        book(99.99, 100.00),
+        1000,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.expected_net_profit >= 0.10
+    assert result.plan.net_reward_risk < 1.15
+
+
+def test_research_mode_still_rejects_setup_with_negative_expected_net_after_costs() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=1,
+        max_position_exposure_fraction=0.25,
+        min_net_profit_usd=0,
+        enforce_net_reward_risk_gate=False,
+        taker_fee_rate=0.00055,
+        slippage_bps=1,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        decision(100.10, stop=99.90),
+        1000,
+        book(99.99, 100.00),
+        1000,
+        20,
+    )
+
+    assert not result.allowed
+    assert "after estimated trading costs" in result.reason
