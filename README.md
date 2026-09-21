@@ -53,6 +53,11 @@ SCALP_ENFORCE_SESSION_LOSS_LIMIT=false
 
 Per-trade and simultaneous portfolio risk controls remain enabled.
 
+Research cost gate:
+- a setup must remain net-positive after estimated fees, spread and slippage;
+- minimum expected net is $0.10 by default;
+- net reward/risk is recorded for analysis but the live-style RR>=1.15 gate is disabled during research, because it mathematically suppresses most tight-stop scalp setups.
+
 ## 10-hour harness
 
 The timer starts after pressing Start.
