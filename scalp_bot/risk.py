@@ -90,12 +90,20 @@ class RiskEngine:
         expected_net_loss = gross_loss + estimated_costs
         net_rr = expected_net / expected_net_loss if expected_net_loss > 0 else 0.0
 
+        if expected_net <= 0:
+            return RiskResult(
+                False,
+                f"expected net ${expected_net:.2f} <= 0 after estimated trading costs",
+            )
         if expected_net < self.config.min_net_profit_usd:
             return RiskResult(
                 False,
-                f"expected net ${expected_net:.2f} < minimum ${self.config.min_net_profit_usd:.2f}",
+                f"expected net ${expected_net:.2f} < research minimum ${self.config.min_net_profit_usd:.2f}",
             )
-        if net_rr < self.config.min_net_reward_risk:
+        if (
+            self.config.enforce_net_reward_risk_gate
+            and net_rr < self.config.min_net_reward_risk
+        ):
             return RiskResult(
                 False,
                 f"net reward/risk {net_rr:.2f} < minimum {self.config.min_net_reward_risk:.2f}",
