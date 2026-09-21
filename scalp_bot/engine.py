@@ -95,7 +95,10 @@ class TradingEngine:
 
     async def start(self) -> None:
         self._stop.clear()
-        await self._scan_once()
+        try:
+            await self._scan_once()
+        except Exception as exc:
+            self._emit("startup_scan_error", None, {"error": str(exc)})
         self._tasks = [
             asyncio.create_task(self._scanner_loop(), name="scanner"),
             asyncio.create_task(self._context_loop(), name="context"),
@@ -225,7 +228,15 @@ class TradingEngine:
     async def _scanner_loop(self) -> None:
         while not self._stop.is_set():
             try:
-                await asyncio.sleep(self.config.scanner_interval_seconds)
+                delay = (
+                    self.config.scanner_interval_seconds
+                    if self.sessions
+                    else min(
+                        self.config.scanner_interval_seconds,
+                        self.config.empty_startup_rescan_seconds,
+                    )
+                )
+                await asyncio.sleep(max(0.1, delay))
                 await self._scan_once()
             except asyncio.CancelledError:
                 raise
@@ -280,7 +291,15 @@ class TradingEngine:
             victim = min(evictable, key=lambda x: x.last_ranked_at)
             self._deactivate_symbol(victim.symbol, "capacity_rotation")
 
-        await self._bootstrap_symbol(symbol)
+        try:
+            await self._bootstrap_symbol(symbol)
+        except Exception as exc:
+            self._emit(
+                "symbol_bootstrap_error",
+                symbol,
+                {"error": str(exc)},
+            )
+            return
         self.sessions[symbol].last_ranked_at = now
         stop_event = asyncio.Event()
         task = asyncio.create_task(self._symbol_worker(symbol, stop_event), name=f"market-{symbol}")
