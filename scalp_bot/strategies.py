@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 from enum import StrEnum
 from math import floor, log10
 from statistics import median
+from time import monotonic
 from typing import Literal
 
 from .domain import Action, Candle, OrderBook, StrategyDecision, TradeTick, Trend
@@ -526,9 +527,185 @@ class HorizontalLevelStrategy(Strategy):
         )
 
 
+class DensityStage(StrEnum):
+    SEARCH = "search"
+    FOUND = "found"
+    PERSISTING = "persisting"
+    APPROACH = "approach"
+    TEST = "test"
+    DEFENDED = "defended"
+    EXHAUSTED = "exhausted"
+    REACTION = "reaction"
+
+
+@dataclass(slots=True)
+class DensityWallState:
+    side: Literal["bid", "ask"] | None = None
+    price: float | None = None
+    stage: DensityStage = DensityStage.SEARCH
+    first_seen: float = 0.0
+    peak_notional: float = 0.0
+    current_notional: float = 0.0
+    approaches: int = 0
+    was_near: bool = False
+    touched: bool = False
+
+
 class DensityBounceStrategy(Strategy):
     key = "orderbook_density"
-    label = "Отскок от плотности"
+    label = "Отскок от свежей плотности"
+
+    strength_multiple = 4.0
+    max_distance_pct = 0.004
+    approach_pct = 0.0025
+    approach_reset_pct = 0.0035
+    touch_pct = 0.00035
+    reaction_pct = 0.00055
+    min_persistence_seconds = 2.0
+    min_remaining_ratio = 0.60
+    max_approaches = 2
+    max_attack_ratio = 0.30
+    max_stop_pct = 0.005
+
+    def __init__(self) -> None:
+        self._states: dict[str, DensityWallState] = {}
+
+    def reset(self, symbol: str) -> None:
+        self._states.pop(symbol, None)
+
+    @staticmethod
+    def _rows(book: OrderBook) -> tuple[list[tuple[float, float, float]], list[tuple[float, float, float]], float]:
+        bids = [(p, q, p * q) for p, q in book.bids[:25]]
+        asks = [(p, q, p * q) for p, q in book.asks[:25]]
+        notionals = [row[2] for row in bids + asks]
+        return bids, asks, median(notionals) if notionals else 0.0
+
+    @staticmethod
+    def _same_price(left: float, right: float) -> bool:
+        return abs(left - right) / max(abs(left), abs(right), 1e-12) <= 1e-9
+
+    def _current_wall_notional(
+        self,
+        state: DensityWallState,
+        bids: list[tuple[float, float, float]],
+        asks: list[tuple[float, float, float]],
+    ) -> float | None:
+        if state.side is None or state.price is None:
+            return None
+        rows = bids if state.side == "bid" else asks
+        for price, _qty, notional in rows:
+            if self._same_price(price, state.price):
+                return notional
+        return None
+
+    def _select_wall(
+        self,
+        book: OrderBook,
+        bids: list[tuple[float, float, float]],
+        asks: list[tuple[float, float, float]],
+        baseline: float,
+    ) -> tuple[str, float, float, float] | None:
+        mid = book.mid
+        if not mid or baseline <= 0:
+            return None
+        candidates: list[tuple[str, float, float, float, float]] = []
+        for side, rows in (("bid", bids), ("ask", asks)):
+            for price, _qty, notional in rows:
+                strength = notional / baseline
+                if strength < self.strength_multiple:
+                    continue
+                distance = (
+                    (mid - price) / mid if side == "bid" else (price - mid) / mid
+                )
+                if not 0 <= distance <= self.max_distance_pct:
+                    continue
+                candidates.append((side, price, notional, strength, distance))
+        if not candidates:
+            return None
+        side, price, notional, strength, _distance = min(
+            candidates,
+            key=lambda row: (row[4], -row[3]),
+        )
+        return side, price, notional, strength
+
+    @staticmethod
+    def _wall_attack_notional(
+        trades: list[TradeTick],
+        wall_side: str,
+        wall_price: float,
+        now_ms: int | None = None,
+    ) -> float:
+        if not trades:
+            return 0.0
+        if now_ms is None:
+            now_ms = trades[-1].ts_ms
+        start = now_ms - 5_000
+        attack_side = "buy" if wall_side == "ask" else "sell"
+        tolerance = 0.0006
+        return sum(
+            trade.notional
+            for trade in trades
+            if trade.ts_ms >= start
+            and trade.side.lower() == attack_side
+            and abs(trade.price - wall_price) / wall_price <= tolerance
+        )
+
+    @staticmethod
+    def _trade_mode(action: Action, trend: Trend) -> tuple[str, bool]:
+        with_trend = (
+            (action == Action.LONG and trend == Trend.UP)
+            or (action == Action.SHORT and trend == Trend.DOWN)
+        )
+        return (
+            ("trend_following", True)
+            if with_trend
+            else ("countertrend_reaction", False)
+        )
+
+    def _wait(
+        self,
+        state: DensityWallState,
+        reason: str,
+        *,
+        confidence: float = 0.0,
+        flow: dict | None = None,
+        strength: float = 0.0,
+        attack_notional: float = 0.0,
+    ) -> StrategyDecision:
+        visuals = (
+            _price_visual(
+                f"{state.side} density",
+                state.price,
+                f"density_{state.side}",
+            )
+            if state.side and state.price is not None
+            else {}
+        )
+        remaining_ratio = (
+            state.current_notional / state.peak_notional
+            if state.peak_notional > 0
+            else 0.0
+        )
+        return StrategyDecision(
+            self.key,
+            Action.WAIT,
+            [reason],
+            confidence,
+            state.price,
+            visuals=visuals,
+            details={
+                "state": state.stage.value,
+                "wallSide": state.side,
+                "wallPrice": state.price,
+                "peakNotional": state.peak_notional,
+                "currentNotional": state.current_notional,
+                "remainingRatio": remaining_ratio,
+                "approaches": state.approaches,
+                "attackNotional5s": attack_notional,
+                "strengthMultiple": strength,
+                "flow": flow or {},
+            },
+        )
 
     def evaluate(
         self,
@@ -539,70 +716,262 @@ class DensityBounceStrategy(Strategy):
         symbol: str = "",
         trades: list[TradeTick] | None = None,
     ) -> StrategyDecision:
-        if not candles or not book.bids or not book.asks or trend == Trend.FLAT:
-            return StrategyDecision(self.key, Action.WAIT, ["Недостаточно данных стакана или нет тренда"])
+        if not candles or not book.bids or not book.asks or trend == Trend.FLAT or not symbol:
+            if symbol:
+                self.reset(symbol)
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Нужен читаемый тренд, стакан и активная монета"],
+                details={"state": DensityStage.SEARCH.value},
+            )
+
         mid = book.mid
         if not mid:
             return StrategyDecision(self.key, Action.WAIT, ["Нет mid price"])
 
-        bid_rows = [(p, q, p * q) for p, q in book.bids[:25]]
-        ask_rows = [(p, q, p * q) for p, q in book.asks[:25]]
-        notionals = [x[2] for x in bid_rows + ask_rows]
-        baseline = median(notionals) if notionals else 0
+        trades = trades or []
+        bids, asks, baseline = self._rows(book)
         if baseline <= 0:
             return StrategyDecision(self.key, Action.WAIT, ["Стакан пуст"])
 
-        bid_wall = max(bid_rows, key=lambda x: x[2])
-        ask_wall = max(ask_rows, key=lambda x: x[2])
-        close = candles[-1].close
+        now = monotonic()
+        state = self._states.setdefault(symbol, DensityWallState())
 
-        if trend == Trend.UP:
-            distance = (mid - bid_wall[0]) / mid
-            visuals = _price_visual("bid density", bid_wall[0], "density_bid")
-            if 0 <= distance <= 0.003 and bid_wall[2] >= baseline * 4 and bid_wall[2] > ask_wall[2] * 1.15:
-                stop = bid_wall[0] * 0.9988
-                risk = close - stop
-                if risk > 0:
-                    return StrategyDecision(
-                        strategy=self.key,
-                        action=Action.LONG,
-                        reasons=["Тренд вверх", "Крупная bid-плотность близко к цене", "Плотность заметно выше фона стакана"],
-                        confidence=0.68,
-                        watched_level=bid_wall[0],
-                        entry=close,
-                        stop=stop,
-                        target=close + risk * 1.5,
-                        visuals=visuals,
-                    )
-            return StrategyDecision(
-                self.key,
-                Action.WAIT,
-                ["Тренд вверх, значимой bid-плотности рядом нет"],
-                visuals=visuals,
+        # Continue observing the exact wall we already selected. A wall that is
+        # pulled or consumed invalidates the bounce idea instead of silently
+        # switching to another price.
+        if state.side is not None and state.price is not None:
+            current = self._current_wall_notional(state, bids, asks)
+            if current is None:
+                old_price = state.price
+                old_side = state.side
+                self._states[symbol] = DensityWallState(stage=DensityStage.EXHAUSTED)
+                return StrategyDecision(
+                    self.key,
+                    Action.WAIT,
+                    ["Плотность снята из стакана до подтверждённого отскока"],
+                    details={
+                        "state": DensityStage.EXHAUSTED.value,
+                        "wallSide": old_side,
+                        "wallPrice": old_price,
+                        "reason": "wall_removed",
+                    },
+                )
+            state.current_notional = current
+            state.peak_notional = max(state.peak_notional, current)
+            strength = current / baseline
+        else:
+            selected = self._select_wall(book, bids, asks, baseline)
+            if selected is None:
+                self._states[symbol] = DensityWallState()
+                return StrategyDecision(
+                    self.key,
+                    Action.WAIT,
+                    ["Свежей крупной плотности рядом с ценой нет"],
+                    details={"state": DensityStage.SEARCH.value},
+                )
+            side, price, notional, strength = selected
+            state = DensityWallState(
+                side=side,
+                price=price,
+                stage=DensityStage.FOUND,
+                first_seen=now,
+                peak_notional=notional,
+                current_notional=notional,
+            )
+            self._states[symbol] = state
+
+        wall_price = float(state.price)
+        remaining_ratio = (
+            state.current_notional / state.peak_notional
+            if state.peak_notional > 0
+            else 0.0
+        )
+        attack_notional = self._wall_attack_notional(trades, str(state.side), wall_price)
+        attack_ratio = (
+            attack_notional / state.peak_notional if state.peak_notional > 0 else 0.0
+        )
+        flow = compute_trade_flow(trades)
+
+        if (
+            remaining_ratio < self.min_remaining_ratio
+            or attack_ratio >= self.max_attack_ratio
+            or state.approaches > self.max_approaches
+        ):
+            state.stage = DensityStage.EXHAUSTED
+            return self._wait(
+                state,
+                "Плотность уже наторговывают/съедают — отскок больше не торгуем",
+                flow=flow,
+                strength=strength,
+                attack_notional=attack_notional,
             )
 
-        distance = (ask_wall[0] - mid) / mid
-        visuals = _price_visual("ask density", ask_wall[0], "density_ask")
-        if 0 <= distance <= 0.003 and ask_wall[2] >= baseline * 4 and ask_wall[2] > bid_wall[2] * 1.15:
-            stop = ask_wall[0] * 1.0012
-            risk = stop - close
-            if risk > 0:
-                return StrategyDecision(
-                    strategy=self.key,
-                    action=Action.SHORT,
-                    reasons=["Тренд вниз", "Крупная ask-плотность близко к цене", "Плотность заметно выше фона стакана"],
-                    confidence=0.68,
-                    watched_level=ask_wall[0],
-                    entry=close,
-                    stop=stop,
-                    target=close - risk * 1.5,
-                    visuals=visuals,
-                )
+        age = now - state.first_seen
+        if age < self.min_persistence_seconds:
+            state.stage = DensityStage.PERSISTING
+            return self._wait(
+                state,
+                "Плотность новая: ждём, что лимитная заявка останется в стакане",
+                confidence=0.35,
+                flow=flow,
+                strength=strength,
+                attack_notional=attack_notional,
+            )
+
+        distance = (
+            (mid - wall_price) / mid
+            if state.side == "bid"
+            else (wall_price - mid) / mid
+        )
+        near = 0 <= distance <= self.approach_pct
+        if near and not state.was_near:
+            state.approaches += 1
+        if distance >= self.approach_reset_pct:
+            state.was_near = False
+        elif near:
+            state.was_near = True
+
+        if state.approaches > self.max_approaches:
+            state.stage = DensityStage.EXHAUSTED
+            return self._wait(
+                state,
+                "К плотности уже слишком много раз подходили — вероятность её съедания выросла",
+                flow=flow,
+                strength=strength,
+                attack_notional=attack_notional,
+            )
+
+        if not near:
+            state.stage = DensityStage.FOUND
+            return self._wait(
+                state,
+                "Плотность подтверждена, ждём подход цены",
+                confidence=0.42,
+                flow=flow,
+                strength=strength,
+                attack_notional=attack_notional,
+            )
+
+        state.stage = DensityStage.APPROACH
+        last = candles[-1]
+        touch_distance = max(self.touch_pct, book.spread_pct * 1.5)
+        touched = (
+            last.low <= wall_price * (1 + touch_distance)
+            if state.side == "bid"
+            else last.high >= wall_price * (1 - touch_distance)
+        )
+        if touched:
+            state.touched = True
+            state.stage = DensityStage.TEST
+
+        if not state.touched:
+            return self._wait(
+                state,
+                "Цена подходит к свежей плотности, ждём фактический тест",
+                confidence=0.50,
+                flow=flow,
+                strength=strength,
+                attack_notional=attack_notional,
+            )
+
+        if state.side == "bid":
+            action = Action.LONG
+            reacted = mid >= wall_price * (1 + self.reaction_pct)
+            flow_reversed = flow["tradeCount5s"] >= 3 and flow["imbalance5s"] >= 0.05
+        else:
+            action = Action.SHORT
+            reacted = mid <= wall_price * (1 - self.reaction_pct)
+            flow_reversed = flow["tradeCount5s"] >= 3 and flow["imbalance5s"] <= -0.05
+
+        if not (reacted and flow_reversed):
+            state.stage = DensityStage.DEFENDED
+            return self._wait(
+                state,
+                "Плотность выдержала тест, ждём подтверждённый отскок от неё",
+                confidence=0.60,
+                flow=flow,
+                strength=strength,
+                attack_notional=attack_notional,
+            )
+
+        state.stage = DensityStage.REACTION
+        range_abs = _typical_range_abs(candles)
+        stop_buffer = max(
+            range_abs * 0.12,
+            wall_price * max(book.spread_pct * 1.5, 0.00012),
+        )
+        if action == Action.LONG:
+            stop = wall_price - stop_buffer
+            risk = mid - stop
+        else:
+            stop = wall_price + stop_buffer
+            risk = stop - mid
+
+        if risk <= 0 or risk / mid > self.max_stop_pct:
+            return self._wait(
+                state,
+                "Плотность отработала, но структурный stop слишком далеко для скальпа",
+                confidence=0.45,
+                flow=flow,
+                strength=strength,
+                attack_notional=attack_notional,
+            )
+
+        trade_mode, allow_runner = self._trade_mode(action, trend)
+        target_r = 1.6 if allow_runner else 1.15
+        target = mid + risk * target_r if action == Action.LONG else mid - risk * target_r
+        trend_reason = (
+            "Отскок идёт по тренду: после импульса runner разрешён"
+            if allow_runner
+            else "Отскок против тренда: забираем только короткую реакцию"
+        )
+        visuals = _price_visual(
+            f"{state.side} defended density",
+            wall_price,
+            f"density_{state.side}",
+        )
+
         return StrategyDecision(
-            self.key,
-            Action.WAIT,
-            ["Тренд вниз, значимой ask-плотности рядом нет"],
+            strategy=self.key,
+            action=action,
+            reasons=[
+                f"Свежая плотность {strength:.1f}x к медиане стакана",
+                f"Лимитная заявка сохранила {remaining_ratio * 100:.0f}% пикового объёма",
+                "Цена протестировала плотность и не смогла её пройти",
+                "Поток сделок развернулся от лимитной заявки",
+                trend_reason,
+            ],
+            confidence=min(
+                0.68
+                + min(strength, 10.0) * 0.012
+                + remaining_ratio * 0.06
+                + (0.04 if allow_runner else 0.0),
+                0.92,
+            ),
+            watched_level=wall_price,
+            entry=mid,
+            stop=stop,
+            target=target,
             visuals=visuals,
+            details={
+                "state": state.stage.value,
+                "wallSide": state.side,
+                "wallPrice": wall_price,
+                "peakNotional": state.peak_notional,
+                "currentNotional": state.current_notional,
+                "remainingRatio": remaining_ratio,
+                "approaches": state.approaches,
+                "attackNotional5s": attack_notional,
+                "attackRatio": attack_ratio,
+                "strengthMultiple": strength,
+                "flow": flow,
+                "tradeMode": trade_mode,
+                "allowRunner": allow_runner,
+                "exitMode": "runner_allowed" if allow_runner else "reaction_only",
+                "densityFresh": True,
+            },
         )
 
 
