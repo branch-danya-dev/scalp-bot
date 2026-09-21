@@ -4,7 +4,7 @@ import pytest
 from time import time
 
 from scalp_bot.config import Settings
-from scalp_bot.domain import Action, Candidate, Candle, OrderBook, Side, StrategyDecision, TradePlan
+from scalp_bot.domain import Action, Candidate, Candle, OrderBook, Side, StrategyDecision, TradePlan, Trend
 from scalp_bot.engine import ActiveSymbolSession, TradingEngine
 
 
