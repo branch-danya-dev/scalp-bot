@@ -88,6 +88,10 @@ class TradingEngine:
         self._tasks: list[asyncio.Task] = []
         self._worker_tasks: dict[str, tuple[asyncio.Task, asyncio.Event]] = {}
         self._stop = asyncio.Event()
+        self._paper_timer_task: asyncio.Task | None = None
+        self._run_started_at: float | None = None
+        self._run_deadline_at: float | None = None
+        self._last_run_summary: dict | None = None
 
     async def start(self) -> None:
         self._stop.clear()
@@ -99,8 +103,11 @@ class TradingEngine:
         ]
 
     async def close(self) -> None:
-        self.running = False
-        self._close_all_positions("shutdown")
+        if self.running:
+            self._stop_trading("shutdown")
+        else:
+            self._close_all_positions("shutdown")
+        self._cancel_run_timer()
         self._stop.set()
         for task, stop_event in self._worker_tasks.values():
             stop_event.set()
@@ -116,14 +123,97 @@ class TradingEngine:
 
     def set_running(self, value: bool) -> None:
         if value:
+            if self.running:
+                return
+            now = time()
             self.running = True
-            self._emit("bot_started", None, {})
+            self._run_started_at = now
+            self._run_deadline_at = now + self.config.paper_run_duration_seconds
+            self._last_run_summary = None
+            self._cancel_run_timer()
+            self._paper_timer_task = asyncio.create_task(
+                self._paper_run_timer(),
+                name="paper-run-timer",
+            )
+            self._emit(
+                "bot_started",
+                None,
+                {
+                    "runLabel": self.config.run_label,
+                    "startedAt": self._run_started_at,
+                    "deadlineAt": self._run_deadline_at,
+                    "durationSeconds": self.config.paper_run_duration_seconds,
+                    "config": self._run_config_snapshot(),
+                },
+            )
             return
 
+        self._stop_trading("bot_stop")
+
+    async def _paper_run_timer(self) -> None:
+        try:
+            await asyncio.sleep(self.config.paper_run_duration_seconds)
+        except asyncio.CancelledError:
+            raise
         if self.running:
-            self.running = False
-            self._close_all_positions("bot_stop")
-            self._emit("bot_stopped", None, {})
+            self._stop_trading("duration_elapsed", cancel_timer=False)
+
+    def _stop_trading(self, reason: str, *, cancel_timer: bool = True) -> None:
+        if not self.running and not self.broker.positions:
+            return
+        stopped_at = time()
+        self.running = False
+        if cancel_timer:
+            self._cancel_run_timer()
+        self._close_all_positions(reason)
+        started_at = self._run_started_at
+        summary = {
+            "runLabel": self.config.run_label,
+            "reason": reason,
+            "startedAt": started_at,
+            "stoppedAt": stopped_at,
+            "elapsedSeconds": max(0.0, stopped_at - started_at) if started_at else 0.0,
+            "configuredDurationSeconds": self.config.paper_run_duration_seconds,
+            "balance": self.broker.balance,
+            "realizedPnl": self.broker.total_pnl,
+            "closedTrades": len(self.broker.closed_trades),
+        }
+        self._last_run_summary = summary
+        self._emit("run_summary", None, summary)
+        self._emit("bot_stopped", None, {"reason": reason})
+        self._run_deadline_at = None
+
+    def _cancel_run_timer(self) -> None:
+        task = self._paper_timer_task
+        self._paper_timer_task = None
+        if task is None or task.done():
+            return
+        try:
+            current = asyncio.current_task()
+        except RuntimeError:
+            current = None
+        if task is not current:
+            task.cancel()
+
+    def _run_config_snapshot(self) -> dict:
+        return {
+            "startBalance": self.config.start_balance,
+            "durationSeconds": self.config.paper_run_duration_seconds,
+            "minTurnoverUsd": self.config.min_turnover_usd,
+            "workingSymbols": self.config.working_symbols,
+            "maxActiveSymbols": self.config.max_active_symbols,
+            "minNetProfitUsd": self.config.min_net_profit_usd,
+            "minNetRewardRisk": self.config.min_net_reward_risk,
+            "riskFraction": self.config.risk_fraction,
+            "maxTotalRiskFraction": self.config.max_total_risk_fraction,
+            "maxLeverage": self.config.max_leverage,
+            "partialTakeAtR": self.config.partial_take_at_r,
+            "partialTakeFraction": self.config.partial_take_fraction,
+            "runnerTargetR": self.config.runner_target_r,
+            "noFollowThroughSeconds": self.config.no_follow_through_seconds,
+            "replayEngagedFrameSeconds": self.config.replay_engaged_frame_seconds,
+            "replayIdleFrameSeconds": self.config.replay_idle_frame_seconds,
+        }
 
     def toggle_strategy(self, key: str, enabled: bool) -> None:
         if key not in self.strategy_enabled:
@@ -314,9 +404,14 @@ class TradingEngine:
                 session.last_eval = now
                 await self._evaluate(session)
 
-            if now - session.last_frame >= self.config.replay_frame_seconds:
+            position = self.broker.positions.get(symbol)
+            frame_interval = (
+                self.config.replay_engaged_frame_seconds
+                if position is not None or self._session_engaged(session)
+                else self.config.replay_idle_frame_seconds
+            )
+            if now - session.last_frame >= frame_interval:
                 session.last_frame = now
-                position = self.broker.positions.get(symbol)
                 self.recorder.record(
                     "market_frame",
                     symbol,
@@ -694,9 +789,23 @@ class TradingEngine:
                 }
             )
 
+        run_started = self._run_started_at
+        run_deadline = self._run_deadline_at
+        remaining = max(0.0, run_deadline - now) if self.running and run_deadline else 0.0
+        elapsed = max(0.0, now - run_started) if run_started else 0.0
+
         return {
             "botRunning": self.running,
             "mode": "paper",
+            "run": {
+                "label": self.config.run_label,
+                "configuredDurationSeconds": self.config.paper_run_duration_seconds,
+                "startedAt": run_started,
+                "deadlineAt": run_deadline,
+                "elapsedSeconds": elapsed,
+                "remainingSeconds": remaining,
+                "lastSummary": self._last_run_summary,
+            },
             "balance": self.broker.balance,
             "totalPnl": self.broker.total_pnl,
             "positions": [x.public() for x in self.broker.positions.values()],

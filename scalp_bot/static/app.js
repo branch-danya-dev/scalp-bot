@@ -28,6 +28,13 @@ function applyChartPrecision(value) {
   candleSeries.applyOptions({priceFormat:{type:"price", precision, minMove:10 ** -precision}});
 }
 const pct = value => value == null ? "—" : `${(Number(value) * 100).toFixed(2)}%`;
+function duration(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const h = String(Math.floor(total / 3600)).padStart(2, "0");
+  const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+  const s = String(total % 60).padStart(2, "0");
+  return `${h}:${m}:${s}`;
+}
 
 async function api(path, options={}) {
   const response = await fetch(path, options);
@@ -173,6 +180,8 @@ function eventText(event) {
   if (event.event === "decision") return `${payload.strategy}: ${(payload.reasons || []).join(" · ")}`;
   if (event.event === "symbol_activated") return "монета стала активной";
   if (event.event === "symbol_deactivated") return payload.reason || "deactivated";
+  if (event.event === "run_summary") return `${payload.reason} · elapsed ${duration(payload.elapsedSeconds)} · PnL ${money(payload.realizedPnl)} · trades ${payload.closedTrades}`;
+  if (event.event === "bot_stopped") return payload.reason || "stopped";
   return "";
 }
 
@@ -261,6 +270,9 @@ function render(data) {
   $("positionCount").textContent = data.positions.length;
   $("availableExposure").textContent = money(data.portfolio.availableNotional);
   $("costGate").textContent = `≥ ${money(data.risk.minNetProfitUsd)} net · RR≥${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}`;
+  $("runTimer").textContent = data.botRunning
+    ? duration(data.run?.remainingSeconds)
+    : duration(data.run?.configuredDurationSeconds);
   $("sessionFile").textContent = data.sessionFile.split("/").pop();
 
   renderWorking(data.working);

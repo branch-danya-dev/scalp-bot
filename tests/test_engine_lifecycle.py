@@ -1,4 +1,6 @@
 import asyncio
+
+import pytest
 from time import time
 
 from scalp_bot.config import Settings
@@ -206,3 +208,55 @@ def test_central_arbiter_ignores_stale_market_snapshot(tmp_path) -> None:
         assert not engine.broker.positions
     finally:
         close_rest(engine)
+
+
+
+def test_replay_sampling_is_fast_only_for_engaged_market(tmp_path) -> None:
+    engine = make_engine(
+        tmp_path,
+        replay_engaged_frame_seconds=1,
+        replay_idle_frame_seconds=5,
+    )
+    try:
+        session = ActiveSymbolSession(symbol="AAAUSDT", candles=[candle()])
+        assert not engine._session_engaged(session)
+        session.decisions["watch"] = StrategyDecision(
+            strategy="watch",
+            action=Action.WAIT,
+            reasons=["watch"],
+            confidence=0.6,
+            watched_level=100,
+        )
+        assert engine._session_engaged(session)
+    finally:
+        close_rest(engine)
+
+
+@pytest.mark.asyncio
+async def test_duration_timer_auto_stops_and_finalizes_position(tmp_path) -> None:
+    engine = make_engine(
+        tmp_path,
+        paper_run_duration_seconds=0.05,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+    )
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100,
+        )
+        engine.sessions["AAAUSDT"] = session
+        engine.broker.open(plan("AAAUSDT"), book())
+
+        engine.set_running(True)
+        await asyncio.sleep(0.12)
+
+        assert not engine.running
+        assert not engine.broker.positions
+        assert engine.broker.closed_trades[-1]["reason"] == "duration_elapsed"
+        assert engine._last_run_summary is not None
+        assert engine._last_run_summary["reason"] == "duration_elapsed"
+    finally:
+        await engine.rest.close()
