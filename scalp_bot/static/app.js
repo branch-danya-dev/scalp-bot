@@ -7,7 +7,26 @@ let priceLines = [];
 const $ = id => document.getElementById(id);
 const money = value => new Intl.NumberFormat("en-US", {style:"currency", currency:"USD", maximumFractionDigits:2}).format(value || 0);
 const compact = value => new Intl.NumberFormat("en-US", {notation:"compact", maximumFractionDigits:1}).format(value || 0);
-const price = value => value == null ? "—" : Number(value).toLocaleString("en-US", {maximumFractionDigits: value < 1 ? 6 : 3});
+function precisionFor(value) {
+  const abs = Math.abs(Number(value) || 0);
+  if (abs >= 1000) return 2;
+  if (abs >= 100) return 3;
+  if (abs >= 1) return 4;
+  if (abs >= 0.1) return 5;
+  if (abs >= 0.01) return 6;
+  if (abs >= 0.001) return 7;
+  return 8;
+}
+const price = value => {
+  if (value == null) return "—";
+  const precision = precisionFor(value);
+  return Number(value).toLocaleString("en-US", {maximumFractionDigits: precision});
+};
+function applyChartPrecision(value) {
+  if (!candleSeries || value == null) return;
+  const precision = precisionFor(value);
+  candleSeries.applyOptions({priceFormat:{type:"price", precision, minMove:10 ** -precision}});
+}
 const pct = value => value == null ? "—" : `${(Number(value) * 100).toFixed(2)}%`;
 
 async function api(path, options={}) {
@@ -137,8 +156,26 @@ function eventText(event) {
   return "";
 }
 
+function compactEvents(rows) {
+  const result = [];
+  let previousDecisionKey = null;
+  for (const event of rows) {
+    if (event.event !== "decision") {
+      previousDecisionKey = null;
+      result.push(event);
+      continue;
+    }
+    const payload = event.payload || {};
+    const key = [event.symbol, payload.strategy, payload.action, ...(payload.reasons || [])].join("|");
+    if (key === previousDecisionKey) continue;
+    previousDecisionKey = key;
+    result.push(event);
+  }
+  return result;
+}
+
 function renderEvents(rows) {
-  $("events").innerHTML = rows.slice(0, 60).map(event => `<div class="event">
+  $("events").innerHTML = compactEvents(rows).slice(0, 60).map(event => `<div class="event">
     <time>${new Date(event.ts * 1000).toLocaleTimeString()}</time>
     <span class="type">${event.event}</span>
     <span class="text">${event.symbol || ""} ${eventText(event)}</span>
@@ -160,11 +197,44 @@ function renderPosition(position) {
     <span>MAE ${money(position.mae_usd)}</span><span>MFE ${money(position.mfe_usd)}</span>`;
 }
 
+function renderTrades(rows) {
+  const root = $("closedTrades");
+  if (!rows?.length) {
+    root.innerHTML = '<div class="empty-row">Закрытых paper-сделок пока нет.</div>';
+    return;
+  }
+  root.innerHTML = rows.slice().reverse().map(trade => {
+    const netClass = trade.netPnl >= 0 ? "positive" : "negative";
+    return `<div class="trade-row">
+      <strong>${trade.symbol}</strong>
+      <span>${trade.side.toUpperCase()}</span>
+      <span>${price(trade.entry)} → ${price(trade.exit)}</span>
+      <span>${money(trade.fees)}</span>
+      <span>${money(trade.maeUsd)}</span>
+      <span>${money(trade.mfeUsd)}</span>
+      <span>${trade.reason}</span>
+      <strong class="${netClass}">${money(trade.netPnl)}</strong>
+    </div>`;
+  }).join("");
+}
+
 function render(data) {
-  $("connection").textContent = data.botRunning ? "Бот торгует" : "Наблюдение";
+  const status = $("connection");
+  status.textContent = data.botRunning ? "PAPER TRADING ON" : "PAPER OFF · только наблюдение";
+  status.className = data.botRunning ? "live trading-on" : "live observing";
+  $("startBtn").disabled = data.botRunning;
+  $("stopBtn").disabled = !data.botRunning;
+
+  const openPnl = data.positions.reduce((sum, position) => sum + Number(position.unrealized_pnl || 0), 0);
+  const totalNet = Number(data.totalPnl || 0) + openPnl;
+
   $("balance").textContent = money(data.balance);
-  $("pnl").textContent = money(data.totalPnl);
-  $("pnl").className = data.totalPnl >= 0 ? "positive" : "negative";
+  $("realizedPnl").textContent = money(data.totalPnl);
+  $("realizedPnl").className = data.totalPnl >= 0 ? "positive" : "negative";
+  $("openPnl").textContent = money(openPnl);
+  $("openPnl").className = openPnl >= 0 ? "positive" : "negative";
+  $("netPnl").textContent = money(totalNet);
+  $("netPnl").className = totalNet >= 0 ? "positive" : "negative";
   $("positionCount").textContent = data.positions.length;
   $("availableExposure").textContent = money(data.portfolio.availableNotional);
   $("costGate").textContent = `≥ ${money(data.risk.minNetProfitUsd)} net`;
@@ -174,19 +244,26 @@ function render(data) {
   renderCandidates(data.candidates);
   renderStrategies(data.strategies);
   renderEvents(data.events);
+  renderTrades(data.closedTrades);
 
   if (data.market) {
     selectedSymbol = data.market.symbol;
     const row = data.working.find(x => x.symbol === selectedSymbol);
     const position = row?.position || null;
+    const book = data.market.orderbook;
+    const mid = book?.bestBid && book?.bestAsk ? (book.bestBid + book.bestAsk) / 2 : null;
+    const gapBps = mid ? (data.market.lastPrice - mid) / mid * 10000 : null;
+    const gapText = gapBps == null ? "" : ` · last↔book ${gapBps >= 0 ? "+" : ""}${gapBps.toFixed(1)} bps`;
+
     $("symbolTitle").textContent = data.market.symbol;
-    $("symbolMeta").textContent = `1m · ${price(data.market.lastPrice)} · activity ${pct(row?.activityChange)}`;
+    $("symbolMeta").textContent = `1m · last ${price(data.market.lastPrice)}${gapText} · activity ${pct(row?.activityChange)}`;
     $("trendBadge").textContent = data.market.trend.toUpperCase();
     $("trendBadge").className = `trend ${data.market.trend}`;
     ensureChart();
+    applyChartPrecision(data.market.lastPrice);
     candleSeries.setData(data.market.candles);
     renderVisuals(data.market.decisions, position);
-    renderBook(data.market.orderbook);
+    renderBook(book);
     renderDecisions(data.market.decisions);
     renderPosition(position);
   }
@@ -197,7 +274,9 @@ async function refresh() {
     const query = selectedSymbol ? `?symbol=${encodeURIComponent(selectedSymbol)}` : "";
     render(await api(`/api/state${query}`));
   } catch (error) {
-    $("connection").textContent = "Нет связи";
+    const status = $("connection");
+    status.textContent = "Нет связи";
+    status.className = "live disconnected";
   }
 }
 
