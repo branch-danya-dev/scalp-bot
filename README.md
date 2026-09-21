@@ -40,7 +40,8 @@ This run branch is the current integrated project state. It combines the 10-hour
 - runner target about 2.5R;
 - no-follow-through early cutting;
 - structural invalidation before emergency hard stop;
-- paper positions finalize on Stop, shutdown, or 10h deadline.
+- paper positions finalize on Stop, shutdown, or 10h deadline;
+- one position may use at most 25% of portfolio exposure by default, so a tight scalp stop cannot monopolize all capital.
 
 ## Research-run rules
 
