@@ -21,3 +21,10 @@ dev = [
 pythonpath = ["."]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[tool.setuptools.packages.find]
+include = ["scalp_bot*"]
+exclude = ["data*", "tests*"]
+
+[tool.setuptools.package-data]
+scalp_bot = ["static/*"]
