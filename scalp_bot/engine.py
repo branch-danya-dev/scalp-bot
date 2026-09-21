@@ -14,7 +14,7 @@ from .risk import RiskEngine
 from .strategies import DEFAULT_STRATEGIES, Strategy, classify_trend, compute_trade_flow
 
 
-ACTIVE_SETUP_STATES = {"found", "approach", "pressure", "break", "impulse"}
+ACTIVE_SETUP_STATES = {"found", "persisting", "approach", "pressure", "test", "defended", "reject", "reaction", "break", "impulse"}
 
 
 @dataclass(slots=True)
@@ -204,6 +204,7 @@ class TradingEngine:
             "maxActiveSymbols": self.config.max_active_symbols,
             "minNetProfitUsd": self.config.min_net_profit_usd,
             "minNetRewardRisk": self.config.min_net_reward_risk,
+            "enforceNetRewardRiskGate": self.config.enforce_net_reward_risk_gate,
             "riskFraction": self.config.risk_fraction,
             "maxTotalRiskFraction": self.config.max_total_risk_fraction,
             "maxLeverage": self.config.max_leverage,
@@ -648,8 +649,17 @@ class TradingEngine:
             return
 
         reason: str | None = None
+        trade_mode = (
+            str(pos.strategy_details.get("tradeMode") or "")
+            if isinstance(pos.strategy_details, dict)
+            else ""
+        )
         expected_trend = Trend.UP if pos.side == Side.LONG else Trend.DOWN
-        if session.trend != expected_trend and pos.unrealized_pnl < 0:
+        if (
+            trade_mode != "countertrend_reaction"
+            and session.trend != expected_trend
+            and pos.unrealized_pnl < 0
+        ):
             reason = "higher_timeframe_context_lost"
 
         zone = pos.strategy_details.get("zone") if isinstance(pos.strategy_details, dict) else None
@@ -663,9 +673,13 @@ class TradingEngine:
 
         if reason is None and pos.strategy == "orderbook_density" and pos.unrealized_pnl < 0:
             decision = session.decisions.get(pos.strategy)
-            expected_action = Action.LONG if pos.side == Side.LONG else Action.SHORT
-            if decision is not None and decision.action != expected_action:
-                reason = "density_confirmation_lost"
+            density_state = (
+                str(decision.details.get("state") or "")
+                if decision is not None
+                else ""
+            )
+            if density_state == "exhausted":
+                reason = "density_invalidated"
 
         if reason is None:
             return
@@ -827,6 +841,7 @@ class TradingEngine:
             "risk": {
                 "minNetProfitUsd": self.config.min_net_profit_usd,
                 "minNetRewardRisk": self.config.min_net_reward_risk,
+                "enforceNetRewardRiskGate": self.config.enforce_net_reward_risk_gate,
                 "riskFraction": self.config.risk_fraction,
                 "maxTotalRiskFraction": self.config.max_total_risk_fraction,
                 "maxLeverage": self.config.max_leverage,
