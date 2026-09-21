@@ -836,6 +836,8 @@ class TradingEngine:
                 "partialTakeAtR": self.config.partial_take_at_r,
                 "partialTakeFraction": self.config.partial_take_fraction,
                 "runnerTargetR": self.config.runner_target_r,
+                "sessionLossLimitEnabled": self.config.enforce_session_loss_limit,
+                "sessionLossLimitFraction": self.config.max_daily_loss_fraction,
             },
             "sessionFile": str(self.recorder.path),
         }
