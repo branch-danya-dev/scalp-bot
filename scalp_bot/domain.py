@@ -135,6 +135,7 @@ class StrategyDecision:
     target: float | None = None
     visuals: dict[str, Any] = field(default_factory=dict)
     details: dict[str, Any] = field(default_factory=dict)
+    setup_id: str | None = None
 
     @property
     def side(self) -> Side | None:
@@ -169,7 +170,11 @@ class TradePlan:
     expected_gross_profit: float
     estimated_costs: float
     expected_net_profit: float
+    expected_net_loss: float
+    net_reward_risk: float
     entry_drift_pct: float
+    setup_id: str
+    strategy_details: dict[str, Any] = field(default_factory=dict)
 
     def public(self) -> dict[str, Any]:
         data = asdict(self)

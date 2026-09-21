@@ -54,7 +54,7 @@ class BybitRestClient:
 
     async def active_candidates(self) -> list[Candidate]:
         liquid = await self.liquid_candidates(self.config.liquid_universe_size)
-        semaphore = asyncio.Semaphore(6)
+        semaphore = asyncio.Semaphore(max(1, self.config.activity_request_concurrency))
 
         async def enrich(candidate: Candidate) -> Candidate:
             async with semaphore:
@@ -63,6 +63,7 @@ class BybitRestClient:
                     "1",
                     max(self.config.activity_window_minutes + 1, 3),
                 )
+                await asyncio.sleep(self.config.activity_request_pause_seconds)
             if len(candles) >= 2:
                 first = candles[0]
                 last = candles[-1]
