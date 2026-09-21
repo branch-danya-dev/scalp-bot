@@ -40,9 +40,18 @@ function ensureChart() {
   chart = LightweightCharts.createChart($("chart"), {
     autoSize: true,
     layout: {background:{color:"transparent"}, textColor:"#6e6e73"},
+    localization: {
+      locale: navigator.language,
+      timeFormatter: time => new Date(Number(time) * 1000).toLocaleString()
+    },
     grid: {vertLines:{color:"#f1f1f3"}, horzLines:{color:"#f1f1f3"}},
     rightPriceScale: {borderVisible:false},
-    timeScale: {timeVisible:true, secondsVisible:false, borderVisible:false}
+    timeScale: {
+      timeVisible:true,
+      secondsVisible:false,
+      borderVisible:false,
+      tickMarkFormatter: time => new Date(Number(time) * 1000).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})
+    }
   });
   candleSeries = chart.addCandlestickSeries({
     upColor:"#34c759", downColor:"#ff453a", borderVisible:false,
