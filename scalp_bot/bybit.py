@@ -31,7 +31,7 @@ class BybitRestClient:
             raise BybitError(f"Bybit error {payload.get('retCode')}: {payload.get('retMsg')}")
         return payload["result"]
 
-    async def candidates(self, limit: int = 12) -> list[Candidate]:
+    async def liquid_candidates(self, limit: int | None = None) -> list[Candidate]:
         result = await self._get("/v5/market/tickers", {"category": "linear"})
         rows: list[Candidate] = []
         for item in result.get("list", []):
@@ -50,7 +50,36 @@ class BybitRestClient:
                 )
             )
         rows.sort(key=lambda x: x.turnover_24h, reverse=True)
-        return rows[:limit]
+        return rows[:limit] if limit else rows
+
+    async def active_candidates(self) -> list[Candidate]:
+        liquid = await self.liquid_candidates(self.config.liquid_universe_size)
+        semaphore = asyncio.Semaphore(6)
+
+        async def enrich(candidate: Candidate) -> Candidate:
+            async with semaphore:
+                candles = await self.klines(
+                    candidate.symbol,
+                    "1",
+                    max(self.config.activity_window_minutes + 1, 3),
+                )
+            if len(candles) >= 2:
+                first = candles[0]
+                last = candles[-1]
+                if first.open:
+                    candidate.activity_change = (last.close - first.open) / first.open
+                candidate.activity_turnover = sum(x.turnover for x in candles[-self.config.activity_window_minutes :])
+            return candidate
+
+        enriched = await asyncio.gather(*(enrich(x) for x in liquid), return_exceptions=True)
+        rows: list[Candidate] = []
+        for original, item in zip(liquid, enriched, strict=True):
+            rows.append(original if isinstance(item, Exception) else item)
+
+        rows.sort(key=lambda x: (abs(x.activity_change), x.activity_turnover), reverse=True)
+        for index, item in enumerate(rows, start=1):
+            item.activity_rank = index
+        return rows
 
     async def klines(self, symbol: str, interval: str, limit: int = 240) -> list[Candle]:
         result = await self._get(

@@ -15,7 +15,7 @@ from .strategies import DEFAULT_STRATEGIES, Strategy, classify_trend
 
 
 @dataclass(slots=True)
-class SymbolState:
+class ActiveSymbolSession:
     symbol: str
     candles: list[Candle] = field(default_factory=list)
     context_15m: list[Candle] = field(default_factory=list)
@@ -23,7 +23,10 @@ class SymbolState:
     last_price: float = 0.0
     trend: Trend = Trend.FLAT
     decisions: dict[str, StrategyDecision] = field(default_factory=dict)
+    decision_fingerprints: dict[str, tuple] = field(default_factory=dict)
     last_eval: float = 0.0
+    last_frame: float = 0.0
+    last_risk_fingerprint: tuple | None = None
 
     def market_snapshot(self) -> dict:
         return {
@@ -33,6 +36,15 @@ class SymbolState:
             "candles": [x.public() for x in self.candles[-240:]],
             "orderbook": self.orderbook.public(),
             "decisions": {k: v.public() for k, v in self.decisions.items()},
+        }
+
+    def frame(self, book_depth: int, position: dict | None) -> dict:
+        return {
+            "lastPrice": self.last_price,
+            "trend": self.trend.value,
+            "candle": self.candles[-1].public() if self.candles else None,
+            "orderbook": self.orderbook.public(book_depth),
+            "position": position,
         }
 
 
@@ -47,12 +59,11 @@ class TradingEngine:
         self.strategy_enabled: dict[str, bool] = {x.key: True for x in DEFAULT_STRATEGIES}
         self.running = False
         self.candidates: list[Candidate] = []
-        self.states: dict[str, SymbolState] = {}
-        self.events: deque[dict] = deque(maxlen=160)
+        self.sessions: dict[str, ActiveSymbolSession] = {}
+        self.events: deque[dict] = deque(maxlen=220)
         self._tasks: list[asyncio.Task] = []
         self._worker_tasks: dict[str, tuple[asyncio.Task, asyncio.Event]] = {}
         self._stop = asyncio.Event()
-        self._decision_fingerprints: dict[tuple[str, str], tuple] = {}
 
     async def start(self) -> None:
         self._stop.clear()
@@ -93,21 +104,37 @@ class TradingEngine:
                 self._emit("scanner_error", None, {"error": str(exc)})
 
     async def _scan_once(self) -> None:
-        self.candidates = await self.rest.candidates(limit=12)
+        self.candidates = await self.rest.active_candidates()
         desired = [x.symbol for x in self.candidates[: self.config.working_symbols]]
-        if self.broker.position and self.broker.position.symbol not in desired:
-            desired.append(self.broker.position.symbol)
+        for symbol in self.broker.positions:
+            if symbol not in desired:
+                desired.append(symbol)
         await self._sync_workers(desired)
-        self._emit("scanner_update", None, {"working": desired, "candidates": [x.symbol for x in self.candidates]})
+        self._emit(
+            "scanner_update",
+            None,
+            {
+                "active": desired,
+                "ranked": [
+                    {
+                        "symbol": x.symbol,
+                        "activityChange": x.activity_change,
+                        "turnover24h": x.turnover_24h,
+                    }
+                    for x in self.candidates
+                ],
+            },
+        )
 
     async def _sync_workers(self, desired: list[str]) -> None:
         desired_set = set(desired)
         for symbol in list(self._worker_tasks):
-            if symbol not in desired_set:
+            if symbol not in desired_set and symbol not in self.broker.positions:
                 task, stop_event = self._worker_tasks.pop(symbol)
                 stop_event.set()
                 task.cancel()
-                self.states.pop(symbol, None)
+                self._emit("symbol_deactivated", symbol, {})
+                self.sessions.pop(symbol, None)
         for symbol in desired:
             if symbol in self._worker_tasks:
                 continue
@@ -121,18 +148,32 @@ class TradingEngine:
             self.rest.klines(symbol, "1", 240),
             self.rest.klines(symbol, "15", 120),
         )
-        state = SymbolState(symbol=symbol, candles=candles, context_15m=context)
-        state.last_price = candles[-1].close if candles else 0
-        state.trend = classify_trend(context)
-        self.states[symbol] = state
+        session = ActiveSymbolSession(symbol=symbol, candles=candles, context_15m=context)
+        session.last_price = candles[-1].close if candles else 0
+        session.trend = classify_trend(context)
+        self.sessions[symbol] = session
+        self._emit(
+            "symbol_activated",
+            symbol,
+            {"market": session.market_snapshot(), "reason": "ranked active after liquidity filter"},
+        )
 
     async def _context_loop(self) -> None:
         while not self._stop.is_set():
             try:
                 await asyncio.sleep(60)
-                for symbol, state in list(self.states.items()):
-                    state.context_15m = await self.rest.klines(symbol, "15", 120)
-                    state.trend = classify_trend(state.context_15m)
+                items = list(self.sessions.items())
+                if not items:
+                    continue
+                results = await asyncio.gather(
+                    *(self.rest.klines(symbol, "15", 120) for symbol, _ in items),
+                    return_exceptions=True,
+                )
+                for (symbol, session), result in zip(items, results, strict=True):
+                    if isinstance(result, Exception):
+                        continue
+                    session.context_15m = result
+                    session.trend = classify_trend(result)
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
@@ -142,30 +183,42 @@ class TradingEngine:
         book_state = OrderBookState()
 
         async def on_message(message: dict) -> None:
-            state = self.states.get(symbol)
-            if state is None:
+            session = self.sessions.get(symbol)
+            if session is None:
                 return
             topic = message.get("topic", "")
             if topic.startswith("orderbook."):
-                state.orderbook = book_state.apply(message)
+                session.orderbook = book_state.apply(message)
             elif topic.startswith("kline."):
-                self._apply_kline(state, message)
+                self._apply_kline(session, message)
             elif topic.startswith("publicTrade."):
                 rows = message.get("data") or []
                 if rows:
-                    state.last_price = float(rows[-1]["p"])
-                    trade = self.broker.mark(symbol, state.last_price, state.orderbook.spread_pct)
-                    if trade:
-                        self._emit("trade_closed", symbol, trade, snapshot=True)
+                    session.last_price = float(rows[-1]["p"])
+                    closed = self.broker.mark(symbol, session.last_price, session.orderbook)
+                    if closed:
+                        self._emit("trade_closed", symbol, closed, snapshot=True)
+
             now = monotonic()
-            if now - state.last_eval >= 0.8:
-                state.last_eval = now
-                await self._evaluate(state)
+            if now - session.last_eval >= 0.8:
+                session.last_eval = now
+                await self._evaluate(session)
+            if now - session.last_frame >= self.config.replay_frame_seconds:
+                session.last_frame = now
+                position = self.broker.positions.get(symbol)
+                self.recorder.record(
+                    "market_frame",
+                    symbol,
+                    session.frame(
+                        self.config.replay_book_depth,
+                        position.public() if position else None,
+                    ),
+                )
 
         await stream_symbol(self.config.bybit_public_ws_url, symbol, on_message, stop_event)
 
     @staticmethod
-    def _apply_kline(state: SymbolState, message: dict) -> None:
+    def _apply_kline(session: ActiveSymbolSession, message: dict) -> None:
         rows = message.get("data") or []
         if not rows:
             return
@@ -180,89 +233,124 @@ class TradingEngine:
             turnover=float(row["turnover"]),
             confirmed=bool(row.get("confirm")),
         )
-        state.last_price = candle.close
-        if state.candles and state.candles[-1].start_ms == candle.start_ms:
-            state.candles[-1] = candle
+        session.last_price = candle.close
+        if session.candles and session.candles[-1].start_ms == candle.start_ms:
+            session.candles[-1] = candle
         else:
-            state.candles.append(candle)
-            state.candles = state.candles[-240:]
+            session.candles.append(candle)
+            session.candles = session.candles[-240:]
 
-    async def _evaluate(self, state: SymbolState) -> None:
-        if not state.candles:
+    async def _evaluate(self, session: ActiveSymbolSession) -> None:
+        if not session.candles:
             return
-        state.trend = classify_trend(state.context_15m)
+        session.trend = classify_trend(session.context_15m)
         trade_candidates: list[StrategyDecision] = []
         for key, strategy in self.strategies.items():
             if not self.strategy_enabled[key]:
                 continue
-            decision = strategy.evaluate(state.candles, state.orderbook, state.trend)
-            state.decisions[key] = decision
-            self._record_decision_if_changed(state, decision)
+            decision = strategy.evaluate(session.candles, session.orderbook, session.trend)
+            session.decisions[key] = decision
+            self._record_decision_if_changed(session, decision)
             if decision.tradeable:
                 trade_candidates.append(decision)
 
-        if not self.running or self.broker.position is not None or not trade_candidates:
+        if not self.running or session.symbol in self.broker.positions or not trade_candidates:
             return
+        can_open, reason = self.broker.can_open(session.symbol)
+        if not can_open:
+            self._risk_reject_if_changed(session, None, reason)
+            return
+
         decision = max(trade_candidates, key=lambda x: x.confidence)
         result = self.risk.build_plan(
-            state.symbol,
+            session.symbol,
             decision,
             self.broker.balance,
-            state.orderbook.spread_pct,
+            session.orderbook,
+            self.broker.available_notional,
+            self.broker.available_risk_usd,
         )
         if not result.allowed or result.plan is None:
-            self._emit(
-                "risk_reject",
-                state.symbol,
-                {"strategy": decision.strategy, "reason": result.reason, "decision": decision.public()},
-                snapshot=True,
-            )
+            self._risk_reject_if_changed(session, decision, result.reason)
             return
-        position = self.broker.open(result.plan, state.orderbook.spread_pct)
+
+        session.last_risk_fingerprint = None
+        position = self.broker.open(result.plan, session.orderbook)
         self._emit(
             "trade_opened",
-            state.symbol,
-            {"plan": result.plan.public(), "position": position.public(), "reasons": decision.reasons},
+            session.symbol,
+            {
+                "plan": result.plan.public(),
+                "position": position.public(),
+                "reasons": decision.reasons,
+                "visuals": decision.visuals,
+                "holdingRule": "temporary negative PnL is tolerated until strategy stop/invalidation is reached",
+            },
             snapshot=True,
         )
 
-    def _record_decision_if_changed(self, state: SymbolState, decision: StrategyDecision) -> None:
+    def _risk_reject_if_changed(
+        self,
+        session: ActiveSymbolSession,
+        decision: StrategyDecision | None,
+        reason: str,
+    ) -> None:
+        fingerprint = (decision.strategy if decision else "portfolio", reason)
+        if session.last_risk_fingerprint == fingerprint:
+            return
+        session.last_risk_fingerprint = fingerprint
+        self._emit(
+            "risk_reject",
+            session.symbol,
+            {
+                "strategy": decision.strategy if decision else None,
+                "reason": reason,
+                "decision": decision.public() if decision else None,
+            },
+            snapshot=True,
+        )
+
+    def _record_decision_if_changed(self, session: ActiveSymbolSession, decision: StrategyDecision) -> None:
         fingerprint = (
             decision.action.value,
             round(decision.watched_level or 0, 8),
+            round(decision.entry or 0, 8),
             tuple(decision.reasons),
         )
-        key = (state.symbol, decision.strategy)
-        if self._decision_fingerprints.get(key) == fingerprint:
+        if session.decision_fingerprints.get(decision.strategy) == fingerprint:
             return
-        self._decision_fingerprints[key] = fingerprint
-        self._emit("decision", state.symbol, decision.public())
+        session.decision_fingerprints[decision.strategy] = fingerprint
+        self._emit("decision", session.symbol, decision.public())
 
     def _emit(self, event: str, symbol: str | None, payload: dict, snapshot: bool = False) -> None:
         row = {"ts": time(), "event": event, "symbol": symbol, "payload": payload}
         self.events.appendleft(row)
         stored = dict(payload)
-        if snapshot and symbol in self.states:
-            stored["market"] = self.states[symbol].market_snapshot()
+        if snapshot and symbol in self.sessions:
+            stored["market"] = self.sessions[symbol].market_snapshot()
         self.recorder.record(event, symbol, stored)
 
     def public_state(self, selected_symbol: str | None = None) -> dict:
-        working = list(self.states)
-        if selected_symbol not in self.states:
+        working = list(self.sessions)
+        if selected_symbol not in self.sessions:
             selected_symbol = working[0] if working else None
-        market = self.states[selected_symbol].market_snapshot() if selected_symbol else None
+        market = self.sessions[selected_symbol].market_snapshot() if selected_symbol else None
         candidate_map = {x.symbol: x for x in self.candidates}
         working_rows = []
         for symbol in working:
             candidate = candidate_map.get(symbol)
-            state = self.states[symbol]
+            session = self.sessions[symbol]
+            position = self.broker.positions.get(symbol)
             working_rows.append(
                 {
                     "symbol": symbol,
                     "turnover24h": candidate.turnover_24h if candidate else None,
                     "change24h": candidate.change_24h if candidate else None,
-                    "lastPrice": state.last_price,
-                    "trend": state.trend.value,
+                    "activityChange": candidate.activity_change if candidate else None,
+                    "activityRank": candidate.activity_rank if candidate else None,
+                    "lastPrice": session.last_price,
+                    "trend": session.trend.value,
+                    "position": position.public() if position else None,
                 }
             )
         return {
@@ -270,12 +358,18 @@ class TradingEngine:
             "mode": "paper",
             "balance": self.broker.balance,
             "totalPnl": self.broker.total_pnl,
-            "position": self.broker.position.public() if self.broker.position else None,
-            "closedTrades": self.broker.closed_trades[-20:],
+            "positions": [x.public() for x in self.broker.positions.values()],
+            "closedTrades": self.broker.closed_trades[-30:],
+            "portfolio": {
+                "totalExposure": self.broker.total_exposure,
+                "availableNotional": self.broker.available_notional,
+                "openRiskUsd": self.broker.open_risk_usd,
+                "availableRiskUsd": self.broker.available_risk_usd,
+            },
             "working": working_rows,
             "candidates": [x.public() for x in self.candidates],
             "market": market,
-            "events": list(self.events)[:60],
+            "events": list(self.events)[:80],
             "strategies": [
                 {"key": key, "label": strategy.label, "enabled": self.strategy_enabled[key]}
                 for key, strategy in self.strategies.items()
@@ -283,7 +377,9 @@ class TradingEngine:
             "risk": {
                 "minNetProfitUsd": self.config.min_net_profit_usd,
                 "riskFraction": self.config.risk_fraction,
+                "maxTotalRiskFraction": self.config.max_total_risk_fraction,
                 "maxLeverage": self.config.max_leverage,
+                "maxEntryDriftBps": self.config.max_entry_drift_bps,
                 "takerFeeRate": self.config.taker_fee_rate,
                 "slippageBps": self.config.slippage_bps,
             },

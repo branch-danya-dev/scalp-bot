@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Scalp Bot Replay</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+<main class="shell replay-shell">
+  <header class="topbar card">
+    <div class="brand">
+      <div class="traffic"><i></i><i></i><i></i></div>
+      <strong>Session Replay</strong><span class="badge">REVIEW</span>
+    </div>
+    <div class="actions replay-controls">
+      <a class="button secondary link-button" href="/">Live</a>
+      <select id="sessionSelect" class="select"></select>
+      <select id="symbolSelect" class="select"></select>
+      <button id="playBtn" class="button primary">▶</button>
+    </div>
+  </header>
+  <section class="replay-meta card">
+    <div><span>Время</span><strong id="replayTime">—</strong></div>
+    <div><span>Цена</span><strong id="replayPrice">—</strong></div>
+    <div><span>Тренд</span><strong id="replayTrend">—</strong></div>
+    <div><span>Позиция</span><strong id="replayPosition">—</strong></div>
+  </section>
+  <section class="replay-workspace">
+    <section class="card chart-card replay-chart-card">
+      <div class="heading"><h2 id="replayTitle">График</h2><span>бот и рынок в одной временной шкале</span></div>
+      <div id="replayChart"></div>
+      <input id="frameSlider" class="timeline-slider" type="range" min="0" max="0" value="0">
+      <div id="replayDecision" class="review-box">Выберите событие или двигайте временную шкалу.</div>
+    </section>
+    <aside class="card book replay-book">
+      <div class="heading"><h2>Стакан в этот момент</h2><span id="replaySpread">—</span></div>
+      <div class="book-head"><span>Цена</span><span>Кол-во</span><span>USD</span></div>
+      <div id="replayAsks"></div>
+      <div id="replayMid" class="mid">—</div>
+      <div id="replayBids"></div>
+    </aside>
+  </section>
+  <section class="card replay-events-panel">
+    <div class="heading"><h2>События бота</h2><span>клик → перейти к моменту</span></div>
+    <div id="replayEvents" class="replay-events"></div>
+  </section>
+</main>
+<script src="/static/replay.js"></script>
+</body>
+</html>
