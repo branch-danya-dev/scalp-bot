@@ -295,6 +295,7 @@ def test_density_removed_before_reaction_is_not_traded() -> None:
     strategy._states["TESTUSDT"].first_seen -= 3
 
     no_wall_book = density_book(ask_wall_notional=2_000)
+    no_wall_book.asks = [(p, q) for p, q in no_wall_book.asks if abs(p - 100.00) > 1e-9]
     decision = strategy.evaluate(
         candles,
         no_wall_book,
