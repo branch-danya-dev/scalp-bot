@@ -210,7 +210,7 @@ def _approach_is_directional(candles: list[Candle], kind: LevelKind) -> bool:
     closes = [c.close for c in recent]
     if kind == "resistance":
         return closes[-1] > closes[0] and sum(
-            right >= left for left, right in zip(closes, closes[1:], strict=True)
+            right >= left for left, right in zip(closes, closes[1:])
         ) >= 2
     return closes[-1] < closes[0] and sum(
         right <= left for left, right in zip(closes, closes[1:], strict=True)
