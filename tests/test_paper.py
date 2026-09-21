@@ -109,7 +109,7 @@ def test_runner_reversal_after_partial_does_not_return_full_trade_to_loss() -> N
     )
     broker = PaperBroker(cfg)
     broker.open(plan("AAAUSDT", Side.LONG, 1000), book(100.00, 100.01))
-    partial = broker.mark("AAAUSDT", 100.51, book(100.51, 100.52))
+    partial = broker.mark("AAAUSDT", 100.53, book(100.53, 100.54))
     assert partial and partial[0]["event"] == "partial_take"
     locked = broker.total_pnl
     stop = broker.positions["AAAUSDT"].stop
@@ -152,5 +152,5 @@ def test_current_risk_is_released_after_stop_moves_beyond_entry() -> None:
     broker = PaperBroker(cfg)
     broker.open(plan("AAAUSDT", Side.LONG, 1000), book(100.00, 100.01))
     assert broker.open_risk_usd > 0
-    broker.mark("AAAUSDT", 100.51, book(100.51, 100.52))
+    broker.mark("AAAUSDT", 100.53, book(100.53, 100.54))
     assert broker.open_risk_usd == 0
