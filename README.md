@@ -70,6 +70,12 @@ At the deadline:
 - run_summary is written;
 - server remains available for Replay.
 
+REST resilience:
+- all Bybit REST requests are globally paced;
+- HTTP 429 / Bybit 10006 use exponential retry/backoff;
+- an exhausted temporary rate limit no longer crashes FastAPI startup;
+- failed symbol bootstrap is skipped and retried by subsequent scans.
+
 Replay sampling:
 - 1 second while a setup/position is engaged;
 - 5 seconds during idle observation;
