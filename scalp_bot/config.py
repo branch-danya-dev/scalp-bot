@@ -20,8 +20,9 @@ class Settings(BaseSettings):
     activity_request_concurrency: int = 2
     activity_request_pause_seconds: float = 0.20
 
-    min_net_profit_usd: float = 1.0
+    min_net_profit_usd: float = 0.10
     min_net_reward_risk: float = 1.15
+    enforce_net_reward_risk_gate: bool = False
     risk_fraction: float = 0.005
     max_total_risk_fraction: float = 0.02
     max_leverage: float = 1.0
