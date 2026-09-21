@@ -1,95 +1,163 @@
 # Scalp Bot
 
-Paper-first prototype of an autonomous Bybit scalper. The goal of the current stage is not to maximize win rate; it is to reproduce a disciplined trader workflow that can be reviewed visually after a live market session.
+Paper-first autonomous Bybit scalper prototype.
 
-## Current workflow
+This branch is the **post-run strategy rework** based on the first live-market paper session.
 
-1. Filter Bybit USDT perpetuals by 24h turnover (150M USD by default).
-2. From that liquid universe, rank coins by absolute price movement over the last 5 minutes, with recent turnover as a tiebreaker.
-3. Promote the top symbols to **active symbol sessions**. Each active coin has isolated candles, order book, strategy decisions and replay frames.
-4. Trade only in the direction of the higher-timeframe structure.
-5. Wait for one of the enabled setups:
-   - trend structure / trend-line bounce;
-   - horizontal level bounce;
-   - order-book density bounce.
-6. Before entry, reject the setup if:
-   - the setup has already moved too far from the intended entry (entry drift / no chasing);
-   - the stop has already been invalidated;
-   - the portfolio has no exposure/risk budget left;
-   - expected gross profit does not cover fees + spread + slippage + minimum required net profit.
-7. A negative unrealized PnL is **not** an exit signal by itself. The paper position stays open until its pre-defined stop/invalidation or target is hit.
-8. Record MAE/MFE so we can measure how far successful and failed trades moved against/for us before closing.
+## What the first paper run proved
 
-## Parallel positions and resource isolation
+The infrastructure worked end-to-end: scanner -> market data -> strategy decisions -> risk gate -> paper execution -> replay.
 
-The bot may monitor and trade several active coins asynchronously, but there is at most one open position per symbol. Positions share one portfolio balance and one total exposure/risk budget, so separate symbol workers cannot reuse the same capital independently.
+The first session exposed several implementation problems rather than one single "bad strategy":
 
-## Visual session replay
+- the same density setup could be traded repeatedly within seconds;
+- active symbols were discarded too quickly when they fell out of the top activity ranking;
+- profitable excursions of >=1R were sometimes given back into full losses;
+- weak trades with almost no favorable excursion were held until the hard stop;
+- the cost gate ignored net reward/risk;
+- symbol workers raced for portfolio capital instead of comparing opportunities centrally;
+- an open paper position could survive terminal shutdown without a final close event.
 
-Every run produces data/sessions/session-<UTC timestamp>.jsonl.
+This branch addresses those findings.
 
-For each active symbol the recorder stores:
+## Horizontal levels are zones
 
-- bootstrap candle history when the coin becomes active;
-- roughly one market frame per second;
-- current 1m candle;
-- top of the order book;
-- trend state;
-- open-position state;
-- strategy decisions and reasons;
-- watched levels / trend-line overlays;
-- risk rejections;
-- entry, stop, target and execution plan;
-- trade close result, fees, MAE and MFE.
+Horizontal levels are represented as traded price zones / cascades, not exact mathematical lines.
 
-Open /replay to select a session and symbol, scrub the timeline, inspect the chart and order book at that exact moment, and jump directly to bot events.
+The detector clusters nearby swing highs/lows and scores the zone using:
 
-## Run
+- separate touches;
+- zone width;
+- price reaction after touches;
+- relative volume around touches;
+- recency.
 
-Requires Python 3.12+.
+The horizontal bounce strategy works with zone boundaries.
 
-1. python -m venv .venv
-2. Activate the environment.
-3. pip install -e ".[dev]"
-4. Copy .env.example to .env.
-5. uvicorn scalp_bot.app:app --reload --host 127.0.0.1 --port 8000
-6. Live UI: http://127.0.0.1:8000
-7. Replay UI: http://127.0.0.1:8000/replay
+## Stateful level breakout
 
-The app starts in observation mode. Public Bybit mainnet data is live, but all orders are simulated locally.
+New strategy: `level_breakout`.
 
-## Important defaults
+Per-symbol state machine:
 
-SCALP_START_BALANCE=1000
-SCALP_MIN_TURNOVER_USD=150000000
-SCALP_LIQUID_UNIVERSE_SIZE=30
-SCALP_WORKING_SYMBOLS=4
-SCALP_ACTIVITY_WINDOW_MINUTES=5
-SCALP_MIN_NET_PROFIT_USD=1
-SCALP_RISK_FRACTION=0.005
-SCALP_MAX_TOTAL_RISK_FRACTION=0.02
-SCALP_MAX_LEVERAGE=1.0
-SCALP_MAX_OPEN_POSITIONS=4
-SCALP_MAX_DAILY_LOSS_FRACTION=0.03
-SCALP_MAX_ENTRY_DRIFT_BPS=8
-SCALP_TAKER_FEE_RATE=0.00055
-SCALP_SLIPPAGE_BPS=1.0
-SCALP_REPLAY_FRAME_SECONDS=1
+`SEARCH -> FOUND -> APPROACH -> PRESSURE -> BREAK -> IMPULSE`
 
-Fee settings are configuration values, not assumptions that should be hard-coded forever. Verify the real Bybit account fee tier before any future live-trading phase.
+It combines a traded horizontal zone with:
 
-## Verification
+- repeated approaches;
+- shallower pullbacks / local pressure;
+- recent volume;
+- Bybit public trade flow;
+- taker buy/sell imbalance;
+- short-term notional acceleration.
 
-Current local test suite: 8 passed.
+A breakout requires the whole zone to be crossed and aggressive flow to confirm the direction.
 
-The tests cover the cost gate, no-chasing rule, an initially losing position that remains valid until its stop, per-symbol position isolation with a shared portfolio exposure budget, replay serialization and basic trend classification.
+## Setup lifecycle
 
-## Not implemented yet
+A detected trade is no longer just a boolean condition that can fire forever.
 
-- authenticated live Bybit execution;
-- automatic stop movement / trailing logic;
-- advanced strategy invalidation before the hard stop;
-- database-backed long-term dataset;
-- AI/ML layer.
+After a completed trade:
 
-Those are intentionally deferred until a short live-market paper run shows that the scanner, strategy reasoning, risk logic and replay are behaving coherently.
+`ENTER -> MANAGE -> CONSUMED -> WAIT -> REARM`
+
+The same setup ID cannot be traded immediately again. Each strategy also has a rearm cooldown. A consumed setup is reset only after the strategy has returned to a non-tradeable state for a configurable period.
+
+This directly prevents the rapid density re-entry loop found in the first paper run.
+
+## Active-symbol lifecycle
+
+`candidate != active symbol`.
+
+The scanner still promotes the most active liquid coins, but an active coin is now sticky:
+
+- minimum active lifetime;
+- separate maximum number of active symbols;
+- keeps its own strategy state while being observed;
+- does not disappear simply because it moved from rank 4 to rank 5;
+- is deactivated only after it is old enough, idle long enough, has no position, and has no meaningful setup in progress.
+
+## Central opportunity arbiter
+
+Symbol workers no longer open positions directly.
+
+They only observe markets and produce tradeable setups.
+
+A central arbiter compares all ready setups using:
+
+- strategy confidence;
+- net reward/risk;
+- current activity rank.
+
+Only then is portfolio capital assigned.
+
+## Trade lifecycle
+
+The first run showed multiple losing trades that had already reached >=1R in favorable excursion.
+
+New default management:
+
+1. Open against a structural stop.
+2. At 1R, realize 70% of the position.
+3. Move the remaining runner stop to estimated **net breakeven**, including fee/slippage allowance.
+4. Extend the runner target to 2.5R.
+5. If the trade never develops and after 20 seconds has MFE <0.25R while moving >=0.45R adverse, cut it as `no_follow_through` instead of waiting for the full hard stop.
+6. Strategy-level invalidation can also close a losing trade before the hard stop:
+   - higher-timeframe direction lost;
+   - horizontal/breakout zone structurally failed;
+   - density confirmation disappeared.
+
+All thresholds are configuration values and are intentionally subject to the next paper-run comparison.
+
+## Risk / expectancy gate
+
+A trade must now pass both:
+
+- minimum expected net profit after fees/spread/slippage;
+- minimum **net reward / net risk**.
+
+Default:
+
+`expected net >= $1`
+
+`net reward/risk >= 1.15`
+
+## Graceful stop
+
+Pressing Stop or terminating the app finalizes all remaining paper positions and records a normal `trade_closed` event with reason `bot_stop` or `shutdown`.
+
+## Scanner rate-limit mitigation
+
+The activity scanner now paces its kline requests and lowers request concurrency instead of bursting requests across the full liquid universe.
+
+## Replay observability
+
+Replay/live UI records and displays:
+
+- price zones;
+- breakout state;
+- 5-second trade flow;
+- ENTRY / PARTIAL / EXIT;
+- current runner stop and target;
+- setup consumed / blocked / rearmed;
+- expected net reward/risk;
+- MAE/MFE in R;
+- strategy/risk exit reasons.
+
+## Current strategies
+
+- trend structure / trend-line bounce;
+- horizontal zone bounce;
+- order-book density bounce;
+- stateful horizontal-zone breakout.
+
+## Still intentionally deferred
+
+- per-strategy calibration from the second paper run;
+- smarter density state machine beyond the generic setup lifecycle;
+- trailing runner logic beyond breakeven + extended target;
+- authenticated live trading;
+- medium/long-term strategy layer;
+- AI/ML.
+
+The next paper run should be treated as an A/B-style comparison against the first session, not as proof of profitability.

@@ -7,11 +7,14 @@ from time import monotonic, time
 
 from .bybit import BybitRestClient, OrderBookState, stream_symbol
 from .config import Settings
-from .domain import Candle, Candidate, OrderBook, StrategyDecision, Trend
-from .paper import PaperBroker
+from .domain import Action, Candle, Candidate, OrderBook, Side, StrategyDecision, TradeTick, Trend
+from .paper import PaperBroker, Position
 from .recorder import SessionRecorder
 from .risk import RiskEngine
-from .strategies import DEFAULT_STRATEGIES, Strategy, classify_trend
+from .strategies import DEFAULT_STRATEGIES, Strategy, classify_trend, compute_trade_flow
+
+
+ACTIVE_SETUP_STATES = {"found", "approach", "pressure", "break", "impulse"}
 
 
 @dataclass(slots=True)
@@ -24,9 +27,19 @@ class ActiveSymbolSession:
     trend: Trend = Trend.FLAT
     decisions: dict[str, StrategyDecision] = field(default_factory=dict)
     decision_fingerprints: dict[str, tuple] = field(default_factory=dict)
+    trades: deque[TradeTick] = field(default_factory=lambda: deque(maxlen=2000))
+    consumed_setups: dict[str, str] = field(default_factory=dict)
+    cooldown_until: dict[str, float] = field(default_factory=dict)
+    nontradeable_since: dict[str, float] = field(default_factory=dict)
+    activated_at: float = field(default_factory=time)
+    last_ranked_at: float = field(default_factory=time)
+    last_signal_at: float = 0.0
+    last_trade_at: float = 0.0
+    last_market_at: float = 0.0
     last_eval: float = 0.0
     last_frame: float = 0.0
     last_risk_fingerprint: tuple | None = None
+    last_blocked_fingerprint: tuple | None = None
 
     def market_snapshot(self) -> dict:
         return {
@@ -35,6 +48,8 @@ class ActiveSymbolSession:
             "trend": self.trend.value,
             "candles": [x.public() for x in self.candles[-240:]],
             "orderbook": self.orderbook.public(),
+            "tradeFlow": compute_trade_flow(list(self.trades)),
+            "recentTrades": [trade.public() for trade in list(self.trades)[-20:]],
             "decisions": {k: v.public() for k, v in self.decisions.items()},
         }
 
@@ -44,8 +59,17 @@ class ActiveSymbolSession:
             "trend": self.trend.value,
             "candle": self.candles[-1].public() if self.candles else None,
             "orderbook": self.orderbook.public(book_depth),
+            "tradeFlow": compute_trade_flow(list(self.trades)),
             "position": position,
         }
+
+
+@dataclass(slots=True)
+class Opportunity:
+    score: float
+    session: ActiveSymbolSession
+    decision: StrategyDecision
+    plan: object
 
 
 class TradingEngine:
@@ -60,7 +84,7 @@ class TradingEngine:
         self.running = False
         self.candidates: list[Candidate] = []
         self.sessions: dict[str, ActiveSymbolSession] = {}
-        self.events: deque[dict] = deque(maxlen=220)
+        self.events: deque[dict] = deque(maxlen=260)
         self._tasks: list[asyncio.Task] = []
         self._worker_tasks: dict[str, tuple[asyncio.Task, asyncio.Event]] = {}
         self._stop = asyncio.Event()
@@ -71,21 +95,35 @@ class TradingEngine:
         self._tasks = [
             asyncio.create_task(self._scanner_loop(), name="scanner"),
             asyncio.create_task(self._context_loop(), name="context"),
+            asyncio.create_task(self._arbiter_loop(), name="trade-arbiter"),
         ]
 
     async def close(self) -> None:
+        self.running = False
+        self._close_all_positions("shutdown")
         self._stop.set()
         for task, stop_event in self._worker_tasks.values():
             stop_event.set()
             task.cancel()
         for task in self._tasks:
             task.cancel()
-        await asyncio.gather(*(x[0] for x in self._worker_tasks.values()), *self._tasks, return_exceptions=True)
+        await asyncio.gather(
+            *(x[0] for x in self._worker_tasks.values()),
+            *self._tasks,
+            return_exceptions=True,
+        )
         await self.rest.close()
 
     def set_running(self, value: bool) -> None:
-        self.running = value
-        self._emit("bot_started" if value else "bot_stopped", None, {})
+        if value:
+            self.running = True
+            self._emit("bot_started", None, {})
+            return
+
+        if self.running:
+            self.running = False
+            self._close_all_positions("bot_stop")
+            self._emit("bot_stopped", None, {})
 
     def toggle_strategy(self, key: str, enabled: bool) -> None:
         if key not in self.strategy_enabled:
@@ -105,19 +143,28 @@ class TradingEngine:
 
     async def _scan_once(self) -> None:
         self.candidates = await self.rest.active_candidates()
-        desired = [x.symbol for x in self.candidates[: self.config.working_symbols]]
-        for symbol in self.broker.positions:
-            if symbol not in desired:
-                desired.append(symbol)
-        await self._sync_workers(desired)
+        now = time()
+        candidate_map = {item.symbol: item for item in self.candidates}
+
+        for symbol, session in self.sessions.items():
+            candidate = candidate_map.get(symbol)
+            if candidate and (candidate.activity_rank or 999) <= self.config.active_keep_rank:
+                session.last_ranked_at = now
+
+        for candidate in self.candidates[: self.config.working_symbols]:
+            await self._promote_symbol(candidate.symbol, now)
+
+        await self._cleanup_active_symbols(now)
         self._emit(
             "scanner_update",
             None,
             {
-                "active": desired,
+                "active": list(self.sessions),
+                "promotedFromTop": [x.symbol for x in self.candidates[: self.config.working_symbols]],
                 "ranked": [
                     {
                         "symbol": x.symbol,
+                        "activityRank": x.activity_rank,
                         "activityChange": x.activity_change,
                         "turnover24h": x.turnover_24h,
                     }
@@ -126,36 +173,89 @@ class TradingEngine:
             },
         )
 
-    async def _sync_workers(self, desired: list[str]) -> None:
-        desired_set = set(desired)
-        for symbol in list(self._worker_tasks):
-            if symbol not in desired_set and symbol not in self.broker.positions:
-                task, stop_event = self._worker_tasks.pop(symbol)
-                stop_event.set()
-                task.cancel()
-                self._emit("symbol_deactivated", symbol, {})
-                self.sessions.pop(symbol, None)
-        for symbol in desired:
-            if symbol in self._worker_tasks:
-                continue
-            await self._bootstrap_symbol(symbol)
-            stop_event = asyncio.Event()
-            task = asyncio.create_task(self._symbol_worker(symbol, stop_event), name=f"market-{symbol}")
-            self._worker_tasks[symbol] = (task, stop_event)
+    async def _promote_symbol(self, symbol: str, now: float) -> None:
+        if symbol in self.sessions:
+            self.sessions[symbol].last_ranked_at = now
+            return
+
+        if len(self.sessions) >= self.config.max_active_symbols:
+            evictable = [
+                session
+                for session in self.sessions.values()
+                if self._can_deactivate(session, now)
+            ]
+            if not evictable:
+                return
+            victim = min(evictable, key=lambda x: x.last_ranked_at)
+            self._deactivate_symbol(victim.symbol, "capacity_rotation")
+
+        await self._bootstrap_symbol(symbol)
+        self.sessions[symbol].last_ranked_at = now
+        stop_event = asyncio.Event()
+        task = asyncio.create_task(self._symbol_worker(symbol, stop_event), name=f"market-{symbol}")
+        self._worker_tasks[symbol] = (task, stop_event)
+
+    async def _cleanup_active_symbols(self, now: float) -> None:
+        for symbol, session in list(self.sessions.items()):
+            if self._can_deactivate(session, now):
+                self._deactivate_symbol(symbol, "idle_after_active_window")
+
+    def _can_deactivate(self, session: ActiveSymbolSession, now: float) -> bool:
+        if session.symbol in self.broker.positions:
+            return False
+        if now - session.activated_at < self.config.active_symbol_min_seconds:
+            return False
+        if now - session.last_ranked_at < self.config.active_symbol_idle_timeout_seconds:
+            return False
+        if self._session_engaged(session):
+            return False
+        return True
+
+    def _session_engaged(self, session: ActiveSymbolSession) -> bool:
+        if any(decision.tradeable for decision in session.decisions.values()):
+            return True
+        for decision in session.decisions.values():
+            state = str(decision.details.get("state") or "")
+            if state in ACTIVE_SETUP_STATES:
+                return True
+            if decision.watched_level is not None and decision.confidence >= 0.5:
+                return True
+        return False
+
+    def _deactivate_symbol(self, symbol: str, reason: str) -> None:
+        worker = self._worker_tasks.pop(symbol, None)
+        if worker:
+            task, stop_event = worker
+            stop_event.set()
+            task.cancel()
+        self._emit("symbol_deactivated", symbol, {"reason": reason})
+        for strategy in self.strategies.values():
+            strategy.reset(symbol)
+        self.sessions.pop(symbol, None)
 
     async def _bootstrap_symbol(self, symbol: str) -> None:
         candles, context = await asyncio.gather(
             self.rest.klines(symbol, "1", 240),
             self.rest.klines(symbol, "15", 120),
         )
-        session = ActiveSymbolSession(symbol=symbol, candles=candles, context_15m=context)
+        now = time()
+        session = ActiveSymbolSession(
+            symbol=symbol,
+            candles=candles,
+            context_15m=context,
+            activated_at=now,
+            last_ranked_at=now,
+        )
         session.last_price = candles[-1].close if candles else 0
         session.trend = classify_trend(context)
         self.sessions[symbol] = session
         self._emit(
             "symbol_activated",
             symbol,
-            {"market": session.market_snapshot(), "reason": "ranked active after liquidity filter"},
+            {
+                "market": session.market_snapshot(),
+                "reason": "promoted from liquid activity ranking",
+            },
         )
 
     async def _context_loop(self) -> None:
@@ -186,6 +286,8 @@ class TradingEngine:
             session = self.sessions.get(symbol)
             if session is None:
                 return
+
+            session.last_market_at = time()
             topic = message.get("topic", "")
             if topic.startswith("orderbook."):
                 session.orderbook = book_state.apply(message)
@@ -194,15 +296,24 @@ class TradingEngine:
             elif topic.startswith("publicTrade."):
                 rows = message.get("data") or []
                 if rows:
+                    for row in rows:
+                        session.trades.append(
+                            TradeTick(
+                                ts_ms=int(row.get("T") or time() * 1000),
+                                price=float(row["p"]),
+                                size=float(row["v"]),
+                                side=str(row.get("S") or ""),
+                            )
+                        )
                     session.last_price = float(rows[-1]["p"])
-                    closed = self.broker.mark(symbol, session.last_price, session.orderbook)
-                    if closed:
-                        self._emit("trade_closed", symbol, closed, snapshot=True)
+                    events = self.broker.mark(symbol, session.last_price, session.orderbook)
+                    self._handle_broker_events(session, events)
 
             now = monotonic()
             if now - session.last_eval >= 0.8:
                 session.last_eval = now
                 await self._evaluate(session)
+
             if now - session.last_frame >= self.config.replay_frame_seconds:
                 session.last_frame = now
                 position = self.broker.positions.get(symbol)
@@ -243,51 +354,269 @@ class TradingEngine:
     async def _evaluate(self, session: ActiveSymbolSession) -> None:
         if not session.candles:
             return
+
         session.trend = classify_trend(session.context_15m)
-        trade_candidates: list[StrategyDecision] = []
+        now = time()
         for key, strategy in self.strategies.items():
             if not self.strategy_enabled[key]:
                 continue
-            decision = strategy.evaluate(session.candles, session.orderbook, session.trend)
+            decision = strategy.evaluate(
+                session.candles,
+                session.orderbook,
+                session.trend,
+                symbol=session.symbol,
+                trades=list(session.trades),
+            )
+            if decision.tradeable:
+                decision.setup_id = self._resolve_setup_id(session, decision)
+                session.last_signal_at = now
+                session.nontradeable_since.pop(key, None)
+            else:
+                self._observe_wait_for_rearm(session, key, now)
+
             session.decisions[key] = decision
             self._record_decision_if_changed(session, decision)
-            if decision.tradeable:
-                trade_candidates.append(decision)
 
-        if not self.running or session.symbol in self.broker.positions or not trade_candidates:
+        self._maybe_strategy_invalidation(session)
+
+    def _observe_wait_for_rearm(self, session: ActiveSymbolSession, strategy: str, now: float) -> None:
+        if strategy not in session.consumed_setups:
+            session.nontradeable_since.pop(strategy, None)
             return
-        can_open, reason = self.broker.can_open(session.symbol)
-        if not can_open:
-            self._risk_reject_if_changed(session, None, reason)
+        since = session.nontradeable_since.setdefault(strategy, now)
+        if now - since < self.config.setup_reset_wait_seconds:
+            return
+        old_setup = session.consumed_setups.pop(strategy, None)
+        session.nontradeable_since.pop(strategy, None)
+        if old_setup:
+            self._emit(
+                "setup_rearmed",
+                session.symbol,
+                {"strategy": strategy, "previousSetupId": old_setup},
+            )
+
+    def _resolve_setup_id(self, session: ActiveSymbolSession, decision: StrategyDecision) -> str:
+        if decision.setup_id:
+            return decision.setup_id
+        zone = decision.details.get("zone")
+        if isinstance(zone, dict) and zone.get("low") is not None and zone.get("high") is not None:
+            return (
+                f"{decision.strategy}:{decision.action.value}:"
+                f"{float(zone['low']):.10g}:{float(zone['high']):.10g}"
+            )
+        if decision.watched_level is not None:
+            return (
+                f"{decision.strategy}:{decision.action.value}:"
+                f"{float(decision.watched_level):.10g}"
+            )
+        bucket = session.candles[-1].start_ms // 300_000 if session.candles else 0
+        return f"{decision.strategy}:{decision.action.value}:window:{bucket}"
+
+    async def _arbiter_loop(self) -> None:
+        while not self._stop.is_set():
+            try:
+                await asyncio.sleep(self.config.arbiter_interval_seconds)
+                if self.running:
+                    self._arbitrate_once()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                self._emit("arbiter_error", None, {"error": str(exc)})
+
+    def _arbitrate_once(self) -> None:
+        opportunities: list[Opportunity] = []
+        now = time()
+        candidate_map = {item.symbol: item for item in self.candidates}
+
+        for session in self.sessions.values():
+            if session.symbol in self.broker.positions:
+                continue
+            if session.last_market_at <= 0 or now - session.last_market_at > self.config.market_stale_seconds:
+                continue
+
+            for decision in session.decisions.values():
+                if not decision.tradeable or not self.strategy_enabled.get(decision.strategy, False):
+                    continue
+
+                setup_id = self._resolve_setup_id(session, decision)
+                decision.setup_id = setup_id
+
+                blocked_reason = self._setup_blocked_reason(session, decision.strategy, setup_id, now)
+                if blocked_reason:
+                    self._record_setup_blocked(session, decision, blocked_reason)
+                    continue
+
+                allowed, portfolio_reason = self.broker.can_open(session.symbol)
+                if not allowed:
+                    self._risk_reject_if_changed(session, decision, portfolio_reason)
+                    continue
+
+                result = self.risk.build_plan(
+                    session.symbol,
+                    decision,
+                    self.broker.balance,
+                    session.orderbook,
+                    self.broker.available_notional,
+                    self.broker.available_risk_usd,
+                    setup_id=setup_id,
+                )
+                if not result.allowed or result.plan is None:
+                    self._risk_reject_if_changed(session, decision, result.reason)
+                    continue
+
+                candidate = candidate_map.get(session.symbol)
+                rank = candidate.activity_rank if candidate and candidate.activity_rank else 99
+                score = self._opportunity_score(decision, result.plan.net_reward_risk, rank)
+                opportunities.append(
+                    Opportunity(
+                        score=score,
+                        session=session,
+                        decision=decision,
+                        plan=result.plan,
+                    )
+                )
+
+        if not opportunities:
             return
 
-        decision = max(trade_candidates, key=lambda x: x.confidence)
-        result = self.risk.build_plan(
-            session.symbol,
-            decision,
-            self.broker.balance,
-            session.orderbook,
-            self.broker.available_notional,
-            self.broker.available_risk_usd,
-        )
-        if not result.allowed or result.plan is None:
-            self._risk_reject_if_changed(session, decision, result.reason)
+        best = max(opportunities, key=lambda item: item.score)
+        allowed, reason = self.broker.can_open(best.session.symbol)
+        if not allowed:
+            self._risk_reject_if_changed(best.session, best.decision, reason)
             return
 
-        session.last_risk_fingerprint = None
-        position = self.broker.open(result.plan, session.orderbook)
+        best.session.last_risk_fingerprint = None
+        best.session.last_blocked_fingerprint = None
+        best.session.last_trade_at = now
+        position = self.broker.open(best.plan, best.session.orderbook)
         self._emit(
             "trade_opened",
-            session.symbol,
+            best.session.symbol,
             {
-                "plan": result.plan.public(),
+                "plan": best.plan.public(),
                 "position": position.public(),
-                "reasons": decision.reasons,
-                "visuals": decision.visuals,
-                "holdingRule": "temporary negative PnL is tolerated until strategy stop/invalidation is reached",
+                "reasons": best.decision.reasons,
+                "visuals": best.decision.visuals,
+                "opportunityScore": best.score,
+                "holdingRule": (
+                    "take partial profit near 1R; runner moves to net breakeven; "
+                    "weak losers can be cut before the hard structural stop"
+                ),
             },
             snapshot=True,
         )
+
+    @staticmethod
+    def _opportunity_score(decision: StrategyDecision, net_rr: float, activity_rank: int) -> float:
+        activity_bonus = max(0.0, 12 - min(activity_rank, 12)) * 0.5
+        return decision.confidence * 100 + min(net_rr, 3.0) * 15 + activity_bonus
+
+    def _setup_blocked_reason(
+        self,
+        session: ActiveSymbolSession,
+        strategy: str,
+        setup_id: str,
+        now: float,
+    ) -> str | None:
+        cooldown = session.cooldown_until.get(strategy, 0.0)
+        if now < cooldown:
+            return f"strategy rearm cooldown {cooldown - now:.1f}s"
+        if session.consumed_setups.get(strategy) == setup_id:
+            return "same setup already consumed"
+        return None
+
+    def _record_setup_blocked(
+        self,
+        session: ActiveSymbolSession,
+        decision: StrategyDecision,
+        reason: str,
+    ) -> None:
+        fingerprint = (decision.strategy, decision.setup_id, reason)
+        if session.last_blocked_fingerprint == fingerprint:
+            return
+        session.last_blocked_fingerprint = fingerprint
+        self._emit(
+            "setup_blocked",
+            session.symbol,
+            {
+                "strategy": decision.strategy,
+                "setupId": decision.setup_id,
+                "reason": reason,
+            },
+        )
+
+    def _maybe_strategy_invalidation(self, session: ActiveSymbolSession) -> None:
+        pos = self.broker.positions.get(session.symbol)
+        if pos is None or pos.partial_taken:
+            return
+        if time() - pos.opened_at < 5:
+            return
+
+        reason: str | None = None
+        expected_trend = Trend.UP if pos.side == Side.LONG else Trend.DOWN
+        if session.trend != expected_trend and pos.unrealized_pnl < 0:
+            reason = "higher_timeframe_context_lost"
+
+        zone = pos.strategy_details.get("zone") if isinstance(pos.strategy_details, dict) else None
+        if reason is None and isinstance(zone, dict):
+            low = float(zone.get("low") or 0)
+            high = float(zone.get("high") or 0)
+            if pos.side == Side.LONG and low > 0 and session.last_price < low and pos.unrealized_pnl < 0:
+                reason = "strategy_zone_invalidated"
+            if pos.side == Side.SHORT and high > 0 and session.last_price > high and pos.unrealized_pnl < 0:
+                reason = "strategy_zone_invalidated"
+
+        if reason is None and pos.strategy == "orderbook_density" and pos.unrealized_pnl < 0:
+            decision = session.decisions.get(pos.strategy)
+            expected_action = Action.LONG if pos.side == Side.LONG else Action.SHORT
+            if decision is not None and decision.action != expected_action:
+                reason = "density_confirmation_lost"
+
+        if reason is None:
+            return
+
+        event = self.broker.close(session.symbol, session.orderbook, reason)
+        self._handle_broker_events(session, [event])
+
+    def _handle_broker_events(self, session: ActiveSymbolSession, events: list[dict]) -> None:
+        for event in events:
+            event_type = event.get("event")
+            if event_type == "partial_take":
+                self._emit("partial_take", session.symbol, event, snapshot=True)
+                continue
+            if event_type == "trade_closed":
+                self._consume_setup(
+                    session,
+                    str(event.get("strategy") or ""),
+                    str(event.get("setupId") or ""),
+                )
+                self._emit("trade_closed", session.symbol, event, snapshot=True)
+
+    def _consume_setup(self, session: ActiveSymbolSession, strategy: str, setup_id: str) -> None:
+        if not strategy or not setup_id:
+            return
+        session.consumed_setups[strategy] = setup_id
+        session.cooldown_until[strategy] = time() + self.config.setup_rearm_seconds
+        session.nontradeable_since.pop(strategy, None)
+        self._emit(
+            "setup_consumed",
+            session.symbol,
+            {
+                "strategy": strategy,
+                "setupId": setup_id,
+                "cooldownSeconds": self.config.setup_rearm_seconds,
+            },
+        )
+
+    def _close_all_positions(self, reason: str) -> None:
+        for symbol in list(self.broker.positions):
+            session = self.sessions.get(symbol)
+            book = session.orderbook if session else OrderBook()
+            event = self.broker.close(symbol, book, reason)
+            if session:
+                self._handle_broker_events(session, [event])
+            else:
+                self._emit("trade_closed", symbol, event)
 
     def _risk_reject_if_changed(
         self,
@@ -295,7 +624,11 @@ class TradingEngine:
         decision: StrategyDecision | None,
         reason: str,
     ) -> None:
-        fingerprint = (decision.strategy if decision else "portfolio", reason)
+        fingerprint = (
+            decision.strategy if decision else "portfolio",
+            decision.setup_id if decision else None,
+            reason,
+        )
         if session.last_risk_fingerprint == fingerprint:
             return
         session.last_risk_fingerprint = fingerprint
@@ -313,8 +646,10 @@ class TradingEngine:
     def _record_decision_if_changed(self, session: ActiveSymbolSession, decision: StrategyDecision) -> None:
         fingerprint = (
             decision.action.value,
+            decision.setup_id,
             round(decision.watched_level or 0, 8),
             round(decision.entry or 0, 8),
+            decision.details.get("state"),
             tuple(decision.reasons),
         )
         if session.decision_fingerprints.get(decision.strategy) == fingerprint:
@@ -336,7 +671,9 @@ class TradingEngine:
             selected_symbol = working[0] if working else None
         market = self.sessions[selected_symbol].market_snapshot() if selected_symbol else None
         candidate_map = {x.symbol: x for x in self.candidates}
+        now = time()
         working_rows = []
+
         for symbol in working:
             candidate = candidate_map.get(symbol)
             session = self.sessions[symbol]
@@ -351,8 +688,12 @@ class TradingEngine:
                     "lastPrice": session.last_price,
                     "trend": session.trend.value,
                     "position": position.public() if position else None,
+                    "activeAgeSeconds": now - session.activated_at,
+                    "marketAgeSeconds": now - session.last_market_at if session.last_market_at > 0 else None,
+                    "engaged": self._session_engaged(session),
                 }
             )
+
         return {
             "botRunning": self.running,
             "mode": "paper",
@@ -369,19 +710,23 @@ class TradingEngine:
             "working": working_rows,
             "candidates": [x.public() for x in self.candidates],
             "market": market,
-            "events": list(self.events)[:80],
+            "events": list(self.events)[:100],
             "strategies": [
                 {"key": key, "label": strategy.label, "enabled": self.strategy_enabled[key]}
                 for key, strategy in self.strategies.items()
             ],
             "risk": {
                 "minNetProfitUsd": self.config.min_net_profit_usd,
+                "minNetRewardRisk": self.config.min_net_reward_risk,
                 "riskFraction": self.config.risk_fraction,
                 "maxTotalRiskFraction": self.config.max_total_risk_fraction,
                 "maxLeverage": self.config.max_leverage,
                 "maxEntryDriftBps": self.config.max_entry_drift_bps,
                 "takerFeeRate": self.config.taker_fee_rate,
                 "slippageBps": self.config.slippage_bps,
+                "partialTakeAtR": self.config.partial_take_at_r,
+                "partialTakeFraction": self.config.partial_take_fraction,
+                "runnerTargetR": self.config.runner_target_r,
             },
             "sessionFile": str(self.recorder.path),
         }

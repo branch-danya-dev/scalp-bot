@@ -25,6 +25,8 @@ class RiskEngine:
         book: OrderBook,
         available_notional: float,
         available_risk_usd: float,
+        *,
+        setup_id: str | None = None,
     ) -> RiskResult:
         if not decision.tradeable or decision.side is None:
             return RiskResult(False, "strategy decision is not tradeable")
@@ -74,14 +76,23 @@ class RiskEngine:
         spread_cost = notional * max(book.spread_pct, 0)
         estimated_costs = fee_cost + slippage_cost + spread_cost
         gross_profit = notional * target_pct
+        gross_loss = notional * stop_pct
         expected_net = gross_profit - estimated_costs
+        expected_net_loss = gross_loss + estimated_costs
+        net_rr = expected_net / expected_net_loss if expected_net_loss > 0 else 0.0
 
         if expected_net < self.config.min_net_profit_usd:
             return RiskResult(
                 False,
                 f"expected net ${expected_net:.2f} < minimum ${self.config.min_net_profit_usd:.2f}",
             )
+        if net_rr < self.config.min_net_reward_risk:
+            return RiskResult(
+                False,
+                f"net reward/risk {net_rr:.2f} < minimum {self.config.min_net_reward_risk:.2f}",
+            )
 
+        resolved_setup_id = setup_id or decision.setup_id or f"{decision.strategy}:{side.value}:{setup_entry:.10g}"
         plan = TradePlan(
             symbol=symbol,
             strategy=decision.strategy,
@@ -92,10 +103,14 @@ class RiskEngine:
             target=target,
             notional=notional,
             leverage=notional / balance if balance else 0,
-            max_loss_usd=notional * stop_pct,
+            max_loss_usd=gross_loss,
             expected_gross_profit=gross_profit,
             estimated_costs=estimated_costs,
             expected_net_profit=expected_net,
+            expected_net_loss=expected_net_loss,
+            net_reward_risk=net_rr,
             entry_drift_pct=entry_drift,
+            setup_id=resolved_setup_id,
+            strategy_details=dict(decision.details),
         )
         return RiskResult(True, "allowed", plan)

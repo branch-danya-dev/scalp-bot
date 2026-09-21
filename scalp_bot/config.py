@@ -11,19 +11,41 @@ class Settings(BaseSettings):
     min_turnover_usd: float = 150_000_000.0
     liquid_universe_size: int = 30
     working_symbols: int = 4
+    max_active_symbols: int = 8
+    active_keep_rank: int = 12
+    active_symbol_min_seconds: float = 600.0
+    active_symbol_idle_timeout_seconds: float = 300.0
     activity_window_minutes: int = 5
-    scanner_interval_seconds: float = 45.0
+    scanner_interval_seconds: float = 60.0
+    activity_request_concurrency: int = 2
+    activity_request_pause_seconds: float = 0.20
 
     min_net_profit_usd: float = 1.0
+    min_net_reward_risk: float = 1.15
     risk_fraction: float = 0.005
     max_total_risk_fraction: float = 0.02
     max_leverage: float = 1.0
     max_open_positions: int = 4
     max_daily_loss_fraction: float = 0.03
+    enforce_session_loss_limit: bool = False
     max_entry_drift_bps: float = 8.0
     taker_fee_rate: float = 0.00055
     maker_fee_rate: float = 0.00020
     slippage_bps: float = 1.0
+
+    partial_take_enabled: bool = True
+    partial_take_at_r: float = 1.0
+    partial_take_fraction: float = 0.70
+    runner_target_r: float = 2.5
+    breakeven_buffer_bps: float = 1.0
+    no_follow_through_seconds: float = 20.0
+    no_follow_through_max_mfe_r: float = 0.25
+    early_cut_at_r: float = 0.45
+
+    setup_rearm_seconds: float = 20.0
+    setup_reset_wait_seconds: float = 10.0
+    arbiter_interval_seconds: float = 0.25
+    market_stale_seconds: float = 3.0
 
     replay_frame_seconds: float = 1.0
     replay_book_depth: int = 16
