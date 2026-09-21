@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     arbiter_interval_seconds: float = 0.25
     market_stale_seconds: float = 3.0
 
-    run_label: str = "paper-v2-10h"
+    run_label: str = "paper-current-10h"
     paper_run_duration_seconds: float = 36_000.0
     replay_engaged_frame_seconds: float = 1.0
     replay_idle_frame_seconds: float = 5.0

@@ -1,52 +1,75 @@
-# Scalp Bot — Paper Run v2 (10h)
+# Scalp Bot — Current 10h Paper Run
 
-This branch combines Strategy Rework v2 with a dedicated **10-hour paper-run harness**.
+This run branch is the current integrated project state. It combines the 10-hour research harness with every strategy rework completed before this run.
 
-## Run target
+## Strategies in this run
 
-The 10-hour clock starts only when **Start** is pressed in the UI.
+1. Trend structure.
+2. Horizontal traded-zone bounce.
+3. Weak-level rejection:
+   - young level with 1-3 approaches;
+   - no prolonged acceptance around the zone;
+   - failed breakout/reclaim;
+   - trade-flow reversal;
+   - round-number confluence;
+   - trend-following reactions may use a runner;
+   - countertrend reactions are reaction-only.
+4. Defended fresh order-book density:
+   - large bid/ask wall relative to local book;
+   - persistence required before trust;
+   - real approach/test required;
+   - repeated approaches, strong depletion or aggressive consumption invalidate the bounce;
+   - pulled walls are not traded;
+   - entry requires defended wall + flow reversal;
+   - trend-following density reactions may use a runner;
+   - countertrend density reactions are reaction-only.
+5. Stateful horizontal-zone breakout:
+   - SEARCH -> FOUND -> APPROACH -> PRESSURE -> BREAK -> IMPULSE;
+   - zone crossing plus public-trade-flow confirmation.
 
-After 10 hours the bot automatically:
+## Shared trading lifecycle
 
-1. stops accepting new entries;
-2. closes any remaining PAPER positions;
-3. records normal `trade_closed` events;
-4. writes a `run_summary` event with elapsed time, final balance, realized PnL and trade count;
-5. leaves the web server running so Replay can be inspected immediately.
-
-Manual **Stop** does the same finalization with reason `bot_stop`.
-
-## Replay recording for a 10-hour session
-
-To keep the session useful without producing a needlessly huge JSONL file:
-
-- active setup / open position: market frame every **1 second**;
-- ordinary background observation: frame every **5 seconds**;
-- trade/decision/risk events still record their full event snapshots.
-
-This keeps high-resolution data around actual trading situations.
-
-## Strategy Rework v2 included
-
-- horizontal levels as price zones/cascades;
-- stateful horizontal-zone breakout;
-- Bybit public trade-flow confirmation;
-- one setup = one trade, then consumed/rearm lifecycle;
+- one setup = one trade;
+- consumed setup must reset/rearm before another entry;
 - sticky active symbols;
 - central opportunity arbiter;
 - stale-market protection;
-- net profit + net reward/risk gate;
-- partial 70% at ~1R;
-- 30% runner with stop moved to estimated net breakeven;
-- runner target 2.5R;
-- no-follow-through early loss cutting;
-- strategy invalidation before hard stop;
-- graceful paper-position finalization;
-- paced activity scanner requests.
+- expected net profit + net reward/risk gate;
+- 70% partial at about 1R when runner is allowed;
+- 30% runner -> estimated net breakeven;
+- runner target about 2.5R;
+- no-follow-through early cutting;
+- structural invalidation before emergency hard stop;
+- paper positions finalize on Stop, shutdown, or 10h deadline.
 
-The numeric thresholds remain provisional and must be judged against the 10-hour Replay.
+## Research-run rules
 
-## Windows: update an existing clone
+There is deliberately **no cumulative session-loss kill switch**:
+
+```
+SCALP_ENFORCE_SESSION_LOSS_LIMIT=false
+```
+
+Per-trade and simultaneous portfolio risk controls remain enabled.
+
+## 10-hour harness
+
+The timer starts after pressing Start.
+
+At the deadline:
+
+- no new positions;
+- remaining paper positions are closed;
+- trade_closed events are recorded;
+- run_summary is written;
+- server remains available for Replay.
+
+Replay sampling:
+- 1 second while a setup/position is engaged;
+- 5 seconds during idle observation;
+- important decisions/trades carry event snapshots.
+
+## Windows update
 
 ```powershell
 git fetch origin
@@ -58,24 +81,15 @@ Copy-Item .env.example .env -Force
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
 ```
 
-Then open:
+Before Start, verify the UI says:
 
-- Live: http://127.0.0.1:8000/
-- Replay: http://127.0.0.1:8000/replay
-
-Press **Start** once. The UI shows the remaining time until auto-stop.
-
-## Fresh clone
-
-```powershell
-git clone -b paper-run-v2-10h --single-branch https://github.com/branch-danya-dev/scalp-bot.git
-cd scalp-bot
-powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
+```
+RESEARCH · LOSS CAP OFF
 ```
 
-## After the run
+and that the strategy list contains both:
 
-Do not delete `data/sessions`.
-
-The final JSONL contains the entire run, including the terminal `run_summary`. Package that session file together with branch/commit/config metadata for comparison against the first run.
+```
+Отбой от слабого уровня
+Отскок от свежей плотности
+```
