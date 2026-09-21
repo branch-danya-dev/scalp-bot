@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     scanner_interval_seconds: float = 60.0
     activity_request_concurrency: int = 2
     activity_request_pause_seconds: float = 0.20
+    rest_request_min_interval_seconds: float = 0.25
+    rest_rate_limit_retries: int = 6
+    rest_rate_limit_backoff_seconds: float = 1.0
+    rest_rate_limit_max_backoff_seconds: float = 8.0
+    empty_startup_rescan_seconds: float = 10.0
 
     min_net_profit_usd: float = 0.10
     min_net_reward_risk: float = 1.15
