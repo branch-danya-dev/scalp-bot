@@ -163,11 +163,16 @@ function renderDecisions(decisions) {
 
 function eventText(event) {
   const payload = event.payload || {};
-  if (event.event === "trade_opened") return `${payload.plan?.side || ""} ${money(payload.plan?.notional)} · target net ${money(payload.plan?.expected_net_profit)}`;
-  if (event.event === "trade_closed") return `${payload.reason} · ${money(payload.netPnl)} · MAE ${money(payload.maeUsd)}`;
+  if (event.event === "trade_opened") return `${payload.plan?.side || ""} ${money(payload.plan?.notional)} · net target ${money(payload.plan?.expected_net_profit)} · RR ${Number(payload.plan?.net_reward_risk || 0).toFixed(2)}`;
+  if (event.event === "partial_take") return `partial ${money(payload.netPnl)} · осталось ${money(payload.remainingNotional)} · stop→${price(payload.newStop)}`;
+  if (event.event === "trade_closed") return `${payload.reason} · ${money(payload.netPnl)} · MAE ${money(payload.maeUsd)} · MFE ${money(payload.mfeUsd)}`;
   if (event.event === "risk_reject") return payload.reason || "rejected";
+  if (event.event === "setup_blocked") return `${payload.strategy}: ${payload.reason}`;
+  if (event.event === "setup_consumed") return `${payload.strategy}: setup consumed`;
+  if (event.event === "setup_rearmed") return `${payload.strategy}: rearmed`;
   if (event.event === "decision") return `${payload.strategy}: ${(payload.reasons || []).join(" · ")}`;
   if (event.event === "symbol_activated") return "монета стала активной";
+  if (event.event === "symbol_deactivated") return payload.reason || "deactivated";
   return "";
 }
 
@@ -206,10 +211,13 @@ function renderPosition(position) {
   }
   box.classList.remove("hidden");
   const pnlClass = position.unrealized_pnl >= 0 ? "positive" : "negative";
-  box.innerHTML = `<strong>${position.side.toUpperCase()} ${position.symbol}</strong>
+  const phase = position.partial_taken ? "RUNNER" : "INITIAL";
+  box.innerHTML = `<strong>${position.side.toUpperCase()} ${position.symbol} · ${phase}</strong>
+    <span>remaining ${money(position.notional)}</span>
     <span>entry ${price(position.entry)}</span><span>stop ${price(position.stop)}</span><span>target ${price(position.target)}</span>
     <span class="${pnlClass}">uPnL ${money(position.unrealized_pnl)}</span>
-    <span>MAE ${money(position.mae_usd)}</span><span>MFE ${money(position.mfe_usd)}</span>`;
+    <span>locked ${money(position.realized_net_usd)}</span>
+    <span>MAE ${Number(position.mae_r || 0).toFixed(2)}R</span><span>MFE ${Number(position.mfe_r || 0).toFixed(2)}R</span>`;
 }
 
 function renderTrades(rows) {
@@ -252,7 +260,7 @@ function render(data) {
   $("netPnl").className = totalNet >= 0 ? "positive" : "negative";
   $("positionCount").textContent = data.positions.length;
   $("availableExposure").textContent = money(data.portfolio.availableNotional);
-  $("costGate").textContent = `≥ ${money(data.risk.minNetProfitUsd)} net`;
+  $("costGate").textContent = `≥ ${money(data.risk.minNetProfitUsd)} net · RR≥${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}`;
   $("sessionFile").textContent = data.sessionFile.split("/").pop();
 
   renderWorking(data.working);

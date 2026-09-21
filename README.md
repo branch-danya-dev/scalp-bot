@@ -1,91 +1,163 @@
 # Scalp Bot
 
-Paper-first prototype of an autonomous Bybit scalper.
+Paper-first autonomous Bybit scalper prototype.
 
-This branch contains the first strategy-model rework prepared **separately from the running paper session**. It is intended to be combined with findings from the current replay analysis before the next paper run.
+This branch is the **post-run strategy rework** based on the first live-market paper session.
 
-## Strategy model rework
+## What the first paper run proved
 
-### Horizontal levels are price zones
+The infrastructure worked end-to-end: scanner -> market data -> strategy decisions -> risk gate -> paper execution -> replay.
 
-A horizontal level is no longer represented as one exact price. The detector clusters nearby swing highs/lows into a `LevelZone` and evaluates:
+The first session exposed several implementation problems rather than one single "bad strategy":
 
-- number of separate touches;
-- width of the cascade / traded range;
-- how strongly price reacted after touches;
-- relative volume at those touches;
-- how recently the zone was active.
+- the same density setup could be traded repeatedly within seconds;
+- active symbols were discarded too quickly when they fell out of the top activity ranking;
+- profitable excursions of >=1R were sometimes given back into full losses;
+- weak trades with almost no favorable excursion were held until the hard stop;
+- the cost gate ignored net reward/risk;
+- symbol workers raced for portfolio capital instead of comparing opportunities centrally;
+- an open paper position could survive terminal shutdown without a final close event.
 
-The horizontal bounce strategy trades the zone boundaries, not an arbitrary mathematical line.
+This branch addresses those findings.
 
-### Stateful level breakout
+## Horizontal levels are zones
+
+Horizontal levels are represented as traded price zones / cascades, not exact mathematical lines.
+
+The detector clusters nearby swing highs/lows and scores the zone using:
+
+- separate touches;
+- zone width;
+- price reaction after touches;
+- relative volume around touches;
+- recency.
+
+The horizontal bounce strategy works with zone boundaries.
+
+## Stateful level breakout
 
 New strategy: `level_breakout`.
 
-It follows a per-symbol state machine:
+Per-symbol state machine:
 
 `SEARCH -> FOUND -> APPROACH -> PRESSURE -> BREAK -> IMPULSE`
 
-The state is isolated inside each active symbol session. A breakout on one coin cannot affect another coin.
+It combines a traded horizontal zone with:
 
-For an upward breakout the bot:
+- repeated approaches;
+- shallower pullbacks / local pressure;
+- recent volume;
+- Bybit public trade flow;
+- taker buy/sell imbalance;
+- short-term notional acceleration.
 
-1. Finds a traded resistance zone with repeated reactions.
-2. Watches price approach instead of rediscovering the level on every tick.
-3. Looks for pressure near the zone:
-   - repeated closes near the level;
-   - shallower pullbacks / rising local lows;
-   - increased recent volume;
-   - taker-side public trade flow;
-   - acceleration of recent traded notional.
-4. Requires price to cross the **zone**, not just one exact line.
-5. Requires post-break trade flow to remain aligned with the breakout direction.
-6. Places invalidation beyond the opposite side of the zone plus a local range buffer.
-7. Rejects the setup when the structural stop is too far for a scalp.
-8. Targets the first plausible impulse. The existing cost gate still decides whether the move is large enough after fees/spread/slippage.
-9. Marks the zone as already used so it does not chase the same breakout repeatedly.
+A breakout requires the whole zone to be crossed and aggressive flow to confirm the direction.
 
-Downward support breaks are mirrored.
+## Setup lifecycle
 
-### Market activity / volume context
+A detected trade is no longer just a boolean condition that can fire forever.
 
-Active symbol sessions now keep a rolling Bybit public-trade tape. Replay frames include a 5-second trade-flow summary:
+After a completed trade:
 
-- taker buy notional;
-- taker sell notional;
-- buy/sell imbalance;
-- traded notional per second;
-- acceleration versus the preceding 15 seconds;
-- trade count.
+`ENTER -> MANAGE -> CONSUMED -> WAIT -> REARM`
 
-This is deliberately not interpreted as "green candle = buyers" or "large volume = money entered long". It measures executed aggressive flow and is used only as confirmation around an already identified structure.
+The same setup ID cannot be traded immediately again. Each strategy also has a rearm cooldown. A consumed setup is reset only after the strategy has returned to a non-tradeable state for a configurable period.
+
+This directly prevents the rapid density re-entry loop found in the first paper run.
+
+## Active-symbol lifecycle
+
+`candidate != active symbol`.
+
+The scanner still promotes the most active liquid coins, but an active coin is now sticky:
+
+- minimum active lifetime;
+- separate maximum number of active symbols;
+- keeps its own strategy state while being observed;
+- does not disappear simply because it moved from rank 4 to rank 5;
+- is deactivated only after it is old enough, idle long enough, has no position, and has no meaningful setup in progress.
+
+## Central opportunity arbiter
+
+Symbol workers no longer open positions directly.
+
+They only observe markets and produce tradeable setups.
+
+A central arbiter compares all ready setups using:
+
+- strategy confidence;
+- net reward/risk;
+- current activity rank.
+
+Only then is portfolio capital assigned.
+
+## Trade lifecycle
+
+The first run showed multiple losing trades that had already reached >=1R in favorable excursion.
+
+New default management:
+
+1. Open against a structural stop.
+2. At 1R, realize 70% of the position.
+3. Move the remaining runner stop to estimated **net breakeven**, including fee/slippage allowance.
+4. Extend the runner target to 2.5R.
+5. If the trade never develops and after 20 seconds has MFE <0.25R while moving >=0.45R adverse, cut it as `no_follow_through` instead of waiting for the full hard stop.
+6. Strategy-level invalidation can also close a losing trade before the hard stop:
+   - higher-timeframe direction lost;
+   - horizontal/breakout zone structurally failed;
+   - density confirmation disappeared.
+
+All thresholds are configuration values and are intentionally subject to the next paper-run comparison.
+
+## Risk / expectancy gate
+
+A trade must now pass both:
+
+- minimum expected net profit after fees/spread/slippage;
+- minimum **net reward / net risk**.
+
+Default:
+
+`expected net >= $1`
+
+`net reward/risk >= 1.15`
+
+## Graceful stop
+
+Pressing Stop or terminating the app finalizes all remaining paper positions and records a normal `trade_closed` event with reason `bot_stop` or `shutdown`.
+
+## Scanner rate-limit mitigation
+
+The activity scanner now paces its kline requests and lowers request concurrency instead of bursting requests across the full liquid universe.
+
+## Replay observability
+
+Replay/live UI records and displays:
+
+- price zones;
+- breakout state;
+- 5-second trade flow;
+- ENTRY / PARTIAL / EXIT;
+- current runner stop and target;
+- setup consumed / blocked / rearmed;
+- expected net reward/risk;
+- MAE/MFE in R;
+- strategy/risk exit reasons.
 
 ## Current strategies
 
 - trend structure / trend-line bounce;
-- horizontal **zone** bounce;
+- horizontal zone bounce;
 - order-book density bounce;
-- traded horizontal-zone breakout.
+- stateful horizontal-zone breakout.
 
-## Existing safety / execution rules
+## Still intentionally deferred
 
-- Bybit public market data; paper execution only.
-- Liquid-universe filter and current-activity ranking.
-- Higher-timeframe direction filter.
-- One open position per symbol; multiple symbols may be traded asynchronously.
-- Shared portfolio exposure and risk limits.
-- Bid/ask-aware paper fills plus modeled slippage.
-- No-chasing entry-drift gate.
-- Expected profit must cover fees + spread + slippage + minimum net profit.
-- MAE/MFE recording and visual session replay.
-
-## Deliberately deferred until paper-run analysis
-
-- partial profit taking + runner position;
-- moving the remaining stop to breakeven after the first impulse;
-- dynamic early invalidation before the hard structural stop;
-- recalibration of all thresholds from replay evidence;
-- broader medium/long-term strategy layer;
+- per-strategy calibration from the second paper run;
+- smarter density state machine beyond the generic setup lifecycle;
+- trailing runner logic beyond breakeven + extended target;
+- authenticated live trading;
+- medium/long-term strategy layer;
 - AI/ML.
 
-These should be driven by the current session data rather than guessed before the replay review.
+The next paper run should be treated as an A/B-style comparison against the first session, not as proof of profitability.

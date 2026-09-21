@@ -116,6 +116,9 @@ function markerFor(event) {
     const side = payload.plan?.side || "long";
     return {time:Math.floor(event.ts), position:side === "long" ? "belowBar" : "aboveBar", shape:side === "long" ? "arrowUp" : "arrowDown", color:side === "long" ? "#34c759" : "#ff453a", text:`ENTRY ${side.toUpperCase()}`};
   }
+  if (event.event === "partial_take") {
+    return {time:Math.floor(event.ts), position:"aboveBar", shape:"circle", color:"#34c759", text:`PARTIAL ${money(payload.netPnl)}`};
+  }
   if (event.event === "trade_closed") {
     return {time:Math.floor(event.ts), position:"aboveBar", shape:"circle", color:"#007aff", text:`EXIT ${money(payload.netPnl)}`};
   }
@@ -136,10 +139,15 @@ function eventText(event) {
     const state = payload.details?.state ? ` · ${payload.details.state}` : "";
     return `${payload.strategy} · ${payload.action}${state} · ${(payload.reasons || []).join(" · ")}`;
   }
-  if (event.event === "trade_opened") return `${payload.plan?.side || ""} · entry ${price(payload.position?.entry)} · stop ${price(payload.position?.stop)} · target ${price(payload.position?.target)}`;
-  if (event.event === "trade_closed") return `${payload.reason} · net ${money(payload.netPnl)} · MAE ${money(payload.maeUsd)} · MFE ${money(payload.mfeUsd)}`;
+  if (event.event === "trade_opened") return `${payload.plan?.side || ""} · entry ${price(payload.position?.entry)} · stop ${price(payload.position?.stop)} · target ${price(payload.position?.target)} · RR ${Number(payload.plan?.net_reward_risk || 0).toFixed(2)}`;
+  if (event.event === "partial_take") return `partial net ${money(payload.netPnl)} · remaining ${money(payload.remainingNotional)} · stop→${price(payload.newStop)} · runner target ${price(payload.newTarget)}`;
+  if (event.event === "trade_closed") return `${payload.reason} · net ${money(payload.netPnl)} · MAE ${Number(payload.maeR || 0).toFixed(2)}R · MFE ${Number(payload.mfeR || 0).toFixed(2)}R`;
   if (event.event === "risk_reject") return payload.reason || "risk reject";
+  if (event.event === "setup_blocked") return `${payload.strategy} · ${payload.reason}`;
+  if (event.event === "setup_consumed") return `${payload.strategy} · setup consumed`;
+  if (event.event === "setup_rearmed") return `${payload.strategy} · rearmed`;
   if (event.event === "symbol_activated") return "Монета выбрана сканером и переведена в активное наблюдение";
+  if (event.event === "symbol_deactivated") return payload.reason || "deactivated";
   return event.event;
 }
 
@@ -173,7 +181,7 @@ function renderEventDetail(event) {
     `${new Date(event.ts * 1000).toLocaleString()} · ${event.event}`,
     eventText(event)
   ];
-  if (payload.plan) lines.push(`notional ${money(payload.plan.notional)} · expected net ${money(payload.plan.expected_net_profit)} · costs ${money(payload.plan.estimated_costs)}`);
+  if (payload.plan) lines.push(`notional ${money(payload.plan.notional)} · expected net ${money(payload.plan.expected_net_profit)} · net loss ${money(payload.plan.expected_net_loss)} · RR ${Number(payload.plan.net_reward_risk || 0).toFixed(2)} · costs ${money(payload.plan.estimated_costs)}`);
   $("replayDecision").textContent = lines.join("\n");
 }
 
@@ -216,7 +224,9 @@ function seek(index) {
   $("replayFlow").textContent = flow.tradeCount5s
     ? `${(Number(flow.imbalance5s || 0) * 100).toFixed(0)}% · x${Number(flow.acceleration || 0).toFixed(1)}`
     : "—";
-  $("replayPosition").textContent = frame.position ? `${frame.position.side.toUpperCase()} ${money(frame.position.unrealized_pnl)}` : "Нет";
+  $("replayPosition").textContent = frame.position
+    ? `${frame.position.side.toUpperCase()} · ${frame.position.partial_taken ? "RUNNER" : "INITIAL"} · open ${money(frame.position.unrealized_pnl)} · locked ${money(frame.position.realized_net_usd)}`
+    : "Нет";
 }
 
 function selectEvent(index) {
