@@ -152,10 +152,13 @@ function renderStrategies(rows) {
 }
 
 function renderDecisions(decisions) {
-  $("decisionStrip").innerHTML = Object.values(decisions || {}).map(decision => `<div class="decision">
-    <strong>${decision.strategy.replaceAll("_", " ")} · ${decision.action.toUpperCase()}</strong>
-    <span>${(decision.reasons || []).join(" · ")}</span>
-  </div>`).join("");
+  $("decisionStrip").innerHTML = Object.values(decisions || {}).map(decision => {
+    const state = decision.details?.state ? ` · ${decision.details.state.toUpperCase()}` : "";
+    return `<div class="decision">
+      <strong>${decision.strategy.replaceAll("_", " ")} · ${decision.action.toUpperCase()}${state}</strong>
+      <span>${(decision.reasons || []).join(" · ")}</span>
+    </div>`;
+  }).join("");
 }
 
 function eventText(event) {
@@ -268,7 +271,11 @@ function render(data) {
     const gapText = gapBps == null ? "" : ` · last↔book ${gapBps >= 0 ? "+" : ""}${gapBps.toFixed(1)} bps`;
 
     $("symbolTitle").textContent = data.market.symbol;
-    $("symbolMeta").textContent = `1m · last ${price(data.market.lastPrice)}${gapText} · activity ${pct(row?.activityChange)}`;
+    const flow = data.market.tradeFlow || {};
+    const flowText = flow.tradeCount5s
+      ? ` · flow5s ${(Number(flow.imbalance5s || 0) * 100).toFixed(0)}% · speed x${Number(flow.acceleration || 0).toFixed(1)}`
+      : "";
+    $("symbolMeta").textContent = `1m · last ${price(data.market.lastPrice)}${gapText} · activity ${pct(row?.activityChange)}${flowText}`;
     $("trendBadge").textContent = data.market.trend.toUpperCase();
     $("trendBadge").className = `trend ${data.market.trend}`;
     ensureChart();

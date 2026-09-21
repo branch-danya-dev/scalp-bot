@@ -132,7 +132,10 @@ function renderMarkers(ts) {
 
 function eventText(event) {
   const payload = event.payload || {};
-  if (event.event === "decision") return `${payload.strategy} · ${payload.action} · ${(payload.reasons || []).join(" · ")}`;
+  if (event.event === "decision") {
+    const state = payload.details?.state ? ` · ${payload.details.state}` : "";
+    return `${payload.strategy} · ${payload.action}${state} · ${(payload.reasons || []).join(" · ")}`;
+  }
   if (event.event === "trade_opened") return `${payload.plan?.side || ""} · entry ${price(payload.position?.entry)} · stop ${price(payload.position?.stop)} · target ${price(payload.position?.target)}`;
   if (event.event === "trade_closed") return `${payload.reason} · net ${money(payload.netPnl)} · MAE ${money(payload.maeUsd)} · MFE ${money(payload.mfeUsd)}`;
   if (event.event === "risk_reject") return payload.reason || "risk reject";
@@ -209,6 +212,10 @@ function seek(index) {
   $("replayTime").textContent = new Date(frame.ts * 1000).toLocaleString();
   $("replayPrice").textContent = price(frame.lastPrice);
   $("replayTrend").textContent = (frame.trend || "—").toUpperCase();
+  const flow = frame.tradeFlow || {};
+  $("replayFlow").textContent = flow.tradeCount5s
+    ? `${(Number(flow.imbalance5s || 0) * 100).toFixed(0)}% · x${Number(flow.acceleration || 0).toFixed(1)}`
+    : "—";
   $("replayPosition").textContent = frame.position ? `${frame.position.side.toUpperCase()} ${money(frame.position.unrealized_pnl)}` : "Нет";
 }
 

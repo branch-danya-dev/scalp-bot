@@ -7,11 +7,11 @@ from time import monotonic, time
 
 from .bybit import BybitRestClient, OrderBookState, stream_symbol
 from .config import Settings
-from .domain import Candle, Candidate, OrderBook, StrategyDecision, Trend
+from .domain import Candle, Candidate, OrderBook, StrategyDecision, TradeTick, Trend
 from .paper import PaperBroker
 from .recorder import SessionRecorder
 from .risk import RiskEngine
-from .strategies import DEFAULT_STRATEGIES, Strategy, classify_trend
+from .strategies import DEFAULT_STRATEGIES, Strategy, classify_trend, compute_trade_flow
 
 
 @dataclass(slots=True)
@@ -24,6 +24,7 @@ class ActiveSymbolSession:
     trend: Trend = Trend.FLAT
     decisions: dict[str, StrategyDecision] = field(default_factory=dict)
     decision_fingerprints: dict[str, tuple] = field(default_factory=dict)
+    trades: deque[TradeTick] = field(default_factory=lambda: deque(maxlen=2000))
     last_eval: float = 0.0
     last_frame: float = 0.0
     last_risk_fingerprint: tuple | None = None
@@ -35,6 +36,8 @@ class ActiveSymbolSession:
             "trend": self.trend.value,
             "candles": [x.public() for x in self.candles[-240:]],
             "orderbook": self.orderbook.public(),
+            "tradeFlow": compute_trade_flow(list(self.trades)),
+            "recentTrades": [trade.public() for trade in list(self.trades)[-20:]],
             "decisions": {k: v.public() for k, v in self.decisions.items()},
         }
 
@@ -44,6 +47,7 @@ class ActiveSymbolSession:
             "trend": self.trend.value,
             "candle": self.candles[-1].public() if self.candles else None,
             "orderbook": self.orderbook.public(book_depth),
+            "tradeFlow": compute_trade_flow(list(self.trades)),
             "position": position,
         }
 
@@ -134,6 +138,8 @@ class TradingEngine:
                 stop_event.set()
                 task.cancel()
                 self._emit("symbol_deactivated", symbol, {})
+                for strategy in self.strategies.values():
+                    strategy.reset(symbol)
                 self.sessions.pop(symbol, None)
         for symbol in desired:
             if symbol in self._worker_tasks:
@@ -194,6 +200,15 @@ class TradingEngine:
             elif topic.startswith("publicTrade."):
                 rows = message.get("data") or []
                 if rows:
+                    for row in rows:
+                        session.trades.append(
+                            TradeTick(
+                                ts_ms=int(row.get("T") or time() * 1000),
+                                price=float(row["p"]),
+                                size=float(row["v"]),
+                                side=str(row.get("S") or ""),
+                            )
+                        )
                     session.last_price = float(rows[-1]["p"])
                     closed = self.broker.mark(symbol, session.last_price, session.orderbook)
                     if closed:
@@ -248,7 +263,13 @@ class TradingEngine:
         for key, strategy in self.strategies.items():
             if not self.strategy_enabled[key]:
                 continue
-            decision = strategy.evaluate(session.candles, session.orderbook, session.trend)
+            decision = strategy.evaluate(
+                session.candles,
+                session.orderbook,
+                session.trend,
+                symbol=session.symbol,
+                trades=list(session.trades),
+            )
             session.decisions[key] = decision
             self._record_decision_if_changed(session, decision)
             if decision.tradeable:
@@ -315,6 +336,7 @@ class TradingEngine:
             decision.action.value,
             round(decision.watched_level or 0, 8),
             round(decision.entry or 0, 8),
+            decision.details.get("state"),
             tuple(decision.reasons),
         )
         if session.decision_fingerprints.get(decision.strategy) == fingerprint:

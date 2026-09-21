@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from enum import StrEnum
 from statistics import median
 from typing import Literal
 
@@ -562,8 +563,330 @@ class DensityBounceStrategy(Strategy):
         )
 
 
+class BreakoutStage(StrEnum):
+    SEARCH = "search"
+    FOUND = "found"
+    APPROACH = "approach"
+    PRESSURE = "pressure"
+    BREAK = "break"
+    IMPULSE = "impulse"
+
+
+@dataclass(slots=True)
+class BreakoutWatchState:
+    zone_key: tuple[str, float, float] | None = None
+    stage: BreakoutStage = BreakoutStage.SEARCH
+    triggered: bool = False
+
+
+class LevelBreakoutStrategy(Strategy):
+    key = "level_breakout"
+    label = "Пробой наторгованного уровня"
+
+    approach_pct = 0.0045
+    max_stop_pct = 0.006
+    max_zone_distance_pct = 0.012
+
+    def __init__(self) -> None:
+        self._states: dict[str, BreakoutWatchState] = {}
+
+    def reset(self, symbol: str) -> None:
+        self._states.pop(symbol, None)
+
+    @staticmethod
+    def _key(zone: LevelZone) -> tuple[str, float, float]:
+        return (zone.kind, round(zone.low, 10), round(zone.high, 10))
+
+    @staticmethod
+    def _select_zone(
+        zones: list[LevelZone],
+        price: float,
+        *,
+        long_side: bool,
+    ) -> LevelZone | None:
+        if long_side:
+            eligible = [
+                zone
+                for zone in zones
+                if zone.high >= price * 0.997
+                and zone.low <= price * (1 + LevelBreakoutStrategy.max_zone_distance_pct)
+            ]
+        else:
+            eligible = [
+                zone
+                for zone in zones
+                if zone.low <= price * 1.003
+                and zone.high >= price * (1 - LevelBreakoutStrategy.max_zone_distance_pct)
+            ]
+        eligible.sort(key=lambda zone: (abs(zone.center - price), -zone.score))
+        return eligible[0] if eligible else None
+
+    @staticmethod
+    def _pressure_score(
+        candles: list[Candle],
+        zone: LevelZone,
+        flow: dict,
+        *,
+        long_side: bool,
+    ) -> tuple[int, dict]:
+        recent = candles[-5:]
+        if len(recent) < 4:
+            return 0, {}
+
+        if long_side:
+            near_count = sum(1 for candle in recent if candle.close >= zone.low * 0.997)
+            structure = sum(
+                1 for left, right in zip(recent[-4:-1], recent[-3:], strict=True)
+                if right.low >= left.low
+            )
+            flow_aligned = flow["imbalance5s"] >= 0.08
+        else:
+            near_count = sum(1 for candle in recent if candle.close <= zone.high * 1.003)
+            structure = sum(
+                1 for left, right in zip(recent[-4:-1], recent[-3:], strict=True)
+                if right.high <= left.high
+            )
+            flow_aligned = flow["imbalance5s"] <= -0.08
+
+        previous_volumes = [c.volume for c in candles[-25:-5] if c.volume > 0]
+        baseline_volume = median(previous_volumes) if previous_volumes else 0.0
+        recent_volume = sum(c.volume for c in recent[-3:]) / 3
+        volume_active = baseline_volume > 0 and recent_volume >= baseline_volume
+
+        score = 0
+        score += int(near_count >= 2)
+        score += int(structure >= 2)
+        score += int(flow_aligned)
+        score += int(flow["acceleration"] >= 1.1)
+        score += int(volume_active)
+
+        return score, {
+            "nearCloses": near_count,
+            "compressedPullbacks": structure,
+            "flowAligned": flow_aligned,
+            "volumeActive": volume_active,
+        }
+
+    def evaluate(
+        self,
+        candles: list[Candle],
+        book: OrderBook,
+        trend: Trend,
+        *,
+        symbol: str = "",
+        trades: list[TradeTick] | None = None,
+    ) -> StrategyDecision:
+        if len(candles) < 60 or trend == Trend.FLAT or not symbol:
+            if symbol:
+                self.reset(symbol)
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Нет направленного контекста для пробоя"],
+                details={"state": BreakoutStage.SEARCH.value},
+            )
+
+        trades = trades or []
+        price = book.mid or candles[-1].close
+        long_side = trend == Trend.UP
+        zone_kind: LevelKind = "resistance" if long_side else "support"
+        zones = detect_level_zones(candles, zone_kind)
+        zone = self._select_zone(zones, price, long_side=long_side)
+
+        if zone is None:
+            self._states[symbol] = BreakoutWatchState()
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Натрогованная зона для пробоя рядом не найдена"],
+                details={"state": BreakoutStage.SEARCH.value},
+            )
+
+        state = self._states.setdefault(symbol, BreakoutWatchState())
+        zone_key = self._key(zone)
+        if state.zone_key != zone_key:
+            state.zone_key = zone_key
+            state.stage = BreakoutStage.FOUND
+            state.triggered = False
+
+        flow = compute_trade_flow(trades)
+        pressure_score, pressure = self._pressure_score(
+            candles,
+            zone,
+            flow,
+            long_side=long_side,
+        )
+        visuals = _zone_visual(zone, "breakout zone")
+
+        if long_side:
+            approach_distance = max(0.0, zone.low - price) / price
+            returned_inside = price <= zone.high
+        else:
+            approach_distance = max(0.0, price - zone.high) / price
+            returned_inside = price >= zone.low
+
+        if state.triggered and returned_inside:
+            state.triggered = False
+            state.stage = BreakoutStage.APPROACH
+
+        if approach_distance > self.approach_pct:
+            state.stage = BreakoutStage.FOUND
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Натрогованная зона найдена, цена ещё не подошла"],
+                0.42,
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    "zone": zone.public(),
+                    "flow": flow,
+                    "pressure": pressure,
+                    "pressureScore": pressure_score,
+                },
+            )
+
+        state.stage = BreakoutStage.PRESSURE if pressure_score >= 2 else BreakoutStage.APPROACH
+        break_buffer = max(0.00015, book.spread_pct * 1.5)
+        broke = (
+            price > zone.high * (1 + break_buffer)
+            if long_side
+            else price < zone.low * (1 - break_buffer)
+        )
+
+        if not broke:
+            reason = (
+                "Цена у уровня, давление на пробой сформировано"
+                if state.stage == BreakoutStage.PRESSURE
+                else "Цена подошла к уровню, ждём давление и триггер пробоя"
+            )
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                [reason],
+                min(0.48 + pressure_score * 0.05, 0.72),
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    "zone": zone.public(),
+                    "flow": flow,
+                    "pressure": pressure,
+                    "pressureScore": pressure_score,
+                },
+            )
+
+        state.stage = BreakoutStage.BREAK
+        aligned_after_break = (
+            flow["imbalance5s"] >= 0.05
+            if long_side
+            else flow["imbalance5s"] <= -0.05
+        )
+        if state.triggered:
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Пробой этой зоны уже использован, повторно цену не догоняем"],
+                0.35,
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    "zone": zone.public(),
+                    "flow": flow,
+                    "pressure": pressure,
+                    "pressureScore": pressure_score,
+                },
+            )
+
+        if pressure_score < 2 or not aligned_after_break:
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Зона проколота, но поток сделок пока не подтверждает импульс"],
+                0.55,
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    "zone": zone.public(),
+                    "flow": flow,
+                    "pressure": pressure,
+                    "pressureScore": pressure_score,
+                },
+            )
+
+        range_abs = _typical_range_abs(candles)
+        entry = price
+        if long_side:
+            stop = zone.low - range_abs * 0.25
+            expected_impulse = max(zone.width * 1.2, range_abs * 1.8)
+            target = entry + expected_impulse
+            stop_pct = (entry - stop) / entry
+            action = Action.LONG
+        else:
+            stop = zone.high + range_abs * 0.25
+            expected_impulse = max(zone.width * 1.2, range_abs * 1.8)
+            target = entry - expected_impulse
+            stop_pct = (stop - entry) / entry
+            action = Action.SHORT
+
+        if stop_pct <= 0 or stop_pct > self.max_stop_pct:
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Пробой есть, но точка инвалидации слишком далеко для скальпа"],
+                0.5,
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    "zone": zone.public(),
+                    "flow": flow,
+                    "pressure": pressure,
+                    "pressureScore": pressure_score,
+                    "stopDistancePct": stop_pct,
+                },
+            )
+
+        state.stage = BreakoutStage.IMPULSE
+        state.triggered = True
+        direction_reason = (
+            "Поток сделок подтверждает агрессивного покупателя"
+            if long_side
+            else "Поток сделок подтверждает агрессивного продавца"
+        )
+        return StrategyDecision(
+            strategy=self.key,
+            action=action,
+            reasons=[
+                "Пробой наторгованной горизонтальной зоны",
+                f"Зона подтверждена {zone.touches} касаниями и реакциями цены",
+                direction_reason,
+                "Цель сделки — забрать первый импульс, без пересиживания убытка",
+            ],
+            confidence=min(0.7 + pressure_score * 0.035 + min(zone.touches, 4) * 0.015, 0.92),
+            watched_level=zone.center,
+            entry=entry,
+            stop=stop,
+            target=target,
+            visuals=visuals,
+            details={
+                "state": state.stage.value,
+                "zone": zone.public(),
+                "flow": flow,
+                "pressure": pressure,
+                "pressureScore": pressure_score,
+                "stopDistancePct": stop_pct,
+                "exitMode": "impulse_first",
+            },
+        )
+
+
 DEFAULT_STRATEGIES: list[Strategy] = [
     TrendStructureStrategy(),
     HorizontalLevelStrategy(),
     DensityBounceStrategy(),
+    LevelBreakoutStrategy(),
 ]
