@@ -1,8 +1,40 @@
 from __future__ import annotations
 
+from dataclasses import asdict, dataclass
 from statistics import median
+from typing import Literal
 
-from .domain import Action, Candle, OrderBook, StrategyDecision, Trend
+from .domain import Action, Candle, OrderBook, StrategyDecision, TradeTick, Trend
+
+
+LevelKind = Literal["support", "resistance"]
+
+
+@dataclass(slots=True)
+class LevelZone:
+    kind: LevelKind
+    low: float
+    high: float
+    touches: int
+    reaction_pct: float
+    volume_ratio: float
+    score: float
+    last_touch_index: int
+
+    @property
+    def center(self) -> float:
+        return (self.low + self.high) / 2
+
+    @property
+    def width(self) -> float:
+        return self.high - self.low
+
+    @property
+    def width_pct(self) -> float:
+        return self.width / self.center if self.center else 0.0
+
+    def public(self) -> dict:
+        return asdict(self)
 
 
 def _swing_lows(candles: list[Candle], span: int = 2) -> list[tuple[int, float]]:
@@ -27,6 +59,20 @@ def _swing_highs(candles: list[Candle], span: int = 2) -> list[tuple[int, float]
     return result
 
 
+def _typical_range_pct(candles: list[Candle]) -> float:
+    values = [
+        (c.high - c.low) / c.close
+        for c in candles[-80:]
+        if c.close > 0 and c.high >= c.low
+    ]
+    return median(values) if values else 0.001
+
+
+def _typical_range_abs(candles: list[Candle]) -> float:
+    values = [c.high - c.low for c in candles[-40:] if c.high >= c.low]
+    return median(values) if values else (candles[-1].close * 0.001 if candles else 0)
+
+
 def classify_trend(candles: list[Candle]) -> Trend:
     if len(candles) < 30:
         return Trend.FLAT
@@ -44,6 +90,122 @@ def classify_trend(candles: list[Candle]) -> Trend:
     if lower_lows and lower_highs:
         return Trend.DOWN
     return Trend.FLAT
+
+
+def detect_level_zones(
+    candles: list[Candle],
+    kind: LevelKind,
+    *,
+    lookback: int = 160,
+    min_touches: int = 2,
+) -> list[LevelZone]:
+    if len(candles) < 12:
+        return []
+
+    window = candles[-lookback:]
+    offset = len(candles) - len(window)
+    tolerance = min(max(_typical_range_pct(window) * 0.75, 0.0005), 0.003)
+    swings = _swing_highs(window) if kind == "resistance" else _swing_lows(window)
+    if not swings:
+        return []
+
+    clusters: list[list[tuple[int, float]]] = []
+    for index, price in swings:
+        best: list[tuple[int, float]] | None = None
+        best_distance = float("inf")
+        for cluster in clusters:
+            center = sum(x[1] for x in cluster) / len(cluster)
+            distance = abs(price - center) / center if center else float("inf")
+            if distance <= tolerance and distance < best_distance:
+                best = cluster
+                best_distance = distance
+        if best is None:
+            clusters.append([(index, price)])
+        else:
+            best.append((index, price))
+
+    volume_baseline = median([c.volume for c in window if c.volume > 0]) if window else 0
+    zones: list[LevelZone] = []
+    for cluster in clusters:
+        if len(cluster) < min_touches:
+            continue
+        prices = [x[1] for x in cluster]
+        center = sum(prices) / len(prices)
+        padding = center * max(tolerance * 0.12, 0.00005)
+        low = min(prices) - padding
+        high = max(prices) + padding
+
+        reactions: list[float] = []
+        touch_volumes: list[float] = []
+        for index, price in cluster:
+            future = window[index + 1 : index + 7]
+            if future:
+                if kind == "resistance":
+                    move = (price - min(c.low for c in future)) / price
+                else:
+                    move = (max(c.high for c in future) - price) / price
+                reactions.append(max(0.0, move))
+            touch_volumes.append(window[index].volume)
+
+        reaction_pct = median(reactions) if reactions else 0.0
+        avg_touch_volume = sum(touch_volumes) / len(touch_volumes)
+        volume_ratio = avg_touch_volume / volume_baseline if volume_baseline > 0 else 1.0
+        score = (
+            len(cluster)
+            + min(reaction_pct / max(tolerance, 1e-9), 4.0)
+            + min(volume_ratio, 4.0) * 0.25
+        )
+        zones.append(
+            LevelZone(
+                kind=kind,
+                low=low,
+                high=high,
+                touches=len(cluster),
+                reaction_pct=reaction_pct,
+                volume_ratio=volume_ratio,
+                score=score,
+                last_touch_index=offset + cluster[-1][0],
+            )
+        )
+
+    zones.sort(key=lambda zone: (zone.score, zone.last_touch_index), reverse=True)
+    return zones
+
+
+def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> dict:
+    if not trades:
+        return {
+            "buyNotional5s": 0.0,
+            "sellNotional5s": 0.0,
+            "imbalance5s": 0.0,
+            "notionalPerSecond5s": 0.0,
+            "acceleration": 0.0,
+            "tradeCount5s": 0,
+        }
+    if now_ms is None:
+        now_ms = trades[-1].ts_ms
+
+    recent_start = now_ms - 5_000
+    previous_start = now_ms - 20_000
+    recent = [t for t in trades if t.ts_ms >= recent_start]
+    previous = [t for t in trades if previous_start <= t.ts_ms < recent_start]
+
+    buy = sum(t.notional for t in recent if t.side.lower() == "buy")
+    sell = sum(t.notional for t in recent if t.side.lower() == "sell")
+    recent_total = buy + sell
+    previous_total = sum(t.notional for t in previous)
+    recent_rate = recent_total / 5
+    previous_rate = previous_total / 15
+    acceleration = recent_rate / previous_rate if previous_rate > 0 else (1.0 if recent_total > 0 else 0.0)
+
+    return {
+        "buyNotional5s": buy,
+        "sellNotional5s": sell,
+        "imbalance5s": (buy - sell) / recent_total if recent_total > 0 else 0.0,
+        "notionalPerSecond5s": recent_rate,
+        "acceleration": acceleration,
+        "tradeCount5s": len(recent),
+    }
 
 
 def _bullish_rejection(candle: Candle) -> bool:
@@ -81,19 +243,74 @@ def _price_visual(label: str, price: float, kind: str) -> dict:
     return {"overlays": [{"type": "price", "label": label, "price": price, "kind": kind}]}
 
 
+def _zone_visual(zone: LevelZone, label: str | None = None) -> dict:
+    return {
+        "overlays": [
+            {
+                "type": "zone",
+                "label": label or zone.kind,
+                "low": zone.low,
+                "high": zone.high,
+                "kind": zone.kind,
+            }
+        ]
+    }
+
+
+def _nearest_zone(
+    zones: list[LevelZone],
+    price: float,
+    *,
+    direction: Literal["above", "below"],
+    max_distance_pct: float = 0.01,
+) -> LevelZone | None:
+    if direction == "above":
+        eligible = [
+            z for z in zones
+            if z.high >= price * 0.999 and (z.low - price) / price <= max_distance_pct
+        ]
+        eligible.sort(key=lambda z: abs(z.center - price))
+    else:
+        eligible = [
+            z for z in zones
+            if z.low <= price * 1.001 and (price - z.high) / price <= max_distance_pct
+        ]
+        eligible.sort(key=lambda z: abs(z.center - price))
+    return eligible[0] if eligible else None
+
+
 class Strategy:
     key: str
     label: str
 
-    def evaluate(self, candles: list[Candle], book: OrderBook, trend: Trend) -> StrategyDecision:
+    def evaluate(
+        self,
+        candles: list[Candle],
+        book: OrderBook,
+        trend: Trend,
+        *,
+        symbol: str = "",
+        trades: list[TradeTick] | None = None,
+    ) -> StrategyDecision:
         raise NotImplementedError
+
+    def reset(self, symbol: str) -> None:
+        return None
 
 
 class TrendStructureStrategy(Strategy):
     key = "trend_structure"
     label = "Трендовая структура"
 
-    def evaluate(self, candles: list[Candle], book: OrderBook, trend: Trend) -> StrategyDecision:
+    def evaluate(
+        self,
+        candles: list[Candle],
+        book: OrderBook,
+        trend: Trend,
+        *,
+        symbol: str = "",
+        trades: list[TradeTick] | None = None,
+    ) -> StrategyDecision:
         if len(candles) < 40 or trend == Trend.FLAT:
             return StrategyDecision(self.key, Action.WAIT, ["Нет читаемой трендовой структуры"])
 
@@ -159,79 +376,125 @@ class TrendStructureStrategy(Strategy):
 
 class HorizontalLevelStrategy(Strategy):
     key = "horizontal_levels"
-    label = "Горизонтальные уровни"
+    label = "Отбой от горизонтальной зоны"
 
-    def evaluate(self, candles: list[Candle], book: OrderBook, trend: Trend) -> StrategyDecision:
+    def evaluate(
+        self,
+        candles: list[Candle],
+        book: OrderBook,
+        trend: Trend,
+        *,
+        symbol: str = "",
+        trades: list[TradeTick] | None = None,
+    ) -> StrategyDecision:
         if len(candles) < 60 or trend == Trend.FLAT:
-            return StrategyDecision(self.key, Action.WAIT, ["Ждём тренд и повторно проверенный уровень"])
+            return StrategyDecision(self.key, Action.WAIT, ["Ждём тренд и наторгованную ценовую зону"])
+
         close = candles[-1].close
-        tolerance = 0.0018
+        last = candles[-1]
+        range_abs = _typical_range_abs(candles)
 
         if trend == Trend.UP:
-            lows = _swing_lows(candles[-120:])
-            for _, level in reversed(lows[-8:]):
-                touches = sum(1 for _, p in lows if abs(p - level) / level <= tolerance)
-                if touches >= 2 and abs(close - level) / close <= 0.0025:
-                    visuals = _price_visual("support", level, "support")
-                    if _bullish_rejection(candles[-1]):
-                        stop = min(candles[-1].low, level) * 0.999
-                        risk = close - stop
-                        return StrategyDecision(
-                            strategy=self.key,
-                            action=Action.LONG,
-                            reasons=["Общий тренд вверх", f"Уровень подтверждён {touches} касаниями", "Цена дала отскок"],
-                            confidence=0.72,
-                            watched_level=level,
-                            entry=close,
-                            stop=stop,
-                            target=close + risk * 1.7,
-                            visuals=visuals,
-                        )
-                    return StrategyDecision(
-                        self.key,
-                        Action.WAIT,
-                        ["Цена у поддержки, ждём подтверждение отскока"],
-                        0.5,
-                        level,
-                        visuals=visuals,
-                    )
-        else:
-            highs = _swing_highs(candles[-120:])
-            for _, level in reversed(highs[-8:]):
-                touches = sum(1 for _, p in highs if abs(p - level) / level <= tolerance)
-                if touches >= 2 and abs(close - level) / close <= 0.0025:
-                    visuals = _price_visual("resistance", level, "resistance")
-                    if _bearish_rejection(candles[-1]):
-                        stop = max(candles[-1].high, level) * 1.001
-                        risk = stop - close
-                        return StrategyDecision(
-                            strategy=self.key,
-                            action=Action.SHORT,
-                            reasons=["Общий тренд вниз", f"Уровень подтверждён {touches} касаниями", "Цена дала отскок"],
-                            confidence=0.72,
-                            watched_level=level,
-                            entry=close,
-                            stop=stop,
-                            target=close - risk * 1.7,
-                            visuals=visuals,
-                        )
-                    return StrategyDecision(
-                        self.key,
-                        Action.WAIT,
-                        ["Цена у сопротивления, ждём подтверждение отскока"],
-                        0.5,
-                        level,
-                        visuals=visuals,
-                    )
+            supports = detect_level_zones(candles, "support")
+            zone = _nearest_zone(supports, close, direction="below")
+            if zone is None:
+                return StrategyDecision(self.key, Action.WAIT, ["Рядом нет наторгованной зоны поддержки"])
+            visuals = _zone_visual(zone, "support zone")
+            touched = last.low <= zone.high and last.high >= zone.low
+            reclaimed = last.close >= zone.high
+            if touched and reclaimed and _bullish_rejection(last):
+                stop = zone.low - range_abs * 0.25
+                risk = close - stop
+                resistances = detect_level_zones(candles, "resistance")
+                next_resistance = _nearest_zone(resistances, close, direction="above", max_distance_pct=0.03)
+                target = (
+                    next_resistance.low
+                    if next_resistance and next_resistance.low > close
+                    else close + risk * 1.5
+                )
+                return StrategyDecision(
+                    strategy=self.key,
+                    action=Action.LONG,
+                    reasons=[
+                        "Тренд вверх",
+                        f"Зона поддержки наторгована: {zone.touches} касания",
+                        "Цена проколола/коснулась зоны и вернулась выше неё",
+                    ],
+                    confidence=min(0.62 + zone.score * 0.025, 0.88),
+                    watched_level=zone.center,
+                    entry=close,
+                    stop=stop,
+                    target=target,
+                    visuals=visuals,
+                    details={"zone": zone.public(), "setup": "support_bounce"},
+                )
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Цена рядом с зоной поддержки, подтверждённого отбоя пока нет"],
+                min(0.45 + zone.score * 0.015, 0.7),
+                zone.center,
+                visuals=visuals,
+                details={"zone": zone.public(), "setup": "support_watch"},
+            )
 
-        return StrategyDecision(self.key, Action.WAIT, ["Рядом нет подтверждённого горизонтального уровня"])
+        resistances = detect_level_zones(candles, "resistance")
+        zone = _nearest_zone(resistances, close, direction="above")
+        if zone is None:
+            return StrategyDecision(self.key, Action.WAIT, ["Рядом нет наторгованной зоны сопротивления"])
+        visuals = _zone_visual(zone, "resistance zone")
+        touched = last.high >= zone.low and last.low <= zone.high
+        reclaimed = last.close <= zone.low
+        if touched and reclaimed and _bearish_rejection(last):
+            stop = zone.high + range_abs * 0.25
+            risk = stop - close
+            supports = detect_level_zones(candles, "support")
+            next_support = _nearest_zone(supports, close, direction="below", max_distance_pct=0.03)
+            target = (
+                next_support.high
+                if next_support and next_support.high < close
+                else close - risk * 1.5
+            )
+            return StrategyDecision(
+                strategy=self.key,
+                action=Action.SHORT,
+                reasons=[
+                    "Тренд вниз",
+                    f"Зона сопротивления наторгована: {zone.touches} касания",
+                    "Цена проколола/коснулась зоны и вернулась ниже неё",
+                ],
+                confidence=min(0.62 + zone.score * 0.025, 0.88),
+                watched_level=zone.center,
+                entry=close,
+                stop=stop,
+                target=target,
+                visuals=visuals,
+                details={"zone": zone.public(), "setup": "resistance_bounce"},
+            )
+        return StrategyDecision(
+            self.key,
+            Action.WAIT,
+            ["Цена рядом с зоной сопротивления, подтверждённого отбоя пока нет"],
+            min(0.45 + zone.score * 0.015, 0.7),
+            zone.center,
+            visuals=visuals,
+            details={"zone": zone.public(), "setup": "resistance_watch"},
+        )
 
 
 class DensityBounceStrategy(Strategy):
     key = "orderbook_density"
     label = "Отскок от плотности"
 
-    def evaluate(self, candles: list[Candle], book: OrderBook, trend: Trend) -> StrategyDecision:
+    def evaluate(
+        self,
+        candles: list[Candle],
+        book: OrderBook,
+        trend: Trend,
+        *,
+        symbol: str = "",
+        trades: list[TradeTick] | None = None,
+    ) -> StrategyDecision:
         if not candles or not book.bids or not book.asks or trend == Trend.FLAT:
             return StrategyDecision(self.key, Action.WAIT, ["Недостаточно данных стакана или нет тренда"])
         mid = book.mid

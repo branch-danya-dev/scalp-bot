@@ -47,6 +47,27 @@ class Candle:
 
 
 @dataclass(slots=True)
+class TradeTick:
+    ts_ms: int
+    price: float
+    size: float
+    side: str
+
+    @property
+    def notional(self) -> float:
+        return self.price * self.size
+
+    def public(self) -> dict[str, Any]:
+        return {
+            "ts": self.ts_ms,
+            "price": self.price,
+            "size": self.size,
+            "side": self.side,
+            "notional": self.notional,
+        }
+
+
+@dataclass(slots=True)
 class OrderBook:
     bids: list[tuple[float, float]] = field(default_factory=list)
     asks: list[tuple[float, float]] = field(default_factory=list)
@@ -113,6 +134,7 @@ class StrategyDecision:
     stop: float | None = None
     target: float | None = None
     visuals: dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
     @property
     def side(self) -> Side | None:

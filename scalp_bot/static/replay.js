@@ -79,6 +79,10 @@ function addPriceLine(value, title, color="#8e8e93", style=2) {
 function applyVisuals(visuals) {
   for (const overlay of visuals?.overlays || []) {
     if (overlay.type === "price") addPriceLine(overlay.price, overlay.label || "level", "#8e8e93", 2);
+    if (overlay.type === "zone") {
+      addPriceLine(overlay.low, `${overlay.label || "zone"} low`, "#8e8e93", 2);
+      addPriceLine(overlay.high, `${overlay.label || "zone"} high`, "#8e8e93", 2);
+    }
     if (overlay.type === "line" && overlay.points?.length >= 2) {
       const series = chart.addLineSeries({color:"#7c7c80", lineWidth:1, lineStyle:2, priceLineVisible:false, lastValueVisible:false});
       series.setData(overlay.points);
