@@ -98,8 +98,12 @@ class PaperBroker:
             return False, "symbol already has an open position"
         if len(self.positions) >= self.config.max_open_positions:
             return False, "maximum open positions reached"
-        if self.total_pnl <= -(self.start_balance * self.config.max_daily_loss_fraction):
-            return False, "daily loss limit reached"
+        if (
+            self.config.enforce_session_loss_limit
+            and self.config.max_daily_loss_fraction > 0
+            and self.total_pnl <= -(self.start_balance * self.config.max_daily_loss_fraction)
+        ):
+            return False, "session loss limit reached"
         if self.available_notional <= 0:
             return False, "portfolio exposure budget exhausted"
         if self.available_risk_usd <= 0:
