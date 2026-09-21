@@ -85,3 +85,55 @@ def test_rejects_trade_with_bad_net_reward_risk_even_if_profit_covers_costs() ->
     )
     assert not result.allowed
     assert "reward/risk" in result.reason
+
+
+
+def test_single_trade_cannot_consume_whole_portfolio_exposure() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=1,
+        max_open_positions=4,
+        max_position_exposure_fraction=0.25,
+        risk_fraction=0.005,
+        min_net_profit_usd=0,
+        min_net_reward_risk=0,
+        taker_fee_rate=0,
+        slippage_bps=0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        decision(101.0, stop=99.9),
+        1000,
+        book(99.99, 100.00),
+        1000,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.notional == 250
+
+
+def test_position_exposure_cap_never_exceeds_remaining_portfolio_exposure() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=1,
+        max_position_exposure_fraction=0.25,
+        risk_fraction=0.005,
+        min_net_profit_usd=0,
+        min_net_reward_risk=0,
+        taker_fee_rate=0,
+        slippage_bps=0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        decision(101.0, stop=99.9),
+        1000,
+        book(99.99, 100.00),
+        80,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.notional == 80
