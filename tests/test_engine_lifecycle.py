@@ -309,3 +309,40 @@ def test_countertrend_reaction_is_not_misclassified_as_lost_trend_context(tmp_pa
         assert "AAAUSDT" in engine.broker.positions
     finally:
         close_rest(engine)
+
+
+
+@pytest.mark.asyncio
+async def test_start_survives_initial_scanner_failure(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    async def fail_scan() -> None:
+        raise RuntimeError("temporary rate limit")
+    engine._scan_once = fail_scan  # type: ignore[method-assign]
+
+    try:
+        await engine.start()
+
+        assert engine._tasks
+        assert any(event["event"] == "startup_scan_error" for event in engine.events)
+    finally:
+        await engine.close()
+
+
+@pytest.mark.asyncio
+async def test_promote_symbol_survives_bootstrap_failure(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    async def fail_bootstrap(symbol: str) -> None:
+        raise RuntimeError("temporary bootstrap rate limit")
+    engine._bootstrap_symbol = fail_bootstrap  # type: ignore[method-assign]
+
+    try:
+        await engine._promote_symbol("AAAUSDT", time())
+
+        assert "AAAUSDT" not in engine.sessions
+        assert any(
+            event["event"] == "symbol_bootstrap_error"
+            and event["symbol"] == "AAAUSDT"
+            for event in engine.events
+        )
+    finally:
+        await engine.rest.close()
