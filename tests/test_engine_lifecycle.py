@@ -260,3 +260,52 @@ async def test_duration_timer_auto_stops_and_finalizes_position(tmp_path) -> Non
         assert engine._last_run_summary["reason"] == "duration_elapsed"
     finally:
         await engine.rest.close()
+
+
+
+def test_new_rejection_and_density_states_keep_symbol_engaged(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        for state in ("persisting", "test", "defended", "reject", "reaction"):
+            session = ActiveSymbolSession(symbol="AAAUSDT", candles=[candle()])
+            session.decisions["stateful"] = StrategyDecision(
+                strategy="stateful",
+                action=Action.WAIT,
+                reasons=["watch"],
+                confidence=0.2,
+                details={"state": state},
+            )
+            assert engine._session_engaged(session), state
+    finally:
+        close_rest(engine)
+
+
+def test_countertrend_reaction_is_not_misclassified_as_lost_trend_context(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=99.9,
+            trend=Trend.UP,
+        )
+        engine.sessions[session.symbol] = session
+        p = plan("AAAUSDT")
+        p.side = Side.SHORT
+        p.stop = 100.5
+        p.target = 99.0
+        p.strategy = "weak_level_rejection"
+        p.strategy_details = {
+            "tradeMode": "countertrend_reaction",
+            "allowRunner": False,
+        }
+        pos = engine.broker.open(p, book())
+        pos.opened_at -= 10
+        pos.unrealized_pnl = -0.1
+
+        engine._maybe_strategy_invalidation(session)
+
+        assert "AAAUSDT" in engine.broker.positions
+    finally:
+        close_rest(engine)
