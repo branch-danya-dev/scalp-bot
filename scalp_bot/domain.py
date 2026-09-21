@@ -41,6 +41,8 @@ class Candle:
             "low": self.low,
             "close": self.close,
             "volume": self.volume,
+            "turnover": self.turnover,
+            "confirmed": self.confirmed,
         }
 
 
@@ -61,7 +63,7 @@ class OrderBook:
     def mid(self) -> float | None:
         if self.best_bid is None or self.best_ask is None:
             return None
-        return (self.best_bid + self.best_ask) / 2
+        return (self.best_ask + self.best_bid) / 2
 
     @property
     def spread_pct(self) -> float:
@@ -70,10 +72,18 @@ class OrderBook:
             return 0.0
         return (self.best_ask - self.best_bid) / mid
 
-    def public(self, depth: int = 14) -> dict[str, Any]:
+    def executable_entry(self, side: Side) -> float | None:
+        return self.best_ask if side == Side.LONG else self.best_bid
+
+    def executable_exit(self, side: Side) -> float | None:
+        return self.best_bid if side == Side.LONG else self.best_ask
+
+    def public(self, depth: int = 16) -> dict[str, Any]:
         return {
             "bids": [[p, q, p * q] for p, q in self.bids[:depth]],
             "asks": [[p, q, p * q] for p, q in self.asks[:depth]],
+            "bestBid": self.best_bid,
+            "bestAsk": self.best_ask,
             "spreadPct": self.spread_pct,
         }
 
@@ -84,6 +94,9 @@ class Candidate:
     turnover_24h: float
     change_24h: float
     last_price: float
+    activity_change: float = 0.0
+    activity_turnover: float = 0.0
+    activity_rank: int | None = None
 
     def public(self) -> dict[str, Any]:
         return asdict(self)
@@ -99,6 +112,7 @@ class StrategyDecision:
     entry: float | None = None
     stop: float | None = None
     target: float | None = None
+    visuals: dict[str, Any] = field(default_factory=dict)
 
     @property
     def side(self) -> Side | None:
@@ -123,7 +137,8 @@ class TradePlan:
     symbol: str
     strategy: str
     side: Side
-    entry: float
+    setup_entry: float
+    market_entry: float
     stop: float
     target: float
     notional: float
@@ -132,6 +147,7 @@ class TradePlan:
     expected_gross_profit: float
     estimated_costs: float
     expected_net_profit: float
+    entry_drift_pct: float
 
     def public(self) -> dict[str, Any]:
         data = asdict(self)

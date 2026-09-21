@@ -9,16 +9,24 @@ class Settings(BaseSettings):
 
     start_balance: float = 1_000.0
     min_turnover_usd: float = 150_000_000.0
-    working_symbols: int = 3
+    liquid_universe_size: int = 30
+    working_symbols: int = 4
+    activity_window_minutes: int = 5
     scanner_interval_seconds: float = 45.0
 
     min_net_profit_usd: float = 1.0
     risk_fraction: float = 0.005
+    max_total_risk_fraction: float = 0.02
     max_leverage: float = 1.0
+    max_open_positions: int = 4
+    max_daily_loss_fraction: float = 0.03
+    max_entry_drift_bps: float = 8.0
     taker_fee_rate: float = 0.00055
     maker_fee_rate: float = 0.00020
     slippage_bps: float = 1.0
 
+    replay_frame_seconds: float = 1.0
+    replay_book_depth: int = 16
     session_dir: str = "data/sessions"
 
 
