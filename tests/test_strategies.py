@@ -1,5 +1,5 @@
 from scalp_bot.domain import Action, Candle, OrderBook, TradeTick, Trend
-from scalp_bot.strategies import LevelBreakoutStrategy, WeakLevelRejectionStrategy, classify_trend, detect_level_zones
+from scalp_bot.strategies import DensityBounceStrategy, LevelBreakoutStrategy, WeakLevelRejectionStrategy, classify_trend, detect_level_zones
 
 
 def make_candle(i: int, base: float) -> Candle:
@@ -190,3 +190,120 @@ def test_weak_level_rejection_countertrend_takes_reaction_without_runner() -> No
     assert decision.details["tradeMode"] == "countertrend_reaction"
     assert decision.details["allowRunner"] is False
     assert decision.details["exitMode"] == "reaction_only"
+
+
+
+def density_candles_for_ask_reaction() -> list[Candle]:
+    candles: list[Candle] = []
+    for i in range(50):
+        p = 99.0 + (i % 5) * 0.02
+        candles.append(Candle(i * 60_000, p, p + 0.04, p - 0.04, p + 0.01, 100, 10_000))
+    candles[-1] = Candle(49 * 60_000, 99.92, 100.00, 99.84, 99.90, 160, 16_000)
+    return candles
+
+
+def density_book(ask_wall_notional: float, mid_bid: float = 99.89, mid_ask: float = 99.90) -> OrderBook:
+    bids = [(mid_bid - i * 0.01, 20) for i in range(25)]
+    asks = [(mid_ask + i * 0.01, 20) for i in range(25)]
+    wall_price = 100.00
+    asks = [(p, (ask_wall_notional / p) if abs(p - wall_price) < 1e-9 else q) for p, q in asks]
+    return OrderBook(bids=bids, asks=asks)
+
+
+def density_reversal_sell_flow() -> list[TradeTick]:
+    start = 30_000_000
+    rows: list[TradeTick] = []
+    for i in range(12):
+        rows.append(TradeTick(start + i * 250, 99.98, 3, "Sell"))
+    for i in range(3):
+        rows.append(TradeTick(start + 3_000 + i * 200, 99.98, 1, "Buy"))
+    return rows
+
+
+def test_density_requires_persistence_then_trades_defended_fresh_wall() -> None:
+    strategy = DensityBounceStrategy()
+    candles = density_candles_for_ask_reaction()
+    book = density_book(ask_wall_notional=20_000)
+
+    first = strategy.evaluate(
+        candles, book, Trend.DOWN, symbol="TESTUSDT", trades=[]
+    )
+    assert first.action == Action.WAIT
+    assert first.details["state"] == "persisting"
+
+    strategy._states["TESTUSDT"].first_seen -= 3
+    second = strategy.evaluate(
+        candles,
+        book,
+        Trend.DOWN,
+        symbol="TESTUSDT",
+        trades=density_reversal_sell_flow(),
+    )
+
+    assert second.action == Action.SHORT
+    assert second.details["state"] == "reaction"
+    assert second.details["densityFresh"] is True
+    assert second.details["allowRunner"] is True
+
+
+def test_density_skips_wall_that_is_being_eaten() -> None:
+    strategy = DensityBounceStrategy()
+    candles = density_candles_for_ask_reaction()
+    book = density_book(ask_wall_notional=20_000)
+    strategy.evaluate(candles, book, Trend.DOWN, symbol="TESTUSDT", trades=[])
+    state = strategy._states["TESTUSDT"]
+    state.first_seen -= 3
+    state.peak_notional = 40_000
+
+    decision = strategy.evaluate(
+        candles,
+        book,
+        Trend.DOWN,
+        symbol="TESTUSDT",
+        trades=density_reversal_sell_flow(),
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "exhausted"
+
+
+def test_density_countertrend_reaction_disables_runner() -> None:
+    strategy = DensityBounceStrategy()
+    candles = density_candles_for_ask_reaction()
+    book = density_book(ask_wall_notional=20_000)
+    strategy.evaluate(candles, book, Trend.UP, symbol="TESTUSDT", trades=[])
+    strategy._states["TESTUSDT"].first_seen -= 3
+
+    decision = strategy.evaluate(
+        candles,
+        book,
+        Trend.UP,
+        symbol="TESTUSDT",
+        trades=density_reversal_sell_flow(),
+    )
+
+    assert decision.action == Action.SHORT
+    assert decision.details["tradeMode"] == "countertrend_reaction"
+    assert decision.details["allowRunner"] is False
+
+
+def test_density_removed_before_reaction_is_not_traded() -> None:
+    strategy = DensityBounceStrategy()
+    candles = density_candles_for_ask_reaction()
+    book = density_book(ask_wall_notional=20_000)
+    strategy.evaluate(candles, book, Trend.DOWN, symbol="TESTUSDT", trades=[])
+    strategy._states["TESTUSDT"].first_seen -= 3
+
+    no_wall_book = density_book(ask_wall_notional=2_000)
+    no_wall_book.asks = [(p, q) for p, q in no_wall_book.asks if abs(p - 100.00) > 1e-9]
+    decision = strategy.evaluate(
+        candles,
+        no_wall_book,
+        Trend.DOWN,
+        symbol="TESTUSDT",
+        trades=density_reversal_sell_flow(),
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "exhausted"
+    assert decision.details["reason"] == "wall_removed"
