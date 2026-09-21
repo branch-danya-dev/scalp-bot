@@ -1,7 +1,22 @@
 const $ = id => document.getElementById(id);
 const money = value => new Intl.NumberFormat("en-US", {style:"currency", currency:"USD", maximumFractionDigits:2}).format(value || 0);
 const compact = value => new Intl.NumberFormat("en-US", {notation:"compact", maximumFractionDigits:1}).format(value || 0);
-const price = value => value == null ? "—" : Number(value).toLocaleString("en-US", {maximumFractionDigits:value < 1 ? 6 : 3});
+function precisionFor(value) {
+  const abs = Math.abs(Number(value) || 0);
+  if (abs >= 1000) return 2;
+  if (abs >= 100) return 3;
+  if (abs >= 1) return 4;
+  if (abs >= 0.1) return 5;
+  if (abs >= 0.01) return 6;
+  if (abs >= 0.001) return 7;
+  return 8;
+}
+const price = value => value == null ? "—" : Number(value).toLocaleString("en-US", {maximumFractionDigits:precisionFor(value)});
+function applyChartPrecision(value) {
+  if (!candleSeries || value == null) return;
+  const precision = precisionFor(value);
+  candleSeries.applyOptions({priceFormat:{type:"price", precision, minMove:10 ** -precision}});
+}
 
 let chart, candleSeries, bundle = null;
 let currentIndex = -1;
@@ -172,6 +187,7 @@ function seek(index) {
   }
   currentIndex = index;
   const frame = frames[index];
+  applyChartPrecision(frame.lastPrice);
   candleSeries.setData([...candleMap.values()].sort((a,b) => a.time - b.time));
   renderMarkers(frame.ts);
   renderBook(frame.orderbook);
