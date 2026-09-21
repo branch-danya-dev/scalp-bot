@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     max_total_risk_fraction: float = 0.02
     max_leverage: float = 1.0
     max_open_positions: int = 4
+    max_position_exposure_fraction: float = 0.25
     max_daily_loss_fraction: float = 0.03
     enforce_session_loss_limit: bool = False
     max_entry_drift_bps: float = 8.0
