@@ -1,53 +1,95 @@
 # Scalp Bot
 
-Paper-first prototype of an autonomous Bybit scalping workflow.
+Paper-first prototype of an autonomous Bybit scalper. The goal of the current stage is not to maximize win rate; it is to reproduce a disciplined trader workflow that can be reviewed visually after a live market session.
 
-The first version is deliberately small: it watches a few liquid USDT perpetuals, trades only with the higher-timeframe structure, rejects setups that do not cover transaction costs plus a minimum net profit, and records the bot's decisions together with market snapshots for review.
+## Current workflow
 
-## MVP
+1. Filter Bybit USDT perpetuals by 24h turnover (150M USD by default).
+2. From that liquid universe, rank coins by absolute price movement over the last 5 minutes, with recent turnover as a tiebreaker.
+3. Promote the top symbols to **active symbol sessions**. Each active coin has isolated candles, order book, strategy decisions and replay frames.
+4. Trade only in the direction of the higher-timeframe structure.
+5. Wait for one of the enabled setups:
+   - trend structure / trend-line bounce;
+   - horizontal level bounce;
+   - order-book density bounce.
+6. Before entry, reject the setup if:
+   - the setup has already moved too far from the intended entry (entry drift / no chasing);
+   - the stop has already been invalidated;
+   - the portfolio has no exposure/risk budget left;
+   - expected gross profit does not cover fees + spread + slippage + minimum required net profit.
+7. A negative unrealized PnL is **not** an exit signal by itself. The paper position stays open until its pre-defined stop/invalidation or target is hit.
+8. Record MAE/MFE so we can measure how far successful and failed trades moved against/for us before closing.
 
-- Bybit mainnet public market data; no API key is required in paper mode.
-- Scanner filters USDT perpetuals by 24h turnover (150M USD by default) and watches the top three.
-- 15m market structure is the global direction filter: no counter-trend trades.
-- Strategies:
-  - trend structure pullback / trend-line bounce;
-  - horizontal level bounce;
-  - order-book density bounce.
-- One paper position at a time.
-- Position size comes from stop distance and maximum allowed capital risk.
-- Hard cost gate includes taker fees, spread and modeled slippage.
-- Minimum expected net profit is 1 USD by default.
-- Entries, exits and rejected trades include market snapshots in a JSONL session log.
-- Local macOS-like control UI shows working symbols, live candles, order book, strategies, decisions, balance and PnL.
+## Parallel positions and resource isolation
+
+The bot may monitor and trade several active coins asynchronously, but there is at most one open position per symbol. Positions share one portfolio balance and one total exposure/risk budget, so separate symbol workers cannot reuse the same capital independently.
+
+## Visual session replay
+
+Every run produces data/sessions/session-<UTC timestamp>.jsonl.
+
+For each active symbol the recorder stores:
+
+- bootstrap candle history when the coin becomes active;
+- roughly one market frame per second;
+- current 1m candle;
+- top of the order book;
+- trend state;
+- open-position state;
+- strategy decisions and reasons;
+- watched levels / trend-line overlays;
+- risk rejections;
+- entry, stop, target and execution plan;
+- trade close result, fees, MAE and MFE.
+
+Open /replay to select a session and symbol, scrub the timeline, inspect the chart and order book at that exact moment, and jump directly to bot events.
 
 ## Run
 
 Requires Python 3.12+.
 
-1. Create a virtual environment: python -m venv .venv
-2. Activate it.
-3. Install: pip install -e ".[dev]"
-4. Copy .env.example to .env
-5. Start: uvicorn scalp_bot.app:app --reload --host 127.0.0.1 --port 8000
-6. Open http://127.0.0.1:8000
+1. python -m venv .venv
+2. Activate the environment.
+3. pip install -e ".[dev]"
+4. Copy .env.example to .env.
+5. uvicorn scalp_bot.app:app --reload --host 127.0.0.1 --port 8000
+6. Live UI: http://127.0.0.1:8000
+7. Replay UI: http://127.0.0.1:8000/replay
 
-The application starts in observation mode. Market data is live, but paper positions are not opened until the Start button is pressed.
+The app starts in observation mode. Public Bybit mainnet data is live, but all orders are simulated locally.
 
 ## Important defaults
 
 SCALP_START_BALANCE=1000
+SCALP_MIN_TURNOVER_USD=150000000
+SCALP_LIQUID_UNIVERSE_SIZE=30
+SCALP_WORKING_SYMBOLS=4
+SCALP_ACTIVITY_WINDOW_MINUTES=5
 SCALP_MIN_NET_PROFIT_USD=1
 SCALP_RISK_FRACTION=0.005
+SCALP_MAX_TOTAL_RISK_FRACTION=0.02
 SCALP_MAX_LEVERAGE=1.0
+SCALP_MAX_OPEN_POSITIONS=4
+SCALP_MAX_DAILY_LOSS_FRACTION=0.03
+SCALP_MAX_ENTRY_DRIFT_BPS=8
 SCALP_TAKER_FEE_RATE=0.00055
 SCALP_SLIPPAGE_BPS=1.0
+SCALP_REPLAY_FRAME_SECONDS=1
 
-MAX_LEVERAGE=1.0 is intentionally conservative for the first verification run. The fee defaults model Bybit VIP 0 perpetual/futures taker fees; verify the actual fee tier on the account before any future live-trading phase.
+Fee settings are configuration values, not assumptions that should be hard-coded forever. Verify the real Bybit account fee tier before any future live-trading phase.
 
-## Session review
+## Verification
 
-Every launch creates a data/sessions/session-<UTC timestamp>.jsonl file. It records scanner changes, strategy reasoning, risk rejection, entries and exits. Critical events contain the candle and order-book state so we can later build a full replay of the bot's workday.
+Current local test suite: 8 passed.
 
-## Current limits
+The tests cover the cost gate, no-chasing rule, an initially losing position that remains valid until its stop, per-symbol position isolation with a shared portfolio exposure budget, replay serialization and basic trend classification.
 
-This is an MVP, not a live trading system. It intentionally has no authenticated order execution and no AI layer yet. Historical replay UI, persistent database, authenticated Bybit execution and model assistance belong to later phases after the paper workflow produces useful review data.
+## Not implemented yet
+
+- authenticated live Bybit execution;
+- automatic stop movement / trailing logic;
+- advanced strategy invalidation before the hard stop;
+- database-backed long-term dataset;
+- AI/ML layer.
+
+Those are intentionally deferred until a short live-market paper run shows that the scanner, strategy reasoning, risk logic and replay are behaving coherently.

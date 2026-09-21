@@ -15,37 +15,36 @@
       <strong>Scalp Bot</strong><span class="badge">PAPER</span>
     </div>
     <div class="actions">
+      <a class="button secondary link-button" href="/replay">Replay</a>
       <span id="connection" class="live">Подключение…</span>
       <button id="stopBtn" class="button secondary">Стоп</button>
       <button id="startBtn" class="button primary">Запустить</button>
     </div>
   </header>
-
   <section class="metrics">
     <div class="metric card"><span>Баланс</span><strong id="balance">—</strong></div>
     <div class="metric card"><span>PnL сессии</span><strong id="pnl">—</strong></div>
-    <div class="metric card"><span>Позиция</span><strong id="position">Нет</strong></div>
+    <div class="metric card"><span>Открыто позиций</span><strong id="positionCount">0</strong></div>
+    <div class="metric card"><span>Свободная экспозиция</span><strong id="availableExposure">—</strong></div>
     <div class="metric card"><span>Cost gate</span><strong id="costGate">—</strong></div>
   </section>
-
   <section class="workspace">
     <aside class="card side">
-      <div class="heading"><h2>В работе</h2><span id="workCount">0</span></div>
+      <div class="heading"><h2>Активные монеты</h2><span id="workCount">0</span></div>
       <div id="workingList"></div>
       <div class="divider"></div>
-      <div class="heading"><h2>Ликвидные</h2><span>24h</span></div>
+      <div class="heading"><h2>Рейтинг активности</h2><span>5m / 24h</span></div>
       <div id="candidateList" class="candidates"></div>
     </aside>
-
     <section class="card chart-card">
       <div class="chart-head">
         <div><h1 id="symbolTitle">—</h1><span id="symbolMeta">Ожидание данных</span></div>
         <span id="trendBadge" class="trend flat">FLAT</span>
       </div>
       <div id="chart"></div>
+      <div id="positionCard" class="position-card hidden"></div>
       <div id="decisionStrip" class="decision-strip"></div>
     </section>
-
     <aside class="card book">
       <div class="heading"><h2>Стакан</h2><span id="spread">—</span></div>
       <div class="book-head"><span>Цена</span><span>Кол-во</span><span>USD</span></div>
@@ -54,7 +53,6 @@
       <div id="bids"></div>
     </aside>
   </section>
-
   <section class="bottom">
     <article class="card panel">
       <div class="heading"><h2>Стратегии</h2><span>только по тренду</span></div>
