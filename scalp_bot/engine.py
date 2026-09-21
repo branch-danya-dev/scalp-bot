@@ -830,6 +830,7 @@ class TradingEngine:
                 "riskFraction": self.config.risk_fraction,
                 "maxTotalRiskFraction": self.config.max_total_risk_fraction,
                 "maxLeverage": self.config.max_leverage,
+                "maxPositionExposureFraction": self.config.max_position_exposure_fraction,
                 "maxEntryDriftBps": self.config.max_entry_drift_bps,
                 "takerFeeRate": self.config.taker_fee_rate,
                 "slippageBps": self.config.slippage_bps,
