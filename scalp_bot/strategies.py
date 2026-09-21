@@ -1588,7 +1588,6 @@ class LevelBreakoutStrategy(Strategy):
 
 DEFAULT_STRATEGIES: list[Strategy] = [
     TrendStructureStrategy(),
-    HorizontalLevelStrategy(),
     WeakLevelRejectionStrategy(),
     DensityBounceStrategy(),
     LevelBreakoutStrategy(),
