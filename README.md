@@ -1,95 +1,91 @@
 # Scalp Bot
 
-Paper-first prototype of an autonomous Bybit scalper. The goal of the current stage is not to maximize win rate; it is to reproduce a disciplined trader workflow that can be reviewed visually after a live market session.
+Paper-first prototype of an autonomous Bybit scalper.
 
-## Current workflow
+This branch contains the first strategy-model rework prepared **separately from the running paper session**. It is intended to be combined with findings from the current replay analysis before the next paper run.
 
-1. Filter Bybit USDT perpetuals by 24h turnover (150M USD by default).
-2. From that liquid universe, rank coins by absolute price movement over the last 5 minutes, with recent turnover as a tiebreaker.
-3. Promote the top symbols to **active symbol sessions**. Each active coin has isolated candles, order book, strategy decisions and replay frames.
-4. Trade only in the direction of the higher-timeframe structure.
-5. Wait for one of the enabled setups:
-   - trend structure / trend-line bounce;
-   - horizontal level bounce;
-   - order-book density bounce.
-6. Before entry, reject the setup if:
-   - the setup has already moved too far from the intended entry (entry drift / no chasing);
-   - the stop has already been invalidated;
-   - the portfolio has no exposure/risk budget left;
-   - expected gross profit does not cover fees + spread + slippage + minimum required net profit.
-7. A negative unrealized PnL is **not** an exit signal by itself. The paper position stays open until its pre-defined stop/invalidation or target is hit.
-8. Record MAE/MFE so we can measure how far successful and failed trades moved against/for us before closing.
+## Strategy model rework
 
-## Parallel positions and resource isolation
+### Horizontal levels are price zones
 
-The bot may monitor and trade several active coins asynchronously, but there is at most one open position per symbol. Positions share one portfolio balance and one total exposure/risk budget, so separate symbol workers cannot reuse the same capital independently.
+A horizontal level is no longer represented as one exact price. The detector clusters nearby swing highs/lows into a `LevelZone` and evaluates:
 
-## Visual session replay
+- number of separate touches;
+- width of the cascade / traded range;
+- how strongly price reacted after touches;
+- relative volume at those touches;
+- how recently the zone was active.
 
-Every run produces data/sessions/session-<UTC timestamp>.jsonl.
+The horizontal bounce strategy trades the zone boundaries, not an arbitrary mathematical line.
 
-For each active symbol the recorder stores:
+### Stateful level breakout
 
-- bootstrap candle history when the coin becomes active;
-- roughly one market frame per second;
-- current 1m candle;
-- top of the order book;
-- trend state;
-- open-position state;
-- strategy decisions and reasons;
-- watched levels / trend-line overlays;
-- risk rejections;
-- entry, stop, target and execution plan;
-- trade close result, fees, MAE and MFE.
+New strategy: `level_breakout`.
 
-Open /replay to select a session and symbol, scrub the timeline, inspect the chart and order book at that exact moment, and jump directly to bot events.
+It follows a per-symbol state machine:
 
-## Run
+`SEARCH -> FOUND -> APPROACH -> PRESSURE -> BREAK -> IMPULSE`
 
-Requires Python 3.12+.
+The state is isolated inside each active symbol session. A breakout on one coin cannot affect another coin.
 
-1. python -m venv .venv
-2. Activate the environment.
-3. pip install -e ".[dev]"
-4. Copy .env.example to .env.
-5. uvicorn scalp_bot.app:app --reload --host 127.0.0.1 --port 8000
-6. Live UI: http://127.0.0.1:8000
-7. Replay UI: http://127.0.0.1:8000/replay
+For an upward breakout the bot:
 
-The app starts in observation mode. Public Bybit mainnet data is live, but all orders are simulated locally.
+1. Finds a traded resistance zone with repeated reactions.
+2. Watches price approach instead of rediscovering the level on every tick.
+3. Looks for pressure near the zone:
+   - repeated closes near the level;
+   - shallower pullbacks / rising local lows;
+   - increased recent volume;
+   - taker-side public trade flow;
+   - acceleration of recent traded notional.
+4. Requires price to cross the **zone**, not just one exact line.
+5. Requires post-break trade flow to remain aligned with the breakout direction.
+6. Places invalidation beyond the opposite side of the zone plus a local range buffer.
+7. Rejects the setup when the structural stop is too far for a scalp.
+8. Targets the first plausible impulse. The existing cost gate still decides whether the move is large enough after fees/spread/slippage.
+9. Marks the zone as already used so it does not chase the same breakout repeatedly.
 
-## Important defaults
+Downward support breaks are mirrored.
 
-SCALP_START_BALANCE=1000
-SCALP_MIN_TURNOVER_USD=150000000
-SCALP_LIQUID_UNIVERSE_SIZE=30
-SCALP_WORKING_SYMBOLS=4
-SCALP_ACTIVITY_WINDOW_MINUTES=5
-SCALP_MIN_NET_PROFIT_USD=1
-SCALP_RISK_FRACTION=0.005
-SCALP_MAX_TOTAL_RISK_FRACTION=0.02
-SCALP_MAX_LEVERAGE=1.0
-SCALP_MAX_OPEN_POSITIONS=4
-SCALP_MAX_DAILY_LOSS_FRACTION=0.03
-SCALP_MAX_ENTRY_DRIFT_BPS=8
-SCALP_TAKER_FEE_RATE=0.00055
-SCALP_SLIPPAGE_BPS=1.0
-SCALP_REPLAY_FRAME_SECONDS=1
+### Market activity / volume context
 
-Fee settings are configuration values, not assumptions that should be hard-coded forever. Verify the real Bybit account fee tier before any future live-trading phase.
+Active symbol sessions now keep a rolling Bybit public-trade tape. Replay frames include a 5-second trade-flow summary:
 
-## Verification
+- taker buy notional;
+- taker sell notional;
+- buy/sell imbalance;
+- traded notional per second;
+- acceleration versus the preceding 15 seconds;
+- trade count.
 
-Current local test suite: 8 passed.
+This is deliberately not interpreted as "green candle = buyers" or "large volume = money entered long". It measures executed aggressive flow and is used only as confirmation around an already identified structure.
 
-The tests cover the cost gate, no-chasing rule, an initially losing position that remains valid until its stop, per-symbol position isolation with a shared portfolio exposure budget, replay serialization and basic trend classification.
+## Current strategies
 
-## Not implemented yet
+- trend structure / trend-line bounce;
+- horizontal **zone** bounce;
+- order-book density bounce;
+- traded horizontal-zone breakout.
 
-- authenticated live Bybit execution;
-- automatic stop movement / trailing logic;
-- advanced strategy invalidation before the hard stop;
-- database-backed long-term dataset;
-- AI/ML layer.
+## Existing safety / execution rules
 
-Those are intentionally deferred until a short live-market paper run shows that the scanner, strategy reasoning, risk logic and replay are behaving coherently.
+- Bybit public market data; paper execution only.
+- Liquid-universe filter and current-activity ranking.
+- Higher-timeframe direction filter.
+- One open position per symbol; multiple symbols may be traded asynchronously.
+- Shared portfolio exposure and risk limits.
+- Bid/ask-aware paper fills plus modeled slippage.
+- No-chasing entry-drift gate.
+- Expected profit must cover fees + spread + slippage + minimum net profit.
+- MAE/MFE recording and visual session replay.
+
+## Deliberately deferred until paper-run analysis
+
+- partial profit taking + runner position;
+- moving the remaining stop to breakeven after the first impulse;
+- dynamic early invalidation before the hard structural stop;
+- recalibration of all thresholds from replay evidence;
+- broader medium/long-term strategy layer;
+- AI/ML.
+
+These should be driven by the current session data rather than guessed before the replay review.
