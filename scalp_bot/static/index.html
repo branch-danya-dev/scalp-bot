@@ -16,14 +16,16 @@
     </div>
     <div class="actions">
       <a class="button secondary link-button" href="/replay">Replay</a>
-      <span id="connection" class="live">Подключение…</span>
+      <span id="connection" class="live observing">Подключение…</span>
       <button id="stopBtn" class="button secondary">Стоп</button>
       <button id="startBtn" class="button primary">Запустить</button>
     </div>
   </header>
   <section class="metrics">
     <div class="metric card"><span>Баланс</span><strong id="balance">—</strong></div>
-    <div class="metric card"><span>PnL сессии</span><strong id="pnl">—</strong></div>
+    <div class="metric card"><span>Realized PnL</span><strong id="realizedPnl">—</strong></div>
+    <div class="metric card"><span>Open net PnL</span><strong id="openPnl">—</strong></div>
+    <div class="metric card"><span>Total net PnL</span><strong id="netPnl">—</strong></div>
     <div class="metric card"><span>Открыто позиций</span><strong id="positionCount">0</strong></div>
     <div class="metric card"><span>Свободная экспозиция</span><strong id="availableExposure">—</strong></div>
     <div class="metric card"><span>Cost gate</span><strong id="costGate">—</strong></div>
@@ -62,6 +64,15 @@
       <div class="heading"><h2>Лента решений</h2><span id="sessionFile">session</span></div>
       <div id="events" class="events"></div>
     </article>
+  </section>
+
+  <section class="card trades-panel">
+    <div class="heading"><h2>Закрытые paper-сделки</h2><span>entry → exit · fees · MAE/MFE · net</span></div>
+    <div class="trade-head">
+      <span>Монета</span><span>Side</span><span>Цена</span><span>Комиссии</span>
+      <span>MAE</span><span>MFE</span><span>Выход</span><span>Net</span>
+    </div>
+    <div id="closedTrades" class="closed-trades"></div>
   </section>
 </main>
 <script src="/static/app.js"></script>
