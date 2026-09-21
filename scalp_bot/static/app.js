@@ -273,7 +273,8 @@ function render(data) {
   $("positionCount").textContent = data.positions.length;
   const perPositionCap = Number(data.balance || 0) * Number(data.risk.maxLeverage || 0) * Number(data.risk.maxPositionExposureFraction || 0);
   $("availableExposure").textContent = `${money(data.portfolio.availableNotional)} · ${money(perPositionCap)}/pos`;
-  $("costGate").textContent = `≥ ${money(data.risk.minNetProfitUsd)} net · RR≥${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}`;
+  const rrGate = data.risk.enforceNetRewardRiskGate ? `RR≥${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}` : `RR monitor ${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}`;
+  $("costGate").textContent = `≥ ${money(data.risk.minNetProfitUsd)} net · ${rrGate}`;
   $("runTimer").textContent = data.botRunning
     ? duration(data.run?.remainingSeconds)
     : duration(data.run?.configuredDurationSeconds);
