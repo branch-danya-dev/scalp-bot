@@ -252,7 +252,10 @@ function renderTrades(rows) {
 
 function render(data) {
   const status = $("connection");
-  status.textContent = data.botRunning ? "PAPER TRADING ON" : "PAPER OFF · только наблюдение";
+  const lossCap = data.risk?.sessionLossLimitEnabled ? "LOSS CAP ON" : "RESEARCH · LOSS CAP OFF";
+  status.textContent = data.botRunning
+    ? `PAPER TRADING ON · ${lossCap}`
+    : `PAPER OFF · ${lossCap}`;
   status.className = data.botRunning ? "live trading-on" : "live observing";
   $("startBtn").disabled = data.botRunning;
   $("stopBtn").disabled = !data.botRunning;
