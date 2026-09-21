@@ -271,7 +271,8 @@ function render(data) {
   $("netPnl").textContent = money(totalNet);
   $("netPnl").className = totalNet >= 0 ? "positive" : "negative";
   $("positionCount").textContent = data.positions.length;
-  $("availableExposure").textContent = money(data.portfolio.availableNotional);
+  const perPositionCap = Number(data.balance || 0) * Number(data.risk.maxLeverage || 0) * Number(data.risk.maxPositionExposureFraction || 0);
+  $("availableExposure").textContent = `${money(data.portfolio.availableNotional)} · ${money(perPositionCap)}/pos`;
   $("costGate").textContent = `≥ ${money(data.risk.minNetProfitUsd)} net · RR≥${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}`;
   $("runTimer").textContent = data.botRunning
     ? duration(data.run?.remainingSeconds)
