@@ -61,7 +61,7 @@ Research cost gate:
 - net reward / all-in net loss must be at least 1.15;
 - existing strategies trade only in the direction of the confirmed higher-timeframe trend; countertrend reactions are observed but not opened.
 
-## 4-hour harness
+## Paper-run harness
 
 The timer starts after pressing Start.
 
@@ -102,6 +102,14 @@ git pull --ff-only origin main
 Copy-Item .env.example .env -Force
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
 ```
+
+For the prepared one-hour diagnostic research run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-research-1h.ps1
+```
+
+This loads `.env.example` first and then overrides only the run label and duration from `.env.research-1h`. See `docs/research-run-1h.md`.
 
 Before Start, verify the UI says:
 
