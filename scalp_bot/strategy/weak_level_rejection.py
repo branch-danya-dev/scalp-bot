@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 
 from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
@@ -37,8 +37,9 @@ class RejectionStage(StrEnum):
 
 @dataclass(slots=True)
 class RejectionWatchState:
-    zone_key: tuple[str, float, float, int] | None = None
+    zone_key: str | tuple[str, float, float, int] | None = None
     stage: RejectionStage = RejectionStage.SEARCH
+    used_generations: set[str] = field(default_factory=set)
 
 
 class WeakLevelRejectionStrategy(Strategy):
@@ -100,12 +101,33 @@ class WeakLevelRejectionStrategy(Strategy):
         symbol: str,
         zone: LevelZone,
         structure: "MarketStructure | None" = None,
+        structural_level=None,
     ) -> StrategyDecision:
         state = self._states.setdefault(symbol, RejectionWatchState())
-        zone_key = self._key(zone)
+        generation_id = (
+            structural_level.generation_id
+            if structural_level is not None and structural_level.generation_id
+            else f"{zone.kind}:{zone.last_touch_index}:{zone.center:.10g}"
+        )
+        zone_key = generation_id
         if state.zone_key != zone_key:
             state.zone_key = zone_key
             state.stage = RejectionStage.FOUND
+
+        if generation_id in state.used_generations:
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Эта генерация слабого уровня уже использована; ждём новый уровень"],
+                0.30,
+                zone.center,
+                details={
+                    "state": RejectionStage.FOUND.value,
+                    "zone": zone.public(),
+                    "levelGeneration": generation_id,
+                    "alreadyUsed": True,
+                },
+            )
 
         last = candles[-1]
         price = book.mid or last.close
@@ -234,22 +256,42 @@ class WeakLevelRejectionStrategy(Strategy):
         else:
             target = reaction_target
 
-        freshness = clamp(1.0 - (zone.touches - 1) * 0.25)
+        approaches = (
+            structural_level.distinct_approaches
+            if structural_level is not None
+            else zone.touches
+        )
+        acceptance_bars = (
+            structural_level.acceptance_bars
+            if structural_level is not None
+            else 0
+        )
+        failed_breaks = (
+            structural_level.failed_breaks
+            if structural_level is not None
+            else 0
+        )
+        freshness = clamp(1.0 - max(0, approaches - 1) * 0.30)
+        clean_acceptance = clamp(1.0 - acceptance_bars / 4.0)
+        rejection_history = clamp(failed_breaks / 2.0)
         flow_strength = clamp(abs(flow["imbalance5s"]) / 0.25)
         quality = clamp(
-            0.48
-            + freshness * 0.20
+            0.42
+            + freshness * 0.16
+            + clean_acceptance * 0.10
+            + rejection_history * 0.08
             + flow_strength * 0.15
             + (0.06 if allow_runner else 0.0)
-            + (0.05 if round_level is not None else 0.0)
+            + (0.03 if round_level is not None else 0.0)
         )
         state.stage = RejectionStage.REACTION
+        state.used_generations.add(generation_id)
 
         return StrategyDecision(
             strategy=self.key,
             action=action,
             reasons=[
-                f"Слабый уровень: {zone.touches} подход(а), без длительной проторговки",
+                f"Слабый уровень: {approaches} отдельных подход(а), без длительной проторговки",
                 "Попытка пробоя не удержалась, цена вернулась за границу зоны",
                 "Поток исполненных сделок развернулся от уровня",
                 (
@@ -270,6 +312,12 @@ class WeakLevelRejectionStrategy(Strategy):
                 "flow": flow,
                 "roundLevel": round_level,
                 "weakLevel": True,
+                "levelGeneration": generation_id,
+                "levelLifecycle": (
+                    structural_level.public()
+                    if structural_level is not None
+                    else None
+                ),
                 "tradeMode": mode,
                 "allowRunner": allow_runner,
                 "exitMode": "runner_allowed" if allow_runner else "reaction_only",
@@ -285,6 +333,8 @@ class WeakLevelRejectionStrategy(Strategy):
                 "setupQuality": quality,
                 "qualityFactors": {
                     "freshness": freshness,
+                    "cleanAcceptance": clean_acceptance,
+                    "rejectionHistory": rejection_history,
                     "flowStrength": flow_strength,
                     "roundConfluence": round_level is not None,
                     "trendAligned": allow_runner,
@@ -347,25 +397,42 @@ class WeakLevelRejectionStrategy(Strategy):
         if price <= 0:
             return StrategyDecision(self.key, Action.WAIT, ["Нет текущей цены"])
 
+        resistance_level = support_level = None
         if structure is not None:
             resistance_level = structure.nearest_horizontal(
-                price, "resistance", max_distance_pct=self.approach_pct,
-                min_touches=1, max_touches=self.max_touches,
+                price,
+                "resistance",
+                max_distance_pct=self.approach_pct,
+                min_touches=1,
+                max_touches=self.max_touches,
             )
             support_level = structure.nearest_horizontal(
-                price, "support", max_distance_pct=self.approach_pct,
-                min_touches=1, max_touches=self.max_touches,
+                price,
+                "support",
+                max_distance_pct=self.approach_pct,
+                min_touches=1,
+                max_touches=self.max_touches,
             )
+
             def young(level):
                 return (
                     level is not None
-                    and level.distinct_approaches <= 3
+                    and 1 <= level.distinct_approaches <= 3
                     and level.acceptance_bars <= 3
                     and level.lifecycle in {"fresh", "tested"}
+                    and level.generation_id is not None
                 )
 
-            resistance = resistance_level.as_zone() if young(resistance_level) else None
-            support = support_level.as_zone() if young(support_level) else None
+            resistance = (
+                resistance_level.as_zone()
+                if young(resistance_level)
+                else None
+            )
+            support = (
+                support_level.as_zone()
+                if young(support_level)
+                else None
+            )
         else:
             resistance = self._select_weak_zone(candles, price, "resistance")
             support = self._select_weak_zone(candles, price, "support")
@@ -382,6 +449,20 @@ class WeakLevelRejectionStrategy(Strategy):
             )
 
         zone = min(choices, key=lambda item: abs(item.center - price))
+        structural_level = None
+        if structure is not None:
+            candidates = [
+                level
+                for level in (resistance_level, support_level)
+                if level is not None
+                and abs(level.center - zone.center)
+                <= max(zone.width, price * 0.0006)
+            ]
+            structural_level = (
+                min(candidates, key=lambda item: abs(item.center - price))
+                if candidates
+                else None
+            )
         return self._decision_for_zone(
             candles,
             book,
@@ -390,4 +471,5 @@ class WeakLevelRejectionStrategy(Strategy):
             symbol,
             zone,
             structure,
+            structural_level,
         )
