@@ -718,3 +718,85 @@ def test_rejection_near_liquidity_is_obstacle_not_forced_target(monkeypatch) -> 
 def test_density_pre_entry_wall_state_is_test_not_defended() -> None:
     assert DensityStage.TEST.value == "test"
     assert DensityStage.DEFENDED.value == "defended"
+
+
+
+def test_weak_level_test_remains_pinned_through_selector_gap() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    rows = weak_support_rejection_candles()
+    market = OrderBook(bids=[(100.00, 50)], asks=[(100.01, 50)])
+    start = 20_000_000
+    sweep_only = [
+        TradeTick(start + i * 200, 99.95, 1, "Sell")
+        for i in range(6)
+    ]
+
+    first = strategy.evaluate(
+        rows,
+        market,
+        Trend.UP,
+        symbol="PINNEDUSDT",
+        trades=sweep_only,
+    )
+
+    assert first.action == Action.WAIT
+    assert first.details["state"] == "test"
+    state = strategy._states["PINNEDUSDT"]
+    assert state.pinned_zone is not None
+    assert state.swept is True
+
+    strategy._select_weak_zone = lambda *args, **kwargs: None  # type: ignore[method-assign]
+    second = strategy.evaluate(
+        rows,
+        market,
+        Trend.UP,
+        symbol="PINNEDUSDT",
+        trades=sweep_only,
+    )
+
+    assert second.details["state"] == "test"
+    assert strategy._states["PINNEDUSDT"].pinned_zone is not None
+
+
+def test_weak_level_sweep_then_live_reclaim_can_confirm() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    rows = weak_support_rejection_candles()
+    start = 20_000_000
+    sweep_only = [
+        TradeTick(start + i * 200, 99.95, 1, "Sell")
+        for i in range(6)
+    ]
+
+    first = strategy.evaluate(
+        rows,
+        OrderBook(bids=[(100.00, 50)], asks=[(100.01, 50)]),
+        Trend.UP,
+        symbol="RECLAIMUSDT",
+        trades=sweep_only,
+    )
+    assert first.action == Action.WAIT
+    assert first.details["state"] == "test"
+    assert first.details["sweepObserved"] is True
+
+    zone = first.details["zone"]
+    reclaim_price = float(zone["high"]) + 0.02
+    reclaim_flow = [
+        TradeTick(start + 2_000 + i * 100, 99.95, 1, "Sell")
+        for i in range(3)
+    ] + [
+        TradeTick(start + 3_000 + i * 100, reclaim_price, 5, "Buy")
+        for i in range(20)
+    ]
+    decision = strategy.evaluate(
+        rows,
+        OrderBook(
+            bids=[(reclaim_price - 0.01, 50)],
+            asks=[(reclaim_price, 50)],
+        ),
+        Trend.UP,
+        symbol="RECLAIMUSDT",
+        trades=reclaim_flow,
+    )
+
+    assert decision.action == Action.LONG
+    assert decision.details["state"] == "reaction"
