@@ -58,7 +58,7 @@ class DensityBounceStrategy(Strategy):
 
     strength_multiple = 4.0
     min_wall_notional_usd = 25_000.0
-    max_distance_pct = 0.004
+    max_distance_pct = 0.05
     approach_pct = 0.0022
     approach_reset_pct = 0.0035
     touch_pct = 0.00030
@@ -78,11 +78,51 @@ class DensityBounceStrategy(Strategy):
         self._states.pop(symbol, None)
 
     @staticmethod
-    def _rows(book: OrderBook) -> tuple[list[tuple[float, float, float]], list[tuple[float, float, float]], float]:
-        bids = [(p, q, p * q) for p, q in book.bids[:200]]
-        asks = [(p, q, p * q) for p, q in book.asks[:200]]
+    def _rows(
+        book: OrderBook,
+    ) -> tuple[
+        list[tuple[float, float, float]],
+        list[tuple[float, float, float]],
+        float,
+    ]:
+        bids = [(p, q, p * q) for p, q in book.bids]
+        asks = [(p, q, p * q) for p, q in book.asks]
         notionals = [row[2] for row in bids + asks]
         return bids, asks, median(notionals) if notionals else 0.0
+
+    @staticmethod
+    def _coverage(book: OrderBook) -> dict:
+        mid = book.mid
+        if not mid or not book.bids or not book.asks:
+            return {
+                "bidCoveragePct": 0.0,
+                "askCoveragePct": 0.0,
+                "bidLevels": len(book.bids),
+                "askLevels": len(book.asks),
+            }
+        lowest_bid = min(price for price, _ in book.bids)
+        highest_ask = max(price for price, _ in book.asks)
+        return {
+            "bidCoveragePct": max(0.0, (mid - lowest_bid) / mid),
+            "askCoveragePct": max(0.0, (highest_ask - mid) / mid),
+            "bidLevels": len(book.bids),
+            "askLevels": len(book.asks),
+        }
+
+    @staticmethod
+    def _wall_is_observable(
+        state: DensityWallState,
+        book: OrderBook,
+    ) -> bool:
+        if state.side is None or state.price is None:
+            return False
+        if state.side == "bid":
+            if not book.bids:
+                return False
+            return state.price >= min(price for price, _ in book.bids)
+        if not book.asks:
+            return False
+        return state.price <= max(price for price, _ in book.asks)
 
     @staticmethod
     def _same_price(left: float, right: float) -> bool:
@@ -260,6 +300,18 @@ class DensityBounceStrategy(Strategy):
 
         trades = trades or []
         bids, asks, baseline = self._rows(book)
+        coverage = self._coverage(book)
+        coverage["maxScanDistancePct"] = self.max_distance_pct
+        coverage["bidCoverageComplete"] = (
+            coverage["bidCoveragePct"] >= self.max_distance_pct
+        )
+        coverage["askCoverageComplete"] = (
+            coverage["askCoveragePct"] >= self.max_distance_pct
+        )
+        coverage["coverageComplete"] = (
+            coverage["bidCoverageComplete"]
+            and coverage["askCoverageComplete"]
+        )
         if baseline <= 0:
             return StrategyDecision(self.key, Action.WAIT, ["Стакан пуст"])
 
@@ -288,6 +340,17 @@ class DensityBounceStrategy(Strategy):
         if state.side is not None and state.price is not None:
             current = self._current_wall_notional(state, bids, asks)
             if current is None:
+                if not self._wall_is_observable(state, book):
+                    return self._wait(
+                        state,
+                        "Плотность вышла за границу текущего стакана; её статус неизвестен",
+                        confidence=0.20,
+                        details={
+                            "reason": "wall_outside_book_coverage",
+                            "bookCoverage": coverage,
+                            "positionInvalidated": False,
+                        },
+                    )
                 wall_present = False
                 if state.defended_at <= 0:
                     state.stage = DensityStage.EXHAUSTED
@@ -295,7 +358,10 @@ class DensityBounceStrategy(Strategy):
                     return self._wait(
                         state,
                         "Плотность снята до подтверждённой защиты — вход отменён",
-                        details={"reason": "wall_removed_before_defense"},
+                        details={
+                            "reason": "wall_removed_before_defense",
+                            "bookCoverage": coverage,
+                        },
                     )
                 state.current_notional = 0.0
             else:
@@ -312,11 +378,21 @@ class DensityBounceStrategy(Strategy):
                 absolute_wall_floor,
             )
             if selected is None:
+                reason = (
+                    "Крупная плотность не найдена в доступной части стакана; "
+                    "полный диапазон сканирования не покрыт"
+                    if not coverage["coverageComplete"]
+                    else "Свежей крупной плотности в заданном диапазоне нет"
+                )
                 return StrategyDecision(
                     self.key,
                     Action.WAIT,
-                    ["Свежей крупной плотности рядом с ценой нет"],
-                    details={"state": DensityStage.SEARCH.value},
+                    [reason],
+                    details={
+                        "state": DensityStage.SEARCH.value,
+                        "bookCoverage": coverage,
+                        "coverageIncomplete": not coverage["coverageComplete"],
+                    },
                 )
             side, price, notional, strength = selected
             state = DensityWallState(
@@ -396,6 +472,8 @@ class DensityBounceStrategy(Strategy):
             "roundConfluence": round_confluence,
             "notionalUsd": state.current_notional,
             "absoluteWallFloorUsd": absolute_wall_floor,
+            "bookCoverage": coverage,
+            "coverageIncomplete": not coverage["coverageComplete"],
             "levelFlow": level_flow.public(),
         }
 
