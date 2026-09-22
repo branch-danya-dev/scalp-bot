@@ -170,7 +170,7 @@ function renderDecisions(decisions) {
 
 function eventText(event) {
   const payload = event.payload || {};
-  if (event.event === "trade_opened") return `${payload.plan?.side || ""} ${money(payload.plan?.notional)} · net target ${money(payload.plan?.expected_net_profit)} · RR ${Number(payload.plan?.net_reward_risk || 0).toFixed(2)}`;
+  if (event.event === "trade_opened") return `${payload.plan?.side || ""} ${money(payload.plan?.notional)} · net@target ${money(payload.plan?.net_at_target ?? payload.plan?.expected_net_profit)} · quality ${Number(payload.opportunityQuality ?? 0).toFixed(2)}`;
   if (event.event === "partial_take") return `partial ${money(payload.netPnl)} · осталось ${money(payload.remainingNotional)} · stop→${price(payload.newStop)}`;
   if (event.event === "trade_closed") return `${payload.reason} · ${money(payload.netPnl)} · MAE ${money(payload.maeUsd)} · MFE ${money(payload.mfeUsd)}`;
   if (event.event === "risk_reject") return payload.reason || "rejected";

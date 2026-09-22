@@ -179,4 +179,9 @@ class TradePlan:
     def public(self) -> dict[str, Any]:
         data = asdict(self)
         data["side"] = self.side.value
+        # These are deterministic outcomes at the configured target/stop,
+        # not statistical expectancy. Keep legacy field names internally for
+        # compatibility while exposing unambiguous public aliases.
+        data["net_at_target"] = self.expected_net_profit
+        data["net_at_stop"] = self.expected_net_loss
         return data

@@ -70,6 +70,7 @@ class PaperBroker:
         self.start_balance = config.start_balance
         self.positions: dict[str, Position] = {}
         self.closed_trades: list[dict] = []
+        self.total_closed_trades: int = 0
 
     @property
     def total_pnl(self) -> float:
@@ -145,15 +146,21 @@ class PaperBroker:
 
         pos.last_price = last_price
         direction = 1 if pos.side == Side.LONG else -1
-        gross_mark_original = direction * (last_price - pos.entry) / pos.entry * pos.original_notional
+        executable = book.executable_exit(pos.side) or last_price
+
+        # All lifecycle triggers use an executable exit price, not the public
+        # last trade. This prevents a target from firing when the bid/ask plus
+        # spread is still below the actual executable threshold.
+        gross_mark_original = (
+            direction * (executable - pos.entry) / pos.entry * pos.original_notional
+        )
         pos.mfe_usd = max(pos.mfe_usd, gross_mark_original)
         pos.mae_usd = max(pos.mae_usd, -gross_mark_original)
 
-        executable = book.executable_exit(pos.side) or last_price
         pos.unrealized_pnl = direction * (executable - pos.entry) / pos.entry * pos.notional
         pos.unrealized_pnl -= pos.entry_fee_remaining + pos.notional * self.config.taker_fee_rate
 
-        hit_stop = last_price <= pos.stop if pos.side == Side.LONG else last_price >= pos.stop
+        hit_stop = executable <= pos.stop if pos.side == Side.LONG else executable >= pos.stop
         if hit_stop:
             return [self.close(symbol, book, "stop")]
 
@@ -171,7 +178,7 @@ class PaperBroker:
             return events
 
         pos = self.positions[symbol]
-        hit_target = last_price >= pos.target if pos.side == Side.LONG else last_price <= pos.target
+        hit_target = executable >= pos.target if pos.side == Side.LONG else executable <= pos.target
         if hit_target:
             events.append(self.close(symbol, book, "runner_target" if pos.partial_taken else "target"))
             return events
@@ -212,6 +219,7 @@ class PaperBroker:
             "closedAt": time(),
             "strategyDetails": dict(pos.strategy_details),
         }
+        self.total_closed_trades += 1
         self.closed_trades.append(trade)
         self.closed_trades = self.closed_trades[-200:]
         del self.positions[symbol]

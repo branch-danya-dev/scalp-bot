@@ -208,3 +208,43 @@ def test_session_loss_limit_still_exists_when_explicitly_enabled() -> None:
 
     assert not allowed
     assert reason == "session loss limit reached"
+
+
+
+def test_target_uses_executable_exit_not_last_trade() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("AAAUSDT", Side.LONG, 100)
+    p.target = 101.0
+    broker.open(p, book(99.99, 100.00))
+
+    # Last trade printed through target, but executable bid did not.
+    events = broker.mark("AAAUSDT", 101.10, book(100.95, 101.05))
+    assert events == []
+    assert "AAAUSDT" in broker.positions
+
+    events = broker.mark("AAAUSDT", 101.10, book(101.00, 101.05))
+    assert events and events[-1]["reason"] == "target"
+
+
+def test_closed_trade_counter_is_not_truncated_with_ui_history() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        slippage_bps=0,
+        max_leverage=1,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+    )
+    broker = PaperBroker(cfg)
+    for i in range(205):
+        symbol = f"T{i}USDT"
+        broker.open(plan(symbol, Side.LONG, 10), book(99.99, 100.00))
+        broker.close(symbol, book(100.00, 100.01), "test")
+
+    assert broker.total_closed_trades == 205
+    assert len(broker.closed_trades) == 200

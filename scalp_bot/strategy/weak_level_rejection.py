@@ -1,0 +1,303 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import StrEnum
+
+from ..domain import Action, Candle, OrderBook, StrategyDecision, TradeTick, Trend
+from .base import Strategy
+from .common import (
+    LevelKind,
+    LevelZone,
+    approach_is_directional,
+    clamp,
+    compute_trade_flow,
+    detect_level_zones,
+    nearby_round_level,
+    trade_mode,
+    typical_range_abs,
+    zone_overlap_count,
+    zone_visual,
+)
+
+
+class RejectionStage(StrEnum):
+    SEARCH = "search"
+    FOUND = "found"
+    APPROACH = "approach"
+    TEST = "test"
+    REJECT = "reject"
+    REACTION = "reaction"
+
+
+@dataclass(slots=True)
+class RejectionWatchState:
+    zone_key: tuple[str, float, float, int] | None = None
+    stage: RejectionStage = RejectionStage.SEARCH
+
+
+class WeakLevelRejectionStrategy(Strategy):
+    key = "weak_level_rejection"
+    label = "Отбой от слабого уровня"
+
+    max_touches = 3
+    approach_pct = 0.005
+    max_stop_pct = 0.006
+
+    def __init__(self) -> None:
+        self._states: dict[str, RejectionWatchState] = {}
+
+    def reset(self, symbol: str) -> None:
+        self._states.pop(symbol, None)
+
+    @staticmethod
+    def _key(zone: LevelZone) -> tuple[str, float, float, int]:
+        return (
+            zone.kind,
+            round(zone.low, 10),
+            round(zone.high, 10),
+            zone.last_touch_index,
+        )
+
+    def _select_weak_zone(
+        self,
+        candles: list[Candle],
+        price: float,
+        kind: LevelKind,
+    ) -> LevelZone | None:
+        zones = detect_level_zones(candles, kind, lookback=100, min_touches=1)
+        eligible: list[LevelZone] = []
+        for zone in zones:
+            if not 1 <= zone.touches <= self.max_touches:
+                continue
+            if abs(zone.center - price) / price > self.approach_pct:
+                continue
+            if len(candles) - 1 - zone.last_touch_index > 60:
+                continue
+            if zone_overlap_count(candles[:-1], zone, lookback=8) > 3:
+                continue
+            eligible.append(zone)
+        eligible.sort(
+            key=lambda zone: (
+                abs(zone.center - price),
+                zone.touches,
+                -zone.last_touch_index,
+            )
+        )
+        return eligible[0] if eligible else None
+
+    def _decision_for_zone(
+        self,
+        candles: list[Candle],
+        book: OrderBook,
+        trend: Trend,
+        trades: list[TradeTick],
+        symbol: str,
+        zone: LevelZone,
+    ) -> StrategyDecision:
+        state = self._states.setdefault(symbol, RejectionWatchState())
+        zone_key = self._key(zone)
+        if state.zone_key != zone_key:
+            state.zone_key = zone_key
+            state.stage = RejectionStage.FOUND
+
+        last = candles[-1]
+        price = book.mid or last.close
+        flow = compute_trade_flow(trades)
+        visuals = zone_visual(zone, "weak rejection zone")
+        range_abs = typical_range_abs(candles)
+
+        if not approach_is_directional(candles, zone.kind):
+            state.stage = RejectionStage.FOUND
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Слабый уровень найден, но направленного подхода к нему пока нет"],
+                0.40,
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    "zone": zone.public(),
+                    "flow": flow,
+                    "weakLevel": True,
+                },
+            )
+
+        state.stage = RejectionStage.APPROACH
+        round_level = nearby_round_level(zone.center, max(range_abs * 0.35, zone.width))
+        buffer = max(range_abs * 0.20, price * 0.00015)
+
+        if zone.kind == "resistance":
+            tested = last.high >= zone.low
+            failed_break = last.high >= zone.high * 0.9995 and last.close < zone.low
+            flow_reversed = flow["tradeCount5s"] >= 3 and flow["imbalance5s"] <= -0.05
+            action = Action.SHORT
+            stop_anchor = max(zone.high, round_level or zone.high)
+            stop = stop_anchor + buffer
+            risk = stop - price
+        else:
+            tested = last.low <= zone.high
+            failed_break = last.low <= zone.low * 1.0005 and last.close > zone.high
+            flow_reversed = flow["tradeCount5s"] >= 3 and flow["imbalance5s"] >= 0.05
+            action = Action.LONG
+            stop_anchor = min(zone.low, round_level or zone.low)
+            stop = stop_anchor - buffer
+            risk = price - stop
+
+        if tested:
+            state.stage = RejectionStage.TEST
+
+        if not (tested and failed_break):
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Цена тестирует слабый уровень, ждём отказ от пробоя и возврат за зону"],
+                0.50,
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    "zone": zone.public(),
+                    "flow": flow,
+                    "roundLevel": round_level,
+                    "weakLevel": True,
+                },
+            )
+
+        state.stage = RejectionStage.REJECT
+        if not flow_reversed:
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Пробой не удержался, но поток сделок ещё не подтвердил отскок"],
+                0.58,
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    "zone": zone.public(),
+                    "flow": flow,
+                    "roundLevel": round_level,
+                    "weakLevel": True,
+                },
+            )
+
+        if risk <= 0:
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["После возврата за уровень нет корректной точки инвалидации"],
+                visuals=visuals,
+            )
+
+        stop_pct = risk / price
+        if stop_pct > self.max_stop_pct:
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Структурный stop за уровнем слишком далеко для скальпа"],
+                0.45,
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    "zone": zone.public(),
+                    "roundLevel": round_level,
+                    "stopDistancePct": stop_pct,
+                    "weakLevel": True,
+                },
+            )
+
+        mode, allow_runner = trade_mode(action, trend)
+        target_r = 1.6 if allow_runner else 0.75
+        target = price + risk * target_r if action == Action.LONG else price - risk * target_r
+
+        freshness = clamp(1.0 - (zone.touches - 1) * 0.25)
+        flow_strength = clamp(abs(flow["imbalance5s"]) / 0.25)
+        quality = clamp(
+            0.48
+            + freshness * 0.20
+            + flow_strength * 0.15
+            + (0.06 if allow_runner else 0.0)
+            + (0.05 if round_level is not None else 0.0)
+        )
+        state.stage = RejectionStage.REACTION
+
+        return StrategyDecision(
+            strategy=self.key,
+            action=action,
+            reasons=[
+                f"Слабый уровень: {zone.touches} подход(а), без длительной проторговки",
+                "Попытка пробоя не удержалась, цена вернулась за границу зоны",
+                "Поток исполненных сделок развернулся от уровня",
+                (
+                    "Отскок идёт по тренду: runner разрешён"
+                    if allow_runner
+                    else "Отскок против тренда: берём только короткую реакцию"
+                ),
+            ],
+            confidence=quality,
+            watched_level=zone.center,
+            entry=price,
+            stop=stop,
+            target=target,
+            visuals=visuals,
+            details={
+                "state": state.stage.value,
+                "zone": zone.public(),
+                "flow": flow,
+                "roundLevel": round_level,
+                "weakLevel": True,
+                "tradeMode": mode,
+                "allowRunner": allow_runner,
+                "exitMode": "runner_allowed" if allow_runner else "reaction_only",
+                "targetR": target_r,
+                "setupQuality": quality,
+                "qualityFactors": {
+                    "freshness": freshness,
+                    "flowStrength": flow_strength,
+                    "roundConfluence": round_level is not None,
+                    "trendAligned": allow_runner,
+                },
+            },
+        )
+
+    def evaluate(
+        self,
+        candles: list[Candle],
+        book: OrderBook,
+        trend: Trend,
+        *,
+        symbol: str = "",
+        trades: list[TradeTick] | None = None,
+    ) -> StrategyDecision:
+        if len(candles) < 40 or trend == Trend.FLAT or not symbol:
+            if symbol:
+                self.reset(symbol)
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Нужен читаемый тренд и локальная история уровня"],
+                details={"state": RejectionStage.SEARCH.value},
+            )
+
+        price = book.mid or candles[-1].close
+        if price <= 0:
+            return StrategyDecision(self.key, Action.WAIT, ["Нет текущей цены"])
+
+        resistance = self._select_weak_zone(candles, price, "resistance")
+        support = self._select_weak_zone(candles, price, "support")
+        choices = [zone for zone in (resistance, support) if zone is not None]
+        if not choices:
+            state = self._states.setdefault(symbol, RejectionWatchState())
+            state.stage = RejectionStage.SEARCH
+            state.zone_key = None
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Рядом нет молодого слабонаторгованного уровня"],
+                details={"state": RejectionStage.SEARCH.value},
+            )
+
+        zone = min(choices, key=lambda item: abs(item.center - price))
+        return self._decision_for_zone(candles, book, trend, trades or [], symbol, zone)

@@ -346,3 +346,61 @@ async def test_promote_symbol_survives_bootstrap_failure(tmp_path) -> None:
         )
     finally:
         await engine.rest.close()
+
+
+
+def test_opportunity_score_prefers_setup_quality_not_geometry_rr(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        high_quality = StrategyDecision(
+            strategy="test",
+            action=Action.LONG,
+            reasons=["quality"],
+            confidence=0.70,
+            details={"setupQuality": 0.90},
+        )
+        low_quality = StrategyDecision(
+            strategy="test",
+            action=Action.LONG,
+            reasons=["geometry"],
+            confidence=0.85,
+            details={"setupQuality": 0.40},
+        )
+        assert engine._opportunity_score(high_quality, 5) > engine._opportunity_score(low_quality, 1)
+    finally:
+        close_rest(engine)
+
+
+def test_density_only_invalidates_on_explicit_price_flow_failure(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=99.9,
+            trend=Trend.UP,
+        )
+        engine.sessions[session.symbol] = session
+        p = plan("AAAUSDT")
+        p.strategy = "orderbook_density"
+        p.strategy_details = {"tradeMode": "trend_following", "allowRunner": True}
+        pos = engine.broker.open(p, book())
+        pos.opened_at -= 10
+        pos.unrealized_pnl = -0.1
+
+        session.decisions["orderbook_density"] = StrategyDecision(
+            strategy="orderbook_density",
+            action=Action.WAIT,
+            reasons=["wall removed after defense"],
+            details={"state": "reaction", "positionInvalidated": False},
+        )
+        engine._maybe_strategy_invalidation(session)
+        assert "AAAUSDT" in engine.broker.positions
+
+        session.decisions["orderbook_density"].details["positionInvalidated"] = True
+        engine._maybe_strategy_invalidation(session)
+        assert "AAAUSDT" not in engine.broker.positions
+        assert engine.broker.closed_trades[-1]["reason"] == "density_price_flow_invalidated"
+    finally:
+        close_rest(engine)

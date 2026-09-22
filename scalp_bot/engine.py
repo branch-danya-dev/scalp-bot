@@ -11,7 +11,7 @@ from .domain import Action, Candle, Candidate, OrderBook, Side, StrategyDecision
 from .paper import PaperBroker, Position
 from .recorder import SessionRecorder
 from .risk import RiskEngine
-from .strategies import DEFAULT_STRATEGIES, Strategy, classify_trend, compute_trade_flow
+from .strategy import DEFAULT_STRATEGIES, Strategy, classify_trend, compute_trade_flow
 
 
 ACTIVE_SETUP_STATES = {"found", "persisting", "approach", "pressure", "test", "defended", "reject", "reaction", "break", "impulse"}
@@ -179,7 +179,7 @@ class TradingEngine:
             "configuredDurationSeconds": self.config.paper_run_duration_seconds,
             "balance": self.broker.balance,
             "realizedPnl": self.broker.total_pnl,
-            "closedTrades": len(self.broker.closed_trades),
+            "closedTrades": self.broker.total_closed_trades,
         }
         self._last_run_summary = summary
         self._emit("run_summary", None, summary)
@@ -475,13 +475,30 @@ class TradingEngine:
         for key, strategy in self.strategies.items():
             if not self.strategy_enabled[key]:
                 continue
-            decision = strategy.evaluate(
-                session.candles,
-                session.orderbook,
-                session.trend,
-                symbol=session.symbol,
-                trades=list(session.trades),
-            )
+            try:
+                decision = strategy.evaluate(
+                    session.candles,
+                    session.orderbook,
+                    session.trend,
+                    symbol=session.symbol,
+                    trades=list(session.trades),
+                )
+            except Exception as exc:
+                error = f"{type(exc).__name__}: {exc}"
+                previous = session.decisions.get(key)
+                if previous is None or previous.details.get("error") != error:
+                    self._emit(
+                        "strategy_error",
+                        session.symbol,
+                        {"strategy": key, "error": error},
+                        snapshot=True,
+                    )
+                decision = StrategyDecision(
+                    strategy=key,
+                    action=Action.WAIT,
+                    reasons=[f"Ошибка стратегии: {error}"],
+                    details={"state": "error", "error": error},
+                )
             if decision.tradeable:
                 decision.setup_id = self._resolve_setup_id(session, decision)
                 session.last_signal_at = now
@@ -581,7 +598,7 @@ class TradingEngine:
 
                 candidate = candidate_map.get(session.symbol)
                 rank = candidate.activity_rank if candidate and candidate.activity_rank else 99
-                score = self._opportunity_score(decision, result.plan.net_reward_risk, rank)
+                score = self._opportunity_score(decision, rank)
                 opportunities.append(
                     Opportunity(
                         score=score,
@@ -613,6 +630,9 @@ class TradingEngine:
                 "reasons": best.decision.reasons,
                 "visuals": best.decision.visuals,
                 "opportunityScore": best.score,
+                "opportunityQuality": float(
+                    best.decision.details.get("setupQuality", best.decision.confidence) or 0.0
+                ),
                 "holdingRule": (
                     "take partial profit near 1R; runner moves to net breakeven; "
                     "weak losers can be cut before the hard structural stop"
@@ -622,9 +642,14 @@ class TradingEngine:
         )
 
     @staticmethod
-    def _opportunity_score(decision: StrategyDecision, net_rr: float, activity_rank: int) -> float:
+    def _opportunity_score(decision: StrategyDecision, activity_rank: int) -> float:
+        # Geometry-derived net R/R was not predictive in the long paper run:
+        # it describes payoff *if target is reached*, not the probability of
+        # reaching it. Rank opportunities by strategy-specific setup quality
+        # and use activity only as a small tie-breaker.
+        quality = float(decision.details.get("setupQuality", decision.confidence) or 0.0)
         activity_bonus = max(0.0, 12 - min(activity_rank, 12)) * 0.5
-        return decision.confidence * 100 + min(net_rr, 3.0) * 15 + activity_bonus
+        return quality * 100 + decision.confidence * 15 + activity_bonus
 
     def _setup_blocked_reason(
         self,
@@ -692,13 +717,8 @@ class TradingEngine:
 
         if reason is None and pos.strategy == "orderbook_density" and pos.unrealized_pnl < 0:
             decision = session.decisions.get(pos.strategy)
-            density_state = (
-                str(decision.details.get("state") or "")
-                if decision is not None
-                else ""
-            )
-            if density_state == "exhausted":
-                reason = "density_invalidated"
+            if decision is not None and bool(decision.details.get("positionInvalidated")):
+                reason = "density_price_flow_invalidated"
 
         if reason is None:
             return

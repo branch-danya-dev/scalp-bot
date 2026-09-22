@@ -105,3 +105,29 @@ and that the strategy list contains both:
 Отбой от слабого уровня
 Отскок от свежей плотности
 ```
+
+
+## Strategy Logic v3 architecture
+
+Trading logic is now modular:
+
+- strategy/trend_structure.py
+- strategy/weak_level_rejection.py
+- strategy/density.py
+- strategy/breakout.py
+- strategy/common.py for shared market primitives only
+
+The former strategies.py is only a compatibility export shim.
+
+Long-run findings applied in this patch:
+- weak-level support and resistance paths are symmetric and tested;
+- psychological round-number confluence is intentionally rare instead of nearly universal;
+- countertrend reactions use a shorter 0.75R target and never create a runner;
+- density tracks wall persistence, depletion, replenishment and absorption over time;
+- removal of a wall after a confirmed bounce is not by itself an exit signal;
+- density invalidation requires adverse price acceptance plus aggressive flow through the old wall;
+- breakout zones require at least 5 touches plus reaction/volume maturity;
+- one breakout zone generation can produce only one trade;
+- arbiter ranks setup quality, not deterministic net R/R geometry;
+- paper stop/target/partial triggers use executable bid/ask;
+- run_summary keeps a lifetime closed-trade counter even though the UI history is capped.
