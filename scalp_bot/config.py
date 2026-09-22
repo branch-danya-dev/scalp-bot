@@ -61,8 +61,9 @@ class Settings(BaseSettings):
     market_stale_seconds: float = 3.0
     book_stale_seconds: float = 1.5
     trade_buffer_seconds: int = 90
-    orderbook_depth: int = 200
+    orderbook_depth: int = 1000
     density_min_wall_notional_usd: float = 25_000.0
+    density_max_distance_pct: float = 0.05
     research_frame_seconds: float = 1.0
     research_recent_trades: int = 250
 
