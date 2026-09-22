@@ -21,7 +21,7 @@ from .common import (
     typical_range_pct,
     zone_visual,
 )
-from .flow import flow_at_level
+from .flow import flow_at_level, flow_beyond_level
 from .liquidity import find_liquidity_target
 
 
@@ -365,17 +365,25 @@ class LevelBreakoutStrategy(Strategy):
             )
 
         state.stage = BreakoutStage.BREAK
+        acceptance_boundary = zone.high if long_side else zone.low
+        acceptance_flow = flow_beyond_level(
+            trades,
+            acceptance_boundary,
+            long_side=long_side,
+            seconds=5,
+            now_ms=observed_at_ms,
+        )
         aligned_after_break = (
-            level_flow.trade_count >= 3
+            acceptance_flow.trade_count >= 3
             and (
-                level_flow.imbalance >= 0.05
+                acceptance_flow.imbalance >= 0.05
                 if long_side
-                else level_flow.imbalance <= -0.05
+                else acceptance_flow.imbalance <= -0.05
             )
             and (
-                level_flow.price_response_pct >= -0.0001
+                acceptance_flow.price_response_pct >= -0.0001
                 if long_side
-                else level_flow.price_response_pct <= 0.0001
+                else acceptance_flow.price_response_pct <= 0.0001
             )
         )
         if pressure_score < self.min_pressure_score or not aligned_after_break:
@@ -395,6 +403,8 @@ class LevelBreakoutStrategy(Strategy):
                     "pressure": pressure,
                     "flow": flow,
                     "levelFlow": level_flow.public(),
+                    "acceptanceFlow": acceptance_flow.public(),
+                    "acceptanceBoundary": acceptance_boundary,
                 },
             )
 
@@ -425,6 +435,8 @@ class LevelBreakoutStrategy(Strategy):
                     "pressure": pressure,
                     "flow": flow,
                     "levelFlow": level_flow.public(),
+                    "acceptanceFlow": acceptance_flow.public(),
+                    "acceptanceBoundary": acceptance_boundary,
                     "breakHoldSeconds": held_seconds,
                     "requiredBreakHoldSeconds": self.min_break_hold_seconds,
                 },
@@ -547,6 +559,8 @@ class LevelBreakoutStrategy(Strategy):
                 ),
                 "flow": flow,
                 "levelFlow": level_flow.public(),
+                "acceptanceFlow": acceptance_flow.public(),
+                "acceptanceBoundary": acceptance_boundary,
                 "pressure": pressure,
                 "pressureScore": pressure_score,
                 "breakHoldSeconds": max(

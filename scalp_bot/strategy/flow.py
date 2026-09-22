@@ -101,6 +101,47 @@ def flow_at_level(
     )
 
 
+def flow_beyond_level(
+    trades: list[TradeTick],
+    boundary_price: float,
+    *,
+    long_side: bool,
+    seconds: int = 5,
+    now_ms: int | None = None,
+) -> LevelFlow:
+    """Executed flow that actually occurred beyond a broken level edge."""
+    if not trades or boundary_price <= 0:
+        return LevelFlow()
+    now_ms = now_ms or trades[-1].ts_ms
+    cutoff = now_ms - seconds * 1000
+    rows = [
+        trade
+        for trade in trades
+        if cutoff <= trade.ts_ms <= now_ms
+        and (
+            trade.price >= boundary_price
+            if long_side
+            else trade.price <= boundary_price
+        )
+    ]
+    if not rows:
+        return LevelFlow()
+    buy = sum(t.notional for t in rows if t.side.lower() == "buy")
+    sell = sum(t.notional for t in rows if t.side.lower() == "sell")
+    total = buy + sell
+    first = rows[0].price
+    last = rows[-1].price
+    response = (last - first) / first if first > 0 else 0.0
+    return LevelFlow(
+        buy_notional=buy,
+        sell_notional=sell,
+        total_notional=total,
+        imbalance=(buy - sell) / total if total > 0 else 0.0,
+        trade_count=len(rows),
+        price_response_pct=response,
+    )
+
+
 def best_level_ofi_usd(previous: OrderBook, current: OrderBook) -> float:
     """Best-level order-flow imbalance in quote notional.
 

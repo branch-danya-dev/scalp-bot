@@ -610,6 +610,7 @@ class TradingEngine:
                             session.orderbook,
                         ),
                     )
+                self._mark_position_from_book(session)
             elif topic.startswith("kline."):
                 self._apply_kline(session, message)
                 session.last_kline_at = wall_now
@@ -632,12 +633,7 @@ class TradingEngine:
                         int(rows[-1].get("T") or time() * 1000),
                         self.config.trade_buffer_seconds,
                     )
-                    events = self.broker.mark(
-                        symbol,
-                        session.last_price,
-                        session.orderbook,
-                    )
-                    self._handle_broker_events(session, events)
+                    self._mark_position_from_book(session)
 
             now = monotonic()
             if now - session.last_eval >= 0.8:
@@ -1024,6 +1020,26 @@ class TradingEngine:
             reason,
         )
         self._handle_broker_events(session, [event])
+
+    def _mark_position_from_book(
+        self,
+        session: ActiveSymbolSession,
+    ) -> None:
+        if session.symbol not in self.broker.positions:
+            return
+        mark = (
+            session.last_price
+            or session.orderbook.mid
+            or 0.0
+        )
+        if mark <= 0:
+            return
+        events = self.broker.mark(
+            session.symbol,
+            mark,
+            session.orderbook,
+        )
+        self._handle_broker_events(session, events)
 
     def _handle_broker_events(self, session: ActiveSymbolSession, events: list[dict]) -> None:
         for event in events:
