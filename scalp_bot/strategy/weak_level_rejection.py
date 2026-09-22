@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from dataclasses import dataclass
 from enum import StrEnum
 
-from ..domain import Action, Candle, OrderBook, StrategyDecision, TradeTick, Trend
+from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .base import Strategy
 
 if TYPE_CHECKING:
@@ -292,6 +292,33 @@ class WeakLevelRejectionStrategy(Strategy):
             },
         )
 
+    def manage_position(
+        self,
+        *,
+        side: Side,
+        unrealized_pnl: float,
+        opened_at: float,
+        strategy_details: dict,
+        decision: StrategyDecision | None,
+        trend: Trend,
+        last_price: float,
+    ) -> str | None:
+        if unrealized_pnl >= 0:
+            return None
+        zone = (
+            strategy_details.get("zone")
+            if isinstance(strategy_details, dict)
+            else None
+        )
+        if isinstance(zone, dict):
+            low = float(zone.get("low") or 0)
+            high = float(zone.get("high") or 0)
+            if side == Side.LONG and low > 0 and last_price < low:
+                return "weak_level_invalidated"
+            if side == Side.SHORT and high > 0 and last_price > high:
+                return "weak_level_invalidated"
+        return None
+
     def evaluate(
         self,
         candles: list[Candle],
@@ -325,8 +352,16 @@ class WeakLevelRejectionStrategy(Strategy):
                 price, "support", max_distance_pct=self.approach_pct,
                 min_touches=1, max_touches=self.max_touches,
             )
-            resistance = resistance_level.as_zone() if resistance_level else None
-            support = support_level.as_zone() if support_level else None
+            def young(level):
+                return (
+                    level is not None
+                    and level.distinct_approaches <= 3
+                    and level.acceptance_bars <= 3
+                    and level.lifecycle in {"fresh", "tested"}
+                )
+
+            resistance = resistance_level.as_zone() if young(resistance_level) else None
+            support = support_level.as_zone() if young(support_level) else None
         else:
             resistance = self._select_weak_zone(candles, price, "resistance")
             support = self._select_weak_zone(candles, price, "support")
