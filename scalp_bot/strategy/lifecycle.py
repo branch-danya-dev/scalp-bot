@@ -58,6 +58,12 @@ class LevelLifecycleTracker:
                     level_id=level_id,
                     first_seen_ms=now_ms,
                     last_seen_ms=now_ms,
+                    distinct_approaches=max(
+                        1,
+                        min(level.distinct_approaches or level.touches, 5),
+                    ),
+                    dwell_bars=level.dwell_bars,
+                    acceptance_bars=level.acceptance_bars,
                 )
                 self._levels[level_id] = life
             elif life.broken and now_ms - life.last_seen_ms > 60_000:
@@ -94,22 +100,29 @@ class LevelLifecycleTracker:
                         life.dwell_bars += 1
                     if closes_inside:
                         life.acceptance_bars += 1
-                    life.last_counted_bar_ms = latest.start_ms
 
-                break_buffer = max(level.width * 0.25, reference_price * 0.0004)
-                if level.kind in {"resistance", "day_high", "previous_day_high"}:
-                    pierced = latest.high > level.high + break_buffer
-                    reclaimed = latest.close < level.low
-                    accepted_through = latest.close > level.high + break_buffer
-                else:
-                    pierced = latest.low < level.low - break_buffer
-                    reclaimed = latest.close > level.high
-                    accepted_through = latest.close < level.low - break_buffer
-                if pierced and reclaimed:
-                    life.failed_breaks += 1
-                    life.sweeps += 1
-                if accepted_through:
-                    life.broken = True
+                    break_buffer = max(
+                        level.width * 0.25,
+                        reference_price * 0.0004,
+                    )
+                    if level.kind in {
+                        "resistance",
+                        "day_high",
+                        "previous_day_high",
+                    }:
+                        pierced = latest.high > level.high + break_buffer
+                        reclaimed = latest.close < level.low
+                        accepted_through = latest.close > level.high + break_buffer
+                    else:
+                        pierced = latest.low < level.low - break_buffer
+                        reclaimed = latest.close > level.high
+                        accepted_through = latest.close < level.low - break_buffer
+                    if pierced and reclaimed:
+                        life.failed_breaks += 1
+                        life.sweeps += 1
+                    if accepted_through:
+                        life.broken = True
+                    life.last_counted_bar_ms = latest.start_ms
 
             level.level_id = level_id
             level.generation_id = f"{level_id}:g{life.generation}"
