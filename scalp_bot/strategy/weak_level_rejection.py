@@ -40,6 +40,10 @@ class RejectionWatchState:
     zone_key: str | tuple[str, float, float, int] | None = None
     stage: RejectionStage = RejectionStage.SEARCH
     used_generations: set[str] = field(default_factory=set)
+    pinned_zone: LevelZone | None = None
+    pinned_generation_id: str | None = None
+    pinned_until: float = 0.0
+    swept: bool = False
 
 
 class WeakLevelRejectionStrategy(Strategy):
@@ -49,6 +53,8 @@ class WeakLevelRejectionStrategy(Strategy):
     max_touches = 3
     approach_pct = 0.005
     max_stop_pct = 0.006
+    test_pin_seconds = 150.0
+    test_pin_max_distance_pct = 0.008
 
     def __init__(self) -> None:
         self._states: dict[str, RejectionWatchState] = {}
@@ -61,6 +67,10 @@ class WeakLevelRejectionStrategy(Strategy):
         generation = decision.details.get("levelGeneration")
         if state is not None and generation:
             state.used_generations.add(str(generation))
+            state.pinned_zone = None
+            state.pinned_generation_id = None
+            state.pinned_until = 0.0
+            state.swept = False
 
     @staticmethod
     def _key(zone: LevelZone) -> tuple[str, float, float, int]:
