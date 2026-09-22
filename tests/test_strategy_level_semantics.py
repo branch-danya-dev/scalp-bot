@@ -54,6 +54,14 @@ def aggressive_buy_flow() -> list[TradeTick]:
     ]
 
 
+def far_buy_flow() -> list[TradeTick]:
+    start = 30_000_000
+    return [
+        TradeTick(start + i * 200, 102.00, 8, "Buy")
+        for i in range(24)
+    ]
+
+
 def mature_structure(generation: str = "R:100:g1") -> MarketStructure:
     return MarketStructure(
         levels=[
@@ -254,3 +262,74 @@ def test_rejection_shared_generation_is_used_only_once() -> None:
         structure=new_generation,
     )
     assert third.action == Action.LONG
+
+
+
+def test_breakout_global_flow_away_from_level_does_not_confirm() -> None:
+    strategy = LevelBreakoutStrategy()
+    decision = strategy.evaluate(
+        mature_breakout_candles(),
+        OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)]),
+        Trend.UP,
+        symbol="FARFLOWUSDT",
+        trades=far_buy_flow(),
+        structure=mature_structure(),
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "break"
+    assert decision.details["flow"]["imbalance5s"] > 0
+    assert decision.details["levelFlow"]["tradeCount"] == 0
+
+
+def test_breakout_records_level_flow_on_entry() -> None:
+    strategy = LevelBreakoutStrategy()
+    decision = strategy.evaluate(
+        mature_breakout_candles(),
+        OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)]),
+        Trend.UP,
+        symbol="LOCALFLOWUSDT",
+        trades=aggressive_buy_flow(),
+        structure=mature_structure(),
+    )
+
+    assert decision.action == Action.LONG
+    assert decision.details["levelFlow"]["tradeCount"] > 0
+    assert decision.details["levelFlow"]["imbalance"] > 0
+
+
+
+def test_rejection_global_flow_away_from_level_does_not_confirm() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    decision = strategy.evaluate(
+        rejection_candles(),
+        OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)]),
+        Trend.UP,
+        symbol="FARREJECTUSDT",
+        trades=[
+            TradeTick(20_000_000 + i * 200, 102.0, 3, "Buy")
+            for i in range(20)
+        ],
+        structure=young_support(),
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "reject"
+    assert decision.details["flow"]["imbalance5s"] > 0
+    assert decision.details["levelFlow"]["tradeCount"] == 0
+
+
+def test_rejection_records_level_flow_on_entry() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    decision = strategy.evaluate(
+        rejection_candles(),
+        OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)]),
+        Trend.UP,
+        symbol="LOCALREJECTUSDT",
+        trades=buy_flow(),
+        structure=young_support(),
+    )
+
+    assert decision.action == Action.LONG
+    assert decision.details["levelFlow"]["tradeCount"] > 0
+    assert decision.details["levelFlow"]["buyNotional"] > 0
