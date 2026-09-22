@@ -27,6 +27,13 @@ class Strategy:
     def reset(self, symbol: str) -> None:
         return None
 
+    def mark_opened(
+        self,
+        symbol: str,
+        decision: StrategyDecision,
+    ) -> None:
+        return None
+
     def manage_position(
         self,
         *,
