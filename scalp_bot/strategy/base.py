@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ..domain import Candle, OrderBook, StrategyDecision, TradeTick, Trend
+from ..domain import Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
 
 if TYPE_CHECKING:
     from .structure import MarketStructure
@@ -25,4 +25,17 @@ class Strategy:
         raise NotImplementedError
 
     def reset(self, symbol: str) -> None:
+        return None
+
+    def manage_position(
+        self,
+        *,
+        side: Side,
+        unrealized_pnl: float,
+        opened_at: float,
+        strategy_details: dict,
+        decision: StrategyDecision | None,
+        trend: Trend,
+        last_price: float,
+    ) -> str | None:
         return None
