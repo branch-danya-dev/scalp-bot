@@ -841,3 +841,39 @@ def test_winner_cost_share_gate_accepts_roomy_breakout() -> None:
     assert result.plan is not None
     economics = result.plan.strategy_details["economics"]
     assert economics["winnerCostShare"] < 0.35
+
+
+
+def test_passive_eligible_strategy_prices_maker_entry_when_enabled() -> None:
+    cfg = economic_settings(
+        passive_entry_enabled=True,
+        enforce_min_net_profit_gate=False,
+        enforce_net_reward_risk_gate=False,
+        enforce_winner_cost_share_gate=False,
+        enforce_stop_cost_share_gate=False,
+        maker_fee_rate=0.00020,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "DENSUSDT",
+        StrategyDecision(
+            strategy="orderbook_density",
+            action=Action.LONG,
+            reasons=["defended wall"],
+            entry=100.0,
+            stop=99.80,
+            target=100.50,
+            details={"allowRunner": True},
+        ),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.entry_mode == "maker_limit"
+    assert result.plan.market_entry == pytest.approx(99.99)
+    economics = result.plan.strategy_details["economics"]
+    assert economics["entryMode"] == "maker_limit"
+    assert economics["entryFeeRate"] == pytest.approx(cfg.maker_fee_rate)
+    assert economics["entrySlippageRate"] == 0
