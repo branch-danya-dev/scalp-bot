@@ -141,3 +141,62 @@ def test_trade_review_summaries_and_detail_use_current_session(tmp_path) -> None
     assert len(summaries) == 1
     review = recorder.trade_review(summaries[0]["reviewId"])
     assert review["summary"]["netPnl"] == 1.25
+
+
+
+def test_trade_review_reconstructs_trace_for_legacy_decision_payload() -> None:
+    rows = [
+        {
+            "ts": 90.0,
+            "event": "decision",
+            "symbol": "AAAUSDT",
+            "payload": {
+                "strategy": "weak_level_rejection",
+                "action": "wait",
+                "reasons": ["waiting"],
+                "watched_level": 100.0,
+                "details": {
+                    "state": "test",
+                    "zone": {
+                        "kind": "support",
+                        "low": 99.9,
+                        "high": 100.1,
+                    },
+                },
+            },
+        },
+        {
+            "ts": 100.0,
+            "event": "trade_opened",
+            "symbol": "AAAUSDT",
+            "payload": {
+                "plan": {
+                    "strategy": "weak_level_rejection",
+                    "side": "long",
+                    "setup_id": "legacy-1",
+                }
+            },
+        },
+        {
+            "ts": 110.0,
+            "event": "trade_closed",
+            "symbol": "AAAUSDT",
+            "payload": {
+                "strategy": "weak_level_rejection",
+                "side": "long",
+                "setupId": "legacy-1",
+                "netPnl": 1.0,
+            },
+        },
+    ]
+
+    review = SessionRecorder._build_trade_reviews(rows)[0]
+    decision = next(
+        row
+        for row in review["timeline"]
+        if row["event"] == "decision"
+    )
+    trace = decision["payload"]["trace"]
+    assert trace["state"] == "test"
+    assert trace["object"]["type"] == "horizontal_zone"
+    assert trace["object"]["low"] == 99.9

@@ -134,3 +134,49 @@ def test_early_exit_is_flagged_when_original_target_hits_after_exit() -> None:
     review = report["earlyExits"][0]
     assert review["targetHitAfterExit"] is True
     assert review["postExitMfeR"] >= 2.0
+
+
+
+def test_legacy_setup_blocked_uses_latest_recorded_decision() -> None:
+    rows = [
+        {
+            "ts": 95.0,
+            "event": "decision",
+            "symbol": "AAAUSDT",
+            "payload": {
+                "strategy": "trend_structure",
+                "action": "long",
+                "entry": 100.0,
+                "stop": 99.0,
+                "target": 102.0,
+                "reasons": ["ready"],
+            },
+        },
+        {
+            "ts": 100.0,
+            "event": "setup_blocked",
+            "symbol": "AAAUSDT",
+            "payload": {
+                "strategy": "trend_structure",
+                "reason": "same setup already consumed",
+            },
+        },
+        {
+            "ts": 110.0,
+            "event": "research_frame",
+            "symbol": "AAAUSDT",
+            "payload": {
+                "candle": {
+                    "open": 100,
+                    "high": 102.1,
+                    "low": 99.8,
+                    "close": 102.0,
+                }
+            },
+        },
+    ]
+
+    report = analyze_session_rows(rows, horizon_seconds=60)
+
+    assert report["summary"]["rejectedCandidates"] == 1
+    assert report["candidates"][0]["classification"] == "missed_target_first"

@@ -162,6 +162,7 @@ def analyze_session_rows(
     observations = _observations_by_symbol(rows)
     candidates: list[dict] = []
     early_exits: list[dict] = []
+    latest_decisions: dict[tuple[str, str], dict] = {}
 
     for index, row in enumerate(rows):
         event = row.get("event")
@@ -169,8 +170,18 @@ def analyze_session_rows(
         symbol = str(row.get("symbol") or "")
         ts = _row_ts(row)
 
+        if event == "decision":
+            strategy = str(payload.get("strategy") or "")
+            if strategy:
+                latest_decisions[(symbol, strategy)] = payload
+
         if event in {"risk_reject", "setup_blocked"}:
+            strategy = str(payload.get("strategy") or "")
             decision = payload.get("decision")
+            if not isinstance(decision, dict) and strategy:
+                decision = latest_decisions.get(
+                    (symbol, strategy)
+                )
             if not isinstance(decision, dict):
                 continue
             future = _future_path(

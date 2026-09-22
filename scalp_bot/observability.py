@@ -176,3 +176,45 @@ def build_decision_trace(
         "target": decision.target,
         "evidence": _evidence(details),
     }
+
+
+
+def build_trace_from_public(
+    payload: dict[str, Any],
+    observed_at_ms: int,
+    trend_value: str | None = None,
+) -> dict[str, Any]:
+    action_raw = str(payload.get("action") or "wait")
+    try:
+        action = Action(action_raw)
+    except ValueError:
+        action = Action.WAIT
+    trend_raw = trend_value or str(
+        (payload.get("details") or {}).get("trend") or "flat"
+    )
+    try:
+        trend = Trend(trend_raw)
+    except ValueError:
+        trend = Trend.FLAT
+
+    decision = StrategyDecision(
+        strategy=str(payload.get("strategy") or "unknown"),
+        action=action,
+        reasons=list(payload.get("reasons") or []),
+        confidence=float(payload.get("confidence") or 0.0),
+        watched_level=payload.get("watched_level"),
+        entry=payload.get("entry"),
+        stop=payload.get("stop"),
+        target=payload.get("target"),
+        visuals=dict(payload.get("visuals") or {}),
+        details=dict(payload.get("details") or {}),
+        setup_id=(
+            payload.get("setup_id")
+            or payload.get("setupId")
+        ),
+    )
+    return build_decision_trace(
+        decision,
+        trend,
+        observed_at_ms,
+    )

@@ -227,6 +227,17 @@ class SessionRecorder:
                 event = row.get("event")
                 payload = row.get("payload") or {}
                 if event in timeline_events:
+                    if (
+                        event == "decision"
+                        and isinstance(payload, dict)
+                        and not isinstance(payload.get("trace"), dict)
+                    ):
+                        from .observability import build_trace_from_public
+                        payload = dict(payload)
+                        payload["trace"] = build_trace_from_public(
+                            payload,
+                            int(ts * 1000),
+                        )
                     timeline.append({
                         "ts": ts,
                         "event": event,
