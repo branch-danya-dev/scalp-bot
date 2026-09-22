@@ -88,9 +88,15 @@ class RiskEngine:
             return RiskResult(False, "portfolio exposure budget exhausted")
 
         fee_cost = notional * self.config.taker_fee_rate * 2
-        slippage_cost = notional * (self.config.slippage_bps / 10_000) * 2
-        spread_cost = notional * max(book.spread_pct, 0)
-        estimated_costs = fee_cost + slippage_cost + spread_cost
+        slippage_cost = (
+            notional
+            * (self.config.slippage_bps / 10_000)
+            * 2
+        )
+        # Entry already uses the executable ask/bid and paper exits are
+        # triggered on the executable opposite side. Subtracting a second
+        # full spread here would double-count the same friction.
+        estimated_costs = fee_cost + slippage_cost
         gross_profit = notional * target_pct
         gross_loss = notional * stop_pct
         expected_net = gross_profit - estimated_costs
