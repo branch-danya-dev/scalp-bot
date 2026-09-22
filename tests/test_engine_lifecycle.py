@@ -425,3 +425,51 @@ def test_activity_score_can_break_close_setup_quality_tie(tmp_path) -> None:
         assert hot > quiet
     finally:
         close_rest(engine)
+
+
+
+@pytest.mark.asyncio
+async def test_bootstrap_loads_direct_multi_timeframe_context(tmp_path) -> None:
+    engine = make_engine(
+        tmp_path,
+        bootstrap_1m_candles=720,
+        bootstrap_5m_candles=576,
+        bootstrap_15m_candles=480,
+        bootstrap_1h_candles=336,
+    )
+    calls: list[tuple[str, int]] = []
+
+    async def fake_klines(
+        symbol: str,
+        interval: str,
+        limit: int = 240,
+    ) -> list[Candle]:
+        calls.append((interval, limit))
+        count = {"1": 60, "5": 60, "15": 60, "60": 60}[interval]
+        return [
+            Candle(
+                i * 60_000,
+                100 + i * 0.01,
+                100.2 + i * 0.01,
+                99.8 + i * 0.01,
+                100.1 + i * 0.01,
+                10,
+                1000,
+            )
+            for i in range(count)
+        ]
+
+    engine.rest.klines = fake_klines  # type: ignore[method-assign]
+    try:
+        await engine._bootstrap_symbol("TESTUSDT")
+        session = engine.sessions["TESTUSDT"]
+
+        assert ("1", 720) in calls
+        assert ("5", 576) in calls
+        assert ("15", 480) in calls
+        assert ("60", 336) in calls
+        assert session.context_5m
+        assert session.context_15m
+        assert session.context_1h
+    finally:
+        await engine.rest.close()
