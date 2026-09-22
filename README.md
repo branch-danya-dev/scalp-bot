@@ -1,6 +1,6 @@
-# Scalp Bot — Current 10h Paper Run
+# Scalp Bot — Strategy Logic v3 · 4h Paper Run
 
-This run branch is the current integrated project state. It combines the 10-hour research harness with every strategy rework completed before this run.
+This run branch is the prepared Strategy Logic v3 research state for a controlled four-hour paper run.
 
 ## Strategies in this run
 
@@ -40,7 +40,7 @@ This run branch is the current integrated project state. It combines the 10-hour
 - runner target about 2.5R;
 - no-follow-through early cutting;
 - structural invalidation before emergency hard stop;
-- paper positions finalize on Stop, shutdown, or 10h deadline;
+- paper positions finalize on Stop, shutdown, or the 4h deadline;
 - one position may use at most 25% of portfolio exposure by default, so a tight scalp stop cannot monopolize all capital.
 
 ## Research-run rules
@@ -58,9 +58,16 @@ Research cost gate:
 - minimum expected net is $0.10 by default;
 - net reward/risk is recorded for analysis but the live-style RR>=1.15 gate is disabled during research, because it mathematically suppresses most tight-stop scalp setups.
 
-## 10-hour harness
+## 4-hour harness
 
 The timer starts after pressing Start.
+
+The launcher forces the run profile even if an older local `.env` is present:
+
+```
+SCALP_RUN_LABEL=paper-v3-4h
+SCALP_PAPER_RUN_DURATION_SECONDS=14400
+```
 
 At the deadline:
 
@@ -85,8 +92,8 @@ Replay sampling:
 
 ```powershell
 git fetch origin
-git switch paper-run-v2-10h
-git pull origin paper-run-v2-10h
+git switch paper-run-v3-4h
+git pull origin paper-run-v3-4h
 
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 Copy-Item .env.example .env -Force
@@ -152,10 +159,10 @@ All strategies now receive one shared MarketStructure instead of detecting impor
 
 The engine builds:
 - 1m horizontal zones;
-- synthetic 5m horizontal zones from the live 1m history;
+- direct 5m horizontal zones from dedicated history;
 - 15m horizontal zones;
-- synthetic 1h zones from the 15m context;
-- current UTC-day high and low;
+- direct 1h zones from dedicated history;
+- current and previous UTC-day high and low;
 - scored diagonal support/resistance lines from repeated pivots;
 - round-number confluence as a secondary property, not as a level by itself.
 
@@ -164,3 +171,35 @@ Overlapping levels from different timeframes are deduplicated and receive a mult
 Important: these are inferred liquidity areas. The exchange does not expose other traders' stop orders, so the bot treats stops beyond highs/lows/levels as a hypothesis supported by market structure, not as directly observed orders.
 
 Density decisions also expose amount, distance, lifetime, erosion duration and round-number confluence so we can analyze the same dimensions that specialist screeners expose publicly.
+
+
+## Order-book hardening in this run
+
+- Bybit depth 1000 is used for density research.
+- Local order-book state must be synchronized before density is evaluated.
+- Sequence gaps clear the local book and require a fresh snapshot.
+- Stale or unsynchronized books cannot open new positions.
+- Density records actual bid/ask percentage coverage instead of assuming a fixed range from a level count.
+- A wall outside the currently observable book is treated as unknown, not as removed.
+- Wall significance requires all of: an absolute USD floor, a local-neighbor relative multiple, and an activity-scaled turnover floor.
+- Density confirmation uses trade flow and absorption at the wall itself.
+
+## Prepared run
+
+Branch:
+
+```
+paper-run-v3-4h
+```
+
+Start it from a visible PowerShell window with:
+
+```powershell
+git fetch origin
+git switch paper-run-v3-4h
+git pull origin paper-run-v3-4h
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
+```
+
+The script runs the full preflight test suite before starting Uvicorn. Press **Start** in the UI only after the server is up; the four-hour auto-stop timer begins at that point.
