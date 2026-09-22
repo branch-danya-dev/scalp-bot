@@ -128,3 +128,23 @@ The pack contains:
 - deeper top-50 order-book samples around entries, exits, rejects and other focus events.
 
 This is the artifact intended for ChatGPT/Claude. Do not upload the multi-gigabyte raw session unless a specific lossless forensic check is required.
+
+
+## Fee-execution v6
+
+The next research profile is `research-fee-execution-v6-1h`.
+
+Compared with the previous run it intentionally changes execution economics rather than weakening signal confirmation:
+
+- expected winner economics price the actual partial + runner lifecycle;
+- winner transaction costs may not exceed 35% of lifecycle gross profit;
+- structural stops remain strategy invalidation points and are not widened to hide fees;
+- breakout takes 30% at 1R and keeps 70% as runner;
+- density/rejection retain 70% partials; trend uses 50%;
+- profit partials are resting maker limits and require trade-through confirmation;
+- density/rejection prefer a conservative PostOnly maker entry with a 15s timeout;
+- pending maker entries reserve portfolio risk and exposure;
+- breakout no-follow timeout is 120s; density remains 20s;
+- working/active universe expands from 4/8 to 6/12 symbols.
+
+The purpose of the run is to measure whether fee share falls materially while opportunity throughput remains usable. Passive fills, timeouts and cancelled entries are recorded explicitly.
