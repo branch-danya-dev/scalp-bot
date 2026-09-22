@@ -584,6 +584,47 @@ class WeakLevelRejectionStrategy(Strategy):
         if price <= 0:
             return StrategyDecision(self.key, Action.WAIT, ["Нет текущей цены"])
 
+        state = self._states.setdefault(symbol, RejectionWatchState())
+        now = (
+            observed_at_ms / 1000
+            if observed_at_ms is not None
+            else (
+                (trades or [])[-1].ts_ms / 1000
+                if trades
+                else candles[-1].start_ms / 1000
+            )
+        )
+        if (
+            state.pinned_zone is not None
+            and state.stage in {RejectionStage.TEST, RejectionStage.REJECT}
+            and now <= state.pinned_until
+            and abs(state.pinned_zone.center - price) / price
+            <= self.test_pin_max_distance_pct
+        ):
+            return self._decision_for_zone(
+                candles,
+                book,
+                trend,
+                trades or [],
+                symbol,
+                state.pinned_zone,
+                structure,
+                None,
+                observed_at_ms=observed_at_ms,
+                generation_id_override=state.pinned_generation_id,
+            )
+        if state.pinned_zone is not None and (
+            now > state.pinned_until
+            or abs(state.pinned_zone.center - price) / price
+            > self.test_pin_max_distance_pct
+        ):
+            state.pinned_zone = None
+            state.pinned_generation_id = None
+            state.pinned_until = 0.0
+            state.swept = False
+            state.stage = RejectionStage.SEARCH
+            state.zone_key = None
+
         resistance_level = support_level = None
         if structure is not None:
             resistance_level = structure.nearest_horizontal(
@@ -625,7 +666,6 @@ class WeakLevelRejectionStrategy(Strategy):
             support = self._select_weak_zone(candles, price, "support")
         choices = [zone for zone in (resistance, support) if zone is not None]
         if not choices:
-            state = self._states.setdefault(symbol, RejectionWatchState())
             state.stage = RejectionStage.SEARCH
             state.zone_key = None
             return StrategyDecision(
