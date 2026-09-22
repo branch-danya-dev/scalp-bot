@@ -63,10 +63,24 @@ class RiskEngine:
         if stop_pct <= 0 or target_pct <= 0:
             return RiskResult(False, "invalid stop or target distance")
 
-        risk_budget = min(balance * self.config.risk_fraction, max(available_risk_usd, 0))
+        risk_budget = min(
+            balance * self.config.risk_fraction,
+            max(available_risk_usd, 0),
+        )
         if risk_budget <= 0:
             return RiskResult(False, "portfolio risk budget exhausted")
         notional_by_risk = risk_budget / stop_pct
+
+        round_trip_cost_pct = (
+            self.config.taker_fee_rate * 2
+            + (self.config.slippage_bps / 10_000) * 2
+        )
+        all_in_loss_pct = stop_pct + round_trip_cost_pct
+        notional_by_all_in_portfolio_risk = (
+            max(available_risk_usd, 0) / all_in_loss_pct
+            if all_in_loss_pct > 0
+            else 0.0
+        )
         portfolio_exposure_cap = balance * self.config.max_leverage
         position_leverage_cap = (
             balance * max(0.0, self.config.max_position_leverage)
@@ -81,6 +95,7 @@ class RiskEngine:
         )
         notional = min(
             notional_by_risk,
+            notional_by_all_in_portfolio_risk,
             max(available_notional, 0),
             position_exposure_cap,
         )
@@ -136,8 +151,13 @@ class RiskEngine:
         economics = {
             "riskBudgetUsd": risk_budget,
             "notionalByRiskUsd": notional_by_risk,
+            "notionalByAllInPortfolioRiskUsd": (
+                notional_by_all_in_portfolio_risk
+            ),
             "effectiveLeverage": notional / balance if balance else 0.0,
             "stopDistancePct": stop_pct,
+            "roundTripCostPct": round_trip_cost_pct,
+            "allInLossPct": all_in_loss_pct,
             "targetMovePct": target_pct,
             "takerFeeCostUsd": fee_cost,
             "slippageCostUsd": slippage_cost,
