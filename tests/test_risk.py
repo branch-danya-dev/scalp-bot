@@ -2,6 +2,7 @@ import pytest
 
 from scalp_bot.config import Settings
 from scalp_bot.domain import Action, OrderBook, StrategyDecision
+from scalp_bot.paper import PaperBroker
 from scalp_bot.risk import RiskEngine
 
 
@@ -402,3 +403,47 @@ def test_executable_spread_is_not_subtracted_twice() -> None:
     economics = result.plan.strategy_details["economics"]
     assert economics["entrySpreadPct"] == pytest.approx(0.0010005, rel=1e-3)
     assert economics["spreadCostDoubleCounted"] is False
+
+
+
+def test_second_tight_stop_trade_is_scaled_by_remaining_all_in_risk() -> None:
+    cfg = economic_settings()
+    risk = RiskEngine(cfg)
+    broker = PaperBroker(cfg)
+    market = book(99.99, 100.00)
+
+    first = risk.build_plan(
+        "AAAUSDT",
+        decision(100.20, stop=99.90),
+        broker.balance,
+        market,
+        broker.available_notional,
+        broker.available_risk_usd,
+    )
+    assert first.allowed
+    assert first.plan is not None
+    assert first.plan.notional == pytest.approx(5000)
+    broker.open(first.plan, market)
+
+    remaining_risk = broker.available_risk_usd
+    assert 0 < remaining_risk < 10
+
+    second = risk.build_plan(
+        "BBBUSDT",
+        decision(100.20, stop=99.90),
+        broker.balance,
+        market,
+        broker.available_notional,
+        broker.available_risk_usd,
+    )
+    assert second.allowed
+    assert second.plan is not None
+    assert second.plan.notional < 5000
+    assert second.plan.expected_net_loss <= (
+        remaining_risk + 1e-9
+    )
+
+    broker.open(second.plan, market)
+    assert broker.open_risk_usd <= (
+        broker.balance * cfg.max_total_risk_fraction + 1e-6
+    )
