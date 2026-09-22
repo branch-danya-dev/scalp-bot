@@ -47,10 +47,18 @@ def find_liquidity_target(
         for level in structure.levels:
             target_price = level.center
             if action == Action.LONG:
-                eligible_kind = level.kind in {"resistance", "day_high"}
+                eligible_kind = level.kind in {
+                    "resistance",
+                    "day_high",
+                    "previous_day_high",
+                }
                 distance = (target_price - entry) / entry
             else:
-                eligible_kind = level.kind in {"support", "day_low"}
+                eligible_kind = level.kind in {
+                    "support",
+                    "day_low",
+                    "previous_day_low",
+                }
                 distance = (entry - target_price) / entry
             if eligible_kind and minimum <= distance <= max_distance_pct:
                 candidates.append(
