@@ -315,6 +315,7 @@ def economic_settings(**overrides) -> Settings:
         max_position_exposure_fraction=1.0,
         min_net_profit_usd=1.0,
         min_net_profit_equity_fraction=0.001,
+        enforce_min_net_profit_gate=True,
         min_net_reward_risk=1.15,
         enforce_net_reward_risk_gate=True,
         taker_fee_rate=0.00055,
@@ -586,3 +587,63 @@ def test_depth_vwap_is_used_for_market_entry_and_diagnostics() -> None:
     economics = result.plan.strategy_details["economics"]
     assert economics["entryDepthImpactBps"] > 0
     assert economics["visibleEntryDepthUsd"] >= result.plan.notional
+
+
+
+def test_research_shadow_economics_allows_positive_net_below_both_legacy_gates() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        risk_fraction=0.005,
+        max_total_risk_fraction=0.02,
+        max_leverage=10,
+        max_position_leverage=5,
+        min_net_profit_usd=1.0,
+        min_net_profit_equity_fraction=0.001,
+        enforce_min_net_profit_gate=False,
+        min_net_reward_risk=1.15,
+        enforce_net_reward_risk_gate=False,
+        taker_fee_rate=0.00055,
+        slippage_bps=1.0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "NEARUSDT",
+        decision(100.24, stop=99.45),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+    assert result.allowed
+    assert result.plan is not None
+    assert 0 < result.plan.expected_net_profit < 1.0
+    assert result.plan.net_reward_risk < 1.15
+    economics = result.plan.strategy_details["economics"]
+    assert economics["economicPolicy"] == "research_shadow"
+    assert economics["minimumNetProfitGateEnabled"] is False
+    assert economics["payoffGateEnabled"] is False
+    assert economics["wouldFailMinimumNetProfit"] is True
+    assert economics["wouldFailNetRewardRisk"] is True
+    assert economics["shadowRejectReasons"] == [
+        "minimum_net_profit",
+        "minimum_net_reward_risk",
+    ]
+
+def test_research_shadow_still_rejects_non_positive_net() -> None:
+    cfg = Settings(
+        enforce_min_net_profit_gate=False,
+        enforce_net_reward_risk_gate=False,
+        min_net_profit_usd=1.0,
+        min_net_reward_risk=1.15,
+        taker_fee_rate=0.00055,
+        slippage_bps=1.0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        decision(100.10, stop=99.90),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+    assert not result.allowed
+    assert "after estimated trading costs" in result.reason

@@ -238,7 +238,11 @@ class RiskEngine:
                 False,
                 f"net at target ${expected_net:.2f} <= 0 after estimated trading costs",
             )
-        if expected_net < required_net_profit:
+        minimum_net_profit_failed = expected_net < required_net_profit
+        if (
+            self.config.enforce_min_net_profit_gate
+            and minimum_net_profit_failed
+        ):
             return RiskResult(
                 False,
                 (
@@ -249,9 +253,10 @@ class RiskEngine:
         minimum_net_reward = (
             all_in_net_loss * self.config.min_net_reward_risk
         )
+        net_reward_risk_failed = expected_net < minimum_net_reward
         if (
             self.config.enforce_net_reward_risk_gate
-            and expected_net < minimum_net_reward
+            and net_reward_risk_failed
         ):
             return RiskResult(
                 False,
@@ -261,6 +266,12 @@ class RiskEngine:
                     f"{self.config.min_net_reward_risk:.4f}"
                 ),
             )
+
+        shadow_reject_reasons: list[str] = []
+        if minimum_net_profit_failed:
+            shadow_reject_reasons.append("minimum_net_profit")
+        if net_reward_risk_failed:
+            shadow_reject_reasons.append("minimum_net_reward_risk")
 
         economics = {
             "riskBudgetUsd": risk_budget,
@@ -295,8 +306,22 @@ class RiskEngine:
             "requiredNetRewardRisk": self.config.min_net_reward_risk,
             "netRewardRiskRatio": net_rr,
             "minimumNetRewardRiskRatio": self.config.min_net_reward_risk,
+            "minimumNetProfitGateEnabled": (
+                self.config.enforce_min_net_profit_gate
+            ),
             "payoffGateEnabled": (
                 self.config.enforce_net_reward_risk_gate
+            ),
+            "wouldFailMinimumNetProfit": minimum_net_profit_failed,
+            "wouldFailNetRewardRisk": net_reward_risk_failed,
+            "shadowRejectReasons": shadow_reject_reasons,
+            "economicPolicy": (
+                "strict"
+                if (
+                    self.config.enforce_min_net_profit_gate
+                    and self.config.enforce_net_reward_risk_gate
+                )
+                else "research_shadow"
             ),
             "payoffMarginUsd": expected_net - minimum_net_reward,
             "requiredNetProfitUsd": required_net_profit,

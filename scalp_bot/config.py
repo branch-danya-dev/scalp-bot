@@ -34,6 +34,7 @@ class Settings(BaseSettings):
 
     min_net_profit_usd: float = 1.00
     min_net_profit_equity_fraction: float = 0.001
+    enforce_min_net_profit_gate: bool = True
     min_net_reward_risk: float = 1.15
     enforce_net_reward_risk_gate: bool = True
     risk_fraction: float = 0.005

@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feat/trade-observatory
+      - feat/research-economics-refactor
       - feat/level-zones-breakout
       - paper-run-v2-10h
       - paper-run-v3-4h
