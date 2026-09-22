@@ -1305,7 +1305,14 @@ class TradingEngine:
         best.session.last_risk_fingerprint = None
         best.session.last_blocked_fingerprint = None
         if best.plan.entry_mode == "maker_limit":
-            pending = self.broker.place_pending(best.plan)
+            pending = self.broker.place_pending(
+                best.plan,
+                min_trade_ts_ms=(
+                    best.session.trades[-1].ts_ms
+                    if best.session.trades
+                    else None
+                ),
+            )
             self._emit(
                 "entry_pending",
                 best.session.symbol,
@@ -1473,11 +1480,7 @@ class TradingEngine:
         pending_events = self.broker.mark_pending(
             session.symbol,
             session.last_price,
-            trade_ts=(
-                trade_ts_ms / 1000
-                if trade_ts_ms is not None
-                else None
-            ),
+            trade_ts_ms=trade_ts_ms,
         )
         for event in pending_events:
             if event.get("event") == "entry_filled":
