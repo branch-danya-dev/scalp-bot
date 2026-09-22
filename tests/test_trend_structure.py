@@ -73,17 +73,27 @@ def book(bid: float, ask: float) -> OrderBook:
 
 
 def buy_flow() -> list[TradeTick]:
-    return [
+    rows = [
+        TradeTick(85_000 + i * 1_500, 100.0, 1, "Sell")
+        for i in range(7)
+    ]
+    rows += [
         TradeTick(100_000 + i * 100, 100.0, 10, "Buy")
         for i in range(6)
     ]
+    return rows
 
 
 def sell_flow() -> list[TradeTick]:
-    return [
+    rows = [
+        TradeTick(85_000 + i * 1_500, 100.0, 1, "Buy")
+        for i in range(7)
+    ]
+    rows += [
         TradeTick(100_000 + i * 100, 100.0, 10, "Sell")
         for i in range(6)
     ]
+    return rows
 
 
 def test_trend_without_confirmed_line_does_not_fallback_to_two_swings() -> None:

@@ -48,18 +48,28 @@ def mature_breakout_candles() -> list[Candle]:
 
 def aggressive_buy_flow() -> list[TradeTick]:
     start = 30_000_000
-    return [
+    rows = [
+        TradeTick(start - 15_000 + i * 1_500, 100.00, 1, "Sell")
+        for i in range(7)
+    ]
+    rows += [
         TradeTick(start + i * 200, 100.16, 8, "Buy")
         for i in range(24)
     ]
+    return rows
 
 
 def far_buy_flow() -> list[TradeTick]:
     start = 30_000_000
-    return [
+    rows = [
+        TradeTick(start - 15_000 + i * 1_500, 100.00, 1, "Sell")
+        for i in range(7)
+    ]
+    rows += [
         TradeTick(start + i * 200, 102.00, 8, "Buy")
         for i in range(24)
     ]
+    return rows
 
 
 def mature_structure(generation: str = "R:100:g1") -> MarketStructure:
@@ -192,6 +202,10 @@ def rejection_candles() -> list[Candle]:
 def buy_flow() -> list[TradeTick]:
     start = 20_000_000
     rows = [
+        TradeTick(start - 15_000 + i * 1_500, 100.00, 1, "Sell")
+        for i in range(7)
+    ]
+    rows += [
         TradeTick(start + i * 200, 99.95, 1, "Sell")
         for i in range(3)
     ]
@@ -356,6 +370,10 @@ def test_rejection_global_flow_away_from_level_does_not_confirm() -> None:
         Trend.UP,
         symbol="FARREJECTUSDT",
         trades=[
+            *[
+                TradeTick(19_985_000 + i * 1_500, 100.00, 1, "Sell")
+                for i in range(7)
+            ],
             *[
                 TradeTick(20_000_000 + i * 200, 99.95, 1, "Sell")
                 for i in range(3)

@@ -76,6 +76,10 @@ def buy_flow(price: float = 100.10) -> list[TradeTick]:
     start = 20_000_000
     # A real failed support break trades below the level before buyers reclaim it.
     rows = [
+        TradeTick(start - 15_000 + i * 1_500, 100.00, 1, "Sell")
+        for i in range(7)
+    ]
+    rows += [
         TradeTick(start + i * 200, 99.95, 1, "Sell")
         for i in range(3)
     ]
@@ -141,7 +145,15 @@ def mature_breakout_candles() -> list[Candle]:
 
 def aggressive_buy_flow() -> list[TradeTick]:
     start = 30_000_000
-    return [TradeTick(start + i * 200, 100.16, 8, "Buy") for i in range(24)]
+    rows = [
+        TradeTick(start - 15_000 + i * 1_500, 100.00, 1, "Sell")
+        for i in range(7)
+    ]
+    rows += [
+        TradeTick(start + i * 200, 100.16, 8, "Buy")
+        for i in range(24)
+    ]
+    return rows
 
 
 def test_breakout_requires_mature_zone_hold_and_actual_open_before_consumed() -> None:
@@ -204,8 +216,18 @@ def density_book(wall_notional: float, bid: float = 99.94, ask: float = 99.95) -
 
 def density_sell_flow() -> list[TradeTick]:
     start = 40_000_000
-    rows = [TradeTick(start + i * 200, 100.00, 2, "Buy") for i in range(8)]
-    rows += [TradeTick(start + 1_800 + i * 150, 99.96, 4, "Sell") for i in range(20)]
+    rows = [
+        TradeTick(start - 15_000 + i * 1_500, 100.00, 1, "Buy")
+        for i in range(7)
+    ]
+    rows += [
+        TradeTick(start + i * 200, 100.00, 2, "Buy")
+        for i in range(8)
+    ]
+    rows += [
+        TradeTick(start + 1_800 + i * 150, 99.96, 4, "Sell")
+        for i in range(20)
+    ]
     return rows
 
 
