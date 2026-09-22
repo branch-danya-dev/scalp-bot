@@ -47,11 +47,13 @@ def activity_score(candidate: Candidate, window_minutes: int) -> float:
     move_recent = min(1.0, abs(candidate.activity_change) / 0.02)
 
     expected_recent = turnover * max(window_minutes, 1) / 1440
-    burst_ratio = (
-        candidate.activity_turnover / expected_recent
-        if expected_recent > 0
-        else 0.0
-    )
+    burst_ratio = candidate.activity_burst_ratio
+    if burst_ratio <= 0:
+        burst_ratio = (
+            candidate.activity_turnover / expected_recent
+            if expected_recent > 0
+            else 0.0
+        )
     burst = min(1.0, burst_ratio / 3.0)
 
     # Correlation is deliberately kept as context, not rewarded or punished
