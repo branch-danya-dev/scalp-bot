@@ -121,6 +121,7 @@ class Candidate:
     correlation_1h_btc: float | None = None
     activity_change: float = 0.0
     activity_turnover: float = 0.0
+    activity_burst_ratio: float = 0.0
     activity_score: float = 0.0
     activity_rank: int | None = None
 
