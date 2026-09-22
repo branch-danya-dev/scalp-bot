@@ -452,15 +452,15 @@ class TradingEngine:
         session = ActiveSymbolSession(
             symbol=symbol,
             candles=candles,
-            context_5m=context_5m,
-            context_15m=context_15m,
-            context_1h=context_1h,
+            context_5m=[x for x in context_5m if x.confirmed],
+            context_15m=[x for x in context_15m if x.confirmed],
+            context_1h=[x for x in context_1h if x.confirmed],
             book_stale_after_seconds=self.config.book_stale_seconds,
             activated_at=now,
             last_ranked_at=now,
         )
         session.last_price = candles[-1].close if candles else 0
-        session.trend = classify_trend(context_15m)
+        session.trend = classify_trend(session.context_15m)
         self.sessions[symbol] = session
         self._emit(
             "symbol_activated",
@@ -509,10 +509,10 @@ class TradingEngine:
                     if isinstance(result, Exception):
                         continue
                     context_5m, context_15m, context_1h = result
-                    session.context_5m = context_5m
-                    session.context_15m = context_15m
-                    session.context_1h = context_1h
-                    session.trend = classify_trend(context_15m)
+                    session.context_5m = [x for x in context_5m if x.confirmed]
+                    session.context_15m = [x for x in context_15m if x.confirmed]
+                    session.context_1h = [x for x in context_1h if x.confirmed]
+                    session.trend = classify_trend(session.context_15m)
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
@@ -643,18 +643,24 @@ class TradingEngine:
         if not session.candles:
             return
 
-        session.trend = classify_trend(session.context_15m)
+        closed_1m = [x for x in session.candles if x.confirmed]
+        closed_5m = [x for x in session.context_5m if x.confirmed]
+        closed_15m = [x for x in session.context_15m if x.confirmed]
+        closed_1h = [x for x in session.context_1h if x.confirmed]
+        if not closed_1m:
+            return
+        session.trend = classify_trend(closed_15m)
         reference_price = session.orderbook.mid or session.last_price
         session.structure = build_market_structure(
-            session.candles,
-            session.context_15m,
+            closed_1m,
+            closed_15m,
             reference_price,
-            context_5m=session.context_5m,
-            context_1h=session.context_1h,
+            context_5m=closed_5m,
+            context_1h=closed_1h,
         )
         session.structure = session.level_tracker.update(
             session.structure,
-            session.candles,
+            closed_1m,
             reference_price,
             int(time() * 1000),
         )
@@ -836,6 +842,9 @@ class TradingEngine:
         best.session.last_blocked_fingerprint = None
         best.session.last_trade_at = now
         position = self.broker.open(best.plan, best.session.orderbook)
+        strategy = self.strategies.get(best.decision.strategy)
+        if strategy is not None:
+            strategy.mark_opened(best.session.symbol, best.decision)
         self._emit(
             "trade_opened",
             best.session.symbol,
