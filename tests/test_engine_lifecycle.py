@@ -455,6 +455,7 @@ async def test_bootstrap_loads_direct_multi_timeframe_context(tmp_path) -> None:
                 100.1 + i * 0.01,
                 10,
                 1000,
+                confirmed=(i != count - 1),
             )
             for i in range(count)
         ]
@@ -471,6 +472,10 @@ async def test_bootstrap_loads_direct_multi_timeframe_context(tmp_path) -> None:
         assert session.context_5m
         assert session.context_15m
         assert session.context_1h
+        assert all(x.confirmed for x in session.context_5m)
+        assert all(x.confirmed for x in session.context_15m)
+        assert all(x.confirmed for x in session.context_1h)
+        assert len(session.context_15m) == 59
     finally:
         await engine.rest.close()
 
