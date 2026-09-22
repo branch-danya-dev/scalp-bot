@@ -5,7 +5,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from time import monotonic, time
 
-from .bybit import BybitRestClient, OrderBookState, stream_symbol
+from .bybit import BybitRestClient, OrderBookSequenceError, OrderBookState, stream_symbol
 from .config import Settings
 from .domain import Action, Candle, Candidate, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .paper import PaperBroker, Position
@@ -103,6 +103,13 @@ class TradingEngine:
         self.recorder = SessionRecorder(config.session_dir)
         self.strategies: dict[str, Strategy] = {x.key: x for x in DEFAULT_STRATEGIES}
         self.strategy_enabled: dict[str, bool] = {x.key: True for x in DEFAULT_STRATEGIES}
+        density_strategy = self.strategies.get("orderbook_density")
+        if density_strategy is not None:
+            setattr(
+                density_strategy,
+                "min_wall_notional_usd",
+                config.density_min_wall_notional_usd,
+            )
         self.running = False
         self.candidates: list[Candidate] = []
         self.sessions: dict[str, ActiveSymbolSession] = {}
@@ -430,7 +437,12 @@ class TradingEngine:
             session.last_market_at = wall_now
             topic = message.get("topic", "")
             if topic.startswith("orderbook."):
-                session.orderbook = book_state.apply(message)
+                try:
+                    session.orderbook = book_state.apply(message)
+                except OrderBookSequenceError:
+                    session.last_book_at = 0.0
+                    session.orderbook = OrderBook()
+                    raise
                 session.last_book_at = wall_now
             elif topic.startswith("kline."):
                 self._apply_kline(session, message)
