@@ -834,3 +834,51 @@ async def test_strategies_receive_only_confirmed_1m_candles(tmp_path) -> None:
         assert seen[0].high == 101
     finally:
         await engine.rest.close()
+
+
+def test_paper_run_cannot_start_without_live_market_data(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        with pytest.raises(
+            RuntimeError,
+            match="cannot start paper run",
+        ):
+            engine.set_running(True)
+        assert engine.running is False
+    finally:
+        close_rest(engine)
+
+
+def test_market_health_requires_fresh_book_and_live_session(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        engine.candidates = [
+            Candidate(
+                "AAAUSDT",
+                200_000_000,
+                0,
+                100,
+                activity_rank=1,
+            )
+        ]
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100,
+            last_market_at=time(),
+            last_book_at=time(),
+            book_synced=True,
+            book_stale_after_seconds=2,
+        )
+        engine.sessions[session.symbol] = session
+
+        health = engine.market_health()
+
+        assert health["ready"] is True
+        assert health["liveSymbolCount"] == 1
+        engine.set_running(True)
+        assert engine.running is True
+        engine.set_running(False)
+    finally:
+        close_rest(engine)

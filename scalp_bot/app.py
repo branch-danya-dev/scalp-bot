@@ -65,7 +65,13 @@ async def replay_session(name: str, symbol: str | None = Query(default=None)) ->
 
 @app.post("/api/bot/start")
 async def start_bot() -> dict:
-    engine.set_running(True)
+    try:
+        engine.set_running(True)
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        ) from exc
     return {"ok": True, "running": True}
 
 

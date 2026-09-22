@@ -218,13 +218,16 @@ class TradingEngine:
         self._run_started_at: float | None = None
         self._run_deadline_at: float | None = None
         self._last_run_summary: dict | None = None
+        self._scanner_error: str | None = None
+        self._last_scan_ok_at: float | None = None
+        self._last_scan_error_at: float | None = None
 
     async def start(self) -> None:
         self._stop.clear()
         try:
             await self._scan_once()
         except Exception as exc:
-            self._emit("startup_scan_error", None, {"error": str(exc)})
+            self._record_scanner_error("startup_scan_error", exc)
         self._tasks = [
             asyncio.create_task(self._scanner_loop(), name="scanner"),
             asyncio.create_task(self._context_loop(), name="context"),
@@ -254,6 +257,11 @@ class TradingEngine:
         if value:
             if self.running:
                 return
+            blocked = self.start_block_reason()
+            if blocked:
+                raise RuntimeError(
+                    f"cannot start paper run: {blocked}"
+                )
             now = time()
             self.running = True
             self._run_started_at = now
@@ -368,10 +376,63 @@ class TradingEngine:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                self._emit("scanner_error", None, {"error": str(exc)})
+                self._record_scanner_error("scanner_error", exc)
+
+    def _record_scanner_error(
+        self,
+        event: str,
+        exc: Exception,
+    ) -> None:
+        self._scanner_error = f"{type(exc).__name__}: {exc}"
+        self._last_scan_error_at = time()
+        self._emit(event, None, {"error": self._scanner_error})
+
+    def market_health(self) -> dict:
+        now = time()
+        live_sessions = [
+            session
+            for session in self.sessions.values()
+            if session.last_market_at > 0
+            and now - session.last_market_at <= self.config.market_stale_seconds
+            and session.book_is_fresh(now)
+        ]
+        ready = bool(self.candidates) and bool(live_sessions)
+        if self._scanner_error:
+            reason = self._scanner_error
+        elif not self.candidates:
+            reason = "scanner has no eligible candidates"
+        elif not self.sessions:
+            reason = "no active symbol sessions were bootstrapped"
+        elif not live_sessions:
+            reason = "waiting for fresh synchronized websocket market data"
+        else:
+            reason = None
+        return {
+            "ready": ready,
+            "reason": reason,
+            "scannerError": self._scanner_error,
+            "lastScanOkAt": self._last_scan_ok_at,
+            "lastScanErrorAt": self._last_scan_error_at,
+            "candidateCount": len(self.candidates),
+            "activeSymbolCount": len(self.sessions),
+            "liveSymbolCount": len(live_sessions),
+        }
+
+    def start_block_reason(self) -> str | None:
+        health = self.market_health()
+        return None if health["ready"] else str(
+            health["reason"] or "market data is not ready"
+        )
 
     async def _scan_once(self) -> None:
-        self.candidates = await self.rest.active_candidates()
+        candidates = await self.rest.active_candidates()
+        if not candidates:
+            raise RuntimeError(
+                "scanner returned zero eligible candidates"
+            )
+        self.candidates = candidates
+        self._scanner_error = None
+        self._last_scan_ok_at = time()
         now = time()
         candidate_map = {item.symbol: item for item in self.candidates}
 
@@ -1201,6 +1262,7 @@ class TradingEngine:
         return {
             "botRunning": self.running,
             "mode": "paper",
+            "marketHealth": self.market_health(),
             "run": {
                 "label": self.config.run_label,
                 "configuredDurationSeconds": self.config.paper_run_duration_seconds,

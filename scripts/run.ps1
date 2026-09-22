@@ -70,5 +70,12 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ""
+Write-Host "Checking live Bybit market data..."
+& $venvPython .\scripts\market_preflight.py
+if ($LASTEXITCODE -ne 0) {
+    throw "Live Bybit market preflight failed. Server was not started."
+}
+
+Write-Host ""
 Write-Host "Preflight passed. Starting server in this visible terminal..."
 & $venvPython -m uvicorn scalp_bot.app:app --host 127.0.0.1 --port 8000

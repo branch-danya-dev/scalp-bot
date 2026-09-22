@@ -197,7 +197,12 @@ function eventText(event) {
   if (event.event === "symbol_deactivated") return payload.reason || "deactivated";
   if (event.event === "run_summary") return `${payload.reason} · elapsed ${duration(payload.elapsedSeconds)} · PnL ${money(payload.realizedPnl)} · trades ${payload.closedTrades}`;
   if (event.event === "bot_stopped") return payload.reason || "stopped";
-  return "";
+  if (event.event === "startup_scan_error") return payload.error || "startup scanner failed";
+  if (event.event === "scanner_error") return payload.error || "scanner failed";
+  if (event.event === "symbol_bootstrap_error") return payload.error || "symbol bootstrap failed";
+  if (event.event === "context_error") return payload.error || "context refresh failed";
+  if (event.event === "strategy_error") return payload.error || "strategy failed";
+  return payload.error || "";
 }
 
 function compactEvents(rows) {
@@ -268,12 +273,33 @@ function renderTrades(rows) {
 function render(data) {
   const status = $("connection");
   const lossCap = data.risk?.sessionLossLimitEnabled ? "LOSS CAP ON" : "RESEARCH · LOSS CAP OFF";
+  const marketHealth = data.marketHealth || {};
+  const marketReady = Boolean(marketHealth.ready);
   status.textContent = data.botRunning
     ? `PAPER TRADING ON · ${lossCap}`
-    : `PAPER OFF · ${lossCap}`;
-  status.className = data.botRunning ? "live trading-on" : "live observing";
-  $("startBtn").disabled = data.botRunning;
+    : marketReady
+      ? `PAPER READY · ${lossCap}`
+      : marketHealth.scannerError
+        ? "MARKET DATA ERROR"
+        : "ОЖИДАНИЕ РЫНКА";
+  status.className = data.botRunning
+    ? "live trading-on"
+    : marketReady
+      ? "live observing"
+      : "live disconnected";
+  $("startBtn").disabled = data.botRunning || !marketReady;
   $("stopBtn").disabled = !data.botRunning;
+
+  const marketAlert = $("marketAlert");
+  if (!marketReady) {
+    marketAlert.classList.remove("hidden");
+    marketAlert.textContent = marketHealth.reason
+      ? `Рыночные данные не готовы: ${marketHealth.reason}`
+      : "Рыночные данные ещё инициализируются.";
+  } else {
+    marketAlert.classList.add("hidden");
+    marketAlert.textContent = "";
+  }
 
   const openPnl = data.positions.reduce((sum, position) => sum + Number(position.unrealized_pnl || 0), 0);
   const totalNet = Number(data.totalPnl || 0) + openPnl;
@@ -300,6 +326,21 @@ function render(data) {
   renderStrategies(data.strategies);
   renderEvents(data.events);
   renderTrades(data.closedTrades);
+
+  if (!data.market) {
+    $("symbolTitle").textContent = "—";
+    $("symbolMeta").textContent = data.marketHealth?.reason
+      ? `Рынок недоступен: ${data.marketHealth.reason}`
+      : "Ожидание рыночных данных";
+    $("trendBadge").textContent = "—";
+    $("trendBadge").className = "trend flat";
+    $("asks").innerHTML = "";
+    $("bids").innerHTML = "";
+    $("midPrice").textContent = "—";
+    $("spread").textContent = "—";
+    $("decisionStrip").innerHTML = "";
+    renderPosition(null);
+  }
 
   if (data.market) {
     selectedSymbol = data.market.symbol;
@@ -346,7 +387,16 @@ async function refresh() {
   }
 }
 
-$("startBtn").onclick = async () => { await api("/api/bot/start", {method:"POST"}); refresh(); };
+$("startBtn").onclick = async () => {
+  try {
+    await api("/api/bot/start", {method:"POST"});
+  } catch (error) {
+    const alert = $("marketAlert");
+    alert.classList.remove("hidden");
+    alert.textContent = String(error.message || error);
+  }
+  refresh();
+};
 $("stopBtn").onclick = async () => { await api("/api/bot/stop", {method:"POST"}); refresh(); };
 refresh();
 setInterval(refresh, 900);
