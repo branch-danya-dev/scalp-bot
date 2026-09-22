@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from .structure import MarketStructure
 from .common import (
     clamp,
+    compute_level_flow,
     compute_trade_flow,
     nearby_round_level,
     price_visual,
@@ -56,7 +57,7 @@ class DensityBounceStrategy(Strategy):
     label = "Отскок от свежей плотности"
 
     strength_multiple = 4.0
-    max_distance_pct = 0.004
+    max_distance_pct = 0.05
     approach_pct = 0.0022
     approach_reset_pct = 0.0035
     touch_pct = 0.00030
@@ -75,11 +76,35 @@ class DensityBounceStrategy(Strategy):
     def reset(self, symbol: str) -> None:
         self._states.pop(symbol, None)
 
-    @staticmethod
-    def _rows(book: OrderBook) -> tuple[list[tuple[float, float, float]], list[tuple[float, float, float]], float]:
-        bids = [(p, q, p * q) for p, q in book.bids[:25]]
-        asks = [(p, q, p * q) for p, q in book.asks[:25]]
-        notionals = [row[2] for row in bids + asks]
+    def _rows(
+        self,
+        book: OrderBook,
+    ) -> tuple[
+        list[tuple[float, float, float]],
+        list[tuple[float, float, float]],
+        float,
+    ]:
+        mid = book.mid
+        if not mid:
+            return [], [], 0.0
+        max_distance = (
+            self.config.density_max_distance_pct
+            if self.config is not None
+            else self.max_distance_pct
+        )
+        bids = [
+            (p, q, p * q)
+            for p, q in book.bids
+            if 0 <= (mid - p) / mid <= max_distance
+        ]
+        asks = [
+            (p, q, p * q)
+            for p, q in book.asks
+            if 0 <= (p - mid) / mid <= max_distance
+        ]
+        # Baseline is local, not dominated by the very deep tail of the book.
+        baseline_rows = bids[:100] + asks[:100]
+        notionals = [row[2] for row in baseline_rows]
         return bids, asks, median(notionals) if notionals else 0.0
 
     @staticmethod
@@ -114,7 +139,12 @@ class DensityBounceStrategy(Strategy):
         for side, rows in (("bid", bids), ("ask", asks)):
             for price, _qty, notional in rows:
                 strength = notional / baseline
-                if strength < self.strength_multiple:
+                minimum_notional = (
+                    self.config.density_min_wall_notional_usd
+                    if self.config is not None
+                    else 100_000.0
+                )
+                if strength < self.strength_multiple or notional < minimum_notional:
                     continue
                 distance = (mid - price) / mid if side == "bid" else (price - mid) / mid
                 if 0 <= distance <= self.max_distance_pct:
@@ -291,6 +321,12 @@ class DensityBounceStrategy(Strategy):
 
         wall_price = float(state.price)
         flow = compute_trade_flow(trades)
+        level_flow = compute_level_flow(
+            trades,
+            wall_price,
+            tolerance_pct=0.0006,
+            window_seconds=15,
+        )
         remaining_ratio = (
             state.current_notional / state.peak_notional if state.peak_notional > 0 else 0.0
         )
@@ -340,6 +376,7 @@ class DensityBounceStrategy(Strategy):
             "absorptionObserved": absorption,
             "wallPresent": wall_present,
             "flow": flow,
+            "levelFlow": level_flow,
             "positionInvalidated": position_invalidated,
             "distancePct": distance_pct,
             "lifetimeSeconds": max(0.0, now - state.first_seen),
@@ -485,7 +522,13 @@ class DensityBounceStrategy(Strategy):
 
         strength_score = clamp((strength - self.strength_multiple) / 6.0)
         stability_score = clamp((remaining_ratio - 0.70) / 0.30)
-        flow_score = clamp(abs(flow["imbalance5s"]) / 0.25)
+        flow_score = clamp(
+            max(
+                abs(flow["imbalance5s"]),
+                abs(level_flow["imbalance"]),
+            )
+            / 0.25
+        )
         absorption_score = 1.0 if absorption else clamp(replenishment_ratio / 0.20)
         quality = clamp(
             0.40

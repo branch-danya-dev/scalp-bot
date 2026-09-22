@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     setup_reset_wait_seconds: float = 10.0
     arbiter_interval_seconds: float = 0.25
     market_stale_seconds: float = 3.0
+    book_stale_seconds: float = 1.5
+    orderbook_depth: int = 1000
+    trade_tape_seconds: float = 90.0
+    density_max_distance_pct: float = 0.05
+    density_min_wall_notional_usd: float = 100_000.0
 
     run_label: str = "paper-current-10h"
     paper_run_duration_seconds: float = 36_000.0

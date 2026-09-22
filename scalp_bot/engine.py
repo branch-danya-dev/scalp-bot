@@ -5,7 +5,12 @@ from collections import deque
 from dataclasses import dataclass, field
 from time import monotonic, time
 
-from .bybit import BybitRestClient, OrderBookState, stream_symbol
+from .bybit import (
+    BybitRestClient,
+    OrderBookState,
+    OrderBookSyncError,
+    stream_symbol,
+)
 from .config import Settings
 from .domain import Action, Candle, Candidate, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .paper import PaperBroker, Position
@@ -37,7 +42,7 @@ class ActiveSymbolSession:
     level_engine: LevelEngine | None = None
     decisions: dict[str, StrategyDecision] = field(default_factory=dict)
     decision_fingerprints: dict[str, tuple] = field(default_factory=dict)
-    trades: deque[TradeTick] = field(default_factory=lambda: deque(maxlen=2000))
+    trades: deque[TradeTick] = field(default_factory=lambda: deque(maxlen=50_000))
     consumed_setups: dict[str, str] = field(default_factory=dict)
     cooldown_until: dict[str, float] = field(default_factory=dict)
     nontradeable_since: dict[str, float] = field(default_factory=dict)
@@ -46,6 +51,9 @@ class ActiveSymbolSession:
     last_signal_at: float = 0.0
     last_trade_at: float = 0.0
     last_market_at: float = 0.0
+    last_book_at: float = 0.0
+    last_trade_stream_at: float = 0.0
+    last_kline_at: float = 0.0
     last_eval: float = 0.0
     last_frame: float = 0.0
     last_risk_fingerprint: tuple | None = None
@@ -97,6 +105,8 @@ class TradingEngine:
         self.recorder = SessionRecorder(config.session_dir)
         self.strategies: dict[str, Strategy] = {x.key: x for x in DEFAULT_STRATEGIES}
         self.strategy_enabled: dict[str, bool] = {x.key: True for x in DEFAULT_STRATEGIES}
+        for strategy in self.strategies.values():
+            strategy.configure(config)
         self.running = False
         self.candidates: list[Candidate] = []
         self.sessions: dict[str, ActiveSymbolSession] = {}
@@ -414,20 +424,34 @@ class TradingEngine:
                 self._emit("context_error", None, {"error": str(exc)})
 
     async def _symbol_worker(self, symbol: str, stop_event: asyncio.Event) -> None:
-        book_state = OrderBookState()
+        book_state = OrderBookState(self.config.orderbook_depth)
 
         async def on_message(message: dict) -> None:
             session = self.sessions.get(symbol)
             if session is None:
                 return
 
-            session.last_market_at = time()
+            received_at = time()
+            session.last_market_at = received_at
             topic = message.get("topic", "")
             if topic.startswith("orderbook."):
-                session.orderbook = book_state.apply(message)
+                try:
+                    session.orderbook = book_state.apply(message)
+                except OrderBookSyncError as exc:
+                    session.orderbook = OrderBook()
+                    session.last_book_at = 0.0
+                    self._emit(
+                        "book_sync_error",
+                        symbol,
+                        {"error": str(exc)},
+                    )
+                    raise
+                session.last_book_at = received_at
             elif topic.startswith("kline."):
                 self._apply_kline(session, message)
+                session.last_kline_at = received_at
             elif topic.startswith("publicTrade."):
+                session.last_trade_stream_at = received_at
                 rows = message.get("data") or []
                 if rows:
                     for row in rows:
@@ -440,6 +464,11 @@ class TradingEngine:
                             )
                         )
                     session.last_price = float(rows[-1]["p"])
+                    cutoff_ms = int(
+                        (received_at - self.config.trade_tape_seconds) * 1000
+                    )
+                    while session.trades and session.trades[0].ts_ms < cutoff_ms:
+                        session.trades.popleft()
                     events = self.broker.mark(symbol, session.last_price, session.orderbook)
                     self._handle_broker_events(session, events)
 
@@ -465,7 +494,13 @@ class TradingEngine:
                     ),
                 )
 
-        await stream_symbol(self.config.bybit_public_ws_url, symbol, on_message, stop_event)
+        await stream_symbol(
+            self.config.bybit_public_ws_url,
+            symbol,
+            on_message,
+            stop_event,
+            orderbook_depth=self.config.orderbook_depth,
+        )
 
     def _apply_kline(self, session: ActiveSymbolSession, message: dict) -> None:
         rows = message.get("data") or []
@@ -596,9 +631,23 @@ class TradingEngine:
                 continue
             if session.last_market_at <= 0 or now - session.last_market_at > self.config.market_stale_seconds:
                 continue
+            if (
+                session.last_book_at <= 0
+                or now - session.last_book_at > self.config.book_stale_seconds
+            ):
+                continue
 
             for decision in session.decisions.values():
                 if not decision.tradeable or not self.strategy_enabled.get(decision.strategy, False):
+                    continue
+                if (
+                    decision.strategy == "orderbook_density"
+                    and (
+                        session.last_trade_stream_at <= 0
+                        or now - session.last_trade_stream_at
+                        > self.config.market_stale_seconds
+                    )
+                ):
                     continue
 
                 setup_id = self._resolve_setup_id(session, decision)

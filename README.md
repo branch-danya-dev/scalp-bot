@@ -182,3 +182,14 @@ A level records neutral facts rather than one universal trading verdict:
 Weak-level rejection consumes only young low-acceptance levels. Breakout consumes mature multi-approach levels and again enforces reaction/volume maturity after the shared-structure migration.
 
 Bootstrap history is expanded to 720x1m (~12h) and 480x15m (~5d). Structure now also exposes current-day, previous-day and rolling-24h highs/lows.
+
+
+## Pre-run hardening: tape and order-book integrity
+
+- Public trade tape is retained by time (90s) instead of relying on only 2,000 rows.
+- Flow now exposes 5s/15s/60s imbalance and 60s notional CVD.
+- Strategies also receive price-local flow around the actual level/wall.
+- The order book uses Bybit depth 1000 by default, keeps sequence metadata and forces a reconnect if a delta arrives before a snapshot or sequence time moves backwards.
+- Book/trade/kline freshness are tracked separately; no setup can enter with a stale book, and density also requires a fresh trade stream.
+- Density scans up to 5% from mid and requires both relative size and an absolute USD wall threshold (default $100k).
+- BTC correlation remains recorded context but is no longer mechanically rewarded in activityScore until data demonstrates predictive value.

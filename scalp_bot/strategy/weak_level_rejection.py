@@ -15,6 +15,7 @@ from .common import (
     LevelZone,
     approach_is_directional,
     clamp,
+    compute_level_flow,
     compute_trade_flow,
     detect_level_zones,
     nearby_round_level,
@@ -110,6 +111,12 @@ class WeakLevelRejectionStrategy(Strategy):
         last = candles[-1]
         price = book.mid or last.close
         flow = compute_trade_flow(trades)
+        level_flow = compute_level_flow(
+            trades,
+            zone.center,
+            tolerance_pct=0.0008,
+            window_seconds=15,
+        )
         visuals = zone_visual(zone, "weak rejection zone")
         range_abs = typical_range_abs(candles)
 
@@ -126,6 +133,8 @@ class WeakLevelRejectionStrategy(Strategy):
                     "state": state.stage.value,
                     "zone": zone.public(),
                     "flow": flow,
+                "levelFlow": level_flow,
+                    "levelFlow": level_flow,
                     "weakLevel": True,
                 },
             )
@@ -235,7 +244,13 @@ class WeakLevelRejectionStrategy(Strategy):
             target = reaction_target
 
         freshness = clamp(1.0 - (zone.touches - 1) * 0.25)
-        flow_strength = clamp(abs(flow["imbalance5s"]) / 0.25)
+        flow_strength = clamp(
+            max(
+                abs(flow["imbalance5s"]),
+                abs(level_flow["imbalance"]),
+            )
+            / 0.25
+        )
         quality = clamp(
             0.48
             + freshness * 0.20
