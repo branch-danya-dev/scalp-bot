@@ -3,6 +3,7 @@ name: strategy-rework-checks
 on:
   push:
     branches:
+      - main
       - feat/level-zones-breakout
       - paper-run-v2-10h
       - paper-run-v3-4h
