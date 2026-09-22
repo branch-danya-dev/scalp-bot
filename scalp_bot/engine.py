@@ -287,6 +287,7 @@ class TradingEngine:
             "workingSymbols": self.config.working_symbols,
             "maxActiveSymbols": self.config.max_active_symbols,
             "minNetProfitUsd": self.config.min_net_profit_usd,
+            "minNetProfitEquityFraction": self.config.min_net_profit_equity_fraction,
             "minNetRewardRisk": self.config.min_net_reward_risk,
             "enforceNetRewardRiskGate": self.config.enforce_net_reward_risk_gate,
             "riskFraction": self.config.risk_fraction,
@@ -1102,6 +1103,7 @@ class TradingEngine:
             ],
             "risk": {
                 "minNetProfitUsd": self.config.min_net_profit_usd,
+                "minNetProfitEquityFraction": self.config.min_net_profit_equity_fraction,
                 "minNetRewardRisk": self.config.min_net_reward_risk,
                 "enforceNetRewardRiskGate": self.config.enforce_net_reward_risk_gate,
                 "riskFraction": self.config.risk_fraction,
