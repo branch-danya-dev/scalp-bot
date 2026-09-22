@@ -45,6 +45,24 @@
         <div><h1 id="symbolTitle">—</h1><span id="symbolMeta">Ожидание данных</span></div>
         <span id="trendBadge" class="trend flat">FLAT</span>
       </div>
+      <div class="chart-toolbar">
+        <div class="toolbar-group timeframe-group">
+          <span>TF</span>
+          <button class="chart-chip" data-timeframe="5s">5s</button>
+          <button class="chart-chip" data-timeframe="15s">15s</button>
+          <button class="chart-chip active" data-timeframe="1m">1m</button>
+          <button class="chart-chip" data-timeframe="5m">5m</button>
+          <button class="chart-chip" data-timeframe="15m">15m</button>
+          <button class="chart-chip" data-timeframe="1h">1h</button>
+        </div>
+        <div class="toolbar-group">
+          <span>Уровни</span>
+          <button class="chart-chip active" data-level-filter="active">Активные</button>
+          <button class="chart-chip" data-level-filter="htf">HTF</button>
+          <button class="chart-chip" data-level-filter="all">Все</button>
+          <button id="trendlineToggle" class="chart-chip active">Trendlines</button>
+        </div>
+      </div>
       <div id="chart"></div>
       <div id="positionCard" class="position-card hidden"></div>
       <div id="decisionStrip" class="decision-strip"></div>

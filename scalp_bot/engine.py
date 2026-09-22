@@ -128,6 +128,60 @@ class ActiveSymbolSession:
             "normalizedOfi60s": ofi_60s / depth_usd if depth_usd > 0 else 0.0,
         }
 
+    def _trade_candles(
+        self,
+        bucket_seconds: int,
+        now_ms: int,
+    ) -> list[dict]:
+        if bucket_seconds <= 0:
+            return []
+        buckets: dict[int, dict] = {}
+        bucket_ms = bucket_seconds * 1000
+        for trade in self.trades:
+            bucket_start = trade.ts_ms // bucket_ms * bucket_ms
+            row = buckets.get(bucket_start)
+            if row is None:
+                row = {
+                    "time": bucket_start // 1000,
+                    "open": trade.price,
+                    "high": trade.price,
+                    "low": trade.price,
+                    "close": trade.price,
+                    "volume": 0.0,
+                    "turnover": 0.0,
+                    "confirmed": (
+                        bucket_start + bucket_ms <= now_ms
+                    ),
+                }
+                buckets[bucket_start] = row
+            row["high"] = max(row["high"], trade.price)
+            row["low"] = min(row["low"], trade.price)
+            row["close"] = trade.price
+            row["volume"] += trade.size
+            row["turnover"] += trade.notional
+            row["confirmed"] = (
+                bucket_start + bucket_ms <= now_ms
+            )
+        return [
+            buckets[key]
+            for key in sorted(buckets)
+        ]
+
+    def chart_series(self, now_ms: int | None = None) -> dict:
+        resolved_now = (
+            int(time() * 1000)
+            if now_ms is None
+            else now_ms
+        )
+        return {
+            "5s": self._trade_candles(5, resolved_now),
+            "15s": self._trade_candles(15, resolved_now),
+            "1m": [x.public() for x in self.candles[-720:]],
+            "5m": [x.public() for x in self.context_5m[-576:]],
+            "15m": [x.public() for x in self.context_15m[-480:]],
+            "1h": [x.public() for x in self.context_1h[-336:]],
+        }
+
     def market_snapshot(self) -> dict:
         now_ms = int(time() * 1000)
         return {
@@ -135,6 +189,7 @@ class ActiveSymbolSession:
             "lastPrice": self.last_price,
             "trend": self.trend.value,
             "candles": [x.public() for x in self.candles[-240:]],
+            "chartSeries": self.chart_series(now_ms),
             "orderbook": self.orderbook.public(),
             "bookHealth": self.book_health(),
             "tradeFlow": compute_trade_flow(list(self.trades), now_ms),

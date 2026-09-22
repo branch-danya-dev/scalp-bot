@@ -971,3 +971,39 @@ def test_market_snapshot_exposes_trace_for_current_decisions(tmp_path) -> None:
         assert "actual trade touch of the wall" in trace["waitingFor"]
     finally:
         close_rest(engine)
+
+
+
+def test_market_snapshot_exposes_multi_timeframe_chart_series() -> None:
+    now_ms = 120_000
+    session = ActiveSymbolSession(
+        symbol="AAAUSDT",
+        candles=[
+            Candle(0, 100, 101, 99, 100.5, 10, 1000),
+            Candle(60_000, 100.5, 102, 100, 101, 12, 1200),
+        ],
+        context_5m=[
+            Candle(0, 100, 102, 99, 101, 20, 2000),
+        ],
+        context_15m=[
+            Candle(0, 100, 103, 98, 102, 30, 3000),
+        ],
+        context_1h=[
+            Candle(0, 100, 104, 97, 103, 40, 4000),
+        ],
+    )
+    session.trades.extend([
+        TradeTick(100_000, 100.0, 1, "Buy"),
+        TradeTick(103_000, 101.0, 1, "Buy"),
+        TradeTick(108_000, 100.5, 1, "Sell"),
+    ])
+
+    series = session.chart_series(now_ms)
+
+    assert set(series) == {"5s", "15s", "1m", "5m", "15m", "1h"}
+    assert len(series["1m"]) == 2
+    assert len(series["5m"]) == 1
+    assert len(series["15m"]) == 1
+    assert len(series["1h"]) == 1
+    assert len(series["5s"]) >= 2
+    assert series["5s"][0]["open"] == pytest.approx(100.0)

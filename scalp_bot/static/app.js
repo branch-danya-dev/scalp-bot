@@ -6,6 +6,11 @@ let priceLines = [];
 let tradeReviewSummaries = [];
 let lastClosedTradeCount = -1;
 const reviewCharts = new Map();
+let selectedChartTimeframe = "1m";
+let levelFilter = "active";
+let showTrendlines = true;
+let lastMarketForChart = null;
+let lastPositionForChart = null;
 
 const $ = id => document.getElementById(id);
 const money = value => new Intl.NumberFormat("en-US", {style:"currency", currency:"USD", maximumFractionDigits:2}).format(value || 0);
@@ -77,47 +82,141 @@ function clearOverlays() {
   overlaySeries = [];
 }
 
-function addPriceLine(value, title, color="#8e8e93", style=2) {
+function addPriceLine(value, title, color="#8e8e93", style=2, width=1, axisLabelVisible=true) {
   if (!candleSeries || value == null) return;
-  priceLines.push(candleSeries.createPriceLine({price:Number(value), color, lineWidth:1, lineStyle:style, axisLabelVisible:true, title}));
+  priceLines.push(candleSeries.createPriceLine({
+    price:Number(value), color, lineWidth:width, lineStyle:style,
+    axisLabelVisible, title
+  }));
+}
+
+function levelTimeframe(level) {
+  const sources = level.sources || [];
+  if (sources.includes("1h") || level.timeframe === "1h") return "1h";
+  if (sources.includes("15m") || level.timeframe === "15m") return "15m";
+  if (sources.includes("5m") || level.timeframe === "5m") return "5m";
+  if (level.timeframe === "1D" || String(level.kind || "").includes("day_")) return "1D";
+  return "1m";
+}
+
+function drawStructuralLevels(structure) {
+  const levels = structure?.levels || [];
+  if (levelFilter === "active") return;
+  const filtered = levels.filter(level => {
+    if (levelFilter === "htf") {
+      return ["15m", "1h", "1D"].includes(levelTimeframe(level));
+    }
+    return true;
+  }).slice(0, levelFilter === "all" ? 14 : 10);
+
+  filtered.forEach(level => {
+    const tf = levelTimeframe(level);
+    const htf = ["1h", "1D"].includes(tf);
+    const mid = level.center ?? ((Number(level.low) + Number(level.high)) / 2);
+    const title = `${level.kind} · ${tf}`;
+    addPriceLine(
+      mid,
+      title,
+      htf ? "#af52de" : tf === "15m" ? "#5856d6" : "#b0b0b5",
+      htf ? 0 : 2,
+      htf ? 2 : 1,
+      htf
+    );
+  });
+}
+
+function drawActiveDecisionObjects(decisions) {
+  Object.values(decisions || {}).forEach(decision => {
+    const trace = decision.trace || {};
+    const object = trace.object || {};
+    const label = `${decision.strategy.replaceAll("_", " ")} · ${trace.state || decision.details?.state || ""}`;
+    if (object.low != null && object.high != null) {
+      addPriceLine(object.low, label + " low", "#007aff", 0, 2, true);
+      addPriceLine(object.high, label + " high", "#007aff", 0, 2, true);
+    } else if (object.price != null) {
+      addPriceLine(object.price, label, "#007aff", 0, 2, true);
+    } else if (decision.watched_level != null) {
+      addPriceLine(decision.watched_level, label, "#007aff", 0, 2, true);
+    }
+    const target = decision.details?.liquidityTarget?.price;
+    if (target != null) addPriceLine(target, "liquidity target", "#34c759", 2, 1, true);
+  });
 }
 
 function renderVisuals(decisions, position, structure) {
   clearOverlays();
-  const current = selectedSymbol ? null : null;
-  (structure?.levels || []).slice(0, 8).forEach(level => {
-    const label = level.kind === "day_high" ? "day high"
-      : level.kind === "day_low" ? "day low"
-      : `${level.kind} ${(level.sources || [level.timeframe]).join("/")}`;
-    addPriceLine(level.center, label, "#b0b0b5", level.kind.startsWith("day_") ? 0 : 2);
-  });
-  (structure?.trendlines || []).slice(0, 2).forEach(line => {
-    const series = chart.addLineSeries({color:"#98989d", lineWidth:1, lineStyle:2, priceLineVisible:false, lastValueVisible:false});
-    series.setData([
-      {time: Math.floor(line.start_ms / 1000), price: line.start_price},
-      {time: Math.floor(line.end_ms / 1000), price: line.end_price},
-    ]);
-    overlaySeries.push(series);
-  });
-  Object.values(decisions || {}).forEach(decision => {
-    const overlays = decision.visuals?.overlays || [];
-    overlays.forEach(overlay => {
-      if (overlay.type === "price") {
-        addPriceLine(overlay.price, overlay.label || "level", "#8e8e93", 2);
-      } else if (overlay.type === "zone") {
-        addPriceLine(overlay.low, `${overlay.label || "zone"} low`, "#8e8e93", 2);
-        addPriceLine(overlay.high, `${overlay.label || "zone"} high`, "#8e8e93", 2);
-      } else if (overlay.type === "line" && overlay.points?.length >= 2) {
-        const series = chart.addLineSeries({color:"#7c7c80", lineWidth:1, lineStyle:2, priceLineVisible:false, lastValueVisible:false});
-        series.setData(overlay.points);
-        overlaySeries.push(series);
-      }
+  drawStructuralLevels(structure);
+  drawActiveDecisionObjects(decisions);
+
+  if (showTrendlines) {
+    (structure?.trendlines || []).slice(0, levelFilter === "all" ? 4 : 2).forEach(line => {
+      const series = chart.addLineSeries({
+        color:"#98989d", lineWidth:2, lineStyle:2,
+        priceLineVisible:false, lastValueVisible:false
+      });
+      series.setData([
+        {time: Math.floor(line.start_ms / 1000), price: line.start_price},
+        {time: Math.floor(line.end_ms / 1000), price: line.end_price},
+      ]);
+      overlaySeries.push(series);
     });
-  });
+  }
+
   if (position) {
-    addPriceLine(position.entry, "entry", "#007aff", 0);
-    addPriceLine(position.stop, "stop", "#ff3b30", 2);
-    addPriceLine(position.target, "target", "#34c759", 2);
+    addPriceLine(position.entry, "ENTRY", "#007aff", 0, 2, true);
+    addPriceLine(position.stop, "STOP", "#ff3b30", 0, 2, true);
+    addPriceLine(position.target, "TARGET", "#34c759", 0, 2, true);
+  }
+}
+
+function renderMarketChart(market, position) {
+  if (!market) return;
+  ensureChart();
+  lastMarketForChart = market;
+  lastPositionForChart = position;
+  const rows = market.chartSeries?.[selectedChartTimeframe] || market.candles || [];
+  const normalized = rows.map(row => ({
+    time:Number(row.time),
+    open:Number(row.open),
+    high:Number(row.high),
+    low:Number(row.low),
+    close:Number(row.close),
+  })).filter(row => Number.isFinite(row.time) && Number.isFinite(row.close));
+  if (normalized.length) {
+    applyChartPrecision(normalized[normalized.length - 1].close);
+    candleSeries.setData(normalized);
+  } else {
+    candleSeries.setData([]);
+  }
+  renderVisuals(market.decisions, position, market.structure);
+}
+
+function bindChartControls() {
+  document.querySelectorAll("[data-timeframe]").forEach(button => {
+    button.onclick = () => {
+      selectedChartTimeframe = button.dataset.timeframe;
+      document.querySelectorAll("[data-timeframe]").forEach(row =>
+        row.classList.toggle("active", row.dataset.timeframe === selectedChartTimeframe)
+      );
+      renderMarketChart(lastMarketForChart, lastPositionForChart);
+    };
+  });
+  document.querySelectorAll("[data-level-filter]").forEach(button => {
+    button.onclick = () => {
+      levelFilter = button.dataset.levelFilter;
+      document.querySelectorAll("[data-level-filter]").forEach(row =>
+        row.classList.toggle("active", row.dataset.levelFilter === levelFilter)
+      );
+      renderMarketChart(lastMarketForChart, lastPositionForChart);
+    };
+  });
+  const toggle = $("trendlineToggle");
+  if (toggle) {
+    toggle.onclick = () => {
+      showTrendlines = !showTrendlines;
+      toggle.classList.toggle("active", showTrendlines);
+      renderMarketChart(lastMarketForChart, lastPositionForChart);
+    };
   }
 }
 
@@ -515,10 +614,7 @@ function render(data) {
     $("symbolMeta").textContent = `1m · last ${price(data.market.lastPrice)}${gapText} · 24h ${pct(profile.change_24h)} · vol ${compact(profile.turnover_24h)} · ${corr} · ${trades24h} · score ${Number(profile.activity_score || 0).toFixed(0)}${flowText}`;
     $("trendBadge").textContent = data.market.trend.toUpperCase();
     $("trendBadge").className = `trend ${data.market.trend}`;
-    ensureChart();
-    applyChartPrecision(data.market.lastPrice);
-    candleSeries.setData(data.market.candles);
-    renderVisuals(data.market.decisions, position, data.market.structure);
+    renderMarketChart(data.market, position);
     renderBook(book);
     renderDecisions(data.market.decisions);
     renderPosition(position);
@@ -547,5 +643,6 @@ $("startBtn").onclick = async () => {
   refresh();
 };
 $("stopBtn").onclick = async () => { await api("/api/bot/stop", {method:"POST"}); refresh(); };
+bindChartControls();
 refresh();
 setInterval(refresh, 900);
