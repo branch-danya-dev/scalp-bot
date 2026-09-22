@@ -65,8 +65,41 @@ Write-Host "Live:   http://127.0.0.1:8000/"
 Write-Host "Replay: http://127.0.0.1:8000/replay"
 Write-Host ""
 Write-Host "Running preflight tests..."
-& $venvPython -m pytest -q
-if ($LASTEXITCODE -ne 0) {
+
+# Unit tests must be deterministic and must not inherit operational execution
+# gates from .env.example. CI runs with Settings defaults where these features
+# are opt-in; reproduce that environment locally for pytest, then restore the
+# requested run profile before market preflight/server startup.
+$testExitCode = 0
+try {
+    [Environment]::SetEnvironmentVariable(
+        "SCALP_PASSIVE_ENTRY_ENABLED",
+        "false",
+        "Process"
+    )
+    [Environment]::SetEnvironmentVariable(
+        "SCALP_ENFORCE_WINNER_COST_SHARE_GATE",
+        "false",
+        "Process"
+    )
+    [Environment]::SetEnvironmentVariable(
+        "SCALP_ENFORCE_STOP_COST_SHARE_GATE",
+        "false",
+        "Process"
+    )
+
+    & $venvPython -m pytest -q
+    $testExitCode = $LASTEXITCODE
+}
+finally {
+    # Restore the exact production research profile regardless of test result.
+    Import-RunProfile $baseProfile
+    if ($Profile) {
+        Import-RunProfile $resolvedProfile
+    }
+}
+
+if ($testExitCode -ne 0) {
     throw "Preflight tests failed. Paper run was not started."
 }
 
