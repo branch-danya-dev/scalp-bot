@@ -142,6 +142,11 @@ class TradingEngine:
                 "min_wall_notional_usd",
                 config.density_min_wall_notional_usd,
             )
+            setattr(
+                density_strategy,
+                "max_distance_pct",
+                config.density_max_distance_pct,
+            )
         self.running = False
         self.candidates: list[Candidate] = []
         self.sessions: dict[str, ActiveSymbolSession] = {}
@@ -584,7 +589,13 @@ class TradingEngine:
                     ),
                 )
 
-        await stream_symbol(self.config.bybit_public_ws_url, symbol, on_message, stop_event)
+        await stream_symbol(
+            self.config.bybit_public_ws_url,
+            symbol,
+            on_message,
+            stop_event,
+            self.config.orderbook_depth,
+        )
 
     def _apply_kline(
         self,
