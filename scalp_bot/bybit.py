@@ -195,34 +195,80 @@ class OrderBookState:
         self.asks: dict[float, float] = {}
         self.depth = depth
         self.last_update_id: int | None = None
+        self.last_seq: int | None = None
+        self.synced = False
+
+    def _clear(self) -> None:
+        self.bids.clear()
+        self.asks.clear()
+        self.last_update_id = None
+        self.last_seq = None
+        self.synced = False
+
+    def _book(self) -> OrderBook:
+        bids = sorted(
+            self.bids.items(),
+            key=lambda x: x[0],
+            reverse=True,
+        )[: self.depth]
+        asks = sorted(
+            self.asks.items(),
+            key=lambda x: x[0],
+        )[: self.depth]
+        return OrderBook(bids=bids, asks=asks)
 
     def apply(self, message: dict) -> OrderBook:
         data = message.get("data") or {}
         update_id = int(data.get("u") or 0)
+        seq = int(data.get("seq") or 0)
+        is_snapshot = message.get("type") == "snapshot" or update_id == 1
 
-        if message.get("type") == "snapshot" or update_id == 1:
-            self.bids.clear()
-            self.asks.clear()
+        if is_snapshot:
+            self._clear()
+            self._apply_side(self.bids, data.get("b", []))
+            self._apply_side(self.asks, data.get("a", []))
             self.last_update_id = update_id or None
-        elif (
+            self.last_seq = seq or None
+            self.synced = True
+            return self._book()
+
+        if not self.synced:
+            raise OrderBookSequenceError(
+                "orderbook delta received before a fresh snapshot"
+            )
+
+        if (
+            self.last_update_id is not None
+            and update_id
+            and update_id <= self.last_update_id
+        ):
+            return self._book()
+
+        if (
+            self.last_seq is not None
+            and seq
+            and seq < self.last_seq
+        ):
+            return self._book()
+
+        if (
             self.last_update_id is not None
             and update_id
             and update_id > self.last_update_id + 1
         ):
             expected = self.last_update_id + 1
-            self.last_update_id = None
+            self._clear()
             raise OrderBookSequenceError(
-                f"orderbook gap: expected update <= {expected}, got {update_id}"
+                f"orderbook gap: expected u={expected}, got u={update_id}"
             )
-        elif update_id:
-            self.last_update_id = update_id
 
         self._apply_side(self.bids, data.get("b", []))
         self._apply_side(self.asks, data.get("a", []))
-
-        bids = sorted(self.bids.items(), key=lambda x: x[0], reverse=True)[: self.depth]
-        asks = sorted(self.asks.items(), key=lambda x: x[0])[: self.depth]
-        return OrderBook(bids=bids, asks=asks)
+        if update_id:
+            self.last_update_id = update_id
+        if seq:
+            self.last_seq = seq
+        return self._book()
 
     @staticmethod
     def _apply_side(side: dict[float, float], changes: list[list[str]]) -> None:
