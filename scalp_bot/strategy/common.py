@@ -245,6 +245,8 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
     previous_rate = previous_total / 15
     acceleration = recent_rate / previous_rate if previous_rate > 0 else (1.0 if recent_total > 0 else 0.0)
 
+    from .flow import cumulative_delta
+
     return {
         "buyNotional5s": buy,
         "sellNotional5s": sell,
@@ -252,6 +254,9 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
         "notionalPerSecond5s": recent_rate,
         "acceleration": acceleration,
         "tradeCount5s": len(recent),
+        "cvd5s": cumulative_delta(trades, 5, now_ms),
+        "cvd15s": cumulative_delta(trades, 15, now_ms),
+        "cvd60s": cumulative_delta(trades, 60, now_ms),
     }
 
 
