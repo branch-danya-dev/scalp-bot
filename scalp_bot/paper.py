@@ -231,7 +231,33 @@ class PaperBroker:
         self.pending_entries[plan.symbol] = pending
         return pending
 
-    def mark_pending(self, symbol: str, last_trade_price: float) -> list[dict]:
+    def expire_pending(
+        self,
+        now: float | None = None,
+    ) -> list[dict]:
+        resolved = time() if now is None else now
+        events: list[dict] = []
+        for symbol, pending in list(self.pending_entries.items()):
+            if resolved < pending.expires_at:
+                continue
+            del self.pending_entries[symbol]
+            events.append({
+                "event": "entry_cancelled",
+                "symbol": symbol,
+                "strategy": pending.plan.strategy,
+                "setupId": pending.plan.setup_id,
+                "reason": "passive_entry_timeout",
+                "limitPrice": pending.limit_price,
+            })
+        return events
+
+    def mark_pending(
+        self,
+        symbol: str,
+        last_trade_price: float,
+        *,
+        trade_ts: float | None = None,
+    ) -> list[dict]:
         pending = self.pending_entries.get(symbol)
         if pending is None:
             return []
@@ -246,6 +272,8 @@ class PaperBroker:
                 "reason": "passive_entry_timeout",
                 "limitPrice": pending.limit_price,
             }]
+        if trade_ts is not None and trade_ts + 1e-6 < pending.created_at:
+            return []
         confirm = max(0.0, self.config.maker_fill_confirmation_bps) / 10_000
         if pending.plan.side == Side.LONG:
             filled = last_trade_price <= pending.limit_price * (1 - confirm)
