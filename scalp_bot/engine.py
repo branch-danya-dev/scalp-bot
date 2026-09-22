@@ -457,6 +457,7 @@ class TradingEngine:
         if self.running:
             self._stop_trading("shutdown")
         else:
+            self._cancel_all_pending("shutdown")
             self._close_all_positions("shutdown")
         self._cancel_run_timer()
         self._stop.set()
@@ -515,12 +516,17 @@ class TradingEngine:
             self._stop_trading("duration_elapsed", cancel_timer=False)
 
     def _stop_trading(self, reason: str, *, cancel_timer: bool = True) -> None:
-        if not self.running and not self.broker.positions:
+        if (
+            not self.running
+            and not self.broker.positions
+            and not self.broker.pending_entries
+        ):
             return
         stopped_at = time()
         self.running = False
         if cancel_timer:
             self._cancel_run_timer()
+        self._cancel_all_pending(reason)
         self._close_all_positions(reason)
         started_at = self._run_started_at
         summary = {
@@ -566,6 +572,11 @@ class TradingEngine:
             "maxTradeAllInLossFraction": self.config.max_trade_all_in_loss_fraction,
             "maxTotalRiskFraction": self.config.max_total_risk_fraction,
             "maxLeverage": self.config.max_leverage,
+            "passiveEntryEnabled": self.config.passive_entry_enabled,
+            "passiveEntryTimeoutSeconds": self.config.passive_entry_timeout_seconds,
+            "makerFillConfirmationBps": self.config.maker_fill_confirmation_bps,
+            "maxWinnerCostShare": self.config.max_winner_cost_share,
+            "enforceWinnerCostShareGate": self.config.enforce_winner_cost_share_gate,
             "partialTakeAtR": self.config.partial_take_at_r,
             "partialTakeFraction": self.config.partial_take_fraction,
             "runnerTargetR": self.config.runner_target_r,
@@ -715,6 +726,8 @@ class TradingEngine:
 
     def _can_deactivate(self, session: ActiveSymbolSession, now: float) -> bool:
         if session.symbol in self.broker.positions:
+            return False
+        if session.symbol in self.broker.pending_entries:
             return False
         if now - session.activated_at < self.config.active_symbol_min_seconds:
             return False
@@ -931,7 +944,12 @@ class TradingEngine:
                         int(rows[-1].get("T") or time() * 1000),
                         self.config.trade_buffer_seconds,
                     )
-                    self._mark_position_from_book(session)
+                    self._mark_execution_from_market(
+                        session,
+                        trade_ts_ms=int(
+                            rows[-1].get("T") or time() * 1000
+                        ),
+                    )
 
             now = monotonic()
             if now - session.last_eval >= 0.8:
@@ -1141,10 +1159,19 @@ class TradingEngine:
     def _arbitrate_once(self) -> None:
         opportunities: list[Opportunity] = []
         now = time()
+        for event in self.broker.expire_pending(now):
+            self._emit(
+                "entry_cancelled",
+                event.get("symbol"),
+                event,
+            )
         candidate_map = {item.symbol: item for item in self.candidates}
 
         for session in self.sessions.values():
-            if session.symbol in self.broker.positions:
+            if (
+                session.symbol in self.broker.positions
+                or session.symbol in self.broker.pending_entries
+            ):
                 continue
             if (
                 session.last_market_at <= 0
@@ -1277,29 +1304,73 @@ class TradingEngine:
 
         best.session.last_risk_fingerprint = None
         best.session.last_blocked_fingerprint = None
+        if best.plan.entry_mode == "maker_limit":
+            pending = self.broker.place_pending(best.plan)
+            self._emit(
+                "entry_pending",
+                best.session.symbol,
+                {
+                    "plan": best.plan.public(),
+                    "pending": pending.public(),
+                    "reasons": best.decision.reasons,
+                    "visuals": best.decision.visuals,
+                    "opportunityScore": best.score,
+                    "opportunityQuality": float(
+                        best.decision.details.get(
+                            "setupQuality",
+                            best.decision.confidence,
+                        ) or 0.0
+                    ),
+                },
+                snapshot=True,
+            )
+            return
+
         best.session.last_trade_at = now
         position = self.broker.open(best.plan, best.session.orderbook)
-        strategy = self.strategies.get(best.decision.strategy)
-        stats = self.strategy_stats.get(best.decision.strategy)
+        self._record_opened_position(
+            best.session,
+            best.decision,
+            best.plan.public(),
+            position.public(),
+            opportunity_score=best.score,
+        )
+
+    def _record_opened_position(
+        self,
+        session: ActiveSymbolSession,
+        decision: StrategyDecision | None,
+        plan: dict,
+        position: dict,
+        *,
+        opportunity_score: float | None = None,
+    ) -> None:
+        strategy_key = str(plan.get("strategy") or "")
+        stats = self.strategy_stats.get(strategy_key)
         if stats is not None:
             stats["tradesOpened"] += 1
-        if strategy is not None:
-            strategy.mark_opened(best.session.symbol, best.decision)
+        strategy = self.strategies.get(strategy_key)
+        if strategy is not None and decision is not None:
+            strategy.mark_opened(session.symbol, decision)
+        session.last_trade_at = time()
         self._emit(
             "trade_opened",
-            best.session.symbol,
+            session.symbol,
             {
-                "plan": best.plan.public(),
-                "position": position.public(),
-                "reasons": best.decision.reasons,
-                "visuals": best.decision.visuals,
-                "opportunityScore": best.score,
+                "plan": plan,
+                "position": position,
+                "reasons": decision.reasons if decision else [],
+                "visuals": decision.visuals if decision else {},
+                "opportunityScore": opportunity_score,
                 "opportunityQuality": float(
-                    best.decision.details.get("setupQuality", best.decision.confidence) or 0.0
-                ),
+                    decision.details.get(
+                        "setupQuality",
+                        decision.confidence,
+                    ) or 0.0
+                ) if decision else 0.0,
                 "holdingRule": (
-                    "take partial profit near 1R; runner moves to net breakeven; "
-                    "weak losers can be cut before the hard structural stop"
+                    "resting maker partial near 1R; runner moves to net "
+                    "breakeven; no-follow-through is strategy-specific"
                 ),
             },
             snapshot=True,
@@ -1393,6 +1464,61 @@ class TradingEngine:
         )
         self._handle_broker_events(session, [event])
 
+    def _mark_execution_from_market(
+        self,
+        session: ActiveSymbolSession,
+        *,
+        trade_ts_ms: int | None = None,
+    ) -> None:
+        pending_events = self.broker.mark_pending(
+            session.symbol,
+            session.last_price,
+            trade_ts=(
+                trade_ts_ms / 1000
+                if trade_ts_ms is not None
+                else None
+            ),
+        )
+        for event in pending_events:
+            if event.get("event") == "entry_filled":
+                strategy_key = str(event.get("strategy") or "")
+                plan = dict(event.get("plan") or {})
+                decision = session.decisions.get(strategy_key)
+                plan_setup_id = str(plan.get("setup_id") or "")
+                if (
+                    decision is None
+                    or str(decision.setup_id or "") != plan_setup_id
+                ):
+                    side = str(plan.get("side") or "")
+                    decision = StrategyDecision(
+                        strategy=strategy_key,
+                        action=(
+                            Action.LONG
+                            if side == Side.LONG.value
+                            else Action.SHORT
+                        ),
+                        reasons=["passive maker entry filled"],
+                        entry=plan.get("setup_entry"),
+                        stop=plan.get("stop"),
+                        target=plan.get("target"),
+                        setup_id=plan_setup_id or None,
+                        details=dict(plan.get("strategy_details") or {}),
+                    )
+                self._record_opened_position(
+                    session,
+                    decision,
+                    plan,
+                    dict(event.get("position") or {}),
+                )
+            elif event.get("event") == "entry_cancelled":
+                self._emit(
+                    "entry_cancelled",
+                    session.symbol,
+                    event,
+                    snapshot=True,
+                )
+        self._mark_position_from_book(session)
+
     def _mark_position_from_book(
         self,
         session: ActiveSymbolSession,
@@ -1461,6 +1587,14 @@ class TradingEngine:
                 "cooldownSeconds": self.config.setup_rearm_seconds,
             },
         )
+
+    def _cancel_all_pending(self, reason: str) -> None:
+        for event in self.broker.cancel_all_pending(reason):
+            self._emit(
+                "entry_cancelled",
+                event.get("symbol"),
+                event,
+            )
 
     def _close_all_positions(self, reason: str) -> None:
         for symbol in list(self.broker.positions):
@@ -1612,6 +1746,10 @@ class TradingEngine:
             "balance": self.broker.balance,
             "totalPnl": self.broker.total_pnl,
             "positions": [x.public() for x in self.broker.positions.values()],
+            "pendingEntries": [
+                x.public()
+                for x in self.broker.pending_entries.values()
+            ],
             "closedTrades": self.broker.closed_trades[-30:],
             "portfolio": {
                 "totalExposure": self.broker.total_exposure,
@@ -1621,6 +1759,8 @@ class TradingEngine:
                     else 0.0
                 ),
                 "availableNotional": self.broker.available_notional,
+                "pendingExposureUsd": self.broker.pending_exposure_usd,
+                "pendingRiskUsd": self.broker.pending_risk_usd,
                 "openStructuralRiskUsd": (
                     self.broker.open_structural_risk_usd
                 ),
@@ -1668,6 +1808,11 @@ class TradingEngine:
                 "maxEntryDriftBps": self.config.max_entry_drift_bps,
                 "takerFeeRate": self.config.taker_fee_rate,
                 "slippageBps": self.config.slippage_bps,
+                "makerFillConfirmationBps": self.config.maker_fill_confirmation_bps,
+                "passiveEntryEnabled": self.config.passive_entry_enabled,
+                "passiveEntryTimeoutSeconds": self.config.passive_entry_timeout_seconds,
+                "maxWinnerCostShare": self.config.max_winner_cost_share,
+                "winnerCostShareGateEnabled": self.config.enforce_winner_cost_share_gate,
                 "partialTakeAtR": self.config.partial_take_at_r,
                 "partialTakeFraction": self.config.partial_take_fraction,
                 "runnerTargetR": self.config.runner_target_r,
