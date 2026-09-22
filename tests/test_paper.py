@@ -657,3 +657,108 @@ def test_breakout_no_follow_through_waits_longer_than_density() -> None:
         "DENSUSDT", 99.75, book(99.75, 99.76)
     )
     assert events and events[-1]["reason"] == "no_follow_through"
+
+
+
+def test_pending_maker_entry_reserves_budget_and_requires_trade_through() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.05,
+        maker_fee_rate=0.00020,
+        taker_fee_rate=0.00055,
+        passive_entry_enabled=True,
+        passive_entry_timeout_seconds=15,
+        maker_fill_confirmation_bps=0.5,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("PASSIVEUSDT", Side.LONG, 1000)
+    p.strategy = "orderbook_density"
+    p.entry_mode = "maker_limit"
+    p.market_entry = 99.99
+    p.expected_net_loss = 10
+    pending = broker.place_pending(p)
+    assert pending.limit_price == pytest.approx(99.99)
+    assert broker.pending_exposure_usd == pytest.approx(1000)
+    assert broker.pending_risk_usd == pytest.approx(10)
+    assert broker.available_notional == pytest.approx(9000)
+    assert broker.mark_pending("PASSIVEUSDT", 99.99) == []
+    assert "PASSIVEUSDT" in broker.pending_entries
+    assert "PASSIVEUSDT" not in broker.positions
+    through = 99.99 * (1 - cfg.maker_fill_confirmation_bps / 10_000)
+    events = broker.mark_pending("PASSIVEUSDT", through)
+    assert events and events[0]["event"] == "entry_filled"
+    assert "PASSIVEUSDT" not in broker.pending_entries
+    pos = broker.positions["PASSIVEUSDT"]
+    assert pos.entry == pytest.approx(99.99)
+    assert pos.entry_fee_remaining == pytest.approx(
+        p.notional * cfg.maker_fee_rate
+    )
+
+
+def test_pending_maker_entry_timeout_releases_reservation() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.05,
+        passive_entry_enabled=True,
+        passive_entry_timeout_seconds=15,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("TIMEOUTUSDT", Side.LONG, 1000)
+    p.entry_mode = "maker_limit"
+    p.market_entry = 99.99
+    p.expected_net_loss = 10
+    broker.place_pending(p)
+    broker.pending_entries["TIMEOUTUSDT"].expires_at -= 60
+    events = broker.mark_pending("TIMEOUTUSDT", 100.0)
+    assert events and events[0]["event"] == "entry_cancelled"
+    assert events[0]["reason"] == "passive_entry_timeout"
+    assert broker.pending_exposure_usd == 0
+    assert broker.pending_risk_usd == 0
+
+
+def test_pending_maker_entry_ignores_trade_from_before_order() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.05,
+        passive_entry_enabled=True,
+        passive_entry_timeout_seconds=15,
+        maker_fill_confirmation_bps=0.5,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("STALEUSDT", Side.LONG, 1000)
+    p.entry_mode = "maker_limit"
+    p.market_entry = 99.99
+    p.expected_net_loss = 10
+    pending = broker.place_pending(p)
+    through = 99.99 * (1 - cfg.maker_fill_confirmation_bps / 10_000)
+    events = broker.mark_pending(
+        "STALEUSDT",
+        through,
+        trade_ts=pending.created_at - 1,
+    )
+    assert events == []
+    assert "STALEUSDT" in broker.pending_entries
+    assert "STALEUSDT" not in broker.positions
+
+
+def test_expire_pending_releases_reservation_without_trade() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.05,
+        passive_entry_enabled=True,
+        passive_entry_timeout_seconds=15,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("EXPIREUSDT", Side.LONG, 1000)
+    p.entry_mode = "maker_limit"
+    p.market_entry = 99.99
+    p.expected_net_loss = 10
+    pending = broker.place_pending(p)
+    events = broker.expire_pending(pending.expires_at + 0.01)
+    assert events and events[0]["reason"] == "passive_entry_timeout"
+    assert broker.pending_exposure_usd == 0
+    assert broker.pending_risk_usd == 0
