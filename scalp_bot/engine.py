@@ -349,7 +349,12 @@ class ActiveSymbolSession:
             },
         }
 
-    def frame(self, book_depth: int, position: dict | None) -> dict:
+    def frame(
+        self,
+        book_depth: int,
+        position: dict | None,
+        recent_trade_limit: int = 250,
+    ) -> dict:
         now_ms = int(time() * 1000)
         return {
             "lastPrice": self.last_price,
@@ -360,7 +365,10 @@ class ActiveSymbolSession:
             "tradeFlow": compute_trade_flow(list(self.trades), now_ms),
             "bookFlow": self.book_flow_snapshot(now_ms),
             "position": position,
-            "recentTrades": [trade.public() for trade in list(self.trades)[-250:]],
+            "recentTrades": [
+                trade.public()
+                for trade in list(self.trades)[-max(0, recent_trade_limit):]
+            ],
             "structure": self.structure.public() if self.structure else None,
         }
 
@@ -972,6 +980,7 @@ class TradingEngine:
                             position,
                         ),
                         position.public() if position else None,
+                        self.config.research_recent_trades,
                     ),
                 )
 
@@ -988,6 +997,7 @@ class TradingEngine:
                     session.frame(
                         self.config.replay_book_depth,
                         position.public() if position else None,
+                        self.config.replay_recent_trades,
                     ),
                 )
 
