@@ -379,6 +379,7 @@ class LevelBreakoutStrategy(Strategy):
                     "pressureScore": pressure_score,
                     "pressure": pressure,
                     "flow": flow,
+                    "levelFlow": level_flow.public(),
                 },
             )
 
