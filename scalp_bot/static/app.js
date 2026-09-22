@@ -69,7 +69,8 @@ const ACTION_LABELS = {wait:"ЖДЁМ", long:"ЛОНГ", short:"ШОРТ"};
 const TREND_LABELS = {up:"ВВЕРХ", down:"ВНИЗ", flat:"БОКОВИК"};
 const SIDE_LABELS = {long:"ЛОНГ", short:"ШОРТ", buy:"ПОКУПКА", sell:"ПРОДАЖА", bid:"BID", ask:"ASK"};
 const EVENT_LABELS = {
-  decision:"Решение", trade_opened:"Вход", partial_take:"Частичная фиксация",
+  decision:"Решение", entry_pending:"Лимитный вход ожидает", entry_cancelled:"Лимитный вход отменён",
+  trade_opened:"Вход", partial_take:"Частичная фиксация",
   trade_closed:"Выход", risk_reject:"Отклонено риском", economic_shadow:"Экономика (shadow)",
   setup_blocked:"Сетап заблокирован", setup_consumed:"Сетап использован",
   setup_rearmed:"Сетап переактивирован", symbol_activated:"Монета активирована",
@@ -542,6 +543,8 @@ function renderDecisions(decisions) {
 
 function eventText(event) {
   const payload = event.payload || {};
+  if (event.event === "entry_pending") return `PostOnly @ ${price(payload.pending?.limitPrice ?? payload.plan?.market_entry)} · ${money(payload.plan?.notional)}`;
+  if (event.event === "entry_cancelled") return `${reasonText(payload.reason)} · ${price(payload.limitPrice)}`;
   if (event.event === "trade_opened") return `${sideLabel(payload.plan?.side)} · ${money(payload.plan?.notional)} · net на цели ${money(payload.plan?.net_at_target ?? payload.plan?.expected_net_profit)} · качество ${Number(payload.opportunityQuality ?? 0).toFixed(2)}`;
   if (event.event === "partial_take") return `частичная фиксация ${money(payload.netPnl)} · осталось ${money(payload.remainingNotional)} · стоп→${price(payload.newStop)}`;
   if (event.event === "trade_closed") return `${reasonText(payload.reason)} · ${money(payload.netPnl)} · MAE ${money(payload.maeUsd)} · MFE ${money(payload.mfeUsd)}`;
@@ -598,7 +601,8 @@ function eventStrategy(event) {
 
 function eventGroup(event) {
   if (event.event.endsWith("_error")) return "error";
-  if (event.event === "trade_opened") return "entry";
+  if (event.event === "trade_opened" || event.event === "entry_pending") return "entry";
+  if (event.event === "entry_cancelled") return "reject";
   if (event.event === "trade_closed" || event.event === "partial_take") return "exit";
   if (event.event === "risk_reject" || event.event === "setup_blocked" || event.event === "economic_shadow") return "reject";
   if (event.event === "decision") return "decision";
