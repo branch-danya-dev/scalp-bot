@@ -61,3 +61,39 @@ def test_time_buffer_can_keep_more_than_two_thousand_recent_trades() -> None:
     )
     prune_trades(rows, now, 90)
     assert len(rows) == 3_000
+
+
+def test_best_level_ofi_tracks_bid_additions_and_ask_withdrawals() -> None:
+    from scalp_bot.domain import OrderBook
+    from scalp_bot.strategy.flow import best_level_ofi_usd
+
+    previous = OrderBook(
+        bids=[(100.0, 1.0)],
+        asks=[(101.0, 1.0)],
+    )
+    stronger_bid = OrderBook(
+        bids=[(100.0, 2.0)],
+        asks=[(101.0, 1.0)],
+    )
+    assert best_level_ofi_usd(previous, stronger_bid) == 100.0
+
+    ask_withdrawal = OrderBook(
+        bids=[(100.0, 1.0)],
+        asks=[(101.0, 0.5)],
+    )
+    assert best_level_ofi_usd(previous, ask_withdrawal) == 50.5
+
+
+def test_best_level_ofi_is_negative_when_best_bid_steps_down() -> None:
+    from scalp_bot.domain import OrderBook
+    from scalp_bot.strategy.flow import best_level_ofi_usd
+
+    previous = OrderBook(
+        bids=[(100.0, 1.0)],
+        asks=[(101.0, 1.0)],
+    )
+    weaker = OrderBook(
+        bids=[(99.0, 1.0)],
+        asks=[(101.0, 1.0)],
+    )
+    assert best_level_ofi_usd(previous, weaker) == -100.0
