@@ -500,8 +500,11 @@ class TradingEngine:
 
         await stream_symbol(self.config.bybit_public_ws_url, symbol, on_message, stop_event)
 
-    @staticmethod
-    def _apply_kline(session: ActiveSymbolSession, message: dict) -> None:
+    def _apply_kline(
+        self,
+        session: ActiveSymbolSession,
+        message: dict,
+    ) -> None:
         rows = message.get("data") or []
         if not rows:
             return
