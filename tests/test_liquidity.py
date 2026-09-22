@@ -123,3 +123,47 @@ def test_day_and_previous_day_extremes_are_short_liquidity_targets() -> None:
     assert target is not None
     assert target.kind == "previous_day_low"
     assert target.price == 98.5
+
+
+def test_structural_zone_targets_near_edge_not_center() -> None:
+    long_structure = MarketStructure(
+        levels=[
+            StructuralLevel(
+                kind="resistance",
+                low=101.0,
+                high=102.0,
+                touches=4,
+                timeframe="15m",
+                score=0.9,
+            ),
+        ],
+    )
+    long_target = find_liquidity_target(
+        quiet_rows(),
+        100.0,
+        Action.LONG,
+        structure=long_structure,
+    )
+    assert long_target is not None
+    assert long_target.price == 101.0
+
+    short_structure = MarketStructure(
+        levels=[
+            StructuralLevel(
+                kind="support",
+                low=98.0,
+                high=99.0,
+                touches=4,
+                timeframe="15m",
+                score=0.9,
+            ),
+        ],
+    )
+    short_target = find_liquidity_target(
+        quiet_rows(),
+        100.0,
+        Action.SHORT,
+        structure=short_structure,
+    )
+    assert short_target is not None
+    assert short_target.price == 99.0
