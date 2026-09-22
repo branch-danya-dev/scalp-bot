@@ -112,7 +112,7 @@ def aggressive_buy_flow() -> list[TradeTick]:
     return [TradeTick(start + i * 200, 100.16, 8, "Buy") for i in range(24)]
 
 
-def test_breakout_requires_mature_zone_and_uses_generation_once() -> None:
+def test_breakout_requires_mature_zone_hold_and_actual_open_before_consumed() -> None:
     strategy = LevelBreakoutStrategy()
     book = OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)])
     first = strategy.evaluate(
@@ -122,17 +122,39 @@ def test_breakout_requires_mature_zone_and_uses_generation_once() -> None:
         symbol="TESTUSDT",
         trades=aggressive_buy_flow(),
     )
-    assert first.action == Action.LONG
+    assert first.action == Action.WAIT
     assert first.details["zone"]["touches"] >= 5
-    second = strategy.evaluate(
+    assert first.details["requiredBreakHoldSeconds"] == 3.0
+
+    strategy._states["TESTUSDT"].break_started_at -= 4
+    entry = strategy.evaluate(
         mature_breakout_candles(),
         book,
         Trend.UP,
         symbol="TESTUSDT",
         trades=aggressive_buy_flow(),
     )
-    assert second.action == Action.WAIT
-    assert second.details["alreadyUsed"] is True
+    assert entry.action == Action.LONG
+
+    still_available = strategy.evaluate(
+        mature_breakout_candles(),
+        book,
+        Trend.UP,
+        symbol="TESTUSDT",
+        trades=aggressive_buy_flow(),
+    )
+    assert still_available.action == Action.LONG
+
+    strategy.mark_opened("TESTUSDT", entry)
+    consumed = strategy.evaluate(
+        mature_breakout_candles(),
+        book,
+        Trend.UP,
+        symbol="TESTUSDT",
+        trades=aggressive_buy_flow(),
+    )
+    assert consumed.action == Action.WAIT
+    assert consumed.details["alreadyUsed"] is True
 
 
 def density_candles() -> list[Candle]:
@@ -415,3 +437,32 @@ def test_density_accepts_wall_passing_absolute_relative_and_activity_floors() ->
     assert decision.details["strengthMultiple"] >= 20
     assert decision.details["effectiveWallFloorUsd"] == 25_000
     assert decision.details["turnoverFloorUsd"] < 25_000
+
+
+def test_density_countertrend_reaction_is_not_tradeable() -> None:
+    strategy = DensityBounceStrategy()
+    book = density_book(50_000)
+    rows = density_candles()
+    strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="COUNTERDENSITYUSDT",
+        trades=density_sell_flow(),
+    )
+    state = strategy._states["COUNTERDENSITYUSDT"]
+    state.first_seen -= 4
+    state.observations = [
+        (state.first_seen, 50_000),
+        (state.first_seen + 1, 49_000),
+        (state.first_seen + 2, 50_000),
+    ]
+    decision = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="COUNTERDENSITYUSDT",
+        trades=density_sell_flow(),
+    )
+    assert decision.action == Action.WAIT
+    assert decision.details["trendAligned"] is False
