@@ -288,8 +288,17 @@ async def stream_symbol(
     symbol: str,
     callback: StreamCallback,
     stop_event: asyncio.Event,
+    orderbook_depth: int = 1000,
 ) -> None:
-    topics = [f"orderbook.200.{symbol}", f"kline.1.{symbol}", f"publicTrade.{symbol}"]
+    if orderbook_depth not in {1, 50, 200, 1000}:
+        raise ValueError(
+            "Bybit orderbook depth must be one of 1, 50, 200, 1000"
+        )
+    topics = [
+        f"orderbook.{orderbook_depth}.{symbol}",
+        f"kline.1.{symbol}",
+        f"publicTrade.{symbol}",
+    ]
     while not stop_event.is_set():
         try:
             async with websockets.connect(ws_url, ping_interval=20, ping_timeout=20) as ws:
