@@ -22,7 +22,9 @@ Everything else is inherited from `.env.example`, including:
 - 0.5% structural price risk to the strategy invalidation point;
 - 1.25% maximum planned all-in loss per trade including fee/slippage reserve;
 - target must remain net-positive after estimated costs;
+- confirmed entry is modeled as taker; resting final target as maker-limit; stop/invalidation/partial as taker;
 - the old $1 minimum-net and 1.15 net R:R rules are recorded as shadow diagnostics rather than hard research gates;
+- target geometry records nearest liquidity as an obstacle rather than automatically shrinking final targets;
 - adaptive full-depth recording for engaged density setups;
 - partial/runner and structural invalidation rules.
 

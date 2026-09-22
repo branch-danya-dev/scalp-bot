@@ -289,3 +289,24 @@ It provides:
 - selection of any saved session, including legacy session files where the recorded payload is sufficient.
 
 The offline review layer never participates in live trading decisions.
+
+
+## Research economics refactor
+
+The zero-trade 2026-09-22 research run and the resulting economics/geometry refactor are documented in:
+
+```
+docs/research-economics-refactor-2026-09-22.md
+```
+
+Key current research rules:
+
+- 0.5% structural price risk;
+- 1.25% maximum planned all-in loss per trade;
+- 2% aggregate open all-in risk;
+- positive net target after estimated costs remains mandatory;
+- old $1 minimum-net and 1.15 net R:R are shadow diagnostics;
+- breakout uses re-acceptance invalidation + liquidity ladder;
+- trend/rejection/density preserve their intended 1.6R target geometry instead of being truncated by the nearest liquidity level;
+- confirmed entry is charged as taker, resting target as maker, stop/invalidation/partial as taker;
+- strategy expectancy remains observational until enough closed trades exist.
