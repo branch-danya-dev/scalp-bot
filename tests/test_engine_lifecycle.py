@@ -111,6 +111,7 @@ def test_central_arbiter_chooses_stronger_setup_instead_of_first_worker(tmp_path
             orderbook=book(),
             last_price=100,
             last_market_at=time(),
+            last_book_at=time(),
         )
         strong = ActiveSymbolSession(
             symbol="BBBUSDT",
@@ -118,6 +119,7 @@ def test_central_arbiter_chooses_stronger_setup_instead_of_first_worker(tmp_path
             orderbook=book(),
             last_price=100,
             last_market_at=time(),
+            last_book_at=time(),
         )
         weak.decisions["orderbook_density"] = StrategyDecision(
             strategy="orderbook_density",
@@ -186,6 +188,7 @@ def test_central_arbiter_ignores_stale_market_snapshot(tmp_path) -> None:
             orderbook=book(),
             last_price=100,
             last_market_at=time() - 10,
+            last_book_at=time() - 10,
         )
         session.decisions["orderbook_density"] = StrategyDecision(
             strategy="orderbook_density",
