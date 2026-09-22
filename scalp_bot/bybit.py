@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Awaitable, Callable
+from time import time
 
 import httpx
 import websockets
@@ -18,6 +19,25 @@ class BybitError(RuntimeError):
 
 class OrderBookSequenceError(RuntimeError):
     pass
+
+
+def _interval_ms(interval: str) -> int | None:
+    if interval.isdigit():
+        return int(interval) * 60_000
+    return {"D": 24 * 60 * 60_000, "W": 7 * 24 * 60_000}.get(interval)
+
+
+def _kline_is_confirmed(
+    start_ms: int,
+    interval: str,
+    *,
+    now_ms: int | None = None,
+) -> bool:
+    duration = _interval_ms(interval)
+    if duration is None:
+        return True
+    resolved_now = int(time() * 1000) if now_ms is None else now_ms
+    return start_ms + duration <= resolved_now
 
 
 class BybitRestClient:
@@ -117,6 +137,7 @@ class BybitRestClient:
             "1",
             correlation_limit,
         )
+        benchmark_closed = [x for x in benchmark if x.confirmed]
 
         async def enrich(candidate: Candidate) -> Candidate:
             async with semaphore:
@@ -126,20 +147,26 @@ class BybitRestClient:
                     max(correlation_limit, self.config.activity_window_minutes + 1),
                 )
                 await asyncio.sleep(self.config.activity_request_pause_seconds)
-            if len(candles) >= 2:
-                recent = candles[-max(self.config.activity_window_minutes + 1, 2):]
+            closed = [x for x in candles if x.confirmed]
+            if len(closed) >= 2:
+                window = max(self.config.activity_window_minutes, 1)
+                recent = closed[-max(window + 1, 2):]
                 first = recent[0]
                 last = recent[-1]
                 if first.open:
                     candidate.activity_change = (last.close - first.open) / first.open
-                candidate.activity_turnover = sum(
-                    x.turnover
-                    for x in candles[-self.config.activity_window_minutes :]
-                )
+                recent_rows = closed[-window:]
+                candidate.activity_turnover = sum(x.turnover for x in recent_rows)
+                baseline_rows = closed[:-window]
+                if baseline_rows and candidate.activity_turnover > 0:
+                    baseline_per_minute = sum(x.turnover for x in baseline_rows) / len(baseline_rows)
+                    expected_recent = baseline_per_minute * len(recent_rows)
+                    if expected_recent > 0:
+                        candidate.activity_burst_ratio = candidate.activity_turnover / expected_recent
                 candidate.correlation_1h_btc = (
                     1.0
                     if candidate.symbol == self.config.activity_benchmark_symbol
-                    else correlation_1h(candles, benchmark)
+                    else correlation_1h(closed, benchmark_closed)
                 )
                 candidate.activity_score = activity_score(
                     candidate,
@@ -173,17 +200,19 @@ class BybitRestClient:
             {"category": "linear", "symbol": symbol, "interval": interval, "limit": limit},
         )
         candles: list[Candle] = []
+        now_ms = int(time() * 1000)
         for row in reversed(result.get("list", [])):
+            start_ms = int(row[0])
             candles.append(
                 Candle(
-                    start_ms=int(row[0]),
+                    start_ms=start_ms,
                     open=float(row[1]),
                     high=float(row[2]),
                     low=float(row[3]),
                     close=float(row[4]),
                     volume=float(row[5]),
                     turnover=float(row[6]),
-                    confirmed=True,
+                    confirmed=_kline_is_confirmed(start_ms, interval, now_ms=now_ms),
                 )
             )
         return candles
