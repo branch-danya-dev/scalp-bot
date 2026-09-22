@@ -105,3 +105,20 @@ class SessionRecorder:
                 except json.JSONDecodeError:
                     continue
         return rows
+
+
+    def research_rows(
+        self,
+        name: str,
+        symbol: str | None = None,
+    ) -> list[dict]:
+        path = self._safe_path(name)
+        rows = self._read_rows(path)
+        result: list[dict] = []
+        for row in rows:
+            if row.get("event") != "research_frame":
+                continue
+            if symbol is not None and row.get("symbol") != symbol:
+                continue
+            result.append(row)
+        return result
