@@ -226,6 +226,10 @@ class DensityBounceStrategy(Strategy):
     ) -> str | None:
         if unrealized_pnl >= 0 or decision is None:
             return None
+        mode = str(strategy_details.get("tradeMode") or "")
+        expected = Trend.UP if side == Side.LONG else Trend.DOWN
+        if mode == "trend_following" and trend != expected:
+            return "density_context_lost"
         if bool(decision.details.get("positionInvalidated")):
             return "density_price_flow_invalidated"
         return None
