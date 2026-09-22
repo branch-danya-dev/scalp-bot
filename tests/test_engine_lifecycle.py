@@ -1102,8 +1102,8 @@ def test_strategy_runtime_stats_track_decisions_rejects_and_closed_trade(tmp_pat
 
 
 def test_arbiter_records_shadow_economics_without_blocking_trade(tmp_path) -> None:
-    engine = make_engine(
-        tmp_path,
+    engine = TradingEngine(Settings(
+        session_dir=str(tmp_path),
         min_net_profit_usd=1.0,
         min_net_profit_equity_fraction=0.001,
         enforce_min_net_profit_gate=False,
@@ -1111,8 +1111,9 @@ def test_arbiter_records_shadow_economics_without_blocking_trade(tmp_path) -> No
         enforce_net_reward_risk_gate=False,
         taker_fee_rate=0.00055,
         slippage_bps=1.0,
+        max_entry_drift_bps=100,
         max_position_leverage=5.0,
-    )
+    ))
     try:
         engine.running = True
         now = time()
