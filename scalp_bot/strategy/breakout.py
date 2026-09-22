@@ -45,6 +45,7 @@ class LevelBreakoutStrategy(Strategy):
     label = "Пробой наторгованного уровня"
 
     min_zone_touches = 5
+    min_distinct_approaches = 4
     approach_pct = 0.0045
     max_stop_pct = 0.006
     max_zone_distance_pct = 0.012
@@ -206,10 +207,10 @@ class LevelBreakoutStrategy(Strategy):
                 for level in structure.levels
                 if level.kind == zone_kind
                 and level.touches >= self.min_zone_touches
-                and level.distinct_approaches >= 3
+                and level.distinct_approaches >= self.min_distinct_approaches
                 and level.reaction_pct >= typical_range_pct(candles) * 0.45
                 and level.volume_ratio >= 0.80
-                and level.lifecycle in {"tested", "worked"}
+                and level.lifecycle == "worked"
             ]
             zones = [level.as_zone() for level in structural]
         else:
@@ -398,16 +399,46 @@ class LevelBreakoutStrategy(Strategy):
                 },
             )
 
-        touch_quality = clamp((zone.touches - self.min_zone_touches + 1) / 4.0)
+        touch_quality = clamp(
+            (zone.touches - self.min_zone_touches + 1) / 4.0
+        )
         pressure_quality = clamp(pressure_score / 5.0)
         flow_quality = clamp(abs(flow["imbalance5s"]) / 0.25)
-        reaction_quality = clamp(zone.reaction_pct / max(typical_range_pct(candles), 1e-9) / 2.0)
+        reaction_quality = clamp(
+            zone.reaction_pct
+            / max(typical_range_pct(candles), 1e-9)
+            / 2.0
+        )
+        approach_quality = (
+            clamp(matched.distinct_approaches / 6.0)
+            if structure is not None and matched is not None
+            else touch_quality
+        )
+        dwell_quality = (
+            clamp(matched.dwell_bars / 10.0)
+            if structure is not None and matched is not None
+            else 0.5
+        )
+        failed_break_quality = (
+            clamp((matched.failed_breaks + matched.sweeps) / 4.0)
+            if structure is not None and matched is not None
+            else 0.0
+        )
+        structural_quality = (
+            matched.score
+            if structure is not None and matched is not None
+            else reaction_quality
+        )
         quality = clamp(
-            0.40
-            + touch_quality * 0.20
-            + pressure_quality * 0.18
-            + flow_quality * 0.12
-            + reaction_quality * 0.10
+            0.25
+            + touch_quality * 0.12
+            + approach_quality * 0.14
+            + dwell_quality * 0.08
+            + failed_break_quality * 0.06
+            + structural_quality * 0.10
+            + pressure_quality * 0.15
+            + flow_quality * 0.10
+            + reaction_quality * 0.08
         )
 
         state.stage = BreakoutStage.IMPULSE
@@ -435,6 +466,11 @@ class LevelBreakoutStrategy(Strategy):
                 "state": state.stage.value,
                 "zone": zone.public(),
                 "zoneGeneration": generation,
+                "levelLifecycle": (
+                    matched.public()
+                    if structure is not None and matched is not None
+                    else None
+                ),
                 "flow": flow,
                 "pressure": pressure,
                 "pressureScore": pressure_score,
@@ -451,6 +487,10 @@ class LevelBreakoutStrategy(Strategy):
                 "setupQuality": quality,
                 "qualityFactors": {
                     "touchMaturity": touch_quality,
+                    "distinctApproaches": approach_quality,
+                    "dwell": dwell_quality,
+                    "failedBreakHistory": failed_break_quality,
+                    "structuralQuality": structural_quality,
                     "pressure": pressure_quality,
                     "flow": flow_quality,
                     "reactionHistory": reaction_quality,
