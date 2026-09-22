@@ -16,6 +16,10 @@ class BybitError(RuntimeError):
     pass
 
 
+class OrderBookSequenceError(RuntimeError):
+    pass
+
+
 class BybitRestClient:
     def __init__(self, config: Settings) -> None:
         self.config = config
@@ -186,21 +190,38 @@ class BybitRestClient:
 
 
 class OrderBookState:
-    def __init__(self) -> None:
+    def __init__(self, depth: int = 200) -> None:
         self.bids: dict[float, float] = {}
         self.asks: dict[float, float] = {}
+        self.depth = depth
+        self.last_update_id: int | None = None
 
     def apply(self, message: dict) -> OrderBook:
         data = message.get("data") or {}
-        if message.get("type") == "snapshot":
+        update_id = int(data.get("u") or 0)
+
+        if message.get("type") == "snapshot" or update_id == 1:
             self.bids.clear()
             self.asks.clear()
+            self.last_update_id = update_id or None
+        elif (
+            self.last_update_id is not None
+            and update_id
+            and update_id > self.last_update_id + 1
+        ):
+            expected = self.last_update_id + 1
+            self.last_update_id = None
+            raise OrderBookSequenceError(
+                f"orderbook gap: expected update <= {expected}, got {update_id}"
+            )
+        elif update_id:
+            self.last_update_id = update_id
 
         self._apply_side(self.bids, data.get("b", []))
         self._apply_side(self.asks, data.get("a", []))
 
-        bids = sorted(self.bids.items(), key=lambda x: x[0], reverse=True)[:50]
-        asks = sorted(self.asks.items(), key=lambda x: x[0])[:50]
+        bids = sorted(self.bids.items(), key=lambda x: x[0], reverse=True)[: self.depth]
+        asks = sorted(self.asks.items(), key=lambda x: x[0])[: self.depth]
         return OrderBook(bids=bids, asks=asks)
 
     @staticmethod
@@ -222,7 +243,7 @@ async def stream_symbol(
     callback: StreamCallback,
     stop_event: asyncio.Event,
 ) -> None:
-    topics = [f"orderbook.50.{symbol}", f"kline.1.{symbol}", f"publicTrade.{symbol}"]
+    topics = [f"orderbook.200.{symbol}", f"kline.1.{symbol}", f"publicTrade.{symbol}"]
     while not stop_event.is_set():
         try:
             async with websockets.connect(ws_url, ping_interval=20, ping_timeout=20) as ws:
