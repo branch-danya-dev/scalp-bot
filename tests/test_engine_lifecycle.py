@@ -1000,9 +1000,10 @@ def test_market_snapshot_exposes_multi_timeframe_chart_series() -> None:
 
     series = session.chart_series(now_ms)
 
-    assert set(series) == {"5s", "15s", "1m", "5m", "15m", "1h"}
+    assert set(series) == {"5s", "15s", "1m", "5m", "10m", "15m", "1h"}
     assert len(series["1m"]) == 2
     assert len(series["5m"]) == 1
+    assert len(series["10m"]) == 1
     assert len(series["15m"]) == 1
     assert len(series["1h"]) == 1
     assert len(series["5s"]) >= 2

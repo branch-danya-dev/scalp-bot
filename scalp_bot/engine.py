@@ -14,6 +14,7 @@ from .recorder import SessionRecorder
 from .risk import RiskEngine
 from .strategy.flow import best_level_ofi_usd, prune_trades
 from .strategy.lifecycle import LevelLifecycleTracker
+from .strategy.structure import aggregate_candles
 from .strategy import (
     DEFAULT_STRATEGIES,
     MarketStructure,
@@ -178,6 +179,13 @@ class ActiveSymbolSession:
             "15s": self._trade_candles(15, resolved_now),
             "1m": [x.public() for x in self.candles[-720:]],
             "5m": [x.public() for x in self.context_5m[-576:]],
+            "10m": [
+                x.public()
+                for x in aggregate_candles(
+                    self.candles[-720:],
+                    10,
+                )
+            ],
             "15m": [x.public() for x in self.context_15m[-480:]],
             "1h": [x.public() for x in self.context_1h[-336:]],
         }
