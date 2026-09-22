@@ -1266,3 +1266,60 @@ def test_strategy_expectancy_remains_observational_until_sample_ready(tmp_path) 
         assert snapshot["expectancyR"] < 0
     finally:
         close_rest(engine)
+
+
+
+def test_arbiter_uses_pending_maker_entry_for_density_and_fills_after_trade_through(tmp_path) -> None:
+    engine = make_engine(
+        tmp_path,
+        passive_entry_enabled=True,
+        maker_fill_confirmation_bps=0.5,
+        enforce_winner_cost_share_gate=False,
+        enforce_stop_cost_share_gate=False,
+    )
+    try:
+        engine.running = True
+        now = time()
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100,
+            trend=Trend.UP,
+            last_market_at=now,
+            last_book_at=now,
+            book_synced=True,
+        )
+        session.decisions["orderbook_density"] = StrategyDecision(
+            strategy="orderbook_density",
+            action=Action.LONG,
+            reasons=["defended wall"],
+            confidence=0.9,
+            entry=100.0,
+            stop=99.5,
+            target=101.0,
+            setup_id="density-passive-1",
+            details={"allowRunner": True, "state": "defended"},
+        )
+        engine.sessions = {session.symbol: session}
+        engine.candidates = [
+            Candidate("AAAUSDT", 200_000_000, 0, 100, activity_rank=1)
+        ]
+        engine._arbitrate_once()
+        assert "AAAUSDT" in engine.broker.pending_entries
+        assert "AAAUSDT" not in engine.broker.positions
+        assert any(event["event"] == "entry_pending" for event in engine.events)
+        pending = engine.broker.pending_entries["AAAUSDT"]
+        session.last_price = pending.limit_price * (
+            1 - engine.config.maker_fill_confirmation_bps / 10_000
+        )
+        engine._mark_execution_from_market(
+            session,
+            trade_ts_ms=int(time() * 1000),
+        )
+        assert "AAAUSDT" not in engine.broker.pending_entries
+        assert "AAAUSDT" in engine.broker.positions
+        assert any(event["event"] == "trade_opened" for event in engine.events)
+        assert engine.strategy_stats["orderbook_density"]["tradesOpened"] == 1
+    finally:
+        close_rest(engine)
