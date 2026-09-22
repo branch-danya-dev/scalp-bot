@@ -367,7 +367,11 @@ class ActiveSymbolSession:
             "position": position,
             "recentTrades": [
                 trade.public()
-                for trade in list(self.trades)[-max(0, recent_trade_limit):]
+                for trade in (
+                    list(self.trades)[-max(0, recent_trade_limit):]
+                    if recent_trade_limit > 0
+                    else []
+                )
             ],
             "structure": self.structure.public() if self.structure else None,
         }
