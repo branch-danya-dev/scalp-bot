@@ -29,7 +29,7 @@ def test_rejects_prediction_smaller_than_costs_and_minimum_profit() -> None:
     )
     result = RiskEngine(cfg).build_plan("BTCUSDT", decision(100.05), 1000, book(99.99, 100.01), 1000, 20)
     assert not result.allowed
-    assert "expected net" in result.reason or "target" in result.reason
+    assert "net at target" in result.reason or "target" in result.reason
 
 
 def test_accepts_trade_with_real_net_edge() -> None:

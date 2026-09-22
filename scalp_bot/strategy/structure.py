@@ -1,0 +1,570 @@
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
+from itertools import combinations
+
+from ..domain import Candle
+from .common import (
+    LevelKind,
+    LevelZone,
+    clamp,
+    detect_level_zones,
+    nearby_round_level,
+    swing_highs,
+    swing_lows,
+    typical_range_abs,
+    typical_range_pct,
+)
+
+
+@dataclass(slots=True)
+class StructuralLevel:
+    kind: str
+    low: float
+    high: float
+    touches: int
+    timeframe: str
+    score: float
+    reaction_pct: float = 0.0
+    volume_ratio: float = 1.0
+    last_touch_ms: int | None = None
+    round_confluence: bool = False
+    sources: list[str] = field(default_factory=list)
+    last_touch_index: int = 0
+    level_id: str | None = None
+    generation_id: str | None = None
+    distinct_approaches: int = 0
+    dwell_bars: int = 0
+    acceptance_bars: int = 0
+    failed_breaks: int = 0
+    sweeps: int = 0
+    lifecycle: str = "fresh"
+    first_seen_ms: int | None = None
+    last_seen_ms: int | None = None
+    last_approach_ms: int | None = None
+
+    @property
+    def center(self) -> float:
+        return (self.low + self.high) / 2
+
+    @property
+    def width(self) -> float:
+        return self.high - self.low
+
+    def public(self) -> dict:
+        data = asdict(self)
+        data["center"] = self.center
+        return data
+
+    def as_zone(self) -> LevelZone:
+        return LevelZone(
+            kind=(
+                "support"
+                if "support" in self.kind or self.kind.endswith("_low")
+                else "resistance"
+            ),
+            low=self.low,
+            high=self.high,
+            touches=self.touches,
+            reaction_pct=self.reaction_pct,
+            volume_ratio=self.volume_ratio,
+            score=self.score * 10.0,
+            last_touch_index=self.last_touch_index,
+        )
+
+
+@dataclass(slots=True)
+class TrendLine:
+    kind: LevelKind
+    timeframe: str
+    start_ms: int
+    end_ms: int
+    start_price: float
+    end_price: float
+    current_price: float
+    touches: int
+    score: float
+    slope_per_bar: float
+
+    def public(self) -> dict:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class MarketStructure:
+    levels: list[StructuralLevel] = field(default_factory=list)
+    trendlines: list[TrendLine] = field(default_factory=list)
+    day_high: float | None = None
+    day_low: float | None = None
+    previous_day_high: float | None = None
+    previous_day_low: float | None = None
+
+    def public(self, max_levels: int = 14) -> dict:
+        levels = sorted(self.levels, key=lambda item: item.score, reverse=True)[:max_levels]
+        return {
+            "levels": [item.public() for item in levels],
+            "trendlines": [item.public() for item in self.trendlines],
+            "dayHigh": self.day_high,
+            "dayLow": self.day_low,
+            "previousDayHigh": self.previous_day_high,
+            "previousDayLow": self.previous_day_low,
+        }
+
+    def nearest_horizontal(
+        self,
+        price: float,
+        kind: LevelKind,
+        *,
+        max_distance_pct: float,
+        min_touches: int = 1,
+        max_touches: int | None = None,
+    ) -> StructuralLevel | None:
+        candidates = []
+        for level in self.levels:
+            if level.kind != kind:
+                continue
+            if level.touches < min_touches:
+                continue
+            if max_touches is not None and level.touches > max_touches:
+                continue
+            distance = abs(level.center - price) / price if price > 0 else 999.0
+            if distance <= max_distance_pct:
+                candidates.append((distance, -level.score, level))
+        candidates.sort(key=lambda row: (row[0], row[1]))
+        return candidates[0][2] if candidates else None
+
+    def trendline(self, kind: LevelKind) -> TrendLine | None:
+        rows = [line for line in self.trendlines if line.kind == kind]
+        return max(rows, key=lambda line: line.score) if rows else None
+
+
+def aggregate_candles(candles: list[Candle], interval_minutes: int) -> list[Candle]:
+    if interval_minutes <= 1:
+        return list(candles)
+    bucket_ms = interval_minutes * 60_000
+    grouped: dict[int, list[Candle]] = {}
+    for candle in candles:
+        bucket = candle.start_ms // bucket_ms
+        grouped.setdefault(bucket, []).append(candle)
+
+    result: list[Candle] = []
+    for bucket in sorted(grouped):
+        rows = grouped[bucket]
+        result.append(
+            Candle(
+                start_ms=bucket * bucket_ms,
+                open=rows[0].open,
+                high=max(row.high for row in rows),
+                low=min(row.low for row in rows),
+                close=rows[-1].close,
+                volume=sum(row.volume for row in rows),
+                turnover=sum(row.turnover for row in rows),
+                confirmed=all(row.confirmed for row in rows),
+            )
+        )
+    return result
+
+
+def _historical_level_stats(
+    zone: LevelZone,
+    candles: list[Candle],
+) -> dict[str, int]:
+    if not candles:
+        return {
+            "approaches": 0,
+            "dwell": 0,
+            "acceptance": 0,
+            "failed_breaks": 0,
+            "sweeps": 0,
+        }
+    local_range = typical_range_abs(candles)
+    tolerance = max(zone.width * 0.5, local_range * 0.20, zone.center * 0.0004)
+    reset_distance = tolerance * 2.0
+    was_near = False
+    approaches = dwell = acceptance = failed_breaks = sweeps = 0
+
+    for candle in candles[-160:]:
+        near = (
+            candle.high >= zone.low - tolerance
+            and candle.low <= zone.high + tolerance
+        )
+        if near and not was_near:
+            approaches += 1
+        if near:
+            dwell += 1
+        if zone.low <= candle.close <= zone.high:
+            acceptance += 1
+
+        if zone.kind == "resistance":
+            pierced = candle.high > zone.high + tolerance * 0.5
+            reclaimed = candle.close < zone.low
+            far = candle.high < zone.low - reset_distance
+        else:
+            pierced = candle.low < zone.low - tolerance * 0.5
+            reclaimed = candle.close > zone.high
+            far = candle.low > zone.high + reset_distance
+
+        if pierced and reclaimed:
+            failed_breaks += 1
+            sweeps += 1
+        if far:
+            was_near = False
+        elif near:
+            was_near = True
+
+    return {
+        "approaches": approaches,
+        "dwell": dwell,
+        "acceptance": acceptance,
+        "failed_breaks": failed_breaks,
+        "sweeps": sweeps,
+    }
+
+
+def _zone_level(zone: LevelZone, candles: list[Candle], timeframe: str) -> StructuralLevel:
+    center = zone.center
+    local_range = max(typical_range_pct(candles), 1e-9)
+    stats = _historical_level_stats(zone, candles)
+    touch_quality = clamp(stats["approaches"] / 6.0)
+    reaction_quality = clamp(zone.reaction_pct / (local_range * 2.0))
+    volume_quality = clamp(zone.volume_ratio / 2.0)
+    age = max(0, len(candles) - 1 - zone.last_touch_index)
+    recency_quality = clamp(1.0 - age / max(len(candles), 1))
+    tf_weight = {"1m": 0.85, "5m": 1.0, "15m": 1.10, "1h": 1.20}.get(timeframe, 1.0)
+    score = clamp(
+        (
+            touch_quality * 0.38
+            + reaction_quality * 0.28
+            + volume_quality * 0.14
+            + recency_quality * 0.20
+        )
+        * tf_weight
+    )
+    last_touch_ms = (
+        candles[zone.last_touch_index].start_ms
+        if 0 <= zone.last_touch_index < len(candles)
+        else None
+    )
+    return StructuralLevel(
+        kind=zone.kind,
+        low=zone.low,
+        high=zone.high,
+        touches=zone.touches,
+        timeframe=timeframe,
+        score=score,
+        reaction_pct=zone.reaction_pct,
+        volume_ratio=zone.volume_ratio,
+        last_touch_ms=last_touch_ms,
+        round_confluence=nearby_round_level(center, center * 0.0003) is not None,
+        sources=[timeframe],
+        last_touch_index=zone.last_touch_index,
+        distinct_approaches=stats["approaches"],
+        dwell_bars=stats["dwell"],
+        acceptance_bars=stats["acceptance"],
+        failed_breaks=stats["failed_breaks"],
+        sweeps=stats["sweeps"],
+    )
+
+
+def _merge_levels(levels: list[StructuralLevel], reference_price: float) -> list[StructuralLevel]:
+    if not levels:
+        return []
+    tolerance = max(reference_price * 0.0006, 1e-12)
+    merged: list[StructuralLevel] = []
+    for level in sorted(levels, key=lambda item: item.score, reverse=True):
+        match = next(
+            (
+                existing
+                for existing in merged
+                if existing.kind == level.kind
+                and abs(existing.center - level.center) <= tolerance
+            ),
+            None,
+        )
+        if match is None:
+            merged.append(level)
+            continue
+        match.low = min(match.low, level.low)
+        match.high = max(match.high, level.high)
+        match.touches = max(match.touches, level.touches)
+        match.score = clamp(max(match.score, level.score) + 0.05)
+        match.reaction_pct = max(match.reaction_pct, level.reaction_pct)
+        match.volume_ratio = max(match.volume_ratio, level.volume_ratio)
+        match.round_confluence = match.round_confluence or level.round_confluence
+        match.sources = sorted(set(match.sources + level.sources))
+        match.last_touch_index = max(match.last_touch_index, level.last_touch_index)
+        match.distinct_approaches = max(
+            match.distinct_approaches,
+            level.distinct_approaches,
+        )
+        match.dwell_bars = max(match.dwell_bars, level.dwell_bars)
+        match.acceptance_bars = max(
+            match.acceptance_bars,
+            level.acceptance_bars,
+        )
+        match.failed_breaks = max(match.failed_breaks, level.failed_breaks)
+        match.sweeps = max(match.sweeps, level.sweeps)
+        if level.last_touch_ms and (
+            match.last_touch_ms is None or level.last_touch_ms > match.last_touch_ms
+        ):
+            match.last_touch_ms = level.last_touch_ms
+            match.timeframe = level.timeframe
+    return merged
+
+
+def _utc_day_extremes(
+    context_15m: list[Candle],
+) -> tuple[float | None, float | None, float | None, float | None]:
+    if not context_15m:
+        return None, None, None, None
+    dates = sorted({
+        datetime.fromtimestamp(c.start_ms / 1000, tz=timezone.utc).date()
+        for c in context_15m
+    })
+    latest = dates[-1]
+    previous = dates[-2] if len(dates) >= 2 else None
+    current_rows = [
+        c for c in context_15m
+        if datetime.fromtimestamp(c.start_ms / 1000, tz=timezone.utc).date() == latest
+    ]
+    previous_rows = [
+        c for c in context_15m
+        if previous is not None
+        and datetime.fromtimestamp(c.start_ms / 1000, tz=timezone.utc).date() == previous
+    ]
+    return (
+        max((c.high for c in current_rows), default=None),
+        min((c.low for c in current_rows), default=None),
+        max((c.high for c in previous_rows), default=None),
+        min((c.low for c in previous_rows), default=None),
+    )
+
+
+def _fit_line(points: list[tuple[int, float]]) -> tuple[float, float]:
+    xs = [float(index) for index, _ in points]
+    ys = [price for _, price in points]
+    mean_x = sum(xs) / len(xs)
+    mean_y = sum(ys) / len(ys)
+    denominator = sum((x - mean_x) ** 2 for x in xs)
+    if denominator <= 0:
+        return 0.0, mean_y
+    slope = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys)) / denominator
+    intercept = mean_y - slope * mean_x
+    return slope, intercept
+
+
+def detect_trendline(
+    candles: list[Candle],
+    kind: LevelKind,
+    timeframe: str,
+) -> TrendLine | None:
+    if len(candles) < 30:
+        return None
+    pivots = swing_lows(candles) if kind == "support" else swing_highs(candles)
+    pivots = pivots[-8:]
+    if len(pivots) < 3:
+        return None
+
+    tolerance = max(typical_range_abs(candles) * 0.45, candles[-1].close * 0.0004)
+    best: TrendLine | None = None
+    for anchors in combinations(pivots, 3):
+        if anchors[-1][0] - anchors[0][0] < 8:
+            continue
+        slope, intercept = _fit_line(list(anchors))
+        residuals = [abs(price - (intercept + slope * index)) for index, price in pivots]
+        touches = sum(error <= tolerance for error in residuals)
+        if touches < 3:
+            continue
+
+        first_index = anchors[0][0]
+        last_index = len(candles) - 1
+        if kind == "support":
+            violated = any(
+                candle.low < (intercept + slope * index) - tolerance * 1.5
+                for index, candle in enumerate(candles[first_index:], start=first_index)
+            )
+        else:
+            violated = any(
+                candle.high > (intercept + slope * index) + tolerance * 1.5
+                for index, candle in enumerate(candles[first_index:], start=first_index)
+            )
+        if violated:
+            continue
+
+        mean_error = sum(error for error in residuals if error <= tolerance) / touches
+        fit_quality = clamp(1.0 - mean_error / tolerance)
+        recency = clamp(1.0 - (len(candles) - 1 - anchors[-1][0]) / len(candles))
+        score = clamp(touches / 6.0 * 0.55 + fit_quality * 0.30 + recency * 0.15)
+        line = TrendLine(
+            kind=kind,
+            timeframe=timeframe,
+            start_ms=candles[first_index].start_ms,
+            end_ms=candles[last_index].start_ms,
+            start_price=intercept + slope * first_index,
+            end_price=intercept + slope * last_index,
+            current_price=intercept + slope * last_index,
+            touches=touches,
+            score=score,
+            slope_per_bar=slope,
+        )
+        if best is None or line.score > best.score:
+            best = line
+    return best
+
+
+def build_market_structure(
+    candles_1m: list[Candle],
+    context_15m: list[Candle],
+    reference_price: float,
+    *,
+    context_5m: list[Candle] | None = None,
+    context_1h: list[Candle] | None = None,
+) -> MarketStructure:
+    if reference_price <= 0 and candles_1m:
+        reference_price = candles_1m[-1].close
+
+    resolved_5m = (
+        context_5m[-576:]
+        if context_5m
+        else aggregate_candles(candles_1m[-720:], 5)
+    )
+    resolved_1h = (
+        context_1h[-336:]
+        if context_1h
+        else aggregate_candles(context_15m[-480:], 60)
+    )
+    frames: list[tuple[str, list[Candle]]] = [
+        ("1m", candles_1m[-720:]),
+        ("5m", resolved_5m),
+        ("15m", context_15m[-480:]),
+        ("1h", resolved_1h),
+    ]
+
+    levels: list[StructuralLevel] = []
+    for timeframe, candles in frames:
+        if len(candles) < 12:
+            continue
+        min_touches = 1 if timeframe == "1m" else 2
+        for kind in ("support", "resistance"):
+            lookback_target = {
+                "1m": 240,
+                "5m": 144,
+                "15m": 320,
+                "1h": 120,
+            }.get(timeframe, 160)
+            zones = detect_level_zones(
+                candles,
+                kind,
+                lookback=min(lookback_target, len(candles)),
+                min_touches=min_touches,
+            )
+            levels.extend(_zone_level(zone, candles, timeframe) for zone in zones)
+
+    levels = _merge_levels(levels, reference_price or 1.0)
+
+    day_high, day_low, previous_day_high, previous_day_low = _utc_day_extremes(context_15m)
+    if day_high is not None:
+        levels.append(
+            StructuralLevel(
+                kind="day_high",
+                low=day_high,
+                high=day_high,
+                touches=1,
+                timeframe="1D",
+                score=0.92,
+                last_touch_ms=None,
+                round_confluence=nearby_round_level(day_high, day_high * 0.0003) is not None,
+                sources=["day_high"],
+            )
+        )
+    if day_low is not None:
+        levels.append(
+            StructuralLevel(
+                kind="day_low",
+                low=day_low,
+                high=day_low,
+                touches=1,
+                timeframe="1D",
+                score=0.92,
+                last_touch_ms=None,
+                round_confluence=nearby_round_level(day_low, day_low * 0.0003) is not None,
+                sources=["day_low"],
+            )
+        )
+
+    if previous_day_high is not None:
+        levels.append(
+            StructuralLevel(
+                kind="previous_day_high",
+                low=previous_day_high,
+                high=previous_day_high,
+                touches=1,
+                timeframe="1D",
+                score=0.88,
+                sources=["previous_day_high"],
+            )
+        )
+    if previous_day_low is not None:
+        levels.append(
+            StructuralLevel(
+                kind="previous_day_low",
+                low=previous_day_low,
+                high=previous_day_low,
+                touches=1,
+                timeframe="1D",
+                score=0.88,
+                sources=["previous_day_low"],
+            )
+        )
+
+    trendlines: list[TrendLine] = []
+    for timeframe, candles in frames[:2]:
+        for kind in ("support", "resistance"):
+            line = detect_trendline(candles, kind, timeframe)
+            if line is not None:
+                trendlines.append(line)
+
+    return MarketStructure(
+        levels=sorted(levels, key=lambda item: item.score, reverse=True),
+        trendlines=sorted(trendlines, key=lambda item: item.score, reverse=True)[:4],
+        day_high=day_high,
+        day_low=day_low,
+        previous_day_high=previous_day_high,
+        previous_day_low=previous_day_low,
+    )
+
+
+
+def market_structure_from_public(payload: dict | None) -> MarketStructure:
+    if not payload:
+        return MarketStructure()
+
+    levels: list[StructuralLevel] = []
+    for row in payload.get("levels") or []:
+        data = dict(row)
+        data.pop("center", None)
+        allowed = {
+            "kind", "low", "high", "touches", "timeframe", "score",
+            "reaction_pct", "volume_ratio", "last_touch_ms",
+            "round_confluence", "sources", "last_touch_index",
+            "level_id", "generation_id", "distinct_approaches",
+            "dwell_bars", "acceptance_bars", "failed_breaks",
+            "sweeps", "lifecycle",
+        }
+        levels.append(
+            StructuralLevel(**{key: value for key, value in data.items() if key in allowed})
+        )
+
+    trendlines = [
+        TrendLine(**row)
+        for row in (payload.get("trendlines") or [])
+    ]
+    return MarketStructure(
+        levels=levels,
+        trendlines=trendlines,
+        day_high=payload.get("dayHigh"),
+        day_low=payload.get("dayLow"),
+        previous_day_high=payload.get("previousDayHigh"),
+        previous_day_low=payload.get("previousDayLow"),
+    )

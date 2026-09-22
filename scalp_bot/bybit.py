@@ -7,11 +7,16 @@ from collections.abc import Awaitable, Callable
 import httpx
 import websockets
 
+from .activity import activity_score, correlation_1h
 from .config import Settings
 from .domain import Candidate, Candle, OrderBook
 
 
 class BybitError(RuntimeError):
+    pass
+
+
+class OrderBookSequenceError(RuntimeError):
     pass
 
 
@@ -92,6 +97,9 @@ class BybitRestClient:
                     turnover_24h=turnover,
                     change_24h=float(item.get("price24hPcnt") or 0),
                     last_price=float(item.get("lastPrice") or 0),
+                    volume_24h=float(item.get("volume24h") or 0),
+                    trade_count_24h=None,
+                    trade_count_source="not_available_from_bybit_v5_ticker",
                 )
             )
         rows.sort(key=lambda x: x.turnover_24h, reverse=True)
@@ -100,29 +108,61 @@ class BybitRestClient:
     async def active_candidates(self) -> list[Candidate]:
         liquid = await self.liquid_candidates(self.config.liquid_universe_size)
         semaphore = asyncio.Semaphore(max(1, self.config.activity_request_concurrency))
+        correlation_limit = max(
+            self.config.activity_correlation_window_minutes + 1,
+            21,
+        )
+        benchmark = await self.klines(
+            self.config.activity_benchmark_symbol,
+            "1",
+            correlation_limit,
+        )
 
         async def enrich(candidate: Candidate) -> Candidate:
             async with semaphore:
                 candles = await self.klines(
                     candidate.symbol,
                     "1",
-                    max(self.config.activity_window_minutes + 1, 3),
+                    max(correlation_limit, self.config.activity_window_minutes + 1),
                 )
                 await asyncio.sleep(self.config.activity_request_pause_seconds)
             if len(candles) >= 2:
-                first = candles[0]
-                last = candles[-1]
+                recent = candles[-max(self.config.activity_window_minutes + 1, 2):]
+                first = recent[0]
+                last = recent[-1]
                 if first.open:
                     candidate.activity_change = (last.close - first.open) / first.open
-                candidate.activity_turnover = sum(x.turnover for x in candles[-self.config.activity_window_minutes :])
+                candidate.activity_turnover = sum(
+                    x.turnover
+                    for x in candles[-self.config.activity_window_minutes :]
+                )
+                candidate.correlation_1h_btc = (
+                    1.0
+                    if candidate.symbol == self.config.activity_benchmark_symbol
+                    else correlation_1h(candles, benchmark)
+                )
+                candidate.activity_score = activity_score(
+                    candidate,
+                    self.config.activity_window_minutes,
+                )
             return candidate
 
-        enriched = await asyncio.gather(*(enrich(x) for x in liquid), return_exceptions=True)
+        enriched = await asyncio.gather(
+            *(enrich(x) for x in liquid),
+            return_exceptions=True,
+        )
         rows: list[Candidate] = []
         for original, item in zip(liquid, enriched, strict=True):
             rows.append(original if isinstance(item, Exception) else item)
 
-        rows.sort(key=lambda x: (abs(x.activity_change), x.activity_turnover), reverse=True)
+        rows.sort(
+            key=lambda x: (
+                x.activity_score,
+                abs(x.activity_change),
+                x.activity_turnover,
+            ),
+            reverse=True,
+        )
         for index, item in enumerate(rows, start=1):
             item.activity_rank = index
         return rows
@@ -150,22 +190,85 @@ class BybitRestClient:
 
 
 class OrderBookState:
-    def __init__(self) -> None:
+    def __init__(self, depth: int = 200) -> None:
         self.bids: dict[float, float] = {}
         self.asks: dict[float, float] = {}
+        self.depth = depth
+        self.last_update_id: int | None = None
+        self.last_seq: int | None = None
+        self.synced = False
+
+    def _clear(self) -> None:
+        self.bids.clear()
+        self.asks.clear()
+        self.last_update_id = None
+        self.last_seq = None
+        self.synced = False
+
+    def _book(self) -> OrderBook:
+        bids = sorted(
+            self.bids.items(),
+            key=lambda x: x[0],
+            reverse=True,
+        )[: self.depth]
+        asks = sorted(
+            self.asks.items(),
+            key=lambda x: x[0],
+        )[: self.depth]
+        return OrderBook(bids=bids, asks=asks)
 
     def apply(self, message: dict) -> OrderBook:
         data = message.get("data") or {}
-        if message.get("type") == "snapshot":
-            self.bids.clear()
-            self.asks.clear()
+        update_id = int(data.get("u") or 0)
+        seq = int(data.get("seq") or 0)
+        is_snapshot = message.get("type") == "snapshot" or update_id == 1
+
+        if is_snapshot:
+            self._clear()
+            self._apply_side(self.bids, data.get("b", []))
+            self._apply_side(self.asks, data.get("a", []))
+            self.last_update_id = update_id or None
+            self.last_seq = seq or None
+            self.synced = True
+            return self._book()
+
+        if not self.synced:
+            raise OrderBookSequenceError(
+                "orderbook delta received before a fresh snapshot"
+            )
+
+        if (
+            self.last_update_id is not None
+            and update_id
+            and update_id <= self.last_update_id
+        ):
+            return self._book()
+
+        if (
+            self.last_seq is not None
+            and seq
+            and seq < self.last_seq
+        ):
+            return self._book()
+
+        if (
+            self.last_update_id is not None
+            and update_id
+            and update_id > self.last_update_id + 1
+        ):
+            expected = self.last_update_id + 1
+            self._clear()
+            raise OrderBookSequenceError(
+                f"orderbook gap: expected u={expected}, got u={update_id}"
+            )
 
         self._apply_side(self.bids, data.get("b", []))
         self._apply_side(self.asks, data.get("a", []))
-
-        bids = sorted(self.bids.items(), key=lambda x: x[0], reverse=True)[:50]
-        asks = sorted(self.asks.items(), key=lambda x: x[0])[:50]
-        return OrderBook(bids=bids, asks=asks)
+        if update_id:
+            self.last_update_id = update_id
+        if seq:
+            self.last_seq = seq
+        return self._book()
 
     @staticmethod
     def _apply_side(side: dict[float, float], changes: list[list[str]]) -> None:
@@ -185,8 +288,17 @@ async def stream_symbol(
     symbol: str,
     callback: StreamCallback,
     stop_event: asyncio.Event,
+    orderbook_depth: int = 1000,
 ) -> None:
-    topics = [f"orderbook.50.{symbol}", f"kline.1.{symbol}", f"publicTrade.{symbol}"]
+    if orderbook_depth not in {1, 50, 200, 1000}:
+        raise ValueError(
+            "Bybit orderbook depth must be one of 1, 50, 200, 1000"
+        )
+    topics = [
+        f"orderbook.{orderbook_depth}.{symbol}",
+        f"kline.1.{symbol}",
+        f"publicTrade.{symbol}",
+    ]
     while not stop_event.is_set():
         try:
             async with websockets.connect(ws_url, ping_interval=20, ping_timeout=20) as ws:

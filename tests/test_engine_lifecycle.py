@@ -4,7 +4,7 @@ import pytest
 from time import time
 
 from scalp_bot.config import Settings
-from scalp_bot.domain import Action, Candidate, Candle, OrderBook, Side, StrategyDecision, TradePlan, Trend
+from scalp_bot.domain import Action, Candidate, Candle, OrderBook, Side, StrategyDecision, TradePlan, TradeTick, Trend
 from scalp_bot.engine import ActiveSymbolSession, TradingEngine
 
 
@@ -111,6 +111,7 @@ def test_central_arbiter_chooses_stronger_setup_instead_of_first_worker(tmp_path
             orderbook=book(),
             last_price=100,
             last_market_at=time(),
+            last_book_at=time(),
         )
         strong = ActiveSymbolSession(
             symbol="BBBUSDT",
@@ -118,6 +119,7 @@ def test_central_arbiter_chooses_stronger_setup_instead_of_first_worker(tmp_path
             orderbook=book(),
             last_price=100,
             last_market_at=time(),
+            last_book_at=time(),
         )
         weak.decisions["orderbook_density"] = StrategyDecision(
             strategy="orderbook_density",
@@ -186,6 +188,7 @@ def test_central_arbiter_ignores_stale_market_snapshot(tmp_path) -> None:
             orderbook=book(),
             last_price=100,
             last_market_at=time() - 10,
+            last_book_at=time() - 10,
         )
         session.decisions["orderbook_density"] = StrategyDecision(
             strategy="orderbook_density",
@@ -346,3 +349,266 @@ async def test_promote_symbol_survives_bootstrap_failure(tmp_path) -> None:
         )
     finally:
         await engine.rest.close()
+
+
+
+def test_opportunity_score_prefers_setup_quality_not_geometry_rr(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        high_quality = StrategyDecision(
+            strategy="test",
+            action=Action.LONG,
+            reasons=["quality"],
+            confidence=0.70,
+            details={"setupQuality": 0.90},
+        )
+        low_quality = StrategyDecision(
+            strategy="test",
+            action=Action.LONG,
+            reasons=["geometry"],
+            confidence=0.85,
+            details={"setupQuality": 0.40},
+        )
+        assert engine._opportunity_score(high_quality, 5, 50) > engine._opportunity_score(low_quality, 1, 50)
+    finally:
+        close_rest(engine)
+
+
+def test_density_only_invalidates_on_explicit_price_flow_failure(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=99.9,
+            trend=Trend.UP,
+        )
+        engine.sessions[session.symbol] = session
+        p = plan("AAAUSDT")
+        p.strategy = "orderbook_density"
+        p.strategy_details = {"tradeMode": "trend_following", "allowRunner": True}
+        pos = engine.broker.open(p, book())
+        pos.opened_at -= 10
+        pos.unrealized_pnl = -0.1
+
+        session.decisions["orderbook_density"] = StrategyDecision(
+            strategy="orderbook_density",
+            action=Action.WAIT,
+            reasons=["wall removed after defense"],
+            details={"state": "reaction", "positionInvalidated": False},
+        )
+        engine._maybe_strategy_invalidation(session)
+        assert "AAAUSDT" in engine.broker.positions
+
+        session.decisions["orderbook_density"].details["positionInvalidated"] = True
+        engine._maybe_strategy_invalidation(session)
+        assert "AAAUSDT" not in engine.broker.positions
+        assert engine.broker.closed_trades[-1]["reason"] == "density_price_flow_invalidated"
+    finally:
+        close_rest(engine)
+
+
+
+def test_activity_score_can_break_close_setup_quality_tie(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        decision = StrategyDecision(
+            strategy="test",
+            action=Action.LONG,
+            reasons=["same quality"],
+            confidence=0.70,
+            details={"setupQuality": 0.70},
+        )
+        hot = engine._opportunity_score(decision, 5, 90)
+        quiet = engine._opportunity_score(decision, 5, 10)
+        assert hot > quiet
+    finally:
+        close_rest(engine)
+
+
+
+@pytest.mark.asyncio
+async def test_bootstrap_loads_direct_multi_timeframe_context(tmp_path) -> None:
+    engine = make_engine(
+        tmp_path,
+        bootstrap_1m_candles=720,
+        bootstrap_5m_candles=576,
+        bootstrap_15m_candles=480,
+        bootstrap_1h_candles=336,
+    )
+    calls: list[tuple[str, int]] = []
+
+    async def fake_klines(
+        symbol: str,
+        interval: str,
+        limit: int = 240,
+    ) -> list[Candle]:
+        calls.append((interval, limit))
+        count = {"1": 60, "5": 60, "15": 60, "60": 60}[interval]
+        return [
+            Candle(
+                i * 60_000,
+                100 + i * 0.01,
+                100.2 + i * 0.01,
+                99.8 + i * 0.01,
+                100.1 + i * 0.01,
+                10,
+                1000,
+            )
+            for i in range(count)
+        ]
+
+    engine.rest.klines = fake_klines  # type: ignore[method-assign]
+    try:
+        await engine._bootstrap_symbol("TESTUSDT")
+        session = engine.sessions["TESTUSDT"]
+
+        assert ("1", 720) in calls
+        assert ("5", 576) in calls
+        assert ("15", 480) in calls
+        assert ("60", 336) in calls
+        assert session.context_5m
+        assert session.context_15m
+        assert session.context_1h
+    finally:
+        await engine.rest.close()
+
+
+
+def test_active_session_trade_buffer_has_no_count_limit() -> None:
+    session = ActiveSymbolSession(symbol="AAAUSDT")
+    assert session.trades.maxlen is None
+    for i in range(3_000):
+        session.trades.append(
+            TradeTick(
+                ts_ms=100_000 + i,
+                price=100,
+                size=0.01,
+                side="Buy",
+            )
+        )
+    assert len(session.trades) == 3_000
+
+
+
+def test_central_arbiter_ignores_stale_book_even_when_market_is_fresh(
+    tmp_path,
+) -> None:
+    engine = make_engine(tmp_path, book_stale_seconds=1)
+    try:
+        engine.running = True
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100,
+            last_market_at=time(),
+            last_book_at=time() - 10,
+            book_stale_after_seconds=1,
+            book_synced=True,
+        )
+        session.decisions["orderbook_density"] = StrategyDecision(
+            strategy="orderbook_density",
+            action=Action.LONG,
+            reasons=["stale book"],
+            confidence=0.99,
+            entry=100,
+            stop=99.5,
+            target=101,
+            watched_level=99.8,
+            setup_id="stale-book-setup",
+        )
+        engine.sessions = {"AAAUSDT": session}
+        engine.candidates = [
+            Candidate(
+                "AAAUSDT",
+                200_000_000,
+                0,
+                100,
+                activity_rank=1,
+            ),
+        ]
+
+        engine._arbitrate_once()
+
+        assert not engine.broker.positions
+        assert session.book_is_fresh(time()) is False
+    finally:
+        close_rest(engine)
+
+
+@pytest.mark.asyncio
+async def test_density_is_not_evaluated_when_book_is_stale(tmp_path) -> None:
+    engine = make_engine(tmp_path, book_stale_seconds=1)
+    try:
+        rows = [
+            Candle(
+                i * 60_000,
+                100,
+                100.2,
+                99.8,
+                100,
+                10,
+                1000,
+            )
+            for i in range(80)
+        ]
+        context = [
+            Candle(
+                i * 900_000,
+                100 + i * 0.01,
+                100.3 + i * 0.01,
+                99.7 + i * 0.01,
+                100.1 + i * 0.01,
+                10,
+                1000,
+            )
+            for i in range(80)
+        ]
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=rows,
+            context_15m=context,
+            orderbook=book(),
+            last_price=100,
+            last_book_at=time() - 5,
+            book_stale_after_seconds=1,
+            book_synced=True,
+        )
+
+        await engine._evaluate(session)
+
+        decision = session.decisions["orderbook_density"]
+        assert decision.action == Action.WAIT
+        assert decision.details["state"] == "stale_book"
+        assert decision.details["positionInvalidated"] is False
+        assert decision.details["bookHealth"]["fresh"] is False
+    finally:
+        await engine.rest.close()
+
+
+def test_book_health_is_exposed_in_market_snapshot(tmp_path) -> None:
+    engine = make_engine(tmp_path, book_stale_seconds=1)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100,
+            last_book_at=time(),
+            book_stale_after_seconds=1,
+            book_synced=True,
+        )
+
+        snapshot = session.market_snapshot()
+
+        assert snapshot["bookHealth"]["fresh"] is True
+        assert snapshot["bookHealth"]["synced"] is True
+        assert snapshot["bookHealth"]["bidLevels"] > 0
+        assert snapshot["bookHealth"]["askLevels"] > 0
+
+        session.book_synced = False
+        assert session.book_health()["fresh"] is False
+    finally:
+        close_rest(engine)

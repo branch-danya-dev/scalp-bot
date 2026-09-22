@@ -5,13 +5,22 @@ from collections import deque
 from dataclasses import dataclass, field
 from time import monotonic, time
 
-from .bybit import BybitRestClient, OrderBookState, stream_symbol
+from .bybit import BybitRestClient, OrderBookSequenceError, OrderBookState, stream_symbol
 from .config import Settings
 from .domain import Action, Candle, Candidate, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .paper import PaperBroker, Position
 from .recorder import SessionRecorder
 from .risk import RiskEngine
-from .strategies import DEFAULT_STRATEGIES, Strategy, classify_trend, compute_trade_flow
+from .strategy.flow import prune_trades
+from .strategy.lifecycle import LevelLifecycleTracker
+from .strategy import (
+    DEFAULT_STRATEGIES,
+    MarketStructure,
+    Strategy,
+    build_market_structure,
+    classify_trend,
+    compute_trade_flow,
+)
 
 
 ACTIVE_SETUP_STATES = {"found", "persisting", "approach", "pressure", "test", "defended", "reject", "reaction", "break", "impulse"}
@@ -21,13 +30,17 @@ ACTIVE_SETUP_STATES = {"found", "persisting", "approach", "pressure", "test", "d
 class ActiveSymbolSession:
     symbol: str
     candles: list[Candle] = field(default_factory=list)
+    context_5m: list[Candle] = field(default_factory=list)
     context_15m: list[Candle] = field(default_factory=list)
+    context_1h: list[Candle] = field(default_factory=list)
     orderbook: OrderBook = field(default_factory=OrderBook)
     last_price: float = 0.0
     trend: Trend = Trend.FLAT
+    structure: MarketStructure | None = None
     decisions: dict[str, StrategyDecision] = field(default_factory=dict)
     decision_fingerprints: dict[str, tuple] = field(default_factory=dict)
-    trades: deque[TradeTick] = field(default_factory=lambda: deque(maxlen=2000))
+    trades: deque[TradeTick] = field(default_factory=deque)
+    level_tracker: LevelLifecycleTracker = field(default_factory=LevelLifecycleTracker)
     consumed_setups: dict[str, str] = field(default_factory=dict)
     cooldown_until: dict[str, float] = field(default_factory=dict)
     nontradeable_since: dict[str, float] = field(default_factory=dict)
@@ -36,10 +49,42 @@ class ActiveSymbolSession:
     last_signal_at: float = 0.0
     last_trade_at: float = 0.0
     last_market_at: float = 0.0
+    last_book_at: float = 0.0
+    book_stale_after_seconds: float = 1.5
+    book_synced: bool | None = None
+    last_trade_stream_at: float = 0.0
+    last_kline_at: float = 0.0
     last_eval: float = 0.0
     last_frame: float = 0.0
+    last_research_frame: float = 0.0
     last_risk_fingerprint: tuple | None = None
     last_blocked_fingerprint: tuple | None = None
+
+    def book_age_seconds(self, now: float | None = None) -> float | None:
+        if self.last_book_at <= 0:
+            return None
+        resolved_now = time() if now is None else now
+        return max(0.0, resolved_now - self.last_book_at)
+
+    def book_is_fresh(self, now: float | None = None) -> bool:
+        age = self.book_age_seconds(now)
+        if age is None:
+            return False
+        if self.book_synced is False:
+            return False
+        if not self.orderbook.bids or not self.orderbook.asks:
+            return False
+        return age <= self.book_stale_after_seconds
+
+    def book_health(self, now: float | None = None) -> dict:
+        return {
+            "fresh": self.book_is_fresh(now),
+            "synced": self.book_synced,
+            "ageSeconds": self.book_age_seconds(now),
+            "staleAfterSeconds": self.book_stale_after_seconds,
+            "bidLevels": len(self.orderbook.bids),
+            "askLevels": len(self.orderbook.asks),
+        }
 
     def market_snapshot(self) -> dict:
         return {
@@ -48,8 +93,14 @@ class ActiveSymbolSession:
             "trend": self.trend.value,
             "candles": [x.public() for x in self.candles[-240:]],
             "orderbook": self.orderbook.public(),
+            "bookHealth": self.book_health(),
             "tradeFlow": compute_trade_flow(list(self.trades)),
+            "tradeBufferSeconds": (
+                (self.trades[-1].ts_ms - self.trades[0].ts_ms) / 1000
+                if len(self.trades) >= 2 else 0.0
+            ),
             "recentTrades": [trade.public() for trade in list(self.trades)[-20:]],
+            "structure": self.structure.public() if self.structure else None,
             "decisions": {k: v.public() for k, v in self.decisions.items()},
         }
 
@@ -59,8 +110,11 @@ class ActiveSymbolSession:
             "trend": self.trend.value,
             "candle": self.candles[-1].public() if self.candles else None,
             "orderbook": self.orderbook.public(book_depth),
+            "bookHealth": self.book_health(),
             "tradeFlow": compute_trade_flow(list(self.trades)),
             "position": position,
+            "recentTrades": [trade.public() for trade in list(self.trades)[-250:]],
+            "structure": self.structure.public() if self.structure else None,
         }
 
 
@@ -81,6 +135,33 @@ class TradingEngine:
         self.recorder = SessionRecorder(config.session_dir)
         self.strategies: dict[str, Strategy] = {x.key: x for x in DEFAULT_STRATEGIES}
         self.strategy_enabled: dict[str, bool] = {x.key: True for x in DEFAULT_STRATEGIES}
+        density_strategy = self.strategies.get("orderbook_density")
+        if density_strategy is not None:
+            setattr(
+                density_strategy,
+                "min_wall_notional_usd",
+                config.density_min_wall_notional_usd,
+            )
+            setattr(
+                density_strategy,
+                "strength_multiple",
+                config.density_strength_multiple,
+            )
+            setattr(
+                density_strategy,
+                "turnover_floor_fraction",
+                config.density_turnover_floor_fraction,
+            )
+            setattr(
+                density_strategy,
+                "neighbor_window_levels",
+                config.density_neighbor_window_levels,
+            )
+            setattr(
+                density_strategy,
+                "max_distance_pct",
+                config.density_max_distance_pct,
+            )
         self.running = False
         self.candidates: list[Candidate] = []
         self.sessions: dict[str, ActiveSymbolSession] = {}
@@ -179,7 +260,7 @@ class TradingEngine:
             "configuredDurationSeconds": self.config.paper_run_duration_seconds,
             "balance": self.broker.balance,
             "realizedPnl": self.broker.total_pnl,
-            "closedTrades": len(self.broker.closed_trades),
+            "closedTrades": self.broker.total_closed_trades,
         }
         self._last_run_summary = summary
         self._emit("run_summary", None, summary)
@@ -344,20 +425,41 @@ class TradingEngine:
         self.sessions.pop(symbol, None)
 
     async def _bootstrap_symbol(self, symbol: str) -> None:
-        candles, context = await asyncio.gather(
-            self.rest.klines(symbol, "1", 240),
-            self.rest.klines(symbol, "15", 120),
+        candles, context_5m, context_15m, context_1h = await asyncio.gather(
+            self.rest.klines(
+                symbol,
+                "1",
+                self.config.bootstrap_1m_candles,
+            ),
+            self.rest.klines(
+                symbol,
+                "5",
+                self.config.bootstrap_5m_candles,
+            ),
+            self.rest.klines(
+                symbol,
+                "15",
+                self.config.bootstrap_15m_candles,
+            ),
+            self.rest.klines(
+                symbol,
+                "60",
+                self.config.bootstrap_1h_candles,
+            ),
         )
         now = time()
         session = ActiveSymbolSession(
             symbol=symbol,
             candles=candles,
-            context_15m=context,
+            context_5m=context_5m,
+            context_15m=context_15m,
+            context_1h=context_1h,
+            book_stale_after_seconds=self.config.book_stale_seconds,
             activated_at=now,
             last_ranked_at=now,
         )
         session.last_price = candles[-1].close if candles else 0
-        session.trend = classify_trend(context)
+        session.trend = classify_trend(context_15m)
         self.sessions[symbol] = session
         self._emit(
             "symbol_activated",
@@ -375,34 +477,70 @@ class TradingEngine:
                 items = list(self.sessions.items())
                 if not items:
                     continue
+                async def refresh(symbol: str):
+                    return await asyncio.gather(
+                        self.rest.klines(
+                            symbol,
+                            "5",
+                            self.config.bootstrap_5m_candles,
+                        ),
+                        self.rest.klines(
+                            symbol,
+                            "15",
+                            self.config.bootstrap_15m_candles,
+                        ),
+                        self.rest.klines(
+                            symbol,
+                            "60",
+                            self.config.bootstrap_1h_candles,
+                        ),
+                    )
+
                 results = await asyncio.gather(
-                    *(self.rest.klines(symbol, "15", 120) for symbol, _ in items),
+                    *(refresh(symbol) for symbol, _ in items),
                     return_exceptions=True,
                 )
-                for (symbol, session), result in zip(items, results, strict=True):
+                for (symbol, session), result in zip(
+                    items,
+                    results,
+                    strict=True,
+                ):
                     if isinstance(result, Exception):
                         continue
-                    session.context_15m = result
-                    session.trend = classify_trend(result)
+                    context_5m, context_15m, context_1h = result
+                    session.context_5m = context_5m
+                    session.context_15m = context_15m
+                    session.context_1h = context_1h
+                    session.trend = classify_trend(context_15m)
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
                 self._emit("context_error", None, {"error": str(exc)})
 
     async def _symbol_worker(self, symbol: str, stop_event: asyncio.Event) -> None:
-        book_state = OrderBookState()
+        book_state = OrderBookState(self.config.orderbook_depth)
 
         async def on_message(message: dict) -> None:
             session = self.sessions.get(symbol)
             if session is None:
                 return
 
-            session.last_market_at = time()
+            wall_now = time()
+            session.last_market_at = wall_now
             topic = message.get("topic", "")
             if topic.startswith("orderbook."):
-                session.orderbook = book_state.apply(message)
+                try:
+                    session.orderbook = book_state.apply(message)
+                except OrderBookSequenceError:
+                    session.last_book_at = 0.0
+                    session.book_synced = False
+                    session.orderbook = OrderBook()
+                    raise
+                session.book_synced = book_state.synced
+                session.last_book_at = wall_now
             elif topic.startswith("kline."):
                 self._apply_kline(session, message)
+                session.last_kline_at = wall_now
             elif topic.startswith("publicTrade."):
                 rows = message.get("data") or []
                 if rows:
@@ -416,7 +554,17 @@ class TradingEngine:
                             )
                         )
                     session.last_price = float(rows[-1]["p"])
-                    events = self.broker.mark(symbol, session.last_price, session.orderbook)
+                    session.last_trade_stream_at = wall_now
+                    prune_trades(
+                        session.trades,
+                        int(rows[-1].get("T") or time() * 1000),
+                        self.config.trade_buffer_seconds,
+                    )
+                    events = self.broker.mark(
+                        symbol,
+                        session.last_price,
+                        session.orderbook,
+                    )
                     self._handle_broker_events(session, events)
 
             now = monotonic()
@@ -425,6 +573,21 @@ class TradingEngine:
                 await self._evaluate(session)
 
             position = self.broker.positions.get(symbol)
+
+            if (
+                now - session.last_research_frame
+                >= self.config.research_frame_seconds
+            ):
+                session.last_research_frame = now
+                self.recorder.record(
+                    "research_frame",
+                    symbol,
+                    session.frame(
+                        min(self.config.orderbook_depth, 50),
+                        position.public() if position else None,
+                    ),
+                )
+
             frame_interval = (
                 self.config.replay_engaged_frame_seconds
                 if position is not None or self._session_engaged(session)
@@ -441,10 +604,19 @@ class TradingEngine:
                     ),
                 )
 
-        await stream_symbol(self.config.bybit_public_ws_url, symbol, on_message, stop_event)
+        await stream_symbol(
+            self.config.bybit_public_ws_url,
+            symbol,
+            on_message,
+            stop_event,
+            self.config.orderbook_depth,
+        )
 
-    @staticmethod
-    def _apply_kline(session: ActiveSymbolSession, message: dict) -> None:
+    def _apply_kline(
+        self,
+        session: ActiveSymbolSession,
+        message: dict,
+    ) -> None:
         rows = message.get("data") or []
         if not rows:
             return
@@ -464,24 +636,73 @@ class TradingEngine:
             session.candles[-1] = candle
         else:
             session.candles.append(candle)
-            session.candles = session.candles[-240:]
+            session.candles = session.candles[-self.config.bootstrap_1m_candles:]
 
     async def _evaluate(self, session: ActiveSymbolSession) -> None:
         if not session.candles:
             return
 
         session.trend = classify_trend(session.context_15m)
+        reference_price = session.orderbook.mid or session.last_price
+        session.structure = build_market_structure(
+            session.candles,
+            session.context_15m,
+            reference_price,
+            context_5m=session.context_5m,
+            context_1h=session.context_1h,
+        )
+        session.structure = session.level_tracker.update(
+            session.structure,
+            session.candles,
+            reference_price,
+            int(time() * 1000),
+        )
         now = time()
+        book_fresh = session.book_is_fresh(now)
         for key, strategy in self.strategies.items():
             if not self.strategy_enabled[key]:
                 continue
-            decision = strategy.evaluate(
-                session.candles,
-                session.orderbook,
-                session.trend,
-                symbol=session.symbol,
-                trades=list(session.trades),
-            )
+            if key == "orderbook_density" and not book_fresh:
+                decision = StrategyDecision(
+                    strategy=key,
+                    action=Action.WAIT,
+                    reasons=[
+                        "Стакан не синхронизирован или устарел; density не оценивается"
+                    ],
+                    details={
+                        "state": "stale_book",
+                        "bookHealth": session.book_health(now),
+                        "positionInvalidated": False,
+                    },
+                )
+                session.decisions[key] = decision
+                self._record_decision_if_changed(session, decision)
+                continue
+            try:
+                decision = strategy.evaluate(
+                    session.candles,
+                    session.orderbook,
+                    session.trend,
+                    symbol=session.symbol,
+                    trades=list(session.trades),
+                    structure=session.structure,
+                )
+            except Exception as exc:
+                error = f"{type(exc).__name__}: {exc}"
+                previous = session.decisions.get(key)
+                if previous is None or previous.details.get("error") != error:
+                    self._emit(
+                        "strategy_error",
+                        session.symbol,
+                        {"strategy": key, "error": error},
+                        snapshot=True,
+                    )
+                decision = StrategyDecision(
+                    strategy=key,
+                    action=Action.WAIT,
+                    reasons=[f"Ошибка стратегии: {error}"],
+                    details={"state": "error", "error": error},
+                )
             if decision.tradeable:
                 decision.setup_id = self._resolve_setup_id(session, decision)
                 session.last_signal_at = now
@@ -546,7 +767,13 @@ class TradingEngine:
         for session in self.sessions.values():
             if session.symbol in self.broker.positions:
                 continue
-            if session.last_market_at <= 0 or now - session.last_market_at > self.config.market_stale_seconds:
+            if (
+                session.last_market_at <= 0
+                or now - session.last_market_at
+                > self.config.market_stale_seconds
+            ):
+                continue
+            if not session.book_is_fresh(now):
                 continue
 
             for decision in session.decisions.values():
@@ -581,7 +808,11 @@ class TradingEngine:
 
                 candidate = candidate_map.get(session.symbol)
                 rank = candidate.activity_rank if candidate and candidate.activity_rank else 99
-                score = self._opportunity_score(decision, result.plan.net_reward_risk, rank)
+                score = self._opportunity_score(
+                    decision,
+                    rank,
+                    candidate.activity_score if candidate else 0.0,
+                )
                 opportunities.append(
                     Opportunity(
                         score=score,
@@ -613,6 +844,9 @@ class TradingEngine:
                 "reasons": best.decision.reasons,
                 "visuals": best.decision.visuals,
                 "opportunityScore": best.score,
+                "opportunityQuality": float(
+                    best.decision.details.get("setupQuality", best.decision.confidence) or 0.0
+                ),
                 "holdingRule": (
                     "take partial profit near 1R; runner moves to net breakeven; "
                     "weak losers can be cut before the hard structural stop"
@@ -622,9 +856,24 @@ class TradingEngine:
         )
 
     @staticmethod
-    def _opportunity_score(decision: StrategyDecision, net_rr: float, activity_rank: int) -> float:
+    def _opportunity_score(
+        decision: StrategyDecision,
+        activity_rank: int,
+        activity_score: float = 0.0,
+    ) -> float:
+        # Geometry-derived net R/R was not predictive in the long paper run:
+        # it describes payoff *if target is reached*, not the probability of
+        # reaching it. Rank opportunities by strategy-specific setup quality
+        # and use activity only as a small tie-breaker.
+        quality = float(decision.details.get("setupQuality", decision.confidence) or 0.0)
         activity_bonus = max(0.0, 12 - min(activity_rank, 12)) * 0.5
-        return decision.confidence * 100 + min(net_rr, 3.0) * 15 + activity_bonus
+        market_attention_bonus = max(0.0, min(activity_score, 100.0)) * 0.12
+        return (
+            quality * 100
+            + decision.confidence * 15
+            + activity_bonus
+            + market_attention_bonus
+        )
 
     def _setup_blocked_reason(
         self,
@@ -660,50 +909,35 @@ class TradingEngine:
             },
         )
 
-    def _maybe_strategy_invalidation(self, session: ActiveSymbolSession) -> None:
+    def _maybe_strategy_invalidation(
+        self,
+        session: ActiveSymbolSession,
+    ) -> None:
         pos = self.broker.positions.get(session.symbol)
         if pos is None or pos.partial_taken:
             return
         if time() - pos.opened_at < 5:
             return
-
-        reason: str | None = None
-        trade_mode = (
-            str(pos.strategy_details.get("tradeMode") or "")
-            if isinstance(pos.strategy_details, dict)
-            else ""
-        )
-        expected_trend = Trend.UP if pos.side == Side.LONG else Trend.DOWN
-        if (
-            trade_mode != "countertrend_reaction"
-            and session.trend != expected_trend
-            and pos.unrealized_pnl < 0
-        ):
-            reason = "higher_timeframe_context_lost"
-
-        zone = pos.strategy_details.get("zone") if isinstance(pos.strategy_details, dict) else None
-        if reason is None and isinstance(zone, dict):
-            low = float(zone.get("low") or 0)
-            high = float(zone.get("high") or 0)
-            if pos.side == Side.LONG and low > 0 and session.last_price < low and pos.unrealized_pnl < 0:
-                reason = "strategy_zone_invalidated"
-            if pos.side == Side.SHORT and high > 0 and session.last_price > high and pos.unrealized_pnl < 0:
-                reason = "strategy_zone_invalidated"
-
-        if reason is None and pos.strategy == "orderbook_density" and pos.unrealized_pnl < 0:
-            decision = session.decisions.get(pos.strategy)
-            density_state = (
-                str(decision.details.get("state") or "")
-                if decision is not None
-                else ""
-            )
-            if density_state == "exhausted":
-                reason = "density_invalidated"
-
-        if reason is None:
+        strategy = self.strategies.get(pos.strategy)
+        if strategy is None:
             return
-
-        event = self.broker.close(session.symbol, session.orderbook, reason)
+        decision = session.decisions.get(pos.strategy)
+        reason = strategy.manage_position(
+            side=pos.side,
+            unrealized_pnl=pos.unrealized_pnl,
+            opened_at=pos.opened_at,
+            strategy_details=pos.strategy_details,
+            decision=decision,
+            trend=session.trend,
+            last_price=session.last_price,
+        )
+        if not reason:
+            return
+        event = self.broker.close(
+            session.symbol,
+            session.orderbook,
+            reason,
+        )
         self._handle_broker_events(session, [event])
 
     def _handle_broker_events(self, session: ActiveSymbolSession, events: list[dict]) -> None:
@@ -799,6 +1033,11 @@ class TradingEngine:
             selected_symbol = working[0] if working else None
         market = self.sessions[selected_symbol].market_snapshot() if selected_symbol else None
         candidate_map = {x.symbol: x for x in self.candidates}
+        if market is not None and selected_symbol is not None:
+            selected_candidate = candidate_map.get(selected_symbol)
+            market["activityProfile"] = (
+                selected_candidate.public() if selected_candidate else None
+            )
         now = time()
         working_rows = []
 
@@ -813,6 +1052,10 @@ class TradingEngine:
                     "change24h": candidate.change_24h if candidate else None,
                     "activityChange": candidate.activity_change if candidate else None,
                     "activityRank": candidate.activity_rank if candidate else None,
+                    "activityScore": candidate.activity_score if candidate else None,
+                    "correlation1hBtc": candidate.correlation_1h_btc if candidate else None,
+                    "volume24h": candidate.volume_24h if candidate else None,
+                    "tradeCount24h": candidate.trade_count_24h if candidate else None,
                     "lastPrice": session.last_price,
                     "trend": session.trend.value,
                     "position": position.public() if position else None,

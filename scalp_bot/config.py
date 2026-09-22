@@ -16,9 +16,15 @@ class Settings(BaseSettings):
     active_symbol_min_seconds: float = 600.0
     active_symbol_idle_timeout_seconds: float = 300.0
     activity_window_minutes: int = 5
+    activity_correlation_window_minutes: int = 60
+    activity_benchmark_symbol: str = "BTCUSDT"
     scanner_interval_seconds: float = 60.0
     activity_request_concurrency: int = 2
     activity_request_pause_seconds: float = 0.20
+    bootstrap_1m_candles: int = 720
+    bootstrap_5m_candles: int = 576
+    bootstrap_15m_candles: int = 480
+    bootstrap_1h_candles: int = 336
     rest_request_min_interval_seconds: float = 0.25
     rest_rate_limit_retries: int = 6
     rest_rate_limit_backoff_seconds: float = 1.0
@@ -53,6 +59,16 @@ class Settings(BaseSettings):
     setup_reset_wait_seconds: float = 10.0
     arbiter_interval_seconds: float = 0.25
     market_stale_seconds: float = 3.0
+    book_stale_seconds: float = 1.5
+    trade_buffer_seconds: int = 90
+    orderbook_depth: int = 1000
+    density_min_wall_notional_usd: float = 25_000.0
+    density_strength_multiple: float = 4.0
+    density_turnover_floor_fraction: float = 0.01
+    density_neighbor_window_levels: int = 20
+    density_max_distance_pct: float = 0.05
+    research_frame_seconds: float = 1.0
+    research_recent_trades: int = 250
 
     run_label: str = "paper-current-10h"
     paper_run_duration_seconds: float = 36_000.0

@@ -105,3 +105,62 @@ and that the strategy list contains both:
 Отбой от слабого уровня
 Отскок от свежей плотности
 ```
+
+
+## Strategy Logic v3 architecture
+
+Trading logic is now modular:
+
+- strategy/trend_structure.py
+- strategy/weak_level_rejection.py
+- strategy/density.py
+- strategy/breakout.py
+- strategy/common.py for shared market primitives only
+
+The former strategies.py is only a compatibility export shim.
+
+Long-run findings applied in this patch:
+- weak-level support and resistance paths are symmetric and tested;
+- psychological round-number confluence is intentionally rare instead of nearly universal;
+- countertrend reactions use a shorter 0.75R target and never create a runner;
+- density tracks wall persistence, depletion, replenishment and absorption over time;
+- removal of a wall after a confirmed bounce is not by itself an exit signal;
+- density invalidation requires adverse price acceptance plus aggressive flow through the old wall;
+- breakout zones require at least 5 touches plus reaction/volume maturity;
+- one breakout zone generation can produce only one trade;
+- arbiter ranks setup quality, not deterministic net R/R geometry;
+- paper stop/target/partial triggers use executable bid/ask;
+- run_summary keeps a lifetime closed-trade counter even though the UI history is capped.
+
+## Market activity and liquidity targets
+
+Candidate selection now carries a market-activity profile:
+- verified Bybit 24h turnover;
+- verified Bybit 24h base volume;
+- verified 24h price change;
+- 5m turnover burst and price activity;
+- 1h Pearson correlation of aligned 1m returns versus BTCUSDT;
+- an interpretable activity score used as a secondary arbiter input.
+
+tradeCount24h exists as an optional external metric, but Bybit V5 tickers do not publish it and recent-trade REST is capped, so the bot deliberately does not fabricate a 24h trade count. A screener/provider can populate it later.
+
+Levels are explicit liquidity targets. strategy/liquidity.py searches in the direction of the trade for the nearest meaningful pool: a repeated horizontal zone or an isolated external swing high/low. Trend-following strategies may target that pool; countertrend reactions remain capped.
+
+## Central Level Engine
+
+All strategies now receive one shared MarketStructure instead of detecting important levels independently.
+
+The engine builds:
+- 1m horizontal zones;
+- synthetic 5m horizontal zones from the live 1m history;
+- 15m horizontal zones;
+- synthetic 1h zones from the 15m context;
+- current UTC-day high and low;
+- scored diagonal support/resistance lines from repeated pivots;
+- round-number confluence as a secondary property, not as a level by itself.
+
+Overlapping levels from different timeframes are deduplicated and receive a multi-timeframe strength bonus. Breakout uses mature shared levels, weak rejection uses young 1-3 touch shared levels, trend structure prefers the shared diagonal line, and liquidity targeting can use day high/day low as external stop-pool hypotheses.
+
+Important: these are inferred liquidity areas. The exchange does not expose other traders' stop orders, so the bot treats stops beyond highs/lows/levels as a hypothesis supported by market structure, not as directly observed orders.
+
+Density decisions also expose amount, distance, lifetime, erosion duration and round-number confluence so we can analyze the same dimensions that specialist screeners expose publicly.

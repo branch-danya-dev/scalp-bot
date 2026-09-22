@@ -115,8 +115,13 @@ class Candidate:
     turnover_24h: float
     change_24h: float
     last_price: float
+    volume_24h: float = 0.0
+    trade_count_24h: int | None = None
+    trade_count_source: str | None = None
+    correlation_1h_btc: float | None = None
     activity_change: float = 0.0
     activity_turnover: float = 0.0
+    activity_score: float = 0.0
     activity_rank: int | None = None
 
     def public(self) -> dict[str, Any]:
@@ -179,4 +184,9 @@ class TradePlan:
     def public(self) -> dict[str, Any]:
         data = asdict(self)
         data["side"] = self.side.value
+        # These are deterministic outcomes at the configured target/stop,
+        # not statistical expectancy. Keep legacy field names internally for
+        # compatibility while exposing unambiguous public aliases.
+        data["net_at_target"] = self.expected_net_profit
+        data["net_at_stop"] = self.expected_net_loss
         return data

@@ -79,8 +79,23 @@ function addPriceLine(value, title, color="#8e8e93", style=2) {
   priceLines.push(candleSeries.createPriceLine({price:Number(value), color, lineWidth:1, lineStyle:style, axisLabelVisible:true, title}));
 }
 
-function renderVisuals(decisions, position) {
+function renderVisuals(decisions, position, structure) {
   clearOverlays();
+  const current = selectedSymbol ? null : null;
+  (structure?.levels || []).slice(0, 8).forEach(level => {
+    const label = level.kind === "day_high" ? "day high"
+      : level.kind === "day_low" ? "day low"
+      : `${level.kind} ${(level.sources || [level.timeframe]).join("/")}`;
+    addPriceLine(level.center, label, "#b0b0b5", level.kind.startsWith("day_") ? 0 : 2);
+  });
+  (structure?.trendlines || []).slice(0, 2).forEach(line => {
+    const series = chart.addLineSeries({color:"#98989d", lineWidth:1, lineStyle:2, priceLineVisible:false, lastValueVisible:false});
+    series.setData([
+      {time: Math.floor(line.start_ms / 1000), price: line.start_price},
+      {time: Math.floor(line.end_ms / 1000), price: line.end_price},
+    ]);
+    overlaySeries.push(series);
+  });
   Object.values(decisions || {}).forEach(decision => {
     const overlays = decision.visuals?.overlays || [];
     overlays.forEach(overlay => {
@@ -170,7 +185,7 @@ function renderDecisions(decisions) {
 
 function eventText(event) {
   const payload = event.payload || {};
-  if (event.event === "trade_opened") return `${payload.plan?.side || ""} ${money(payload.plan?.notional)} · net target ${money(payload.plan?.expected_net_profit)} · RR ${Number(payload.plan?.net_reward_risk || 0).toFixed(2)}`;
+  if (event.event === "trade_opened") return `${payload.plan?.side || ""} ${money(payload.plan?.notional)} · net@target ${money(payload.plan?.net_at_target ?? payload.plan?.expected_net_profit)} · quality ${Number(payload.opportunityQuality ?? 0).toFixed(2)}`;
   if (event.event === "partial_take") return `partial ${money(payload.netPnl)} · осталось ${money(payload.remainingNotional)} · stop→${price(payload.newStop)}`;
   if (event.event === "trade_closed") return `${payload.reason} · ${money(payload.netPnl)} · MAE ${money(payload.maeUsd)} · MFE ${money(payload.mfeUsd)}`;
   if (event.event === "risk_reject") return payload.reason || "rejected";
@@ -300,13 +315,20 @@ function render(data) {
     const flowText = flow.tradeCount5s
       ? ` · flow5s ${(Number(flow.imbalance5s || 0) * 100).toFixed(0)}% · speed x${Number(flow.acceleration || 0).toFixed(1)}`
       : "";
-    $("symbolMeta").textContent = `1m · last ${price(data.market.lastPrice)}${gapText} · activity ${pct(row?.activityChange)}${flowText}`;
+    const profile = data.market.activityProfile || {};
+    const corr = profile.correlation_1h_btc == null
+      ? "corr1h n/a"
+      : `corr1h BTC ${(Number(profile.correlation_1h_btc) * 100).toFixed(0)}%`;
+    const trades24h = profile.trade_count_24h == null
+      ? "trades24h n/a"
+      : `trades24h ${compact(profile.trade_count_24h)}`;
+    $("symbolMeta").textContent = `1m · last ${price(data.market.lastPrice)}${gapText} · 24h ${pct(profile.change_24h)} · vol ${compact(profile.turnover_24h)} · ${corr} · ${trades24h} · score ${Number(profile.activity_score || 0).toFixed(0)}${flowText}`;
     $("trendBadge").textContent = data.market.trend.toUpperCase();
     $("trendBadge").className = `trend ${data.market.trend}`;
     ensureChart();
     applyChartPrecision(data.market.lastPrice);
     candleSeries.setData(data.market.candles);
-    renderVisuals(data.market.decisions, position);
+    renderVisuals(data.market.decisions, position, data.market.structure);
     renderBook(book);
     renderDecisions(data.market.decisions);
     renderPosition(position);

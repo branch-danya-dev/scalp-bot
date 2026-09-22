@@ -93,12 +93,12 @@ class RiskEngine:
         if expected_net <= 0:
             return RiskResult(
                 False,
-                f"expected net ${expected_net:.2f} <= 0 after estimated trading costs",
+                f"net at target ${expected_net:.2f} <= 0 after estimated trading costs",
             )
         if expected_net < self.config.min_net_profit_usd:
             return RiskResult(
                 False,
-                f"expected net ${expected_net:.2f} < research minimum ${self.config.min_net_profit_usd:.2f}",
+                f"net at target ${expected_net:.2f} < research minimum ${self.config.min_net_profit_usd:.2f}",
             )
         if (
             self.config.enforce_net_reward_risk_gate

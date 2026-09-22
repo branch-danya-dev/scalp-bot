@@ -1,0 +1,335 @@
+from scalp_bot.domain import Action, Candle, OrderBook, TradeTick, Trend
+from scalp_bot.strategy import LevelBreakoutStrategy, WeakLevelRejectionStrategy
+from scalp_bot.strategy.structure import MarketStructure, StructuralLevel
+
+
+def candle(
+    i: int,
+    o: float,
+    h: float,
+    l: float,
+    c: float,
+    volume: float = 100,
+) -> Candle:
+    return Candle(i * 60_000, o, h, l, c, volume, volume * c)
+
+
+def mature_breakout_candles() -> list[Candle]:
+    rows: list[Candle] = []
+    peaks = {
+        12: 100.00,
+        24: 100.04,
+        36: 99.99,
+        48: 100.03,
+        60: 100.01,
+        68: 100.02,
+    }
+    for i in range(80):
+        if i < 74:
+            base = 98.9 + (i % 8) * 0.035
+            high = peaks.get(i, base + 0.18)
+            close = min(base + 0.06, high - 0.03)
+            rows.append(candle(i, base, high, base - 0.16, close, 120))
+        else:
+            closes = [99.70, 99.80, 99.88, 99.95, 100.08, 100.18]
+            close = closes[i - 74]
+            rows.append(
+                candle(
+                    i,
+                    close - 0.04,
+                    close + 0.06,
+                    close - 0.14,
+                    close,
+                    300,
+                )
+            )
+    return rows
+
+
+def aggressive_buy_flow() -> list[TradeTick]:
+    start = 30_000_000
+    return [
+        TradeTick(start + i * 200, 100.16, 8, "Buy")
+        for i in range(24)
+    ]
+
+
+def far_buy_flow() -> list[TradeTick]:
+    start = 30_000_000
+    return [
+        TradeTick(start + i * 200, 102.00, 8, "Buy")
+        for i in range(24)
+    ]
+
+
+def mature_structure(generation: str = "R:100:g1") -> MarketStructure:
+    return MarketStructure(
+        levels=[
+            StructuralLevel(
+                kind="resistance",
+                low=99.98,
+                high=100.05,
+                touches=6,
+                timeframe="5m",
+                score=0.86,
+                reaction_pct=0.006,
+                volume_ratio=1.25,
+                last_touch_index=68,
+                level_id="R:100",
+                generation_id=generation,
+                distinct_approaches=5,
+                dwell_bars=9,
+                acceptance_bars=3,
+                failed_breaks=1,
+                sweeps=1,
+                lifecycle="worked",
+            )
+        ]
+    )
+
+
+def test_breakout_shared_level_requires_mature_lifecycle() -> None:
+    strategy = LevelBreakoutStrategy()
+    structure = mature_structure()
+    structure.levels[0].distinct_approaches = 2
+    structure.levels[0].lifecycle = "tested"
+
+    decision = strategy.evaluate(
+        mature_breakout_candles(),
+        OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)]),
+        Trend.UP,
+        symbol="IMMATUREUSDT",
+        trades=aggressive_buy_flow(),
+        structure=structure,
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "search"
+
+
+def test_breakout_shared_generation_is_used_only_once() -> None:
+    strategy = LevelBreakoutStrategy()
+    rows = mature_breakout_candles()
+    book = OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)])
+    structure = mature_structure()
+
+    first = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="BREAKUSDT",
+        trades=aggressive_buy_flow(),
+        structure=structure,
+    )
+    assert first.action == Action.LONG
+    assert first.details["levelLifecycle"]["generation_id"] == "R:100:g1"
+    assert first.details["qualityFactors"]["distinctApproaches"] > 0
+    assert first.details["qualityFactors"]["dwell"] > 0
+
+    second = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="BREAKUSDT",
+        trades=aggressive_buy_flow(),
+        structure=structure,
+    )
+    assert second.action == Action.WAIT
+    assert second.details["alreadyUsed"] is True
+
+    new_generation = mature_structure("R:100:g2")
+    third = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="BREAKUSDT",
+        trades=aggressive_buy_flow(),
+        structure=new_generation,
+    )
+    assert third.action == Action.LONG
+
+
+def rejection_candles() -> list[Candle]:
+    rows: list[Candle] = []
+    for i in range(45):
+        p = 101.5 + (i % 6) * 0.04
+        rows.append(candle(i, p, p + 0.10, p - 0.10, p + 0.02))
+    approach = [
+        (100.75, 100.82, 100.60, 100.66),
+        (100.62, 100.68, 100.45, 100.50),
+        (100.48, 100.54, 100.28, 100.34),
+        (100.31, 100.37, 100.10, 100.16),
+        (100.12, 100.22, 99.96, 100.10),
+    ]
+    start = len(rows)
+    for j, values in enumerate(approach):
+        rows.append(candle(start + j, *values, volume=180))
+    return rows
+
+
+def buy_flow() -> list[TradeTick]:
+    start = 20_000_000
+    return [
+        TradeTick(start + i * 200, 100.10, 3, "Buy")
+        for i in range(20)
+    ]
+
+
+def young_support(generation: str = "S:100:g1") -> MarketStructure:
+    return MarketStructure(
+        levels=[
+            StructuralLevel(
+                kind="support",
+                low=99.96,
+                high=100.05,
+                touches=2,
+                timeframe="1m",
+                score=0.72,
+                reaction_pct=0.003,
+                volume_ratio=1.10,
+                last_touch_index=48,
+                level_id="S:100",
+                generation_id=generation,
+                distinct_approaches=2,
+                dwell_bars=2,
+                acceptance_bars=1,
+                failed_breaks=1,
+                sweeps=1,
+                lifecycle="tested",
+            )
+        ]
+    )
+
+
+def test_rejection_shared_level_requires_fresh_lifecycle() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    structure = young_support()
+    level = structure.levels[0]
+    level.distinct_approaches = 4
+    level.acceptance_bars = 6
+    level.lifecycle = "worked"
+
+    decision = strategy.evaluate(
+        rejection_candles(),
+        OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)]),
+        Trend.UP,
+        symbol="OLDUSDT",
+        trades=buy_flow(),
+        structure=structure,
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "search"
+
+
+def test_rejection_shared_generation_is_used_only_once() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    rows = rejection_candles()
+    book = OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)])
+    structure = young_support()
+
+    first = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="REJECTUSDT",
+        trades=buy_flow(),
+        structure=structure,
+    )
+    assert first.action == Action.LONG
+    assert first.details["levelGeneration"] == "S:100:g1"
+    assert first.details["qualityFactors"]["cleanAcceptance"] > 0
+    assert first.details["qualityFactors"]["rejectionHistory"] > 0
+
+    second = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="REJECTUSDT",
+        trades=buy_flow(),
+        structure=structure,
+    )
+    assert second.action == Action.WAIT
+    assert second.details["alreadyUsed"] is True
+
+    new_generation = young_support("S:100:g2")
+    third = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="REJECTUSDT",
+        trades=buy_flow(),
+        structure=new_generation,
+    )
+    assert third.action == Action.LONG
+
+
+
+def test_breakout_global_flow_away_from_level_does_not_confirm() -> None:
+    strategy = LevelBreakoutStrategy()
+    decision = strategy.evaluate(
+        mature_breakout_candles(),
+        OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)]),
+        Trend.UP,
+        symbol="FARFLOWUSDT",
+        trades=far_buy_flow(),
+        structure=mature_structure(),
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "break"
+    assert decision.details["flow"]["imbalance5s"] > 0
+    assert decision.details["levelFlow"]["tradeCount"] == 0
+
+
+def test_breakout_records_level_flow_on_entry() -> None:
+    strategy = LevelBreakoutStrategy()
+    decision = strategy.evaluate(
+        mature_breakout_candles(),
+        OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)]),
+        Trend.UP,
+        symbol="LOCALFLOWUSDT",
+        trades=aggressive_buy_flow(),
+        structure=mature_structure(),
+    )
+
+    assert decision.action == Action.LONG
+    assert decision.details["levelFlow"]["tradeCount"] > 0
+    assert decision.details["levelFlow"]["imbalance"] > 0
+
+
+
+def test_rejection_global_flow_away_from_level_does_not_confirm() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    decision = strategy.evaluate(
+        rejection_candles(),
+        OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)]),
+        Trend.UP,
+        symbol="FARREJECTUSDT",
+        trades=[
+            TradeTick(20_000_000 + i * 200, 102.0, 3, "Buy")
+            for i in range(20)
+        ],
+        structure=young_support(),
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "reject"
+    assert decision.details["flow"]["imbalance5s"] > 0
+    assert decision.details["levelFlow"]["tradeCount"] == 0
+
+
+def test_rejection_records_level_flow_on_entry() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    decision = strategy.evaluate(
+        rejection_candles(),
+        OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)]),
+        Trend.UP,
+        symbol="LOCALREJECTUSDT",
+        trades=buy_flow(),
+        structure=young_support(),
+    )
+
+    assert decision.action == Action.LONG
+    assert decision.details["levelFlow"]["tradeCount"] > 0
+    assert decision.details["levelFlow"]["buyNotional"] > 0
