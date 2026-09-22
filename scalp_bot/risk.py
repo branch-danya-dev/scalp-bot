@@ -133,7 +133,36 @@ class RiskEngine:
                 f"net reward/risk {net_rr:.2f} < minimum {self.config.min_net_reward_risk:.2f}",
             )
 
-        resolved_setup_id = setup_id or decision.setup_id or f"{decision.strategy}:{side.value}:{setup_entry:.10g}"
+        economics = {
+            "riskBudgetUsd": risk_budget,
+            "notionalByRiskUsd": notional_by_risk,
+            "effectiveLeverage": notional / balance if balance else 0.0,
+            "stopDistancePct": stop_pct,
+            "targetMovePct": target_pct,
+            "takerFeeCostUsd": fee_cost,
+            "slippageCostUsd": slippage_cost,
+            "estimatedCostsUsd": estimated_costs,
+            "entrySpreadPct": max(book.spread_pct, 0.0),
+            "spreadCostDoubleCounted": False,
+            "grossAtTargetUsd": gross_profit,
+            "netAtTargetUsd": expected_net,
+            "netAtStopUsd": expected_net_loss,
+            "netReturnOnEquity": (
+                expected_net / balance if balance > 0 else 0.0
+            ),
+            "requiredNetProfitUsd": required_net_profit,
+            "requiredNetProfitEquityFraction": (
+                self.config.min_net_profit_equity_fraction
+            ),
+        }
+        strategy_details = dict(decision.details)
+        strategy_details["economics"] = economics
+
+        resolved_setup_id = (
+            setup_id
+            or decision.setup_id
+            or f"{decision.strategy}:{side.value}:{setup_entry:.10g}"
+        )
         plan = TradePlan(
             symbol=symbol,
             strategy=decision.strategy,
@@ -152,6 +181,6 @@ class RiskEngine:
             net_reward_risk=net_rr,
             entry_drift_pct=entry_drift,
             setup_id=resolved_setup_id,
-            strategy_details=dict(decision.details),
+            strategy_details=strategy_details,
         )
         return RiskResult(True, "allowed", plan)
