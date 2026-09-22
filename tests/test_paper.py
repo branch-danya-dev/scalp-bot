@@ -1,3 +1,5 @@
+import pytest
+
 from scalp_bot.config import Settings
 from scalp_bot.domain import OrderBook, Side, TradePlan
 from scalp_bot.paper import PaperBroker
@@ -248,3 +250,88 @@ def test_closed_trade_counter_is_not_truncated_with_ui_history() -> None:
 
     assert broker.total_closed_trades == 205
     assert len(broker.closed_trades) == 200
+
+
+
+def test_portfolio_gross_exposure_cannot_exceed_ten_x() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=1.0,
+        max_open_positions=4,
+        taker_fee_rate=0,
+        slippage_bps=0,
+    )
+    broker = PaperBroker(cfg)
+    market = book(99.99, 100.00)
+
+    first = plan("AAAUSDT", Side.LONG, 5000)
+    first.expected_net_loss = 5
+    second = plan("BBBUSDT", Side.SHORT, 5000)
+    second.expected_net_loss = 5
+
+    broker.open(first, market)
+    broker.open(second, market)
+
+    assert broker.total_exposure == pytest.approx(10_000)
+    assert broker.available_notional == pytest.approx(0)
+
+    allowed, reason = broker.can_open("CCCUSDT")
+    assert not allowed
+    assert reason == "portfolio exposure budget exhausted"
+
+
+def test_partial_releases_structural_risk_but_keeps_cost_reserve() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.05,
+        taker_fee_rate=0.00055,
+        slippage_bps=1,
+        partial_take_at_r=1.0,
+        partial_take_fraction=0.70,
+        breakeven_buffer_bps=1,
+        no_follow_through_seconds=999,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("AAAUSDT", Side.LONG, 1000)
+    p.expected_net_loss = 20
+    broker.open(p, book(99.99, 100.00))
+
+    before = broker.open_risk_usd
+    assert broker.open_structural_risk_usd > 0
+    assert broker.open_cost_reserve_usd > 0
+
+    events = broker.mark(
+        "AAAUSDT",
+        100.60,
+        book(100.60, 100.61),
+    )
+    assert events
+    assert events[0]["event"] == "partial_take"
+
+    assert broker.open_structural_risk_usd == pytest.approx(0)
+    assert broker.open_cost_reserve_usd > 0
+    assert broker.open_risk_usd == pytest.approx(
+        broker.open_cost_reserve_usd
+    )
+    assert broker.open_risk_usd < before
+
+
+def test_paper_fill_rejects_plan_that_exceeds_remaining_all_in_risk() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.02,
+        taker_fee_rate=0,
+        slippage_bps=0,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("AAAUSDT", Side.LONG, 1000)
+    p.expected_net_loss = 25
+
+    with pytest.raises(
+        RuntimeError,
+        match="all-in portfolio risk",
+    ):
+        broker.open(p, book(99.99, 100.00))
