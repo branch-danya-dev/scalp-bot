@@ -1,6 +1,6 @@
 # Scalp Bot — Strategy Logic v3 · Scalp Economics 4h Paper Run
 
-This run branch is the prepared Strategy Logic v3 state for a controlled four-hour paper run with the revised scalp position-sizing and economic model.
+The main branch is the prepared Strategy Logic v3 state for the next controlled paper run with the revised scalp position-sizing, execution, and economic model.
 
 ## Strategies in this run
 
@@ -11,8 +11,8 @@ This run branch is the prepared Strategy Logic v3 state for a controlled four-ho
    - failed breakout/reclaim;
    - trade-flow reversal;
    - round-number confluence;
-   - trend-following reactions may use a runner;
-   - countertrend reactions are reaction-only.
+   - entries are allowed only when the rejection direction agrees with the confirmed higher-timeframe trend;
+   - trend-following reactions may use a runner.
 3. Defended fresh order-book density:
    - large bid/ask wall relative to local book;
    - persistence required before trust;
@@ -20,8 +20,8 @@ This run branch is the prepared Strategy Logic v3 state for a controlled four-ho
    - repeated approaches, strong depletion or aggressive consumption invalidate the bounce;
    - pulled walls are not traded;
    - entry requires defended wall + flow reversal;
-   - trend-following density reactions may use a runner;
-   - countertrend density reactions are reaction-only.
+   - entries are allowed only when the defended-wall reaction agrees with the confirmed higher-timeframe trend;
+   - trend-following density reactions may use a runner.
 4. Stateful horizontal-zone breakout:
    - SEARCH -> FOUND -> APPROACH -> PRESSURE -> BREAK -> IMPULSE;
    - zone crossing plus public-trade-flow confirmation.
@@ -95,8 +95,8 @@ Replay sampling:
 
 ```powershell
 git fetch origin
-git switch paper-run-v3-4h
-git pull origin paper-run-v3-4h
+git switch main
+git pull --ff-only origin main
 
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 Copy-Item .env.example .env -Force
