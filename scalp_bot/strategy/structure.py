@@ -438,3 +438,38 @@ def build_market_structure(
         previous_day_high=previous_day_high,
         previous_day_low=previous_day_low,
     )
+
+
+
+def market_structure_from_public(payload: dict | None) -> MarketStructure:
+    if not payload:
+        return MarketStructure()
+
+    levels: list[StructuralLevel] = []
+    for row in payload.get("levels") or []:
+        data = dict(row)
+        data.pop("center", None)
+        allowed = {
+            "kind", "low", "high", "touches", "timeframe", "score",
+            "reaction_pct", "volume_ratio", "last_touch_ms",
+            "round_confluence", "sources", "last_touch_index",
+            "level_id", "generation_id", "distinct_approaches",
+            "dwell_bars", "acceptance_bars", "failed_breaks",
+            "sweeps", "lifecycle",
+        }
+        levels.append(
+            StructuralLevel(**{key: value for key, value in data.items() if key in allowed})
+        )
+
+    trendlines = [
+        TrendLine(**row)
+        for row in (payload.get("trendlines") or [])
+    ]
+    return MarketStructure(
+        levels=levels,
+        trendlines=trendlines,
+        day_high=payload.get("dayHigh"),
+        day_low=payload.get("dayLow"),
+        previous_day_high=payload.get("previousDayHigh"),
+        previous_day_low=payload.get("previousDayLow"),
+    )
