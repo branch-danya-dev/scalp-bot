@@ -99,6 +99,7 @@ class WeakLevelRejectionStrategy(Strategy):
         trades: list[TradeTick],
         symbol: str,
         zone: LevelZone,
+        structure: "MarketStructure | None" = None,
     ) -> StrategyDecision:
         state = self._states.setdefault(symbol, RejectionWatchState())
         zone_key = self._key(zone)
@@ -342,4 +343,12 @@ class WeakLevelRejectionStrategy(Strategy):
             )
 
         zone = min(choices, key=lambda item: abs(item.center - price))
-        return self._decision_for_zone(candles, book, trend, trades or [], symbol, zone)
+        return self._decision_for_zone(
+            candles,
+            book,
+            trend,
+            trades or [],
+            symbol,
+            zone,
+            structure,
+        )
