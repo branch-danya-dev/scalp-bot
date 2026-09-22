@@ -390,6 +390,7 @@ function eventText(event) {
   if (event.event === "partial_take") return `partial ${money(payload.netPnl)} · осталось ${money(payload.remainingNotional)} · stop→${price(payload.newStop)}`;
   if (event.event === "trade_closed") return `${payload.reason} · ${money(payload.netPnl)} · MAE ${money(payload.maeUsd)} · MFE ${money(payload.mfeUsd)}`;
   if (event.event === "risk_reject") return payload.reason || "rejected";
+  if (event.event === "economic_shadow") return `shadow: ${(payload.shadowRejectReasons || []).join(", ")}`;
   if (event.event === "setup_blocked") return `${payload.strategy}: ${payload.reason}`;
   if (event.event === "setup_consumed") return `${payload.strategy}: setup consumed`;
   if (event.event === "setup_rearmed") return `${payload.strategy}: rearmed`;
@@ -437,7 +438,7 @@ function eventGroup(event) {
   if (event.event.endsWith("_error")) return "error";
   if (event.event === "trade_opened") return "entry";
   if (event.event === "trade_closed" || event.event === "partial_take") return "exit";
-  if (event.event === "risk_reject" || event.event === "setup_blocked") return "reject";
+  if (event.event === "risk_reject" || event.event === "setup_blocked" || event.event === "economic_shadow") return "reject";
   if (event.event === "decision") return "decision";
   return "system";
 }
@@ -807,8 +808,13 @@ function render(data) {
     * Number(data.risk.maxPositionExposureFraction || 0);
   const perPositionCap = Math.min(positionLeverageCap, positionShareCap);
   $("availableExposure").textContent = money(data.portfolio.availableNotional) + " · " + money(perPositionCap) + "/pos";
-  const rrGate = data.risk.enforceNetRewardRiskGate ? `RR≥${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}` : `RR monitor ${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}`;
-  $("costGate").textContent = `≥ ${money(data.risk.minNetProfitUsd)} net · ${rrGate}`;
+  const minNetGate = data.risk.enforceMinNetProfitGate
+    ? `≥ ${money(data.risk.minNetProfitUsd)} net`
+    : `${money(data.risk.minNetProfitUsd)} net shadow`;
+  const rrGate = data.risk.enforceNetRewardRiskGate
+    ? `RR≥${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}`
+    : `RR ${Number(data.risk.minNetRewardRisk || 0).toFixed(2)} shadow`;
+  $("costGate").textContent = `${minNetGate} · ${rrGate}`;
   $("runTimer").textContent = data.botRunning
     ? duration(data.run?.remainingSeconds)
     : duration(data.run?.configuredDurationSeconds);

@@ -1098,3 +1098,49 @@ def test_strategy_runtime_stats_track_decisions_rejects_and_closed_trade(tmp_pat
         assert stats["netPnl"] == pytest.approx(3.5)
     finally:
         close_rest(engine)
+
+
+
+def test_arbiter_records_shadow_economics_without_blocking_trade(tmp_path) -> None:
+    engine = make_engine(
+        tmp_path,
+        min_net_profit_usd=1.0,
+        min_net_profit_equity_fraction=0.001,
+        enforce_min_net_profit_gate=False,
+        min_net_reward_risk=1.15,
+        enforce_net_reward_risk_gate=False,
+        taker_fee_rate=0.00055,
+        slippage_bps=1.0,
+        max_position_leverage=5.0,
+    )
+    try:
+        engine.running = True
+        now = time()
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100,
+            last_market_at=now,
+            last_book_at=now,
+            book_synced=True,
+        )
+        session.decisions["trend_structure"] = StrategyDecision(
+            strategy="trend_structure",
+            action=Action.LONG,
+            reasons=["research shadow case"],
+            confidence=0.8,
+            entry=100.0,
+            stop=99.45,
+            target=100.24,
+            setup_id="shadow-case",
+        )
+        engine.sessions = {"AAAUSDT": session}
+        engine.candidates = [
+            Candidate("AAAUSDT", 200_000_000, 0, 100, activity_rank=1)
+        ]
+        engine._arbitrate_once()
+        assert "AAAUSDT" in engine.broker.positions
+        assert any(event["event"] == "economic_shadow" for event in engine.events)
+    finally:
+        close_rest(engine)

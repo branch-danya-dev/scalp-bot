@@ -63,6 +63,7 @@ class ActiveSymbolSession:
     last_research_frame: float = 0.0
     last_risk_fingerprint: tuple | None = None
     last_blocked_fingerprint: tuple | None = None
+    last_economic_shadow_fingerprint: tuple | None = None
 
     def book_age_seconds(self, now: float | None = None) -> float | None:
         if self.last_book_at <= 0:
@@ -1130,6 +1131,39 @@ class TradingEngine:
                     self._risk_reject_if_changed(session, decision, result.reason)
                     continue
 
+                economics = (
+                    result.plan.strategy_details.get("economics")
+                    if isinstance(result.plan.strategy_details, dict)
+                    else None
+                )
+                shadow_reasons = (
+                    tuple(economics.get("shadowRejectReasons") or [])
+                    if isinstance(economics, dict)
+                    else ()
+                )
+                shadow_fingerprint = (
+                    decision.strategy,
+                    setup_id,
+                    shadow_reasons,
+                )
+                if shadow_reasons:
+                    if session.last_economic_shadow_fingerprint != shadow_fingerprint:
+                        session.last_economic_shadow_fingerprint = shadow_fingerprint
+                        self._emit(
+                            "economic_shadow",
+                            session.symbol,
+                            {
+                                "strategy": decision.strategy,
+                                "setupId": setup_id,
+                                "shadowRejectReasons": list(shadow_reasons),
+                                "economics": economics,
+                                "decision": decision.public(),
+                            },
+                            snapshot=True,
+                        )
+                else:
+                    session.last_economic_shadow_fingerprint = None
+
                 candidate = candidate_map.get(session.symbol)
                 rank = candidate.activity_rank if candidate and candidate.activity_rank else 99
                 score = self._opportunity_score(
@@ -1503,6 +1537,7 @@ class TradingEngine:
             "risk": {
                 "minNetProfitUsd": self.config.min_net_profit_usd,
                 "minNetProfitEquityFraction": self.config.min_net_profit_equity_fraction,
+                "enforceMinNetProfitGate": self.config.enforce_min_net_profit_gate,
                 "minNetRewardRisk": self.config.min_net_reward_risk,
                 "enforceNetRewardRiskGate": self.config.enforce_net_reward_risk_gate,
                 "riskFraction": self.config.risk_fraction,
