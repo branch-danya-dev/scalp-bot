@@ -111,6 +111,27 @@ class BybitRestClient:
             turnover = float(item.get("turnover24h") or 0)
             if turnover < self.config.min_turnover_usd:
                 continue
+            bid = float(item.get("bid1Price") or 0)
+            ask = float(item.get("ask1Price") or 0)
+            bid_size = float(item.get("bid1Size") or 0)
+            ask_size = float(item.get("ask1Size") or 0)
+            if bid <= 0 or ask <= 0 or ask < bid:
+                continue
+            mid = (bid + ask) / 2
+            spread_bps = (
+                (ask - bid) / mid * 10_000
+                if mid > 0
+                else float("inf")
+            )
+            # All strategies form entries near the current mid. If half the
+            # ticker spread alone already exceeds max_entry_drift_bps, the
+            # best executable quote cannot satisfy the configured chase limit.
+            if spread_bps > self.config.max_entry_drift_bps * 2:
+                continue
+            top_book_notional = min(
+                bid * max(bid_size, 0.0),
+                ask * max(ask_size, 0.0),
+            )
             rows.append(
                 Candidate(
                     symbol=symbol,
@@ -118,6 +139,8 @@ class BybitRestClient:
                     change_24h=float(item.get("price24hPcnt") or 0),
                     last_price=float(item.get("lastPrice") or 0),
                     volume_24h=float(item.get("volume24h") or 0),
+                    spread_bps=spread_bps,
+                    top_book_notional_usd=top_book_notional,
                     trade_count_24h=None,
                     trade_count_source="not_available_from_bybit_v5_ticker",
                 )

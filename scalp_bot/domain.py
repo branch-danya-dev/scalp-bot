@@ -156,6 +156,8 @@ class Candidate:
     change_24h: float
     last_price: float
     volume_24h: float = 0.0
+    spread_bps: float = 0.0
+    top_book_notional_usd: float = 0.0
     trade_count_24h: int | None = None
     trade_count_source: str | None = None
     correlation_1h_btc: float | None = None

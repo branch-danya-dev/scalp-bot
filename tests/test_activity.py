@@ -1,3 +1,7 @@
+import pytest
+
+from scalp_bot.bybit import BybitRestClient
+from scalp_bot.config import Settings
 from scalp_bot.activity import activity_score, correlation_1h
 from scalp_bot.domain import Candidate, Candle
 
@@ -56,3 +60,52 @@ def test_activity_score_prefers_local_relative_turnover_burst() -> None:
         activity_burst_ratio=3.0,
     )
     assert activity_score(burst, 5) > activity_score(normal, 5)
+
+
+
+@pytest.mark.asyncio
+async def test_liquid_candidates_filter_unexecutable_spread() -> None:
+    client = BybitRestClient(
+        Settings(
+            min_turnover_usd=100_000_000,
+            max_entry_drift_bps=8,
+        )
+    )
+
+    async def fake_get(path: str, params: dict) -> dict:
+        assert path == "/v5/market/tickers"
+        return {
+            "list": [
+                {
+                    "symbol": "TIGHTUSDT",
+                    "turnover24h": "500000000",
+                    "price24hPcnt": "0.01",
+                    "lastPrice": "100",
+                    "volume24h": "1000000",
+                    "bid1Price": "99.96",
+                    "ask1Price": "100.04",
+                    "bid1Size": "20",
+                    "ask1Size": "18",
+                },
+                {
+                    "symbol": "WIDEUSDT",
+                    "turnover24h": "600000000",
+                    "price24hPcnt": "0.03",
+                    "lastPrice": "100",
+                    "volume24h": "1000000",
+                    "bid1Price": "99.90",
+                    "ask1Price": "100.10",
+                    "bid1Size": "100",
+                    "ask1Size": "100",
+                },
+            ]
+        }
+
+    client._get = fake_get  # type: ignore[method-assign]
+    try:
+        rows = await client.liquid_candidates()
+        assert [row.symbol for row in rows] == ["TIGHTUSDT"]
+        assert rows[0].spread_bps == pytest.approx(8.0)
+        assert rows[0].top_book_notional_usd > 0
+    finally:
+        await client.close()
