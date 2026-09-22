@@ -757,7 +757,7 @@ class TradingEngine:
                 continue
             try:
                 decision = strategy.evaluate(
-                    session.candles,
+                    closed_1m,
                     session.orderbook,
                     session.trend,
                     symbol=session.symbol,

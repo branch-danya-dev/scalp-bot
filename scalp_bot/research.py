@@ -102,7 +102,12 @@ class OfflineStrategyReplay:
                     candles.append(candle)
                 candles_by_symbol[row_symbol] = candles[-720:]
             candles = candles_by_symbol[row_symbol]
-            if not candles:
+            closed_candles = [
+                candle
+                for candle in candles
+                if candle.confirmed
+            ]
+            if not closed_candles:
                 continue
             book = _book_from_public(payload.get("orderbook") or {})
             if not book.bids or not book.asks:
@@ -116,7 +121,7 @@ class OfflineStrategyReplay:
             for strategy in self.strategies.values():
                 observed_at_ms = int(float(row.get("ts") or 0) * 1000)
                 decision = strategy.evaluate(
-                    candles,
+                    closed_candles,
                     book,
                     trend,
                     symbol=row_symbol,

@@ -745,3 +745,63 @@ def test_executable_book_move_can_trigger_target_without_new_trade_tick(
         assert engine.broker.closed_trades[-1]["reason"] == "target"
     finally:
         close_rest(engine)
+
+
+@pytest.mark.asyncio
+async def test_strategies_receive_only_confirmed_1m_candles(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    seen: list[Candle] = []
+
+    class CaptureStrategy:
+        key = "capture"
+        label = "capture"
+
+        def evaluate(
+            self,
+            candles,
+            book,
+            trend,
+            **kwargs,
+        ):
+            seen.extend(candles)
+            return StrategyDecision(
+                strategy=self.key,
+                action=Action.WAIT,
+                reasons=["capture"],
+            )
+
+        def reset(self, symbol: str) -> None:
+            return None
+
+        def manage_position(self, **kwargs):
+            return None
+
+    engine.strategies = {"capture": CaptureStrategy()}  # type: ignore[assignment]
+    engine.strategy_enabled = {"capture": True}
+    session = ActiveSymbolSession(
+        symbol="AAAUSDT",
+        candles=[
+            Candle(0, 100, 101, 99, 100, 1, 100, confirmed=True),
+            Candle(
+                60_000,
+                100,
+                150,
+                50,
+                140,
+                1000,
+                140_000,
+                confirmed=False,
+            ),
+        ],
+        orderbook=book(),
+        last_price=100,
+    )
+    engine.sessions[session.symbol] = session
+
+    try:
+        await engine._evaluate(session)
+        assert len(seen) == 1
+        assert seen[0].confirmed is True
+        assert seen[0].high == 101
+    finally:
+        close_rest(engine)
