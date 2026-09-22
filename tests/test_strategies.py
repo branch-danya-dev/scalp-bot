@@ -780,13 +780,7 @@ def test_weak_level_sweep_then_live_reclaim_can_confirm() -> None:
 
     zone = first.details["zone"]
     reclaim_price = float(zone["high"]) + 0.02
-    reclaim_flow = [
-        TradeTick(start + 2_000 + i * 100, 99.95, 1, "Sell")
-        for i in range(3)
-    ] + [
-        TradeTick(start + 3_000 + i * 100, reclaim_price, 5, "Buy")
-        for i in range(20)
-    ]
+    reclaim_flow = buy_flow(reclaim_price)
     decision = strategy.evaluate(
         rows,
         OrderBook(
