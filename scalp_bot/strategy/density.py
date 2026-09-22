@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 from dataclasses import dataclass, field
 from enum import StrEnum
 from statistics import median
-from time import monotonic
 from typing import Literal
 
 from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
@@ -360,6 +359,7 @@ class DensityBounceStrategy(Strategy):
         symbol: str = "",
         trades: list[TradeTick] | None = None,
         structure: "MarketStructure | None" = None,
+        observed_at_ms: int | None = None,
     ) -> StrategyDecision:
         if not candles or not book.bids or not book.asks or trend == Trend.FLAT or not symbol:
             if symbol:
@@ -407,7 +407,12 @@ class DensityBounceStrategy(Strategy):
             turnover_floor,
         )
 
-        now = monotonic()
+        if observed_at_ms is not None:
+            now = observed_at_ms / 1000
+        elif trades:
+            now = trades[-1].ts_ms / 1000
+        else:
+            now = candles[-1].start_ms / 1000
         state = self._states.setdefault(symbol, DensityWallState())
 
         if state.stage == DensityStage.EXHAUSTED and now < state.exhausted_until:
