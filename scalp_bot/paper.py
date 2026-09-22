@@ -72,7 +72,6 @@ class Position:
         data["side"] = self.side.value
         data["initial_risk_usd"] = self.initial_risk_usd
         data["current_risk_usd"] = self.current_risk_usd
-        data["cost_reserve_usd"] = None
         data["mfe_r"] = self.mfe_r
         data["mae_r"] = self.mae_r
         return data
@@ -147,6 +146,14 @@ class PaperBroker:
         allowed, reason = self.can_open(plan.symbol)
         if not allowed:
             raise RuntimeError(reason)
+        if plan.notional > self.available_notional + 1e-9:
+            raise RuntimeError(
+                "plan exceeds remaining portfolio exposure budget"
+            )
+        if plan.expected_net_loss > self.available_risk_usd + 1e-9:
+            raise RuntimeError(
+                "plan exceeds remaining all-in portfolio risk budget"
+            )
         raw = book.executable_entry(plan.side) or plan.market_entry
         slip = self.config.slippage_bps / 10_000
         fill = raw * (1 + slip if plan.side == Side.LONG else 1 - slip)
