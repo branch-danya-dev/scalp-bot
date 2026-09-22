@@ -335,3 +335,158 @@ def test_paper_fill_rejects_plan_that_exceeds_remaining_all_in_risk() -> None:
         match="all-in portfolio risk",
     ):
         broker.open(p, book(99.99, 100.00))
+
+
+
+def scalp_economic_plan(
+    symbol: str,
+    side: Side = Side.LONG,
+) -> TradePlan:
+    p = plan(symbol, side, 5000)
+    p.leverage = 5.0
+    p.stop = 99.90 if side == Side.LONG else 100.10
+    p.target = 100.30 if side == Side.LONG else 99.70
+    p.max_loss_usd = 5.0
+    p.expected_net_loss = 11.5
+    p.strategy_details = {
+        "allowRunner": True,
+        "economics": {
+            "requiredNetProfitUsd": 1.0,
+        },
+    }
+    return p
+
+
+def test_tight_stop_partial_waits_until_closed_leg_is_net_profitable() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.05,
+        taker_fee_rate=0.00055,
+        slippage_bps=1,
+        partial_take_at_r=1.0,
+        partial_take_fraction=0.70,
+        runner_target_r=2.5,
+        breakeven_buffer_bps=1,
+        no_follow_through_seconds=999,
+    )
+    broker = PaperBroker(cfg)
+    p = scalp_economic_plan("AAAUSDT")
+    broker.open(p, book(99.99, 100.00))
+
+    # Roughly 1R in price terms, but the 70% leg would still be
+    # negative after entry/exit fees and exit slippage.
+    events = broker.mark(
+        "AAAUSDT",
+        100.12,
+        book(100.12, 100.13),
+    )
+    assert events == []
+
+    pos = broker.positions["AAAUSDT"]
+    assert pos.mfe_r >= 1.0
+    assert pos.partial_taken is False
+    assert pos.partial_economic_ready is False
+    assert pos.partial_net_preview_usd < 1.0
+    assert pos.partial_required_net_usd == pytest.approx(1.0)
+
+    # A little more continuation makes the partial economically useful.
+    events = broker.mark(
+        "AAAUSDT",
+        100.16,
+        book(100.16, 100.17),
+    )
+    assert events
+    partial = events[0]
+    assert partial["event"] == "partial_take"
+    assert partial["netPnl"] >= 1.0
+    assert partial["requiredNetUsd"] == pytest.approx(1.0)
+    assert partial["economicReady"] is True
+
+    pos = broker.positions["AAAUSDT"]
+    assert pos.notional == pytest.approx(1500)
+    assert pos.stop > pos.entry
+
+
+def test_runner_stop_is_true_net_breakeven_after_costs() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.05,
+        taker_fee_rate=0.00055,
+        slippage_bps=1,
+        partial_take_at_r=1.0,
+        partial_take_fraction=0.70,
+        runner_target_r=2.5,
+        breakeven_buffer_bps=1,
+        no_follow_through_seconds=999,
+    )
+    broker = PaperBroker(cfg)
+    p = scalp_economic_plan("AAAUSDT")
+    broker.open(p, book(99.99, 100.00))
+
+    partial = broker.mark(
+        "AAAUSDT",
+        100.16,
+        book(100.16, 100.17),
+    )
+    assert partial and partial[0]["event"] == "partial_take"
+    locked = broker.total_pnl
+
+    pos = broker.positions["AAAUSDT"]
+    runner_stop = pos.stop
+    assert runner_stop > pos.entry
+
+    closed = broker.mark(
+        "AAAUSDT",
+        runner_stop,
+        book(runner_stop, runner_stop + 0.01),
+    )
+    assert closed
+    trade = closed[-1]
+    assert trade["reason"] == "stop"
+    assert trade["partialTaken"] is True
+
+    # The remaining runner leg is protected after its own entry fee,
+    # exit fee and exit slippage, so it cannot erase the locked partial.
+    assert trade["netPnl"] >= locked - 0.01
+
+
+def test_short_runner_breakeven_is_symmetric_after_partial() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.05,
+        taker_fee_rate=0.00055,
+        slippage_bps=1,
+        partial_take_at_r=1.0,
+        partial_take_fraction=0.70,
+        runner_target_r=2.5,
+        breakeven_buffer_bps=1,
+        no_follow_through_seconds=999,
+    )
+    broker = PaperBroker(cfg)
+    p = scalp_economic_plan("SHORTUSDT", Side.SHORT)
+    broker.open(p, book(100.00, 100.01))
+
+    partial = broker.mark(
+        "SHORTUSDT",
+        99.84,
+        book(99.83, 99.84),
+    )
+    assert partial and partial[0]["event"] == "partial_take"
+    locked = broker.total_pnl
+
+    pos = broker.positions["SHORTUSDT"]
+    runner_stop = pos.stop
+    assert runner_stop < pos.entry
+
+    closed = broker.mark(
+        "SHORTUSDT",
+        runner_stop,
+        book(runner_stop - 0.01, runner_stop),
+    )
+    assert closed
+    trade = closed[-1]
+    assert trade["reason"] == "stop"
+    assert trade["netPnl"] >= locked - 0.01
