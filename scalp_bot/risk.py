@@ -322,7 +322,7 @@ class RiskEngine:
             target=target,
             notional=notional,
             leverage=notional / balance if balance else 0,
-            max_loss_usd=gross_loss,
+            max_loss_usd=all_in_net_loss,
             expected_gross_profit=gross_profit,
             estimated_costs=estimated_costs,
             expected_net_profit=expected_net,

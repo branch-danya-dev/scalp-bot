@@ -489,7 +489,11 @@ def test_per_trade_risk_fraction_caps_all_in_stop_loss() -> None:
     assert result.plan.expected_net_loss == pytest.approx(
         1000 * cfg.risk_fraction
     )
-    assert result.plan.max_loss_usd < result.plan.expected_net_loss
+    assert result.plan.max_loss_usd == pytest.approx(
+        result.plan.expected_net_loss
+    )
+    economics = result.plan.strategy_details["economics"]
+    assert economics["structuralLossAtStopUsd"] < result.plan.max_loss_usd
 
 
 def test_second_tight_stop_trade_is_scaled_by_remaining_all_in_risk() -> None:
