@@ -45,13 +45,17 @@ def find_liquidity_target(
 
     if structure is not None:
         for level in structure.levels:
-            target_price = level.center
             if action == Action.LONG:
                 eligible_kind = level.kind in {
                     "resistance",
                     "day_high",
                     "previous_day_high",
                 }
+                target_price = (
+                    level.low
+                    if level.kind == "resistance"
+                    else level.center
+                )
                 distance = (target_price - entry) / entry
             else:
                 eligible_kind = level.kind in {
@@ -59,6 +63,11 @@ def find_liquidity_target(
                     "day_low",
                     "previous_day_low",
                 }
+                target_price = (
+                    level.high
+                    if level.kind == "support"
+                    else level.center
+                )
                 distance = (entry - target_price) / entry
             if eligible_kind and minimum <= distance <= max_distance_pct:
                 candidates.append(
