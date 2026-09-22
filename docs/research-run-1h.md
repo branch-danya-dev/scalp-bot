@@ -87,3 +87,23 @@ The run is operationally valid only if:
 - a final `run_summary` exists.
 
 A low trade count is a research result, not automatically a failure. The first analysis should inspect the signal/rejection funnel before relaxing any rule.
+
+
+## Post-run report artifact
+
+After the run has stopped and `run_summary` exists, build a compact analysis report from the recorded session:
+
+```powershell
+.\.venv\Scripts\python.exe .\scripts\build-session-report.py
+```
+
+The command selects the latest `data/sessions/session-*.jsonl` and writes a sibling `session-*-report.json` containing:
+
+- `runSummary`;
+- full Post-run Opportunity Review output;
+- closed-trade records and compact Trade Review data;
+- scanner/universe history and latest ranked coins;
+- per-symbol chart candles and data-coverage metadata;
+- explicit confirmation that raw order-book/research/replay frames remain in the source `session-*.jsonl`.
+
+The report deliberately does not duplicate every raw order-book frame. Keep the report JSON and its source JSONL together in the analysis archive: the report is the compact index/derived layer, while the JSONL remains the lossless market-data source for deep book and replay analysis.

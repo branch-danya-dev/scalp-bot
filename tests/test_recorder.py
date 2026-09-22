@@ -1,3 +1,4 @@
+import json
 from scalp_bot.recorder import SessionRecorder
 
 
@@ -200,3 +201,161 @@ def test_trade_review_reconstructs_trace_for_legacy_decision_payload() -> None:
     assert trace["state"] == "test"
     assert trace["object"]["type"] == "horizontal_zone"
     assert trace["object"]["low"] == 99.9
+
+
+def test_session_report_includes_opportunities_books_charts_coins_and_closed_trades(tmp_path) -> None:
+    recorder = SessionRecorder(str(tmp_path))
+    recorder.record(
+        "scanner_update",
+        None,
+        {
+            "active": ["AAAUSDT"],
+            "promotedFromTop": ["AAAUSDT"],
+            "ranked": [
+                {
+                    "symbol": "AAAUSDT",
+                    "activity_rank": 1,
+                    "activity_score": 88.0,
+                    "turnover_24h": 250_000_000,
+                    "correlation_1h_btc": 0.42,
+                }
+            ],
+        },
+    )
+    recorder.record(
+        "symbol_activated",
+        "AAAUSDT",
+        {
+            "reason": "promoted",
+            "market": {
+                "candles": [
+                    {"time": 1, "open": 99, "high": 100, "low": 98, "close": 99.5},
+                ],
+                "chartSeries": {"1m": [], "5m": [], "15m": [], "1h": []},
+                "orderbook": {"bids": [[99.4, 2, 198.8]], "asks": [[99.6, 2, 199.2]]},
+            },
+        },
+    )
+    recorder.record(
+        "decision",
+        "AAAUSDT",
+        {
+            "strategy": "level_breakout",
+            "action": "long",
+            "entry": 100.0,
+            "stop": 99.0,
+            "target": 101.0,
+            "reasons": ["confirmed"],
+        },
+    )
+    recorder.record(
+        "risk_reject",
+        "AAAUSDT",
+        {
+            "strategy": "level_breakout",
+            "reason": "test reject",
+            "decision": {
+                "strategy": "level_breakout",
+                "action": "long",
+                "entry": 100.0,
+                "stop": 99.0,
+                "target": 101.0,
+            },
+        },
+    )
+    recorder.record(
+        "research_frame",
+        "AAAUSDT",
+        {
+            "lastPrice": 101.1,
+            "candle": {"time": 2, "open": 100, "high": 101.2, "low": 99.9, "close": 101.1},
+            "orderbook": {
+                "bids": [[101.0, 3, 303.0], [100.9, 2, 201.8]],
+                "asks": [[101.2, 3, 303.6], [101.3, 2, 202.6]],
+            },
+        },
+    )
+    recorder.record(
+        "trade_opened",
+        "AAAUSDT",
+        {
+            "plan": {
+                "strategy": "level_breakout",
+                "side": "long",
+                "setup_id": "setup-1",
+                "market_entry": 100.0,
+                "stop": 99.0,
+                "target": 101.0,
+            },
+            "market": {
+                "candles": [
+                    {"time": 1, "open": 99, "high": 100, "low": 98, "close": 99.5},
+                    {"time": 2, "open": 100, "high": 101.2, "low": 99.9, "close": 101.1},
+                ],
+                "orderbook": {"bids": [[100, 1, 100]], "asks": [[100.1, 1, 100.1]]},
+            },
+        },
+    )
+    recorder.record(
+        "market_frame",
+        "AAAUSDT",
+        {
+            "lastPrice": 101.0,
+            "candle": {"time": 3, "open": 101.1, "high": 101.3, "low": 100.8, "close": 101.0},
+            "orderbook": {"bids": [[100.9, 1, 100.9]], "asks": [[101.1, 1, 101.1]]},
+        },
+    )
+    recorder.record(
+        "trade_closed",
+        "AAAUSDT",
+        {
+            "strategy": "level_breakout",
+            "side": "long",
+            "setupId": "setup-1",
+            "entry": 100.0,
+            "exit": 101.0,
+            "initialStop": 99.0,
+            "target": 101.0,
+            "originalNotional": 1000,
+            "netPnl": 8.5,
+            "grossPnl": 10.0,
+            "fees": 1.5,
+            "maeUsd": 1.0,
+            "mfeUsd": 10.0,
+            "maeR": 0.1,
+            "mfeR": 1.0,
+            "reason": "target",
+            "partialTaken": False,
+            "market": {
+                "candles": [
+                    {"time": 3, "open": 101.1, "high": 101.3, "low": 100.8, "close": 101.0},
+                ],
+                "orderbook": {"bids": [[100.9, 1, 100.9]], "asks": [[101.1, 1, 101.1]]},
+            },
+        },
+    )
+    recorder.record(
+        "run_summary",
+        None,
+        {"runLabel": "test", "closedTrades": 1, "realizedPnl": 8.5},
+    )
+
+    report = recorder.session_report()
+
+    assert report["runSummary"]["closedTrades"] == 1
+    assert report["closedTrades"][0]["netPnl"] == 8.5
+    assert "market" not in report["closedTrades"][0]
+    assert report["tradeReviews"][0]["summary"]["symbol"] == "AAAUSDT"
+    assert report["postRunOpportunity"]["summary"]["rejectedCandidates"] == 1
+    assert report["coins"]["latestRanked"][0]["activity_score"] == 88.0
+    market = report["marketData"]["symbols"]["AAAUSDT"]
+    assert market["coverage"]["orderbookFrames"] == 2
+    assert market["coverage"]["maxBidDepth"] == 2
+    assert [row["time"] for row in market["chartCandles"]] == [1, 2, 3]
+    assert report["marketData"]["orderbooksStoredInRawFrames"] is True
+
+    output = recorder.write_session_report()
+    assert output.exists()
+    saved = json.loads(output.read_text(encoding="utf-8"))
+    assert saved["session"]["file"] == recorder.path.name
+    assert saved["closedTrades"][0]["symbol"] == "AAAUSDT"

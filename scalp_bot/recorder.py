@@ -347,6 +347,243 @@ class SessionRecorder:
         )
 
 
+    @staticmethod
+    def _compact_closed_trade(row: dict) -> dict:
+        payload = dict(row.get("payload") or {})
+        payload.pop("market", None)
+        return {
+            "ts": SessionRecorder._row_ts(row),
+            "symbol": row.get("symbol"),
+            **payload,
+        }
+
+    @classmethod
+    def _build_session_report(
+        cls,
+        path: Path,
+        rows: list[dict],
+        *,
+        horizon_seconds: float = 120.0,
+    ) -> dict:
+        from .opportunity_review import analyze_session_rows
+
+        event_counts: dict[str, int] = {}
+        symbols: set[str] = set()
+        scanner_history: list[dict] = []
+        activation_history: list[dict] = []
+        closed_trades: list[dict] = []
+        run_summary: dict | None = None
+        chart_candles: dict[str, dict[int, dict]] = {}
+        coverage: dict[str, dict] = {}
+
+        def symbol_coverage(symbol: str) -> dict:
+            return coverage.setdefault(
+                symbol,
+                {
+                    "symbol": symbol,
+                    "firstTs": None,
+                    "lastTs": None,
+                    "marketFrames": 0,
+                    "researchFrames": 0,
+                    "orderbookFrames": 0,
+                    "maxBidDepth": 0,
+                    "maxAskDepth": 0,
+                    "tradeSnapshots": 0,
+                    "bootstrapCandles": 0,
+                    "chartTimeframes": [],
+                },
+            )
+
+        def remember_candle(symbol: str, candle: dict | None) -> None:
+            if not isinstance(candle, dict):
+                return
+            raw_time = candle.get("time")
+            if raw_time is None:
+                return
+            chart_candles.setdefault(symbol, {})[int(raw_time)] = candle
+
+        for row in rows:
+            event = str(row.get("event") or "")
+            event_counts[event] = event_counts.get(event, 0) + 1
+            ts = cls._row_ts(row)
+            payload = row.get("payload") or {}
+            symbol = str(row.get("symbol") or "")
+
+            if event == "run_summary":
+                run_summary = dict(payload)
+
+            if event == "scanner_update":
+                scanner_history.append({
+                    "ts": ts,
+                    "active": list(payload.get("active") or []),
+                    "promotedFromTop": list(payload.get("promotedFromTop") or []),
+                    "ranked": list(payload.get("ranked") or []),
+                })
+
+            if event in {"symbol_activated", "symbol_deactivated"}:
+                activation_history.append({
+                    "ts": ts,
+                    "event": event,
+                    "symbol": symbol or None,
+                    "reason": payload.get("reason"),
+                })
+
+            if event == "trade_closed":
+                closed_trades.append(cls._compact_closed_trade(row))
+
+            if not symbol:
+                continue
+            symbols.add(symbol)
+            item = symbol_coverage(symbol)
+            item["firstTs"] = ts if item["firstTs"] is None else min(item["firstTs"], ts)
+            item["lastTs"] = ts if item["lastTs"] is None else max(item["lastTs"], ts)
+
+            if event == "symbol_activated":
+                market = payload.get("market") or {}
+                candles = market.get("candles") or []
+                item["bootstrapCandles"] = max(item["bootstrapCandles"], len(candles))
+                for candle in candles:
+                    remember_candle(symbol, candle)
+                chart_series = market.get("chartSeries") or {}
+                if isinstance(chart_series, dict):
+                    item["chartTimeframes"] = sorted(chart_series)
+
+            if event in {"market_frame", "research_frame"}:
+                key = "marketFrames" if event == "market_frame" else "researchFrames"
+                item[key] += 1
+                remember_candle(symbol, payload.get("candle"))
+                book = payload.get("orderbook") or {}
+                bids = book.get("bids") or []
+                asks = book.get("asks") or []
+                if bids or asks:
+                    item["orderbookFrames"] += 1
+                    item["maxBidDepth"] = max(item["maxBidDepth"], len(bids))
+                    item["maxAskDepth"] = max(item["maxAskDepth"], len(asks))
+
+            market = payload.get("market")
+            if event in {"trade_opened", "trade_closed", "risk_reject", "partial_take"} and isinstance(market, dict):
+                item["tradeSnapshots"] += 1
+                for candle in market.get("candles") or []:
+                    remember_candle(symbol, candle)
+
+        trade_reviews = cls._build_trade_reviews(rows)
+        compact_reviews = [
+            {
+                "summary": review["summary"],
+                "plan": review["plan"],
+                "strategyDetails": review["strategyDetails"],
+                "candles": review["candles"],
+                "timeline": review["timeline"],
+            }
+            for review in trade_reviews
+        ]
+        opportunity = analyze_session_rows(
+            rows,
+            horizon_seconds=horizon_seconds,
+        )
+        latest_scanner = scanner_history[-1] if scanner_history else {}
+
+        market_symbols = {}
+        for symbol in sorted(symbols):
+            candle_map = chart_candles.get(symbol, {})
+            market_symbols[symbol] = {
+                "coverage": symbol_coverage(symbol),
+                "chartCandles": [candle_map[key] for key in sorted(candle_map)],
+            }
+
+        return {
+            "schemaVersion": 1,
+            "generatedAt": datetime.now(UTC).isoformat(),
+            "session": {
+                "file": path.name,
+                "sizeBytes": path.stat().st_size if path.exists() else 0,
+                "eventCount": len(rows),
+                "eventCounts": event_counts,
+            },
+            "runSummary": run_summary,
+            "postRunOpportunity": opportunity,
+            "closedTrades": closed_trades,
+            "tradeReviews": compact_reviews,
+            "coins": {
+                "seenSymbols": sorted(symbols),
+                "scannerUpdateCount": len(scanner_history),
+                "latestRanked": latest_scanner.get("ranked", []),
+                "activeAtLastScan": latest_scanner.get("active", []),
+                "scannerHistory": scanner_history,
+                "activationHistory": activation_history,
+            },
+            "marketData": {
+                "rawSessionFile": path.name,
+                "rawSessionContainsFullFrames": True,
+                "orderbooksStoredInRawFrames": any(
+                    item["orderbookFrames"] > 0
+                    for item in coverage.values()
+                ),
+                "chartCandlesStoredInReport": True,
+                "symbols": market_symbols,
+            },
+        }
+
+    @classmethod
+    def report_for_file(
+        cls,
+        session_path: str | Path,
+        *,
+        horizon_seconds: float = 120.0,
+    ) -> dict:
+        path = Path(session_path)
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        return cls._build_session_report(
+            path,
+            cls._read_rows(path),
+            horizon_seconds=horizon_seconds,
+        )
+
+    @classmethod
+    def write_report_for_file(
+        cls,
+        session_path: str | Path,
+        *,
+        horizon_seconds: float = 120.0,
+    ) -> Path:
+        path = Path(session_path)
+        report = cls.report_for_file(
+            path,
+            horizon_seconds=horizon_seconds,
+        )
+        output = path.with_name(f"{path.stem}-report.json")
+        output.write_text(
+            json.dumps(report, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        return output
+
+    def session_report(
+        self,
+        name: str | None = None,
+        *,
+        horizon_seconds: float = 120.0,
+    ) -> dict:
+        path = self._session_path(name)
+        return self.report_for_file(
+            path,
+            horizon_seconds=horizon_seconds,
+        )
+
+    def write_session_report(
+        self,
+        name: str | None = None,
+        *,
+        horizon_seconds: float = 120.0,
+    ) -> Path:
+        path = self._session_path(name)
+        return self.write_report_for_file(
+            path,
+            horizon_seconds=horizon_seconds,
+        )
+
+
     def research_rows(
         self,
         name: str,

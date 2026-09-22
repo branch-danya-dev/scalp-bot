@@ -671,15 +671,10 @@ class TradingEngine:
             {
                 "active": list(self.sessions),
                 "promotedFromTop": [x.symbol for x in self.candidates[: self.config.working_symbols]],
-                "ranked": [
-                    {
-                        "symbol": x.symbol,
-                        "activityRank": x.activity_rank,
-                        "activityChange": x.activity_change,
-                        "turnover24h": x.turnover_24h,
-                    }
-                    for x in self.candidates
-                ],
+                # Persist the complete candidate profile so post-run
+                # reports can explain why a coin entered or left the
+                # working universe without relying on live API state.
+                "ranked": [x.public() for x in self.candidates],
             },
         )
 
