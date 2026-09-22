@@ -37,7 +37,10 @@ class Settings(BaseSettings):
     enforce_min_net_profit_gate: bool = True
     min_net_reward_risk: float = 1.15
     enforce_net_reward_risk_gate: bool = True
+    # Structural price risk to the strategy invalidation point.
     risk_fraction: float = 0.005
+    # Maximum planned stop loss including fees/slippage for one position.
+    max_trade_all_in_loss_fraction: float = 0.0125
     max_total_risk_fraction: float = 0.02
     # max_leverage is the aggregate gross portfolio exposure cap.
     max_leverage: float = 10.0

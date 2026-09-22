@@ -201,6 +201,7 @@ def scalp_settings(**overrides) -> Settings:
     values = dict(
         start_balance=1000,
         risk_fraction=0.005,
+        max_trade_all_in_loss_fraction=0.0125,
         max_total_risk_fraction=0.02,
         max_leverage=10.0,
         max_position_leverage=5.0,
@@ -351,16 +352,18 @@ def test_trade_passes_when_net_target_exceeds_all_in_loss_by_required_ratio() ->
 
     assert result.allowed
     assert result.plan is not None
-    assert result.plan.notional == pytest.approx(5000 / 2.3)
-    assert result.plan.expected_net_profit == pytest.approx(5.8695652174)
-    assert result.plan.expected_net_loss == pytest.approx(5.0)
+    assert result.plan.notional == pytest.approx(5000)
+    assert result.plan.expected_net_profit == pytest.approx(13.5)
+    assert result.plan.expected_net_loss == pytest.approx(11.5)
     assert result.plan.net_reward_risk >= 1.15
     economics = result.plan.strategy_details["economics"]
     assert economics["payoffGateEnabled"] is True
     assert economics["requiredNetRewardRisk"] == pytest.approx(1.15)
-    assert economics["allInNetLossUsd"] == pytest.approx(5.0)
-    assert economics["plannedAllInLossUsd"] == pytest.approx(5.0)
-    assert economics["riskSizingBasis"] == "all_in_stop_plus_costs"
+    assert economics["allInNetLossUsd"] == pytest.approx(11.5)
+    assert economics["plannedAllInLossUsd"] == pytest.approx(11.5)
+    assert economics["structuralRiskBudgetUsd"] == pytest.approx(5.0)
+    assert economics["tradeAllInLossCapUsd"] == pytest.approx(12.5)
+    assert economics["riskSizingBasis"] == "structural_stop_with_all_in_cap"
     assert economics["notionalByStructuralRiskUsd"] == pytest.approx(5000)
     assert economics["netRewardRiskRatio"] == pytest.approx(
         result.plan.net_reward_risk
@@ -381,8 +384,8 @@ def test_exact_net_reward_risk_boundary_is_accepted() -> None:
 
     assert result.allowed
     assert result.plan is not None
-    assert result.plan.expected_net_loss == pytest.approx(5.0)
-    assert result.plan.expected_net_profit == pytest.approx(5.75)
+    assert result.plan.expected_net_loss == pytest.approx(11.5)
+    assert result.plan.expected_net_profit == pytest.approx(13.225)
     assert result.plan.expected_net_profit == pytest.approx(
         result.plan.expected_net_loss * 1.15
     )
@@ -470,9 +473,10 @@ def test_executable_spread_is_not_subtracted_twice() -> None:
 
 
 
-def test_per_trade_risk_fraction_caps_all_in_stop_loss() -> None:
+def test_structural_risk_fraction_sizes_stop_while_costs_use_separate_cap() -> None:
     cfg = economic_settings(
         risk_fraction=0.005,
+        max_trade_all_in_loss_fraction=0.0125,
         max_total_risk_fraction=0.05,
     )
     result = RiskEngine(cfg).build_plan(
@@ -486,19 +490,17 @@ def test_per_trade_risk_fraction_caps_all_in_stop_loss() -> None:
 
     assert result.allowed
     assert result.plan is not None
-    assert result.plan.expected_net_loss == pytest.approx(5.0)
-    assert result.plan.expected_net_loss == pytest.approx(
-        1000 * cfg.risk_fraction
-    )
-    assert result.plan.max_loss_usd == pytest.approx(
-        result.plan.expected_net_loss
-    )
     economics = result.plan.strategy_details["economics"]
-    assert economics["structuralLossAtStopUsd"] < result.plan.max_loss_usd
+    assert result.plan.notional == pytest.approx(5000)
+    assert economics["structuralLossAtStopUsd"] == pytest.approx(5.0)
+    assert result.plan.expected_net_loss == pytest.approx(11.5)
+    assert result.plan.expected_net_loss <= 12.5 + 1e-9
+    assert result.plan.max_loss_usd == pytest.approx(result.plan.expected_net_loss)
+    assert economics["riskSizingBasis"] == "structural_stop_with_all_in_cap"
 
 
 def test_second_tight_stop_trade_is_scaled_by_remaining_all_in_risk() -> None:
-    cfg = economic_settings(max_total_risk_fraction=0.0075)
+    cfg = economic_settings(max_total_risk_fraction=0.02)
     risk = RiskEngine(cfg)
     broker = PaperBroker(cfg)
     market = book(99.99, 100.00)
@@ -513,7 +515,7 @@ def test_second_tight_stop_trade_is_scaled_by_remaining_all_in_risk() -> None:
     )
     assert first.allowed
     assert first.plan is not None
-    assert first.plan.notional == pytest.approx(5000 / 2.3)
+    assert first.plan.notional == pytest.approx(5000)
     broker.open(first.plan, market)
 
     remaining_risk = broker.available_risk_usd
@@ -647,3 +649,29 @@ def test_research_shadow_still_rejects_non_positive_net() -> None:
     )
     assert not result.allowed
     assert "after estimated trading costs" in result.reason
+
+
+
+def test_trade_all_in_cap_limits_extremely_cost_heavy_tight_stop() -> None:
+    cfg = economic_settings(
+        risk_fraction=0.005,
+        max_trade_all_in_loss_fraction=0.0125,
+        max_position_leverage=10.0,
+        max_leverage=10.0,
+        enforce_min_net_profit_gate=False,
+        enforce_net_reward_risk_gate=False,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        decision(100.50, stop=99.98),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        50,
+    )
+    assert result.allowed
+    assert result.plan is not None
+    economics = result.plan.strategy_details["economics"]
+    assert result.plan.expected_net_loss <= 12.5 + 1e-6
+    assert result.plan.notional <= economics["notionalByTradeAllInCapUsd"] + 1e-6
+    assert economics["notionalByStructuralRiskUsd"] > result.plan.notional

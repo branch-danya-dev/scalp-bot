@@ -63,11 +63,15 @@ class RiskEngine:
         if stop_pct <= 0 or target_pct <= 0:
             return RiskResult(False, "invalid stop or target distance")
 
-        risk_budget = min(
-            balance * self.config.risk_fraction,
-            max(available_risk_usd, 0),
+        structural_risk_budget = balance * self.config.risk_fraction
+        trade_all_in_cap_usd = (
+            balance * self.config.max_trade_all_in_loss_fraction
         )
-        if risk_budget <= 0:
+        if structural_risk_budget <= 0:
+            return RiskResult(False, "structural risk budget exhausted")
+        if trade_all_in_cap_usd <= 0:
+            return RiskResult(False, "trade all-in loss cap exhausted")
+        if available_risk_usd <= 0:
             return RiskResult(False, "portfolio risk budget exhausted")
 
         round_trip_cost_pct = (
@@ -75,12 +79,12 @@ class RiskEngine:
             + (self.config.slippage_bps / 10_000) * 2
         )
         all_in_loss_pct = stop_pct + round_trip_cost_pct
-        # risk_fraction is the maximum planned loss of one trade, not just
-        # the price move to the structural stop. Taker fees and configured
-        # slippage are unavoidable parts of a scalp's loss budget.
-        notional_by_structural_risk = risk_budget / stop_pct
-        notional_by_risk = (
-            risk_budget / all_in_loss_pct
+        # Size from the strategy invalidation distance first. Costs are not
+        # allowed to silently shrink structural risk; they are constrained by
+        # a separate per-trade all-in loss cap and the aggregate portfolio cap.
+        notional_by_structural_risk = structural_risk_budget / stop_pct
+        notional_by_trade_all_in_cap = (
+            trade_all_in_cap_usd / all_in_loss_pct
             if all_in_loss_pct > 0
             else 0.0
         )
@@ -102,7 +106,8 @@ class RiskEngine:
             position_share_cap,
         )
         notional = min(
-            notional_by_risk,
+            notional_by_structural_risk,
+            notional_by_trade_all_in_cap,
             notional_by_all_in_portfolio_risk,
             max(available_notional, 0),
             position_exposure_cap,
@@ -157,9 +162,9 @@ class RiskEngine:
             )
 
         all_in_loss_pct = stop_pct + round_trip_cost_pct
-        notional_by_structural_risk = risk_budget / stop_pct
-        notional_by_risk = (
-            risk_budget / all_in_loss_pct
+        notional_by_structural_risk = structural_risk_budget / stop_pct
+        notional_by_trade_all_in_cap = (
+            trade_all_in_cap_usd / all_in_loss_pct
             if all_in_loss_pct > 0
             else 0.0
         )
@@ -169,7 +174,8 @@ class RiskEngine:
             else 0.0
         )
         depth_sized_notional = min(
-            notional_by_risk,
+            notional_by_structural_risk,
+            notional_by_trade_all_in_cap,
             notional_by_all_in_portfolio_risk,
             max(available_notional, 0),
             position_exposure_cap,
@@ -274,10 +280,13 @@ class RiskEngine:
             shadow_reject_reasons.append("minimum_net_reward_risk")
 
         economics = {
-            "riskBudgetUsd": risk_budget,
-            "riskSizingBasis": "all_in_stop_plus_costs",
-            "notionalByRiskUsd": notional_by_risk,
+            "riskBudgetUsd": structural_risk_budget,
+            "structuralRiskBudgetUsd": structural_risk_budget,
+            "tradeAllInLossCapUsd": trade_all_in_cap_usd,
+            "riskSizingBasis": "structural_stop_with_all_in_cap",
+            "notionalByRiskUsd": notional_by_structural_risk,
             "notionalByStructuralRiskUsd": notional_by_structural_risk,
+            "notionalByTradeAllInCapUsd": notional_by_trade_all_in_cap,
             "notionalByAllInPortfolioRiskUsd": (
                 notional_by_all_in_portfolio_risk
             ),
