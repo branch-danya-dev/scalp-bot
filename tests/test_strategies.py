@@ -649,3 +649,45 @@ def test_wick_only_sweep_does_not_confirm_downtrend(monkeypatch) -> None:
 
     rows[31] = candle(31, 99.0, 99.1, 98.7, 98.9)
     assert common.classify_trend(rows) == Trend.DOWN
+
+
+
+def test_breakout_uses_near_liquidity_as_obstacle_not_forced_final_target(monkeypatch) -> None:
+    import scalp_bot.strategy.breakout as breakout_module
+    from scalp_bot.strategy.liquidity import LiquidityTarget
+
+    strategy = LevelBreakoutStrategy()
+    rows = mature_breakout_candles()
+    market = OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)])
+    monkeypatch.setattr(
+        breakout_module,
+        "find_liquidity_targets",
+        lambda *args, **kwargs: [
+            LiquidityTarget(100.20, "near_obstacle", 2, 5.0),
+            LiquidityTarget(100.80, "far_target", 3, 6.0),
+        ],
+    )
+    first = strategy.evaluate(
+        rows,
+        market,
+        Trend.UP,
+        symbol="LADDERUSDT",
+        trades=aggressive_buy_flow(),
+    )
+    assert first.action == Action.WAIT
+    strategy._states["LADDERUSDT"].break_started_at -= 4
+    decision = strategy.evaluate(
+        rows,
+        market,
+        Trend.UP,
+        symbol="LADDERUSDT",
+        trades=aggressive_buy_flow(),
+    )
+    assert decision.action == Action.LONG
+    assert decision.details["nearestObstacle"]["price"] == pytest.approx(100.20)
+    assert decision.target == pytest.approx(100.80)
+    assert decision.details["targetSource"] == "liquidity_ladder"
+    assert decision.details["targetRiskMultipleGross"] >= strategy.minimum_target_r
+    assert decision.details["stopSource"] == "breakout_reacceptance_buffer"
+    assert decision.stop > decision.details["zone"]["low"]
+    assert decision.stop < decision.details["zone"]["high"]

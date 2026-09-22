@@ -22,7 +22,7 @@ class LiquidityTarget:
         return asdict(self)
 
 
-def find_liquidity_target(
+def find_liquidity_targets(
     candles: list[Candle],
     entry: float,
     action: Action,
@@ -30,9 +30,9 @@ def find_liquidity_target(
     min_distance_pct: float | None = None,
     max_distance_pct: float = 0.05,
     structure: "MarketStructure | None" = None,
-) -> LiquidityTarget | None:
+) -> list[LiquidityTarget]:
     if not candles or entry <= 0 or action not in {Action.LONG, Action.SHORT}:
-        return None
+        return []
 
     local_range = typical_range_pct(candles)
     minimum = (
@@ -134,11 +134,39 @@ def find_liquidity_target(
                 )
 
     if not candidates:
-        return None
+        return []
     candidates.sort(
         key=lambda target: (
             abs(target.price - entry) / entry,
             -target.score,
         )
     )
-    return candidates[0]
+    deduped: list[LiquidityTarget] = []
+    for candidate in candidates:
+        if any(
+            abs(candidate.price - row.price) / entry <= 0.00005
+            for row in deduped
+        ):
+            continue
+        deduped.append(candidate)
+    return deduped
+
+
+def find_liquidity_target(
+    candles: list[Candle],
+    entry: float,
+    action: Action,
+    *,
+    min_distance_pct: float | None = None,
+    max_distance_pct: float = 0.05,
+    structure: "MarketStructure | None" = None,
+) -> LiquidityTarget | None:
+    targets = find_liquidity_targets(
+        candles,
+        entry,
+        action,
+        min_distance_pct=min_distance_pct,
+        max_distance_pct=max_distance_pct,
+        structure=structure,
+    )
+    return targets[0] if targets else None

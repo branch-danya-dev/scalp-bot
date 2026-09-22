@@ -22,7 +22,7 @@ from .common import (
     zone_visual,
 )
 from .flow import flow_at_level, flow_beyond_level
-from .liquidity import find_liquidity_target
+from .liquidity import find_liquidity_targets
 
 
 class BreakoutStage(StrEnum):
@@ -53,6 +53,7 @@ class LevelBreakoutStrategy(Strategy):
     max_zone_distance_pct = 0.012
     min_pressure_score = 3
     min_break_hold_seconds = 3.0
+    minimum_target_r = 1.25
 
     def __init__(self) -> None:
         self._states: dict[str, BreakoutWatchState] = {}
@@ -480,30 +481,62 @@ class LevelBreakoutStrategy(Strategy):
 
         range_abs = typical_range_abs(candles)
         entry = price
+        invalidation_buffer = max(
+            zone.width * 0.45,
+            range_abs * 0.20,
+            entry * max(book.spread_pct * 2.0, 0.00025),
+        )
         if long_side:
-            stop = zone.low - range_abs * 0.25
-            expected_impulse = max(zone.width * 1.3, range_abs * 2.0)
-            fallback_target = entry + expected_impulse
+            stop = zone.high - invalidation_buffer
             stop_pct = (entry - stop) / entry
             action = Action.LONG
         else:
-            stop = zone.high + range_abs * 0.25
-            expected_impulse = max(zone.width * 1.3, range_abs * 2.0)
-            fallback_target = entry - expected_impulse
+            stop = zone.low + invalidation_buffer
             stop_pct = (stop - entry) / entry
             action = Action.SHORT
 
-        liquidity_target = find_liquidity_target(
+        structural_risk = abs(entry - stop)
+        expected_impulse = max(zone.width * 1.3, range_abs * 2.0)
+        minimum_target_distance = structural_risk * self.minimum_target_r
+        fallback_distance = max(
+            expected_impulse,
+            minimum_target_distance,
+        )
+        fallback_target = (
+            entry + fallback_distance
+            if action == Action.LONG
+            else entry - fallback_distance
+        )
+        liquidity_ladder = find_liquidity_targets(
             candles,
             entry,
             action,
+            min_distance_pct=0.0,
             max_distance_pct=0.06,
             structure=structure,
+        )
+        nearest_obstacle = (
+            liquidity_ladder[0]
+            if liquidity_ladder
+            else None
+        )
+        liquidity_target = next(
+            (
+                row
+                for row in liquidity_ladder
+                if abs(row.price - entry) >= minimum_target_distance
+            ),
+            None,
         )
         target = (
             liquidity_target.price
             if liquidity_target is not None
             else fallback_target
+        )
+        target_r = (
+            abs(target - entry) / structural_risk
+            if structural_risk > 0
+            else 0.0
         )
 
         if stop_pct <= 0 or stop_pct > self.max_stop_pct:
@@ -605,12 +638,24 @@ class LevelBreakoutStrategy(Strategy):
                 ),
                 "requiredBreakHoldSeconds": self.min_break_hold_seconds,
                 "stopDistancePct": stop_pct,
+                "stopSource": "breakout_reacceptance_buffer",
+                "invalidationBuffer": invalidation_buffer,
                 "exitMode": "impulse_first",
+                "nearestObstacle": (
+                    nearest_obstacle.public() if nearest_obstacle else None
+                ),
+                "liquidityLadder": [
+                    row.public() for row in liquidity_ladder[:8]
+                ],
                 "liquidityTarget": (
                     liquidity_target.public() if liquidity_target else None
                 ),
+                "minimumTargetR": self.minimum_target_r,
+                "targetRiskMultipleGross": target_r,
                 "targetSource": (
-                    "liquidity" if liquidity_target else "impulse_fallback"
+                    "liquidity_ladder"
+                    if liquidity_target
+                    else "impulse_risk_fallback"
                 ),
                 "tradeMode": "trend_following",
                 "allowRunner": True,
