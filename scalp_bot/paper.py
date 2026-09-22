@@ -157,7 +157,16 @@ class PaperBroker:
             raise RuntimeError(
                 "plan exceeds remaining all-in portfolio risk budget"
             )
-        raw = book.executable_entry(plan.side) or plan.market_entry
+        raw, visible_depth = book.entry_vwap(
+            plan.side,
+            plan.notional,
+        )
+        if (
+            raw is None
+            or visible_depth + max(1e-9, plan.notional * 1e-9)
+            < plan.notional
+        ):
+            raise RuntimeError("insufficient visible entry depth")
         slip = self.config.slippage_bps / 10_000
         fill = raw * (1 + slip if plan.side == Side.LONG else 1 - slip)
         fee = plan.notional * self.config.taker_fee_rate
@@ -410,7 +419,26 @@ class PaperBroker:
             }
 
         close_notional = min(close_notional, pos.notional)
-        raw = book.executable_exit(pos.side) or pos.last_price
+        raw, visible_depth = book.exit_vwap(
+            pos.side,
+            close_notional,
+        )
+        if raw is None:
+            raw = book.executable_exit(pos.side) or pos.last_price
+        elif (
+            visible_depth + max(1e-9, close_notional * 1e-9)
+            < close_notional
+        ):
+            levels = book.bids if pos.side == Side.LONG else book.asks
+            if levels:
+                worst = levels[-1][0]
+                visible_base = visible_depth / raw if raw > 0 else 0.0
+                missing = max(0.0, close_notional - visible_depth)
+                total_base = visible_base + (
+                    missing / worst if worst > 0 else 0.0
+                )
+                if total_base > 0:
+                    raw = close_notional / total_base
         slip = self.config.slippage_bps / 10_000
         fill = raw * (
             1 - slip

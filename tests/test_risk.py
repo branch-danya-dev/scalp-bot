@@ -18,7 +18,7 @@ def decision(target: float, *, entry: float = 100.0, stop: float = 99.8) -> Stra
 
 
 def book(bid: float, ask: float) -> OrderBook:
-    return OrderBook(bids=[(bid, 10)], asks=[(ask, 10)])
+    return OrderBook(bids=[(bid, 100)], asks=[(ask, 100)])
 
 
 def test_rejects_prediction_smaller_than_costs_and_minimum_profit() -> None:
@@ -533,3 +533,52 @@ def test_second_tight_stop_trade_is_scaled_by_remaining_all_in_risk() -> None:
     assert broker.open_risk_usd <= (
         broker.balance * cfg.max_total_risk_fraction + 1e-6
     )
+
+
+def test_rejects_plan_when_visible_entry_depth_is_too_thin() -> None:
+    cfg = economic_settings(max_entry_drift_bps=50)
+    thin = OrderBook(
+        bids=[(99.99, 1)],
+        asks=[(100.00, 1)],
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        decision(100.40, stop=99.90),
+        1000,
+        thin,
+        10_000,
+        20,
+    )
+
+    assert not result.allowed
+    assert "visible entry depth" in result.reason
+
+
+def test_depth_vwap_is_used_for_market_entry_and_diagnostics() -> None:
+    cfg = economic_settings(
+        max_entry_drift_bps=50,
+        taker_fee_rate=0,
+        slippage_bps=0,
+        min_net_profit_usd=0,
+        min_net_profit_equity_fraction=0,
+        min_net_reward_risk=0,
+    )
+    layered = OrderBook(
+        bids=[(99.99, 100)],
+        asks=[(100.00, 1), (100.10, 100)],
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        decision(102.0, stop=99.50),
+        1000,
+        layered,
+        10_000,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.market_entry > 100.00
+    economics = result.plan.strategy_details["economics"]
+    assert economics["entryDepthImpactBps"] > 0
+    assert economics["visibleEntryDepthUsd"] >= result.plan.notional

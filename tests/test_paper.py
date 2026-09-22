@@ -490,3 +490,24 @@ def test_short_runner_breakeven_is_symmetric_after_partial() -> None:
     trade = closed[-1]
     assert trade["reason"] == "stop"
     assert trade["netPnl"] >= locked - 0.01
+
+
+def test_open_uses_visible_depth_vwap() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        slippage_bps=0,
+        max_leverage=10,
+        max_total_risk_fraction=1,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("DEPTHUSDT", Side.LONG, 200)
+    layered = OrderBook(
+        bids=[(99.90, 100)],
+        asks=[(100.00, 1), (101.00, 2)],
+    )
+
+    pos = broker.open(p, layered)
+
+    expected = 200 / (1 + 100 / 101)
+    assert pos.entry == pytest.approx(expected)
+    assert pos.entry > 100.00

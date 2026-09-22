@@ -110,6 +110,101 @@ class RiskEngine:
         if notional <= 0:
             return RiskResult(False, "portfolio exposure budget exhausted")
 
+        best_entry = market_entry
+        depth_entry, visible_entry_depth = book.entry_vwap(
+            side,
+            notional,
+        )
+        if (
+            depth_entry is None
+            or visible_entry_depth + max(1e-9, notional * 1e-9)
+            < notional
+        ):
+            return RiskResult(
+                False,
+                (
+                    "insufficient visible entry depth: "
+                    f"{visible_entry_depth:.2f} < {notional:.2f} USD"
+                ),
+            )
+
+        market_entry = depth_entry
+        if side == Side.LONG:
+            entry_drift = (market_entry - setup_entry) / setup_entry
+            if market_entry <= stop:
+                return RiskResult(False, "setup invalidated by depth-adjusted entry")
+            target_pct = (target - market_entry) / market_entry
+        else:
+            entry_drift = (setup_entry - market_entry) / setup_entry
+            if market_entry >= stop:
+                return RiskResult(False, "setup invalidated by depth-adjusted entry")
+            target_pct = (market_entry - target) / market_entry
+        if entry_drift > max_drift:
+            return RiskResult(
+                False,
+                (
+                    "setup expired after depth: entry drift "
+                    f"{entry_drift * 10_000:.1f} bps > "
+                    f"{self.config.max_entry_drift_bps:.1f} bps"
+                ),
+            )
+
+        stop_pct = abs(market_entry - stop) / market_entry
+        if stop_pct <= 0 or target_pct <= 0:
+            return RiskResult(
+                False,
+                "invalid stop or target distance after depth adjustment",
+            )
+
+        all_in_loss_pct = stop_pct + round_trip_cost_pct
+        notional_by_structural_risk = risk_budget / stop_pct
+        notional_by_risk = (
+            risk_budget / all_in_loss_pct
+            if all_in_loss_pct > 0
+            else 0.0
+        )
+        notional_by_all_in_portfolio_risk = (
+            max(available_risk_usd, 0) / all_in_loss_pct
+            if all_in_loss_pct > 0
+            else 0.0
+        )
+        depth_sized_notional = min(
+            notional_by_risk,
+            notional_by_all_in_portfolio_risk,
+            max(available_notional, 0),
+            position_exposure_cap,
+        )
+        if depth_sized_notional < notional:
+            notional = depth_sized_notional
+            depth_entry, visible_entry_depth = book.entry_vwap(
+                side,
+                notional,
+            )
+            if (
+                depth_entry is None
+                or visible_entry_depth + max(1e-9, notional * 1e-9)
+                < notional
+            ):
+                return RiskResult(
+                    False,
+                    "insufficient visible entry depth after risk sizing",
+                )
+            market_entry = depth_entry
+            if side == Side.LONG:
+                entry_drift = (market_entry - setup_entry) / setup_entry
+                target_pct = (target - market_entry) / market_entry
+            else:
+                entry_drift = (setup_entry - market_entry) / setup_entry
+                target_pct = (market_entry - target) / market_entry
+            stop_pct = abs(market_entry - stop) / market_entry
+            all_in_loss_pct = stop_pct + round_trip_cost_pct
+
+        entry_depth_impact_bps = (
+            max(0.0, (market_entry - best_entry) / best_entry * 10_000)
+            if side == Side.LONG
+            else max(0.0, (best_entry - market_entry) / best_entry * 10_000)
+        )
+
         fee_cost = notional * self.config.taker_fee_rate * 2
         slippage_cost = (
             notional
@@ -184,6 +279,8 @@ class RiskEngine:
             "slippageCostUsd": slippage_cost,
             "estimatedCostsUsd": estimated_costs,
             "entrySpreadPct": max(book.spread_pct, 0.0),
+            "entryDepthImpactBps": entry_depth_impact_bps,
+            "visibleEntryDepthUsd": visible_entry_depth,
             "spreadCostDoubleCounted": False,
             "grossAtTargetUsd": gross_profit,
             "structuralLossAtStopUsd": gross_loss,
