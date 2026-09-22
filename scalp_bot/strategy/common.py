@@ -301,11 +301,7 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
     participation_confirmed = (
         baseline_ready
         and len(recent) >= 3
-        and max(
-            acceleration,
-            trade_rate_ratio,
-            trade_size_ratio,
-        ) >= 1.0
+        and acceleration >= 1.0
     )
 
     from .flow import cumulative_delta

@@ -183,3 +183,23 @@ def test_trade_flow_requires_relative_participation_baseline() -> None:
         or active["tradeSizeRatio"] >= 1
         or active["acceleration"] >= 1
     )
+
+
+def test_trade_flow_rejects_busy_but_weaker_notional_pace() -> None:
+    now = 100_000
+    rows = [
+        TradeTick(now - 18_000 + i * 2_000, 100, 5, "Sell")
+        for i in range(6)
+    ]
+    rows += [
+        TradeTick(now - 4_000 + i * 400, 100, 0.5, "Buy")
+        for i in range(10)
+    ]
+
+    flow = compute_trade_flow(rows, now)
+
+    assert flow["baselineReady"] is True
+    assert flow["tradeRateRatio"] > 1.0
+    assert flow["tradeSizeRatio"] < 1.0
+    assert flow["acceleration"] < 1.0
+    assert flow["participationConfirmed"] is False
