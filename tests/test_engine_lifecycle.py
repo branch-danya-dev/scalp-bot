@@ -633,3 +633,35 @@ def test_book_flow_snapshot_expires_against_observation_clock() -> None:
     assert fresh["bestLevelOfiUsd5s"] == 500.0
     assert stale["bestLevelOfiUsd5s"] == 0.0
     assert stale["bestLevelOfiUsd15s"] == 500.0
+
+
+def test_executable_book_move_can_trigger_target_without_new_trade_tick(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+    )
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100.0,
+        )
+        engine.sessions[session.symbol] = session
+        p = plan("AAAUSDT")
+        p.target = 101.0
+        engine.broker.open(p, session.orderbook)
+
+        session.orderbook = OrderBook(
+            bids=[(101.0, 100)],
+            asks=[(101.01, 100)],
+        )
+        engine._mark_position_from_book(session)
+
+        assert "AAAUSDT" not in engine.broker.positions
+        assert engine.broker.closed_trades[-1]["reason"] == "target"
+    finally:
+        close_rest(engine)

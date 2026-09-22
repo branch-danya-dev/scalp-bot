@@ -2,7 +2,12 @@ from collections import deque
 
 from scalp_bot.domain import TradeTick
 from scalp_bot.strategy.common import compute_trade_flow
-from scalp_bot.strategy.flow import cumulative_delta, flow_at_level, prune_trades
+from scalp_bot.strategy.flow import (
+    cumulative_delta,
+    flow_at_level,
+    flow_beyond_level,
+    prune_trades,
+)
 
 
 def test_trade_buffer_prunes_by_time_not_count() -> None:
@@ -130,3 +135,23 @@ def test_flow_windows_ignore_future_rows() -> None:
     assert flow["buyNotional5s"] == 100
     assert flow["sellNotional5s"] == 0
     assert cumulative_delta(rows, 5, now) == 100
+
+
+def test_flow_beyond_level_requires_executions_on_broken_side() -> None:
+    now = 100_000
+    rows = [
+        TradeTick(now - 2_000, 99.99, 2, "Buy"),
+        TradeTick(now - 1_000, 100.00, 2, "Buy"),
+        TradeTick(now - 500, 100.02, 2, "Buy"),
+    ]
+
+    above = flow_beyond_level(
+        rows,
+        100.01,
+        long_side=True,
+        seconds=5,
+        now_ms=now,
+    )
+
+    assert above.trade_count == 1
+    assert above.buy_notional > 0

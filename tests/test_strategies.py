@@ -483,3 +483,25 @@ def test_flat_higher_timeframe_does_not_block_intraday_bias(monkeypatch) -> None
     sequence = iter([Trend.UP, Trend.FLAT])
     monkeypatch.setattr(common, "classify_trend", lambda _: next(sequence))
     assert classify_context_trend([], []) == Trend.UP
+
+
+def test_breakout_does_not_accept_flow_that_only_traded_inside_level() -> None:
+    strategy = LevelBreakoutStrategy()
+    rows = mature_breakout_candles()
+    book = OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)])
+    start = 30_000_000
+    inside_only_flow = [
+        TradeTick(start + i * 200, 100.00, 8, "Buy")
+        for i in range(24)
+    ]
+
+    decision = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="NOACCEPTUSDT",
+        trades=inside_only_flow,
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["acceptanceFlow"]["tradeCount"] == 0
