@@ -43,9 +43,27 @@ def _kline_is_confirmed(
 class BybitRestClient:
     def __init__(self, config: Settings) -> None:
         self.config = config
-        self.client = httpx.AsyncClient(base_url=config.bybit_rest_url, timeout=10.0)
+        configured_urls = [
+            config.bybit_rest_url,
+            *[
+                row.strip()
+                for row in config.bybit_rest_fallback_urls.split(",")
+                if row.strip()
+            ],
+        ]
+        self._rest_urls = list(dict.fromkeys(
+            row.rstrip("/")
+            for row in configured_urls
+            if row
+        ))
+        self._active_rest_url = self._rest_urls[0]
+        self.client = httpx.AsyncClient(timeout=10.0)
         self._request_lock = asyncio.Lock()
         self._last_request_at = 0.0
+
+    @property
+    def active_rest_url(self) -> str:
+        return self._active_rest_url
 
     async def close(self) -> None:
         await self.client.aclose()
@@ -74,32 +92,98 @@ class BybitRestClient:
         maximum = max(base, self.config.rest_rate_limit_max_backoff_seconds)
         return min(maximum, base * (2 ** attempt))
 
+    @staticmethod
+    def _response_excerpt(response: httpx.Response) -> str:
+        text = (response.text or "").replace("\n", " ").strip()
+        return text[:240] or "<empty response>"
+
     async def _get(self, path: str, params: dict[str, str | int]) -> dict:
         retries = max(0, self.config.rest_rate_limit_retries)
+        endpoints = [
+            self._active_rest_url,
+            *[
+                url
+                for url in self._rest_urls
+                if url != self._active_rest_url
+            ],
+        ]
+        endpoint_errors: list[str] = []
 
-        for attempt in range(retries + 1):
-            await self._pace_request()
-            response = await self.client.get(path, params=params)
+        for base_url in endpoints:
+            for attempt in range(retries + 1):
+                await self._pace_request()
+                try:
+                    response = await self.client.get(
+                        f"{base_url}{path}",
+                        params=params,
+                    )
+                except httpx.RequestError as exc:
+                    endpoint_errors.append(
+                        f"{base_url}: {type(exc).__name__}: {exc}"
+                    )
+                    break
 
-            if response.status_code == 429:
-                if attempt >= retries:
+                if response.status_code == 403:
+                    endpoint_errors.append(
+                        (
+                            f"{base_url}: HTTP 403: "
+                            f"{self._response_excerpt(response)}"
+                        )
+                    )
+                    break
+
+                if response.status_code == 429:
+                    if attempt >= retries:
+                        endpoint_errors.append(
+                            (
+                                f"{base_url}: HTTP 429: "
+                                f"{self._response_excerpt(response)}"
+                            )
+                        )
+                        break
+                    await asyncio.sleep(
+                        self._retry_delay(response, attempt)
+                    )
+                    continue
+
+                try:
                     response.raise_for_status()
-                await asyncio.sleep(self._retry_delay(response, attempt))
-                continue
+                except httpx.HTTPStatusError as exc:
+                    raise BybitError(
+                        (
+                            f"Bybit HTTP {response.status_code} at "
+                            f"{base_url}: "
+                            f"{self._response_excerpt(response)}"
+                        )
+                    ) from exc
 
-            response.raise_for_status()
-            payload = response.json()
-            code = payload.get("retCode")
-            if code == 0:
-                return payload["result"]
+                payload = response.json()
+                code = payload.get("retCode")
+                if code == 0:
+                    self._active_rest_url = base_url
+                    return payload["result"]
 
-            if code == 10006 and attempt < retries:
-                await asyncio.sleep(self._retry_delay(response, attempt))
-                continue
+                if code == 10006 and attempt < retries:
+                    await asyncio.sleep(
+                        self._retry_delay(response, attempt)
+                    )
+                    continue
 
-            raise BybitError(f"Bybit error {code}: {payload.get('retMsg')}")
+                raise BybitError(
+                    f"Bybit error {code}: {payload.get('retMsg')}"
+                )
 
-        raise BybitError("Bybit REST retry loop exhausted")
+        detail = " | ".join(endpoint_errors) or "no endpoint response"
+        raise BybitError(
+            (
+                "Bybit Global REST is unavailable from the current "
+                f"connection. Tried: {detail}. "
+                "HTTP 403 may be caused by an IP rate block or a "
+                "regional access restriction. This bot uses the Global "
+                "linear perpetual market and will not silently switch to "
+                "Bybit EU Spot/Spot Margin."
+            )
+        )
 
     async def liquid_candidates(self, limit: int | None = None) -> list[Candidate]:
         result = await self._get("/v5/market/tickers", {"category": "linear"})

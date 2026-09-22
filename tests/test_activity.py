@@ -109,3 +109,91 @@ async def test_liquid_candidates_filter_unexecutable_spread() -> None:
         assert rows[0].top_book_notional_usd > 0
     finally:
         await client.close()
+
+
+
+@pytest.mark.asyncio
+async def test_rest_client_falls_back_to_bytick_after_403() -> None:
+    cfg = Settings(
+        bybit_rest_url="https://api.bybit.com",
+        bybit_rest_fallback_urls="https://api.bytick.com",
+        rest_rate_limit_retries=0,
+    )
+    client = BybitRestClient(cfg)
+    calls: list[str] = []
+
+    def handler(request):
+        calls.append(str(request.url))
+        if request.url.host == "api.bybit.com":
+            return __import__("httpx").Response(
+                403,
+                text="Forbidden",
+                request=request,
+            )
+        return __import__("httpx").Response(
+            200,
+            json={
+                "retCode": 0,
+                "retMsg": "OK",
+                "result": {"list": []},
+            },
+            request=request,
+        )
+
+    await client.client.aclose()
+    import httpx
+    client.client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        timeout=10.0,
+    )
+    try:
+        result = await client._get(
+            "/v5/market/tickers",
+            {"category": "linear"},
+        )
+        assert result == {"list": []}
+        assert client.active_rest_url == "https://api.bytick.com"
+        assert any("api.bybit.com" in url for url in calls)
+        assert any("api.bytick.com" in url for url in calls)
+    finally:
+        await client.close()
+
+
+@pytest.mark.asyncio
+async def test_rest_client_reports_all_global_403_endpoints() -> None:
+    cfg = Settings(
+        bybit_rest_url="https://api.bybit.com",
+        bybit_rest_fallback_urls="https://api.bytick.com",
+        rest_rate_limit_retries=0,
+    )
+    client = BybitRestClient(cfg)
+
+    def handler(request):
+        import httpx
+        return httpx.Response(
+            403,
+            text="region blocked",
+            request=request,
+        )
+
+    await client.client.aclose()
+    import httpx
+    client.client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        timeout=10.0,
+    )
+    try:
+        with pytest.raises(
+            Exception,
+            match="Bybit Global REST is unavailable",
+        ) as exc:
+            await client._get(
+                "/v5/market/tickers",
+                {"category": "linear"},
+            )
+        message = str(exc.value)
+        assert "api.bybit.com" in message
+        assert "api.bytick.com" in message
+        assert "HTTP 403" in message
+    finally:
+        await client.close()

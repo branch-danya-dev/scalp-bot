@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SCALP_", env_file=".env", extra="ignore")
 
     bybit_rest_url: str = "https://api.bybit.com"
+    bybit_rest_fallback_urls: str = "https://api.bytick.com"
     bybit_public_ws_url: str = "wss://stream.bybit.com/v5/public/linear"
 
     start_balance: float = 1_000.0
