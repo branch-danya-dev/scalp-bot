@@ -582,3 +582,78 @@ def test_target_exit_uses_resting_maker_limit_execution() -> None:
     assert trade["fees"] == pytest.approx(
         expected_entry_fee + expected_exit_fee
     )
+
+
+
+def test_breakout_partial_is_resting_maker_and_uses_strategy_fraction() -> None:
+    cfg = Settings(
+        taker_fee_rate=0.00055,
+        maker_fee_rate=0.00020,
+        slippage_bps=1.0,
+        maker_fill_confirmation_bps=0.5,
+        partial_take_enabled=True,
+        partial_take_at_r=1.0,
+        breakout_partial_take_fraction=0.30,
+        runner_target_r=2.5,
+        no_follow_through_seconds=999,
+        breakout_no_follow_through_seconds=999,
+        max_total_risk_fraction=1,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("BREAKUSDT", Side.LONG, 1000)
+    p.strategy = "level_breakout"
+    p.strategy_details = {"allowRunner": True}
+    pos = broker.open(p, book(99.99, 100.00))
+    partial_limit = pos.entry + abs(pos.entry - pos.initial_stop)
+    assert broker.mark(
+        "BREAKUSDT",
+        partial_limit,
+        book(partial_limit, partial_limit + 0.01),
+    ) == []
+    crossed = partial_limit * (1 + cfg.maker_fill_confirmation_bps / 10_000)
+    events = broker.mark(
+        "BREAKUSDT",
+        crossed,
+        book(crossed, crossed + 0.01),
+    )
+    assert events and events[0]["event"] == "partial_take"
+    partial = events[0]
+    assert partial["closedNotional"] == pytest.approx(300)
+    assert partial["remainingNotional"] == pytest.approx(700)
+    assert partial["fill"] == pytest.approx(partial_limit)
+    expected_allocated_entry_fee = 1000 * cfg.taker_fee_rate * 0.30
+    expected_maker_exit_fee = 300 * cfg.maker_fee_rate
+    assert partial["fees"] == pytest.approx(
+        expected_allocated_entry_fee + expected_maker_exit_fee
+    )
+
+
+def test_breakout_no_follow_through_waits_longer_than_density() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        no_follow_through_max_mfe_r=0.25,
+        early_cut_at_r=0.45,
+        breakout_no_follow_through_seconds=120,
+        density_no_follow_through_seconds=20,
+    )
+    breakout = PaperBroker(cfg)
+    breakout_plan = plan("BREAKUSDT", Side.LONG, 1000)
+    breakout_plan.strategy = "level_breakout"
+    breakout.open(breakout_plan, book(99.99, 100.00))
+    breakout.positions["BREAKUSDT"].opened_at -= 30
+    assert breakout.mark(
+        "BREAKUSDT", 99.75, book(99.75, 99.76)
+    ) == []
+    assert "BREAKUSDT" in breakout.positions
+
+    density = PaperBroker(cfg)
+    density_plan = plan("DENSUSDT", Side.LONG, 1000)
+    density_plan.strategy = "orderbook_density"
+    density.open(density_plan, book(99.99, 100.00))
+    density.positions["DENSUSDT"].opened_at -= 30
+    events = density.mark(
+        "DENSUSDT", 99.75, book(99.75, 99.76)
+    )
+    assert events and events[-1]["reason"] == "no_follow_through"

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from .config import Settings
 from .domain import OrderBook, Side, StrategyDecision, TradePlan
 from .execution import execution_profile, fee_rate, slippage_rate
+from .strategy_policy import partial_take_fraction
 
 
 @dataclass(slots=True)
@@ -86,6 +87,10 @@ class RiskEngine:
             self.config,
             execution.stop_exit,
         )
+        partial_exit_fee_rate = fee_rate(
+            self.config,
+            execution.partial_exit,
+        )
         entry_slippage_rate = slippage_rate(
             self.config,
             execution.entry,
@@ -97,6 +102,10 @@ class RiskEngine:
         stop_exit_slippage_rate = slippage_rate(
             self.config,
             execution.stop_exit,
+        )
+        partial_exit_slippage_rate = slippage_rate(
+            self.config,
+            execution.partial_exit,
         )
         target_cost_pct = (
             entry_fee_rate
@@ -256,21 +265,91 @@ class RiskEngine:
         stop_slippage_cost = notional * (
             entry_slippage_rate + stop_exit_slippage_rate
         )
-        # Entry price already walks executable book depth. Resting target
-        # limits are modeled at the configured target without exit slippage;
-        # stop/invalidation exits remain taker-market.
-        estimated_costs = (
-            target_fee_cost + target_slippage_cost
+        stop_estimated_costs = stop_fee_cost + stop_slippage_cost
+
+        # Price the same lifecycle that paper execution will actually use.
+        # Known runner strategies can realize a partial at 1R and then carry
+        # only the remainder to the final/runner target. The old model priced
+        # 100% of notional at the final maker target and materially overstated
+        # winners such as the UNI regression from the 2026-09-22 run.
+        profile_is_known = decision.strategy in {
+            "trend_structure",
+            "weak_level_rejection",
+            "orderbook_density",
+            "level_breakout",
+        }
+        allow_runner = bool(decision.details.get("allowRunner", True))
+        partial_fraction = partial_take_fraction(
+            self.config,
+            decision.strategy,
         )
-        stop_estimated_costs = (
-            stop_fee_cost + stop_slippage_cost
+        partial_move_pct = stop_pct * max(
+            0.0,
+            self.config.partial_take_at_r,
         )
-        fee_cost = target_fee_cost
-        slippage_cost = target_slippage_cost
-        gross_profit = notional * target_pct
+        partial_enabled = (
+            profile_is_known
+            and self.config.partial_take_enabled
+            and allow_runner
+            and 0.0 < partial_fraction < 1.0
+            and target_pct > partial_move_pct
+        )
+        target_source = str(decision.details.get("targetSource") or "")
+        structural_liquidity_target = (
+            target_source == "liquidity"
+            or isinstance(decision.details.get("liquidityTarget"), dict)
+        )
+        runner_target_pct = target_pct
+        if partial_enabled and not structural_liquidity_target:
+            runner_target_pct = max(
+                target_pct,
+                stop_pct * max(0.0, self.config.runner_target_r),
+            )
+
+        if partial_enabled:
+            runner_fraction = 1.0 - partial_fraction
+            lifecycle_gross_pct = (
+                partial_fraction * partial_move_pct
+                + runner_fraction * runner_target_pct
+            )
+            lifecycle_fee_pct = (
+                entry_fee_rate
+                + partial_fraction * partial_exit_fee_rate
+                + runner_fraction * target_exit_fee_rate
+            )
+            lifecycle_slippage_pct = (
+                entry_slippage_rate
+                + partial_fraction * partial_exit_slippage_rate
+                + runner_fraction * target_exit_slippage_rate
+            )
+        else:
+            runner_fraction = 1.0
+            lifecycle_gross_pct = target_pct
+            lifecycle_fee_pct = entry_fee_rate + target_exit_fee_rate
+            lifecycle_slippage_pct = (
+                entry_slippage_rate + target_exit_slippage_rate
+            )
+
+        lifecycle_cost_pct = lifecycle_fee_pct + lifecycle_slippage_pct
+        lifecycle_fee_cost = notional * lifecycle_fee_pct
+        lifecycle_slippage_cost = notional * lifecycle_slippage_pct
+        estimated_costs = lifecycle_fee_cost + lifecycle_slippage_cost
+        fee_cost = lifecycle_fee_cost
+        slippage_cost = lifecycle_slippage_cost
+        gross_profit = notional * lifecycle_gross_pct
         gross_loss = notional * stop_pct
         expected_net = gross_profit - estimated_costs
         all_in_net_loss = gross_loss + stop_estimated_costs
+        winner_cost_share = (
+            estimated_costs / gross_profit
+            if gross_profit > 0
+            else float("inf")
+        )
+        stop_cost_share = (
+            stop_estimated_costs / gross_loss
+            if gross_loss > 0
+            else float("inf")
+        )
         # Keep expected_net_loss as the internal/public compatibility alias.
         # The payoff gate uses the explicit all-in loss amount so fees and
         # slippage are counted exactly once on both target and stop outcomes.
@@ -306,8 +385,23 @@ class RiskEngine:
             "target": target,
             "stopDistancePct": stop_pct,
             "targetMovePct": target_pct,
-            "targetCostPct": target_cost_pct,
+            "targetCostPct": lifecycle_cost_pct,
+            "fullTargetCostPct": target_cost_pct,
             "stopCostPct": stop_cost_pct,
+            "winnerCostShare": winner_cost_share,
+            "maximumWinnerCostShare": self.config.max_winner_cost_share,
+            "winnerCostShareGateEnabled": self.config.enforce_winner_cost_share_gate,
+            "stopCostShare": stop_cost_share,
+            "maximumStopCostShare": self.config.max_stop_cost_share,
+            "stopCostShareGateEnabled": self.config.enforce_stop_cost_share_gate,
+            "partialFraction": partial_fraction if partial_enabled else 0.0,
+            "partialMovePct": partial_move_pct if partial_enabled else None,
+            "runnerFraction": runner_fraction if partial_enabled else 1.0,
+            "runnerTargetPct": runner_target_pct,
+            "lifecycleGrossPct": lifecycle_gross_pct,
+            "lifecycleCostPct": lifecycle_cost_pct,
+            "partialExitFeeRate": partial_exit_fee_rate,
+            "partialExitSlippageRate": partial_exit_slippage_rate,
             "executionProfile": execution.public(),
             "entryFeeRate": entry_fee_rate,
             "targetExitFeeRate": target_exit_fee_rate,
@@ -322,6 +416,8 @@ class RiskEngine:
             "entryDepthImpactBps": entry_depth_impact_bps,
             "visibleEntryDepthUsd": visible_entry_depth,
             "grossAtTargetUsd": gross_profit,
+            "grossLifecycleUsd": gross_profit,
+            "legacyGrossAtFinalTargetUsd": notional * target_pct,
             "structuralLossAtStopUsd": gross_loss,
             "plannedAllInLossUsd": all_in_net_loss,
             "netAtTargetUsd": expected_net,
@@ -337,6 +433,33 @@ class RiskEngine:
             "wouldFailMinimumNetProfit": minimum_net_profit_failed,
             "wouldFailNetRewardRisk": net_reward_risk_failed,
         }
+
+        if (
+            self.config.enforce_winner_cost_share_gate
+            and winner_cost_share > self.config.max_winner_cost_share
+        ):
+            return RiskResult(
+                False,
+                (
+                    "economic_gate: winner_cost_share "
+                    f"{winner_cost_share:.3f} > maximum "
+                    f"{self.config.max_winner_cost_share:.3f}"
+                ),
+                diagnostics=dict(economic_diagnostics),
+            )
+        if (
+            self.config.enforce_stop_cost_share_gate
+            and stop_cost_share > self.config.max_stop_cost_share
+        ):
+            return RiskResult(
+                False,
+                (
+                    "economic_gate: stop_cost_share "
+                    f"{stop_cost_share:.3f} > maximum "
+                    f"{self.config.max_stop_cost_share:.3f}"
+                ),
+                diagnostics=dict(economic_diagnostics),
+            )
 
         if expected_net <= 0:
             return RiskResult(
@@ -373,6 +496,9 @@ class RiskEngine:
         economics = {
             **economic_diagnostics,
             "roundTripCostPct": stop_cost_pct,
+            "lifecycleCostPct": lifecycle_cost_pct,
+            "winnerCostShare": winner_cost_share,
+            "stopCostShare": stop_cost_share,
             "takerFeeCostUsd": fee_cost,
             "slippageCostUsd": slippage_cost,
             "estimatedCostsUsd": estimated_costs,

@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     start_balance: float = 1_000.0
     min_turnover_usd: float = 150_000_000.0
     liquid_universe_size: int = 30
-    working_symbols: int = 4
-    max_active_symbols: int = 8
+    working_symbols: int = 6
+    max_active_symbols: int = 12
     active_keep_rank: int = 12
     active_symbol_min_seconds: float = 600.0
     active_symbol_idle_timeout_seconds: float = 300.0
@@ -62,13 +62,26 @@ class Settings(BaseSettings):
     taker_fee_rate: float = 0.00055
     maker_fee_rate: float = 0.00020
     slippage_bps: float = 1.0
+    maker_fill_confirmation_bps: float = 0.5
+    max_winner_cost_share: float = 0.35
+    enforce_winner_cost_share_gate: bool = False
+    max_stop_cost_share: float = 1.0
+    enforce_stop_cost_share_gate: bool = False
 
     partial_take_enabled: bool = True
     partial_take_at_r: float = 1.0
     partial_take_fraction: float = 0.70
+    trend_structure_partial_take_fraction: float = 0.50
+    weak_level_rejection_partial_take_fraction: float = 0.70
+    density_partial_take_fraction: float = 0.70
+    breakout_partial_take_fraction: float = 0.30
     runner_target_r: float = 2.5
     breakeven_buffer_bps: float = 1.0
     no_follow_through_seconds: float = 20.0
+    trend_structure_no_follow_through_seconds: float = 45.0
+    weak_level_rejection_no_follow_through_seconds: float = 45.0
+    density_no_follow_through_seconds: float = 20.0
+    breakout_no_follow_through_seconds: float = 120.0
     no_follow_through_max_mfe_r: float = 0.25
     early_cut_at_r: float = 0.45
 

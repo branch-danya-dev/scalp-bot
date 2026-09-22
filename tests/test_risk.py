@@ -735,3 +735,109 @@ def test_economic_reject_carries_calculated_diagnostics() -> None:
     assert diagnostics["stopEstimatedCostsUsd"] > diagnostics["targetEstimatedCostsUsd"]
     assert diagnostics["allInNetLossUsd"] > 0
     assert diagnostics["requiredNetProfitUsd"] == pytest.approx(1.0)
+
+
+
+def test_breakout_economics_prices_actual_partial_runner_lifecycle() -> None:
+    cfg = economic_settings(
+        enforce_min_net_profit_gate=False,
+        enforce_net_reward_risk_gate=False,
+        enforce_winner_cost_share_gate=False,
+        enforce_stop_cost_share_gate=False,
+        partial_take_at_r=1.0,
+        breakout_partial_take_fraction=0.30,
+        runner_target_r=2.5,
+        maker_fee_rate=0.00020,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        StrategyDecision(
+            strategy="level_breakout",
+            action=Action.LONG,
+            reasons=["confirmed"],
+            entry=100.0,
+            stop=99.90,
+            target=100.20,
+            details={"allowRunner": True},
+        ),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+    assert result.allowed
+    assert result.plan is not None
+    economics = result.plan.strategy_details["economics"]
+    assert economics["partialFraction"] == pytest.approx(0.30)
+    assert economics["runnerFraction"] == pytest.approx(0.70)
+    assert economics["runnerTargetPct"] == pytest.approx(0.0025)
+    assert economics["lifecycleGrossPct"] == pytest.approx(0.00205)
+    assert economics["lifecycleCostPct"] == pytest.approx(0.00085)
+    assert result.plan.expected_gross_profit == pytest.approx(10.25)
+    assert result.plan.estimated_costs == pytest.approx(4.25)
+    assert result.plan.expected_net_profit == pytest.approx(6.0)
+    assert economics["legacyGrossAtFinalTargetUsd"] == pytest.approx(10.0)
+
+
+def test_winner_cost_share_gate_blocks_fee_dominated_breakout() -> None:
+    cfg = economic_settings(
+        enforce_min_net_profit_gate=False,
+        enforce_net_reward_risk_gate=False,
+        enforce_winner_cost_share_gate=True,
+        max_winner_cost_share=0.35,
+        enforce_stop_cost_share_gate=False,
+        breakout_partial_take_fraction=0.30,
+        maker_fee_rate=0.00020,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        StrategyDecision(
+            strategy="level_breakout",
+            action=Action.LONG,
+            reasons=["confirmed"],
+            entry=100.0,
+            stop=99.90,
+            target=100.15,
+            details={"allowRunner": True},
+        ),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+    assert not result.allowed
+    assert "winner_cost_share" in result.reason
+    assert result.diagnostics is not None
+    assert result.diagnostics["winnerCostShare"] > 0.35
+
+
+def test_winner_cost_share_gate_accepts_roomy_breakout() -> None:
+    cfg = economic_settings(
+        enforce_min_net_profit_gate=False,
+        enforce_net_reward_risk_gate=False,
+        enforce_winner_cost_share_gate=True,
+        max_winner_cost_share=0.35,
+        enforce_stop_cost_share_gate=False,
+        breakout_partial_take_fraction=0.30,
+        maker_fee_rate=0.00020,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        StrategyDecision(
+            strategy="level_breakout",
+            action=Action.LONG,
+            reasons=["confirmed"],
+            entry=100.0,
+            stop=99.90,
+            target=100.40,
+            details={"allowRunner": True},
+        ),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+    assert result.allowed
+    assert result.plan is not None
+    economics = result.plan.strategy_details["economics"]
+    assert economics["winnerCostShare"] < 0.35

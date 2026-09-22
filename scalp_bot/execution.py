@@ -21,18 +21,22 @@ class ExecutionProfile:
 _PROFILES = {
     "trend_structure": ExecutionProfile(
         name="trend_confirmation",
+        partial_exit="maker_limit",
         passive_entry_eligible=False,
     ),
     "level_breakout": ExecutionProfile(
         name="breakout_confirmation",
+        partial_exit="maker_limit",
         passive_entry_eligible=False,
     ),
     "weak_level_rejection": ExecutionProfile(
         name="rejection_confirmation",
+        partial_exit="maker_limit",
         passive_entry_eligible=True,
     ),
     "orderbook_density": ExecutionProfile(
         name="density_confirmation",
+        partial_exit="maker_limit",
         passive_entry_eligible=True,
     ),
 }

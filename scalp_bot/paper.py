@@ -7,6 +7,7 @@ from typing import Any
 from .config import Settings
 from .domain import OrderBook, Side, TradePlan
 from .execution import execution_profile, fee_rate, slippage_rate
+from .strategy_policy import no_follow_through_seconds, partial_take_fraction
 
 
 @dataclass(slots=True)
@@ -227,11 +228,17 @@ class PaperBroker:
 
         events: list[dict] = []
         allow_runner = bool(pos.strategy_details.get("allowRunner", True))
+        profile = execution_profile(pos.strategy)
+        partial_triggered = self._partial_triggered(
+            pos,
+            executable,
+            profile.partial_exit,
+        )
         if (
             self.config.partial_take_enabled
             and allow_runner
             and not pos.partial_taken
-            and pos.mfe_r >= self.config.partial_take_at_r
+            and partial_triggered
         ):
             close_notional = self._partial_close_notional(pos)
             preview = self._preview_realize(
@@ -309,13 +316,36 @@ class PaperBroker:
         del self.positions[symbol]
         return trade
 
+    def _partial_limit_price(self, pos: Position) -> float:
+        risk_distance = abs(pos.entry - pos.initial_stop)
+        multiple = max(0.0, self.config.partial_take_at_r)
+        if pos.side == Side.LONG:
+            return pos.entry + risk_distance * multiple
+        return pos.entry - risk_distance * multiple
+
+    def _partial_triggered(
+        self,
+        pos: Position,
+        executable: float,
+        exit_mode: str,
+    ) -> bool:
+        if pos.initial_risk_usd <= 0:
+            return False
+        if exit_mode != "maker_limit":
+            return pos.mfe_r >= self.config.partial_take_at_r
+        limit_price = self._partial_limit_price(pos)
+        confirm = max(0.0, self.config.maker_fill_confirmation_bps) / 10_000
+        if pos.side == Side.LONG:
+            return executable >= limit_price * (1 + confirm)
+        return executable <= limit_price * (1 - confirm)
+
     def _partial_close_notional(self, pos: Position) -> float:
         return min(
             pos.notional,
             pos.original_notional
-            * max(
-                0.0,
-                min(self.config.partial_take_fraction, 1.0),
+            * partial_take_fraction(
+                self.config,
+                pos.strategy,
             ),
         )
 
@@ -471,9 +501,16 @@ class PaperBroker:
             reason in {"target", "runner_target"}
             and profile.target_exit == "maker_limit"
         )
+        partial_limit = (
+            reason == "partial_take"
+            and profile.partial_exit == "maker_limit"
+        )
         if target_limit:
             raw = pos.target
             exit_mode = profile.target_exit
+        elif partial_limit:
+            raw = self._partial_limit_price(pos)
+            exit_mode = profile.partial_exit
         else:
             raw, visible_depth = book.exit_vwap(
                 pos.side,
@@ -579,7 +616,11 @@ class PaperBroker:
 
     def _should_cut_no_follow_through(self, pos: Position, gross_mark_original: float) -> bool:
         age = time() - pos.opened_at
-        if age < self.config.no_follow_through_seconds or pos.initial_risk_usd <= 0:
+        timeout = no_follow_through_seconds(
+            self.config,
+            pos.strategy,
+        )
+        if age < timeout or pos.initial_risk_usd <= 0:
             return False
         adverse_r = max(0.0, -gross_mark_original) / pos.initial_risk_usd
         return (
