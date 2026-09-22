@@ -229,6 +229,8 @@ class TrendStructureStrategy(Strategy):
         decision: StrategyDecision | None,
         trend: Trend,
         last_price: float,
+        book: OrderBook | None = None,
+        observed_at_ms: int | None = None,
     ) -> str | None:
         expected = Trend.UP if side == Side.LONG else Trend.DOWN
         if unrealized_pnl < 0 and trend != expected:

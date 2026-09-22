@@ -171,6 +171,8 @@ class LevelBreakoutStrategy(Strategy):
         decision: StrategyDecision | None,
         trend: Trend,
         last_price: float,
+        book: OrderBook | None = None,
+        observed_at_ms: int | None = None,
     ) -> str | None:
         zone = (
             strategy_details.get("zone")
@@ -180,10 +182,37 @@ class LevelBreakoutStrategy(Strategy):
         if isinstance(zone, dict):
             low = float(zone.get("low") or 0)
             high = float(zone.get("high") or 0)
-            if side == Side.LONG and high > 0 and last_price < high:
-                return "breakout_failed_back_inside"
-            if side == Side.SHORT and low > 0 and last_price > low:
-                return "breakout_failed_back_inside"
+            executable = (
+                book.executable_exit(side)
+                if book is not None
+                else None
+            ) or last_price
+            back_inside = (
+                side == Side.LONG
+                and high > 0
+                and executable < high
+            ) or (
+                side == Side.SHORT
+                and low > 0
+                and executable > low
+            )
+            key = "_breakoutBackInsideSinceMs"
+            if back_inside:
+                now_ms = (
+                    observed_at_ms
+                    if observed_at_ms is not None
+                    else int(opened_at * 1000)
+                )
+                since = strategy_details.get(key)
+                if since is None:
+                    strategy_details[key] = now_ms
+                elif (
+                    now_ms - int(since)
+                    >= int(self.min_break_hold_seconds * 1000)
+                ):
+                    return "breakout_failed_back_inside"
+            else:
+                strategy_details.pop(key, None)
         if unrealized_pnl >= 0:
             return None
         expected = Trend.UP if side == Side.LONG else Trend.DOWN

@@ -442,12 +442,51 @@ def test_breakout_premise_invalidates_even_while_trade_is_positive(tmp_path) -> 
         )
 
         engine._maybe_strategy_invalidation(session)
+        assert "AAAUSDT" in engine.broker.positions
+
+        pos.strategy_details["_breakoutBackInsideSinceMs"] -= 4_000
+        engine._maybe_strategy_invalidation(session)
 
         assert "AAAUSDT" not in engine.broker.positions
         assert (
             engine.broker.closed_trades[-1]["reason"]
             == "breakout_failed_back_inside"
         )
+    finally:
+        close_rest(engine)
+
+
+def test_breakout_retest_does_not_immediately_invalidate(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(99.95, 99.96),
+            last_price=99.95,
+            trend=Trend.UP,
+        )
+        engine.sessions[session.symbol] = session
+        p = plan("AAAUSDT")
+        p.strategy = "level_breakout"
+        p.strategy_details = {
+            "zone": {"low": 99.80, "high": 100.00},
+            "tradeMode": "trend_following",
+            "allowRunner": True,
+        }
+        pos = engine.broker.open(p, book())
+        pos.opened_at -= 10
+        session.decisions["level_breakout"] = StrategyDecision(
+            strategy="level_breakout",
+            action=Action.WAIT,
+            reasons=["retest"],
+            details={"state": "break"},
+        )
+
+        engine._maybe_strategy_invalidation(session)
+
+        assert "AAAUSDT" in engine.broker.positions
+        assert "_breakoutBackInsideSinceMs" in pos.strategy_details
     finally:
         close_rest(engine)
 

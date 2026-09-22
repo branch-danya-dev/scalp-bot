@@ -339,6 +339,8 @@ class DensityBounceStrategy(Strategy):
         decision: StrategyDecision | None,
         trend: Trend,
         last_price: float,
+        book: OrderBook | None = None,
+        observed_at_ms: int | None = None,
     ) -> str | None:
         if decision is None:
             return None

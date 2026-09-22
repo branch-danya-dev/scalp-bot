@@ -1011,6 +1011,8 @@ class TradingEngine:
             decision=decision,
             trend=session.trend,
             last_price=session.last_price,
+            book=session.orderbook,
+            observed_at_ms=int(time() * 1000),
         )
         if not reason:
             return
