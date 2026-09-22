@@ -193,6 +193,8 @@ class SessionRecorder:
             "decision",
             "risk_reject",
             "setup_blocked",
+            "entry_pending",
+            "entry_cancelled",
             "trade_opened",
             "partial_take",
             "trade_closed",
