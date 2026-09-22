@@ -4,7 +4,7 @@ import pytest
 from time import time
 
 from scalp_bot.config import Settings
-from scalp_bot.domain import Action, Candidate, Candle, OrderBook, Side, StrategyDecision, TradePlan, Trend
+from scalp_bot.domain import Action, Candidate, Candle, OrderBook, Side, StrategyDecision, TradePlan, TradeTick, Trend
 from scalp_bot.engine import ActiveSymbolSession, TradingEngine
 
 
@@ -473,3 +473,19 @@ async def test_bootstrap_loads_direct_multi_timeframe_context(tmp_path) -> None:
         assert session.context_1h
     finally:
         await engine.rest.close()
+
+
+
+def test_active_session_trade_buffer_has_no_count_limit() -> None:
+    session = ActiveSymbolSession(symbol="AAAUSDT")
+    assert session.trades.maxlen is None
+    for i in range(3_000):
+        session.trades.append(
+            TradeTick(
+                ts_ms=100_000 + i,
+                price=100,
+                size=0.01,
+                side="Buy",
+            )
+        )
+    assert len(session.trades) == 3_000
