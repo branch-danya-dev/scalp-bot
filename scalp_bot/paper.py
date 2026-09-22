@@ -93,6 +93,7 @@ class PendingEntry:
     limit_price: float
     created_at: float
     expires_at: float
+    min_trade_ts_ms: int | None = None
 
     def public(self) -> dict:
         return {
@@ -105,6 +106,7 @@ class PendingEntry:
             "expectedNetLoss": self.plan.expected_net_loss,
             "createdAt": self.created_at,
             "expiresAt": self.expires_at,
+            "minTradeTsMs": self.min_trade_ts_ms,
             "entryMode": self.plan.entry_mode,
         }
 
@@ -211,7 +213,12 @@ class PaperBroker:
         self.positions[plan.symbol] = position
         return position
 
-    def place_pending(self, plan: TradePlan) -> PendingEntry:
+    def place_pending(
+        self,
+        plan: TradePlan,
+        *,
+        min_trade_ts_ms: int | None = None,
+    ) -> PendingEntry:
         if plan.entry_mode != "maker_limit":
             raise RuntimeError("pending entry requires maker_limit plan")
         allowed, reason = self.can_open(plan.symbol)
@@ -227,6 +234,7 @@ class PaperBroker:
             limit_price=plan.market_entry,
             created_at=now,
             expires_at=now + max(0.1, self.config.passive_entry_timeout_seconds),
+            min_trade_ts_ms=min_trade_ts_ms,
         )
         self.pending_entries[plan.symbol] = pending
         return pending
@@ -256,7 +264,7 @@ class PaperBroker:
         symbol: str,
         last_trade_price: float,
         *,
-        trade_ts: float | None = None,
+        trade_ts_ms: int | None = None,
     ) -> list[dict]:
         pending = self.pending_entries.get(symbol)
         if pending is None:
@@ -272,7 +280,11 @@ class PaperBroker:
                 "reason": "passive_entry_timeout",
                 "limitPrice": pending.limit_price,
             }]
-        if trade_ts is not None and trade_ts + 1e-6 < pending.created_at:
+        if (
+            pending.min_trade_ts_ms is not None
+            and trade_ts_ms is not None
+            and trade_ts_ms <= pending.min_trade_ts_ms
+        ):
             return []
         confirm = max(0.0, self.config.maker_fill_confirmation_bps) / 10_000
         if pending.plan.side == Side.LONG:
