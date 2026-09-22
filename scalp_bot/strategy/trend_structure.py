@@ -215,14 +215,21 @@ class TrendStructureStrategy(Strategy):
         long_side = trend == Trend.UP
         kind = "support" if long_side else "resistance"
         line = structure.trendline(kind)
-        if line is None or line.touches < 3:
+        slope_aligned = (
+            line is not None
+            and (
+                (long_side and line.slope_per_bar > 0)
+                or (not long_side and line.slope_per_bar < 0)
+            )
+        )
+        if line is None or line.touches < 3 or not slope_aligned:
             state.stage = TrendPullbackStage.SEARCH
             state.anchor_key = None
             state.trend = trend
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
-                ["Тренд есть, но нет подтверждённой линии минимум с 3 опорами"],
+                ["Тренд есть, но нет подтверждённой линии правильного наклона минимум с 3 опорами"],
                 details={"state": state.stage.value},
             )
 
