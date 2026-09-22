@@ -148,3 +148,19 @@ Compared with the previous run it intentionally changes execution economics rath
 - working/active universe expands from 4/8 to 6/12 symbols.
 
 The purpose of the run is to measure whether fee share falls materially while opportunity throughput remains usable. Passive fills, timeouts and cancelled entries are recorded explicitly.
+
+
+## Frequency v7
+
+The next research profile is `research-fee-frequency-v7-1h`.
+
+The previous 52-minute run showed that rare trading was not caused by the risk engine: it recorded zero risk rejects and zero setup blocks. The remaining bottleneck was strategy confirmation.
+
+Targeted changes:
+
+- `trend_structure`: the old "micro reclaim" was the maximum high/minimum low of the previous three closed 1m candles. In recorded XRP tests that put the reclaim threshold roughly 69-81 bps away from the trendline. Reclaim is now local to the tested trendline using spread + existing test tolerance; flow confirmation and continuation are still mandatory.
+- `weak_level_rejection`: once a level is actually tested, the setup is pinned for up to 150 seconds. Sweep state is remembered and a later live reclaim plus local flow reversal can confirm the trade instead of requiring the sweep and full reclaim to coexist in one closed 1m candle.
+- `level_breakout`: pressure/acceptance/hold gates remain unchanged because the prior run showed they filtered both a false XRP break and an early SOL break.
+- `orderbook_density`: reaction confirmation remains unchanged because most unconfirmed wall tests produced moves too small relative to costs.
+
+These changes are intended to increase completion of already-valid setup sequences, not to turn early APPROACH/FOUND states into trades.
