@@ -1,5 +1,6 @@
 import pytest
 
+from scalp_bot.domain import OrderBook, Side
 from scalp_bot.bybit import (
     OrderBookSequenceError,
     OrderBookState,
@@ -208,3 +209,16 @@ def test_rest_kline_confirmation_respects_open_interval() -> None:
         "15",
         now_ms=start + 15 * 60_000,
     )
+
+
+def test_orderbook_entry_vwap_walks_visible_depth() -> None:
+    book = OrderBook(
+        bids=[(99.0, 10)],
+        asks=[(100.0, 1), (101.0, 2)],
+    )
+
+    vwap, filled = book.entry_vwap(Side.LONG, 200)
+
+    assert filled == pytest.approx(200)
+    assert vwap == pytest.approx(200 / (1 + 100 / 101))
+    assert vwap > 100.0

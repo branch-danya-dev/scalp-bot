@@ -99,6 +99,46 @@ class OrderBook:
     def executable_exit(self, side: Side) -> float | None:
         return self.best_bid if side == Side.LONG else self.best_ask
 
+    @staticmethod
+    def _vwap_for_notional(
+        levels: list[tuple[float, float]],
+        notional: float,
+    ) -> tuple[float | None, float]:
+        if notional <= 0:
+            return None, 0.0
+        remaining = notional
+        filled_quote = 0.0
+        filled_base = 0.0
+        for price, qty in levels:
+            if price <= 0 or qty <= 0:
+                continue
+            level_quote = price * qty
+            take_quote = min(remaining, level_quote)
+            filled_quote += take_quote
+            filled_base += take_quote / price
+            remaining -= take_quote
+            if remaining <= max(1e-9, notional * 1e-9):
+                break
+        if filled_base <= 0:
+            return None, 0.0
+        return filled_quote / filled_base, filled_quote
+
+    def entry_vwap(
+        self,
+        side: Side,
+        notional: float,
+    ) -> tuple[float | None, float]:
+        levels = self.asks if side == Side.LONG else self.bids
+        return self._vwap_for_notional(levels, notional)
+
+    def exit_vwap(
+        self,
+        side: Side,
+        notional: float,
+    ) -> tuple[float | None, float]:
+        levels = self.bids if side == Side.LONG else self.asks
+        return self._vwap_for_notional(levels, notional)
+
     def public(self, depth: int = 16) -> dict[str, Any]:
         return {
             "bids": [[p, q, p * q] for p, q in self.bids[:depth]],
