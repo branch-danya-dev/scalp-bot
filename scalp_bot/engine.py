@@ -171,26 +171,79 @@ class ActiveSymbolSession:
             for key in sorted(buckets)
         ]
 
+    def _chart_context_with_live_bucket(
+        self,
+        closed_context: list[Candle],
+        interval_minutes: int,
+        limit: int,
+        now_ms: int,
+    ) -> list[dict]:
+        """Return closed REST history plus the current live bucket.
+
+        Higher-timeframe REST context intentionally stores only confirmed
+        candles for strategy logic. The chart, however, should still show the
+        candle that is currently forming. Build that last bucket from the live
+        1m stream without feeding it back into strategy context.
+        """
+        rows = list(closed_context[-limit:])
+        if not self.candles:
+            return [row.public() for row in rows]
+
+        # Only the latest aggregate bucket is needed. Two intervals of 1m
+        # history are enough to reconstruct it while keeping this cheap on the
+        # state endpoint.
+        source_size = max(interval_minutes * 2, 120)
+        live_rows = aggregate_candles(
+            self.candles[-source_size:],
+            interval_minutes,
+        )
+        if not live_rows:
+            return [row.public() for row in rows]
+
+        live = live_rows[-1]
+        live.confirmed = (
+            live.start_ms + interval_minutes * 60_000 <= now_ms
+        )
+        if not rows or live.start_ms > rows[-1].start_ms:
+            rows.append(live)
+
+        return [row.public() for row in rows[-limit:]]
+
     def chart_series(self, now_ms: int | None = None) -> dict:
         resolved_now = (
             int(time() * 1000)
             if now_ms is None
             else now_ms
         )
+        ten_minute = aggregate_candles(
+            self.candles[-720:],
+            10,
+        )
+        for row in ten_minute:
+            row.confirmed = row.start_ms + 10 * 60_000 <= resolved_now
         return {
             "5s": self._trade_candles(5, resolved_now),
             "15s": self._trade_candles(15, resolved_now),
             "1m": [x.public() for x in self.candles[-720:]],
-            "5m": [x.public() for x in self.context_5m[-576:]],
-            "10m": [
-                x.public()
-                for x in aggregate_candles(
-                    self.candles[-720:],
-                    10,
-                )
-            ],
-            "15m": [x.public() for x in self.context_15m[-480:]],
-            "1h": [x.public() for x in self.context_1h[-336:]],
+            "5m": self._chart_context_with_live_bucket(
+                self.context_5m,
+                5,
+                576,
+                resolved_now,
+            ),
+            "10m": [x.public() for x in ten_minute[-72:]],
+            "15m": self._chart_context_with_live_bucket(
+                self.context_15m,
+                15,
+                480,
+                resolved_now,
+            ),
+            "1h": self._chart_context_with_live_bucket(
+                self.context_1h,
+                60,
+                336,
+                resolved_now,
+            ),
         }
 
     def density_context(

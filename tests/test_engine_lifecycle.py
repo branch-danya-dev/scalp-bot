@@ -1011,6 +1011,51 @@ def test_market_snapshot_exposes_multi_timeframe_chart_series() -> None:
 
 
 
+def test_chart_series_adds_live_bucket_to_higher_timeframes() -> None:
+    now_ms = 3_690_000
+    session = ActiveSymbolSession(
+        symbol="AAAUSDT",
+        candles=[
+            Candle(3_600_000, 100, 101, 99.5, 100.5, 10, 1000, True),
+            Candle(3_660_000, 100.5, 101.5, 100.2, 101.0, 12, 1200, False),
+        ],
+        context_5m=[
+            Candle(3_300_000, 99, 100.5, 98.8, 100, 20, 2000, True),
+        ],
+        context_15m=[
+            Candle(2_700_000, 98, 101, 97.5, 100, 30, 3000, True),
+        ],
+        context_1h=[
+            Candle(0, 95, 102, 94, 100, 40, 4000, True),
+        ],
+    )
+
+    series = session.chart_series(now_ms)
+
+    for timeframe in ("5m", "15m", "1h"):
+        live = series[timeframe][-1]
+        assert live["time"] == 3_600
+        assert live["open"] == pytest.approx(100.0)
+        assert live["close"] == pytest.approx(101.0)
+        assert live["confirmed"] is False
+
+
+def test_chart_series_marks_10m_bucket_from_clock_not_1m_flags() -> None:
+    now_ms = 5 * 60_000
+    session = ActiveSymbolSession(
+        symbol="AAAUSDT",
+        candles=[
+            Candle(0, 100, 101, 99, 100.5, 10, 1000, True),
+            Candle(60_000, 100.5, 102, 100, 101, 12, 1200, True),
+        ],
+    )
+
+    live = session.chart_series(now_ms)["10m"][-1]
+
+    assert live["time"] == 0
+    assert live["confirmed"] is False
+
+
 def test_density_context_exposes_wall_flow_and_book_focus() -> None:
     session = ActiveSymbolSession(
         symbol="AAAUSDT",

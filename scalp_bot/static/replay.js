@@ -18,6 +18,41 @@ function applyChartPrecision(value) {
   candleSeries.applyOptions({priceFormat:{type:"price", precision, minMove:10 ** -precision}});
 }
 
+const REPLAY_EVENT_LABELS = {
+  decision:"Решение", trade_opened:"Вход", partial_take:"Частичная фиксация",
+  trade_closed:"Выход", risk_reject:"Отклонено риском", setup_blocked:"Сетап заблокирован",
+  setup_consumed:"Сетап использован", setup_rearmed:"Сетап переактивирован",
+  symbol_activated:"Монета активирована", symbol_deactivated:"Монета исключена",
+};
+const REPLAY_STRATEGY_LABELS = {
+  trend_structure:"Трендовый откат", weak_level_rejection:"Отбой от уровня",
+  orderbook_density:"Плотность в стакане", level_breakout:"Пробой уровня",
+};
+const REPLAY_SIDE_LABELS = {long:"ЛОНГ", short:"ШОРТ"};
+function replayEventLabel(value) { return REPLAY_EVENT_LABELS[value] || String(value || "").replaceAll("_", " "); }
+function replayStrategyLabel(value) { return REPLAY_STRATEGY_LABELS[value] || String(value || "—").replaceAll("_", " "); }
+function replaySideLabel(value) { return REPLAY_SIDE_LABELS[String(value || "").toLowerCase()] || String(value || "—").toUpperCase(); }
+function replayReason(value) {
+  const text = String(value || "");
+  if (!text) return "—";
+  if (text.startsWith("setup expired: entry drift")) return text.replace("setup expired: entry drift", "Сетап устарел: дрейф входа");
+  if (text.startsWith("setup expired after depth: entry drift")) return text.replace("setup expired after depth: entry drift", "Сетап устарел после проверки глубины: дрейф входа");
+  if (text.startsWith("net at target")) return text.replace("net at target", "Net на цели").replace("after estimated trading costs", "после расчётных торговых издержек").replace("required", "требуется");
+  if (text.includes("economic_gate: insufficient_net_reward_risk")) return text.replace("economic_gate: insufficient_net_reward_risk:", "Экономика: недостаточный net R:R:");
+  if (text === "setup consumed") return "сетап использован";
+  if (text === "rearmed") return "переактивирован";
+  if (text === "deactivated") return "исключена из наблюдения";
+  if (text === "target") return "цель";
+  if (text === "runner_target") return "цель раннера";
+  if (text === "stop") return "стоп";
+  if (text === "no_follow_through") return "нет продолжения движения";
+  if (text === "partial_take") return "частичная фиксация";
+  if (text === "duration_elapsed") return "время прогона истекло";
+  if (text === "bot_stop") return "остановлено пользователем";
+  if (text === "shutdown") return "завершение приложения";
+  return text.replaceAll("_", " ");
+}
+
 let chart, candleSeries, bundle = null;
 let currentIndex = -1;
 let candleMap = new Map();
@@ -78,10 +113,10 @@ function addPriceLine(value, title, color="#8e8e93", style=2) {
 
 function applyVisuals(visuals) {
   for (const overlay of visuals?.overlays || []) {
-    if (overlay.type === "price") addPriceLine(overlay.price, overlay.label || "level", "#8e8e93", 2);
+    if (overlay.type === "price") addPriceLine(overlay.price, overlay.label || "уровень", "#8e8e93", 2);
     if (overlay.type === "zone") {
-      addPriceLine(overlay.low, `${overlay.label || "zone"} low`, "#8e8e93", 2);
-      addPriceLine(overlay.high, `${overlay.label || "zone"} high`, "#8e8e93", 2);
+      addPriceLine(overlay.low, `${overlay.label || "зона"} · низ`, "#8e8e93", 2);
+      addPriceLine(overlay.high, `${overlay.label || "зона"} · верх`, "#8e8e93", 2);
     }
     if (overlay.type === "line" && overlay.points?.length >= 2) {
       const series = chart.addLineSeries({color:"#7c7c80", lineWidth:1, lineStyle:2, priceLineVisible:false, lastValueVisible:false});
@@ -93,9 +128,9 @@ function applyVisuals(visuals) {
 
 function applyPosition(position) {
   if (!position) return;
-  addPriceLine(position.entry, "entry", "#007aff", 0);
-  addPriceLine(position.stop, "stop", "#ff3b30", 2);
-  addPriceLine(position.target, "target", "#34c759", 2);
+  addPriceLine(position.entry, "вход", "#007aff", 0);
+  addPriceLine(position.stop, "стоп", "#ff3b30", 2);
+  addPriceLine(position.target, "цель", "#34c759", 2);
 }
 
 function renderBook(book) {
@@ -107,23 +142,23 @@ function renderBook(book) {
   $("replayAsks").innerHTML = [...book.asks].slice(0, 12).reverse().map(x => row(x, "ask")).join("");
   $("replayBids").innerHTML = book.bids.slice(0, 12).map(x => row(x, "bid")).join("");
   $("replayMid").textContent = book.bestBid && book.bestAsk ? price((book.bestBid + book.bestAsk) / 2) : "—";
-  $("replaySpread").textContent = `spread ${(book.spreadPct * 100).toFixed(4)}%`;
+  $("replaySpread").textContent = `спред ${(book.spreadPct * 100).toFixed(4)}%`;
 }
 
 function markerFor(event) {
   const payload = event.payload || {};
   if (event.event === "trade_opened") {
     const side = payload.plan?.side || "long";
-    return {time:Math.floor(event.ts), position:side === "long" ? "belowBar" : "aboveBar", shape:side === "long" ? "arrowUp" : "arrowDown", color:side === "long" ? "#34c759" : "#ff453a", text:`ENTRY ${side.toUpperCase()}`};
+    return {time:Math.floor(event.ts), position:side === "long" ? "belowBar" : "aboveBar", shape:side === "long" ? "arrowUp" : "arrowDown", color:side === "long" ? "#34c759" : "#ff453a", text:`ВХОД ${replaySideLabel(side)}`};
   }
   if (event.event === "partial_take") {
-    return {time:Math.floor(event.ts), position:"aboveBar", shape:"circle", color:"#34c759", text:`PARTIAL ${money(payload.netPnl)}`};
+    return {time:Math.floor(event.ts), position:"aboveBar", shape:"circle", color:"#34c759", text:`ЧАСТЬ ${money(payload.netPnl)}`};
   }
   if (event.event === "trade_closed") {
-    return {time:Math.floor(event.ts), position:"aboveBar", shape:"circle", color:"#007aff", text:`EXIT ${money(payload.netPnl)}`};
+    return {time:Math.floor(event.ts), position:"aboveBar", shape:"circle", color:"#007aff", text:`ВЫХОД ${money(payload.netPnl)}`};
   }
   if (event.event === "risk_reject") {
-    return {time:Math.floor(event.ts), position:"aboveBar", shape:"square", color:"#8e8e93", text:"REJECT"};
+    return {time:Math.floor(event.ts), position:"aboveBar", shape:"square", color:"#8e8e93", text:"ОТКАЗ"};
   }
   return null;
 }
@@ -137,23 +172,23 @@ function eventText(event) {
   const payload = event.payload || {};
   if (event.event === "decision") {
     const state = payload.details?.state ? ` · ${payload.details.state}` : "";
-    return `${payload.strategy} · ${payload.action}${state} · ${(payload.reasons || []).join(" · ")}`;
+    return `${replayStrategyLabel(payload.strategy)} · ${replaySideLabel(payload.action)}${state} · ${(payload.reasons || []).map(replayReason).join(" · ")}`;
   }
-  if (event.event === "trade_opened") return `${payload.plan?.side || ""} · entry ${price(payload.position?.entry)} · stop ${price(payload.position?.stop)} · target ${price(payload.position?.target)} · RR ${Number(payload.plan?.net_reward_risk || 0).toFixed(2)}`;
-  if (event.event === "partial_take") return `partial net ${money(payload.netPnl)} · remaining ${money(payload.remainingNotional)} · stop→${price(payload.newStop)} · runner target ${price(payload.newTarget)}`;
-  if (event.event === "trade_closed") return `${payload.reason} · net ${money(payload.netPnl)} · MAE ${Number(payload.maeR || 0).toFixed(2)}R · MFE ${Number(payload.mfeR || 0).toFixed(2)}R`;
-  if (event.event === "risk_reject") return payload.reason || "risk reject";
-  if (event.event === "setup_blocked") return `${payload.strategy} · ${payload.reason}`;
-  if (event.event === "setup_consumed") return `${payload.strategy} · setup consumed`;
-  if (event.event === "setup_rearmed") return `${payload.strategy} · rearmed`;
+  if (event.event === "trade_opened") return `${replaySideLabel(payload.plan?.side)} · вход ${price(payload.position?.entry)} · стоп ${price(payload.position?.stop)} · цель ${price(payload.position?.target)} · R:R ${Number(payload.plan?.net_reward_risk || 0).toFixed(2)}`;
+  if (event.event === "partial_take") return `частичная фиксация ${money(payload.netPnl)} · остаток ${money(payload.remainingNotional)} · стоп→${price(payload.newStop)} · цель раннера ${price(payload.newTarget)}`;
+  if (event.event === "trade_closed") return `${replayReason(payload.reason)} · net ${money(payload.netPnl)} · MAE ${Number(payload.maeR || 0).toFixed(2)}R · MFE ${Number(payload.mfeR || 0).toFixed(2)}R`;
+  if (event.event === "risk_reject") return replayReason(payload.reason || "Отклонено риском");
+  if (event.event === "setup_blocked") return `${replayStrategyLabel(payload.strategy)} · ${replayReason(payload.reason)}`;
+  if (event.event === "setup_consumed") return `${replayStrategyLabel(payload.strategy)} · сетап использован`;
+  if (event.event === "setup_rearmed") return `${replayStrategyLabel(payload.strategy)} · переактивирован`;
   if (event.event === "symbol_activated") return "Монета выбрана сканером и переведена в активное наблюдение";
-  if (event.event === "symbol_deactivated") return payload.reason || "deactivated";
+  if (event.event === "symbol_deactivated") return replayReason(payload.reason || "deactivated");
   return event.event;
 }
 
 function renderEvents() {
   $("replayEvents").innerHTML = (bundle?.events || []).map((event, index) => `<button class="replay-event" data-event-index="${index}">
-    <time>${new Date(event.ts * 1000).toLocaleTimeString()}</time><strong>${event.event}</strong><span>${eventText(event)}</span>
+    <time>${new Date(event.ts * 1000).toLocaleTimeString()}</time><strong>${replayEventLabel(event.event)}</strong><span>${eventText(event)}</span>
   </button>`).join("");
   document.querySelectorAll("[data-event-index]").forEach(button => {
     button.onclick = () => selectEvent(Number(button.dataset.eventIndex));
@@ -181,7 +216,7 @@ function renderEventDetail(event) {
     `${new Date(event.ts * 1000).toLocaleString()} · ${event.event}`,
     eventText(event)
   ];
-  if (payload.plan) lines.push(`notional ${money(payload.plan.notional)} · expected net ${money(payload.plan.expected_net_profit)} · net loss ${money(payload.plan.expected_net_loss)} · RR ${Number(payload.plan.net_reward_risk || 0).toFixed(2)} · costs ${money(payload.plan.estimated_costs)}`);
+  if (payload.plan) lines.push(`номинал ${money(payload.plan.notional)} · ожидаемый net ${money(payload.plan.expected_net_profit)} · net-риск ${money(payload.plan.expected_net_loss)} · R:R ${Number(payload.plan.net_reward_risk || 0).toFixed(2)} · издержки ${money(payload.plan.estimated_costs)}`);
   $("replayDecision").textContent = lines.join("\n");
 }
 
@@ -192,11 +227,11 @@ function renderOverlayForFrame(frame) {
   const payload = selectedEvent.payload || {};
   applyVisuals(payload.visuals || payload.decision?.visuals);
   if (payload.plan) {
-    addPriceLine(payload.plan.market_entry, "entry", "#007aff", 0);
-    addPriceLine(payload.plan.stop, "stop", "#ff3b30", 2);
-    addPriceLine(payload.plan.target, "target", "#34c759", 2);
+    addPriceLine(payload.plan.market_entry, "вход", "#007aff", 0);
+    addPriceLine(payload.plan.stop, "стоп", "#ff3b30", 2);
+    addPriceLine(payload.plan.target, "цель", "#34c759", 2);
   }
-  if (payload.watched_level != null) addPriceLine(payload.watched_level, "watched", "#8e8e93", 2);
+  if (payload.watched_level != null) addPriceLine(payload.watched_level, "наблюдаемый уровень", "#8e8e93", 2);
 }
 
 function seek(index) {
@@ -225,7 +260,7 @@ function seek(index) {
     ? `${(Number(flow.imbalance5s || 0) * 100).toFixed(0)}% · x${Number(flow.acceleration || 0).toFixed(1)}`
     : "—";
   $("replayPosition").textContent = frame.position
-    ? `${frame.position.side.toUpperCase()} · ${frame.position.partial_taken ? "RUNNER" : "INITIAL"} · open ${money(frame.position.unrealized_pnl)} · locked ${money(frame.position.realized_net_usd)}`
+    ? `${replaySideLabel(frame.position.side)} · ${frame.position.partial_taken ? "РАННЕР" : "ПОЛНАЯ ПОЗИЦИЯ"} · открытый PnL ${money(frame.position.unrealized_pnl)} · зафиксировано ${money(frame.position.realized_net_usd)}`
     : "Нет";
 }
 

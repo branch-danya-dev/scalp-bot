@@ -16,6 +16,8 @@ let strategyEventFilter = "all";
 let eventTypeFilter = "all";
 let selectedReviewSession = "current";
 let lastLiveClosedTrades = [];
+const expandedTradeReviewIds = new Set();
+const tradeReviewCache = new Map();
 
 const $ = id => document.getElementById(id);
 const money = value => new Intl.NumberFormat("en-US", {style:"currency", currency:"USD", maximumFractionDigits:2}).format(value || 0);
@@ -49,6 +51,130 @@ function duration(seconds) {
   return `${h}:${m}:${s}`;
 }
 
+const STRATEGY_LABELS = {
+  trend_structure: "Трендовый откат",
+  weak_level_rejection: "Отбой от уровня",
+  orderbook_density: "Плотность в стакане",
+  level_breakout: "Пробой уровня",
+};
+const STATE_LABELS = {
+  search: "поиск", found: "найден", persisting: "удерживается",
+  approach: "подход", pressure: "давление", test: "тест",
+  defended: "защищена", exhausted: "исчерпана", reaction: "реакция",
+  reject: "отбой", break: "пробой", impulse: "импульс",
+  pullback: "откат", reclaim: "возврат", continuation: "продолжение",
+  stale_book: "стакан устарел", watch: "наблюдение", unknown: "неизвестно",
+};
+const ACTION_LABELS = {wait:"ЖДЁМ", long:"ЛОНГ", short:"ШОРТ"};
+const TREND_LABELS = {up:"ВВЕРХ", down:"ВНИЗ", flat:"БОКОВИК"};
+const SIDE_LABELS = {long:"ЛОНГ", short:"ШОРТ", buy:"ПОКУПКА", sell:"ПРОДАЖА", bid:"BID", ask:"ASK"};
+const EVENT_LABELS = {
+  decision:"Решение", trade_opened:"Вход", partial_take:"Частичная фиксация",
+  trade_closed:"Выход", risk_reject:"Отклонено риском", economic_shadow:"Экономика (shadow)",
+  setup_blocked:"Сетап заблокирован", setup_consumed:"Сетап использован",
+  setup_rearmed:"Сетап переактивирован", symbol_activated:"Монета активирована",
+  symbol_deactivated:"Монета исключена", run_summary:"Итог прогона",
+  bot_started:"Прогон запущен", bot_stopped:"Прогон остановлен",
+  startup_scan_error:"Ошибка стартового сканера", scanner_error:"Ошибка сканера",
+  symbol_bootstrap_error:"Ошибка загрузки рынка", context_error:"Ошибка контекста",
+  strategy_error:"Ошибка стратегии",
+};
+const TRACE_PHRASES = {
+  "confirmed trend structure and a valid trendline":"подтверждённая структура тренда и валидная трендовая линия",
+  "actual test of the trend support/resistance":"фактический тест трендовой поддержки/сопротивления",
+  "reclaim of the trendline and aligned local tape":"возврат за трендовую линию и подтверждение локальным потоком",
+  "follow-through in the trend direction":"продолжение движения по тренду",
+  "risk and execution approval":"одобрение риска и исполнения",
+  "fresh/young horizontal level":"свежий горизонтальный уровень",
+  "directional approach to the level":"направленный подход к уровню",
+  "real break beyond the zone and reclaim":"реальный выход за зону с возвратом",
+  "fresh local tape reversal at the level":"свежий локальный разворот потока у уровня",
+  "significant observable order-book wall":"значимая наблюдаемая стенка в стакане",
+  "wall persistence and stability":"устойчивость и стабильность стенки",
+  "price approach to the wall":"подход цены к стенке",
+  "actual trade touch of the wall":"фактическое касание стенки сделками",
+  "price reaction and fresh local tape reversal":"реакция цены и свежий разворот локального потока",
+  "mature worked horizontal zone":"зрелая проторгованная горизонтальная зона",
+  "directional pressure into the zone":"направленное давление в зону",
+  "actual break of the zone":"фактический пробой зоны",
+  "executed-flow acceptance beyond the broken edge":"закрепление исполненного потока за пробитой границей",
+  "trend direction aligned":"направление совпадает с трендом",
+  "flow confirmed":"поток подтверждён",
+  "directional pullback observed":"направленный откат подтверждён",
+  "absorption observed":"наблюдается поглощение",
+  "density still fresh":"плотность остаётся свежей",
+  "weak/fresh level identified":"обнаружен свежий/слабый уровень",
+  "market context":"рыночный контекст",
+  "level zone":"зона уровня",
+  "watched level":"наблюдаемый уровень",
+  "support":"поддержка",
+  "resistance":"сопротивление",
+};
+
+function strategyLabel(value) { return STRATEGY_LABELS[value] || String(value || "—").replaceAll("_", " "); }
+function stateLabel(value) { return STATE_LABELS[String(value || "unknown")] || String(value || "—").replaceAll("_", " "); }
+function trendLabel(value) { return TREND_LABELS[String(value || "flat")] || String(value || "—").toUpperCase(); }
+function sideLabel(value) { return SIDE_LABELS[String(value || "").toLowerCase()] || String(value || "—").toUpperCase(); }
+function actionLabel(value) { return ACTION_LABELS[String(value || "wait")] || String(value || "—").toUpperCase(); }
+function eventLabel(value) { return EVENT_LABELS[value] || String(value || "").replaceAll("_", " "); }
+function translatePhrase(value) {
+  const text = String(value || "");
+  if (TRACE_PHRASES[text]) return TRACE_PHRASES[text];
+  const progressed = text.match(/^strategy progressed to (.+)$/);
+  if (progressed) return `стратегия перешла в состояние «${stateLabel(progressed[1])}»`;
+  return text;
+}
+function marketObjectLabel(value) {
+  const text = String(value || "");
+  if (TRACE_PHRASES[text]) return TRACE_PHRASES[text];
+  const density = text.match(/^(bid|ask) density$/i);
+  if (density) return `${density[1].toUpperCase()} · плотность`;
+  const tfLevel = text.match(/^(\S+)\s+(support|resistance)$/i);
+  if (tfLevel) return `${tfLevel[1]} · ${TRACE_PHRASES[tfLevel[2].toLowerCase()]}`;
+  return text.replaceAll("_", " ");
+}
+function reasonText(value) {
+  const text = String(value || "");
+  if (!text) return "—";
+  if (text === "portfolio risk budget exhausted") return "Исчерпан лимит риска портфеля";
+  if (text === "portfolio exposure budget exhausted") return "Исчерпан лимит экспозиции портфеля";
+  if (text === "insufficient visible entry depth after risk sizing") return "Недостаточная видимая глубина после расчёта риска";
+  if (text.startsWith("insufficient visible entry depth:")) return text.replace("insufficient visible entry depth:", "Недостаточная видимая глубина входа:");
+  if (text.startsWith("setup expired after depth: entry drift")) return text.replace("setup expired after depth: entry drift", "Сетап устарел после проверки глубины: дрейф входа");
+  if (text.startsWith("setup expired: entry drift")) return text.replace("setup expired: entry drift", "Сетап устарел: дрейф входа");
+  if (text.startsWith("net at target")) return text.replace("net at target", "Net на цели").replace("after estimated trading costs", "после расчётных торговых издержек").replace("required", "требуется");
+  if (text.includes("economic_gate: insufficient_net_reward_risk")) return text.replace("economic_gate: insufficient_net_reward_risk:", "Экономика: недостаточный net R:R:");
+  if (text === "setup consumed") return "сетап использован";
+  if (text === "rearmed") return "переактивирован";
+  if (text === "deactivated") return "исключена из наблюдения";
+  if (text === "stopped") return "остановлено";
+  if (text === "closed") return "закрыто";
+  if (text === "target") return "цель";
+  if (text === "runner_target") return "цель раннера";
+  if (text === "stop") return "стоп";
+  if (text === "no_follow_through") return "нет продолжения движения";
+  if (text === "partial_take") return "частичная фиксация";
+  if (text === "duration_elapsed") return "время прогона истекло";
+  if (text === "bot_stop") return "остановлено пользователем";
+  if (text === "shutdown") return "завершение приложения";
+  return translatePhrase(text);
+}
+
+function timeframeUsesSeconds(timeframe) { return timeframe === "5s" || timeframe === "15s"; }
+function applyChartTimeframeScale() {
+  if (!chart) return;
+  const withSeconds = timeframeUsesSeconds(selectedChartTimeframe);
+  chart.applyOptions({
+    timeScale: {
+      timeVisible:true, secondsVisible:withSeconds, borderVisible:false,
+      tickMarkFormatter: time => new Date(Number(time) * 1000).toLocaleTimeString([],
+        withSeconds
+          ? {hour:"2-digit", minute:"2-digit", second:"2-digit"}
+          : {hour:"2-digit", minute:"2-digit"})
+    }
+  });
+}
+
 async function api(path, options={}) {
   const response = await fetch(path, options);
   if (!response.ok) throw new Error(await response.text());
@@ -68,9 +194,12 @@ function ensureChart() {
     rightPriceScale: {borderVisible:false},
     timeScale: {
       timeVisible:true,
-      secondsVisible:false,
+      secondsVisible:timeframeUsesSeconds(selectedChartTimeframe),
       borderVisible:false,
-      tickMarkFormatter: time => new Date(Number(time) * 1000).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})
+      tickMarkFormatter: time => new Date(Number(time) * 1000).toLocaleTimeString([],
+        timeframeUsesSeconds(selectedChartTimeframe)
+          ? {hour:"2-digit", minute:"2-digit", second:"2-digit"}
+          : {hour:"2-digit", minute:"2-digit"})
     }
   });
   candleSeries = chart.addCandlestickSeries({
@@ -118,7 +247,7 @@ function drawStructuralLevels(structure) {
     const tf = levelTimeframe(level);
     const htf = ["1h", "1D"].includes(tf);
     const mid = level.center ?? ((Number(level.low) + Number(level.high)) / 2);
-    const title = `${level.kind} · ${tf}`;
+    const title = `${marketObjectLabel(level.kind)} · ${tf}`;
     addPriceLine(
       mid,
       title,
@@ -134,17 +263,17 @@ function drawActiveDecisionObjects(decisions) {
   Object.values(decisions || {}).forEach(decision => {
     const trace = decision.trace || {};
     const object = trace.object || {};
-    const label = `${decision.strategy.replaceAll("_", " ")} · ${trace.state || decision.details?.state || ""}`;
+    const label = `${strategyLabel(decision.strategy)} · ${stateLabel(trace.state || decision.details?.state || "")}`;
     if (object.low != null && object.high != null) {
-      addPriceLine(object.low, label + " low", "#007aff", 0, 2, true);
-      addPriceLine(object.high, label + " high", "#007aff", 0, 2, true);
+      addPriceLine(object.low, label + " · низ", "#007aff", 0, 2, true);
+      addPriceLine(object.high, label + " · верх", "#007aff", 0, 2, true);
     } else if (object.price != null) {
       addPriceLine(object.price, label, "#007aff", 0, 2, true);
     } else if (decision.watched_level != null) {
       addPriceLine(decision.watched_level, label, "#007aff", 0, 2, true);
     }
     const target = decision.details?.liquidityTarget?.price;
-    if (target != null) addPriceLine(target, "liquidity target", "#34c759", 2, 1, true);
+    if (target != null) addPriceLine(target, "цель по ликвидности", "#34c759", 2, 1, true);
   });
 }
 
@@ -168,9 +297,9 @@ function renderVisuals(decisions, position, structure) {
   }
 
   if (position) {
-    addPriceLine(position.entry, "ENTRY", "#007aff", 0, 2, true);
-    addPriceLine(position.stop, "STOP", "#ff3b30", 0, 2, true);
-    addPriceLine(position.target, "TARGET", "#34c759", 0, 2, true);
+    addPriceLine(position.entry, "ВХОД", "#007aff", 0, 2, true);
+    addPriceLine(position.stop, "СТОП", "#ff3b30", 0, 2, true);
+    addPriceLine(position.target, "ЦЕЛЬ", "#34c759", 0, 2, true);
   }
 }
 
@@ -196,6 +325,29 @@ function renderMarketChart(market, position) {
   renderVisuals(market.decisions, position, market.structure);
 }
 
+function renderSymbolMeta(market) {
+  if (!market) return;
+  const book = market.orderbook || {};
+  const mid = book.bestBid && book.bestAsk ? (book.bestBid + book.bestAsk) / 2 : null;
+  const gapBps = mid ? (market.lastPrice - mid) / mid * 10000 : null;
+  const gapText = gapBps == null ? "" : ` · цена↔стакан ${gapBps >= 0 ? "+" : ""}${gapBps.toFixed(1)} bps`;
+  const flow = market.tradeFlow || {};
+  const flowText = flow.tradeCount5s
+    ? ` · поток 5с ${(Number(flow.imbalance5s || 0) * 100).toFixed(0)}% · скорость x${Number(flow.acceleration || 0).toFixed(1)}`
+    : "";
+  const profile = market.activityProfile || {};
+  const corr = profile.correlation_1h_btc == null
+    ? "корр. 1ч: н/д"
+    : `корр. BTC 1ч ${(Number(profile.correlation_1h_btc) * 100).toFixed(0)}%`;
+  const trades24h = profile.trade_count_24h == null
+    ? "сделки 24ч: н/д"
+    : `сделки 24ч ${compact(profile.trade_count_24h)}`;
+  const timeframeRows = market.chartSeries?.[selectedChartTimeframe] || [];
+  const latestBar = timeframeRows.length ? timeframeRows[timeframeRows.length - 1] : null;
+  const barState = latestBar?.confirmed === false ? "формируется" : latestBar ? "закрыта" : "нет данных";
+  $("symbolMeta").textContent = `${selectedChartTimeframe} · ${barState} · цена ${price(market.lastPrice)}${gapText} · 24ч ${pct(profile.change_24h)} · оборот ${compact(profile.turnover_24h)} · ${corr} · ${trades24h} · активность ${Number(profile.activity_score || 0).toFixed(0)}${flowText}`;
+}
+
 function bindChartControls() {
   document.querySelectorAll("[data-timeframe]").forEach(button => {
     button.onclick = () => {
@@ -203,7 +355,10 @@ function bindChartControls() {
       document.querySelectorAll("[data-timeframe]").forEach(row =>
         row.classList.toggle("active", row.dataset.timeframe === selectedChartTimeframe)
       );
+      applyChartTimeframeScale();
       renderMarketChart(lastMarketForChart, lastPositionForChart);
+      renderSymbolMeta(lastMarketForChart);
+      if (chart) chart.timeScale().fitContent();
     };
   });
   document.querySelectorAll("[data-level-filter]").forEach(button => {
@@ -231,7 +386,7 @@ function renderWorking(rows) {
   $("workingList").innerHTML = rows.map(row => {
     const active = row.symbol === selectedSymbol ? "active" : "";
     const moveClass = (row.activityChange || 0) >= 0 ? "up" : "down";
-    const position = row.position ? `<span class="pill">${row.position.side.toUpperCase()}</span>` : `<span>${row.trend.toUpperCase()}</span>`;
+    const position = row.position ? `<span class="pill">${sideLabel(row.position.side)}</span>` : `<span>${trendLabel(row.trend)}</span>`;
     return `<button class="symbol-row ${active}" data-symbol="${row.symbol}">
       <strong>#${row.activityRank || "—"} ${row.symbol.replace("USDT", "")}</strong><span>${price(row.lastPrice)}</span>
       ${position}<span class="${moveClass}">${pct(row.activityChange)}</span>
@@ -265,7 +420,7 @@ function renderBook(book, densityContext=null) {
   $("asks").innerHTML = [...book.asks].slice(0, domDisplayDepth).reverse().map(x => row(x, "ask")).join("");
   $("bids").innerHTML = book.bids.slice(0, domDisplayDepth).map(x => row(x, "bid")).join("");
   $("midPrice").textContent = book.bestBid && book.bestAsk ? price((book.bestBid + book.bestAsk) / 2) : "—";
-  $("spread").textContent = `spread ${(book.spreadPct * 100).toFixed(4)}%`;
+  $("spread").textContent = `спред ${(book.spreadPct * 100).toFixed(4)}%`;
 }
 
 function domPct(value) {
@@ -276,31 +431,31 @@ function renderDomInspector(context) {
   const root = $("domInspector");
   if (!root) return;
   if (!context) {
-    root.innerHTML = '<div class="dom-empty">Density сейчас не отслеживает активную wall.</div>';
+    root.innerHTML = '<div class="dom-empty">Стратегия плотности сейчас не отслеживает активную стенку.</div>';
     return;
   }
   const flow = context.recentLevelFlow || context.levelFlow || {};
   const ofi = context.bookFlow || {};
-  const state = String(context.state || "watch").toUpperCase();
+  const state = stateLabel(context.state || "watch");
   root.innerHTML = `
     <div class="dom-state-line">
-      <strong>${String(context.wallSide || "").toUpperCase()} WALL · ${price(context.wallPrice)}</strong>
+      <strong>${String(context.wallSide || "").toUpperCase()} · СТЕНКА · ${price(context.wallPrice)}</strong>
       <span class="dom-state">${state}</span>
     </div>
     <div class="dom-metrics">
-      <span><small>Wall</small>${compact(context.notionalUsd)}</span>
-      <span><small>Strength</small>${Number(context.strengthMultiple || 0).toFixed(1)}x</span>
-      <span><small>Remaining</small>${domPct(context.remainingRatio)}</span>
-      <span><small>Attack 5s</small>${compact(context.attackNotional5s)}</span>
-      <span><small>Depletion/s</small>${domPct(context.depletionPerSecond)}</span>
-      <span><small>Replenish</small>${domPct(context.replenishmentRatio)}</span>
-      <span><small>Local flow</small>${flow.imbalance == null ? "—" : (Number(flow.imbalance) * 100).toFixed(0) + "%"}</span>
+      <span><small>Стенка</small>${compact(context.notionalUsd)}</span>
+      <span><small>Сила</small>${Number(context.strengthMultiple || 0).toFixed(1)}x</span>
+      <span><small>Осталось</small>${domPct(context.remainingRatio)}</span>
+      <span><small>Атака 5с</small>${compact(context.attackNotional5s)}</span>
+      <span><small>Истощение/с</small>${domPct(context.depletionPerSecond)}</span>
+      <span><small>Пополнение</small>${domPct(context.replenishmentRatio)}</span>
+      <span><small>Локальный поток</small>${flow.imbalance == null ? "—" : (Number(flow.imbalance) * 100).toFixed(0) + "%"}</span>
       <span><small>OFI 5s</small>${compact(ofi.bestLevelOfiUsd5s)}</span>
     </div>
     <div class="dom-flags">
-      <span class="${context.absorptionObserved ? "flag good" : "flag"}">absorption ${context.absorptionObserved ? "YES" : "NO"}</span>
-      <span class="${context.wallPresent === false ? "flag bad" : "flag"}">wall ${context.wallPresent === false ? "REMOVED" : "present"}</span>
-      <span class="${context.positionInvalidated ? "flag bad" : "flag"}">invalidation ${context.positionInvalidated ? "YES" : "NO"}</span>
+      <span class="${context.absorptionObserved ? "flag good" : "flag"}">поглощение: ${context.absorptionObserved ? "ДА" : "нет"}</span>
+      <span class="${context.wallPresent === false ? "flag bad" : "flag"}">стенка: ${context.wallPresent === false ? "снята" : "на месте"}</span>
+      <span class="${context.positionInvalidated ? "flag bad" : "flag"}">инвалидация: ${context.positionInvalidated ? "ДА" : "нет"}</span>
     </div>
   `;
 }
@@ -329,12 +484,12 @@ function renderStrategies(rows) {
         <button class="switch ${row.enabled ? "on" : ""}" data-strategy="${row.key}" data-enabled="${row.enabled}"></button>
       </div>
       <div class="strategy-stats">
-        <span><small>Signals</small>${stats.tradeableSignals || 0}</span>
-        <span><small>Trades</small>${stats.tradesClosed || 0}</span>
-        <span><small>W/L</small>${stats.wins || 0}/${stats.losses || 0}</span>
-        <span class="${netClass}"><small>Net</small>${money(stats.netPnl || 0)}</span>
-        <span><small>Rejects</small>${stats.riskRejects || 0}</span>
-        <span><small>Exp R</small>${row.expectancy?.sampleReady ? Number(row.expectancy.expectancyR || 0).toFixed(2) : "n/a"}</span>
+        <span><small>Сигналы</small>${stats.tradeableSignals || 0}</span>
+        <span><small>Сделки</small>${stats.tradesClosed || 0}</span>
+        <span><small>П/У</small>${stats.wins || 0}/${stats.losses || 0}</span>
+        <span class="${netClass}"><small>Net PnL</small>${money(stats.netPnl || 0)}</span>
+        <span><small>Отказы</small>${stats.riskRejects || 0}</span>
+        <span><small>Ожидание R</small>${row.expectancy?.sampleReady ? Number(row.expectancy.expectancyR || 0).toFixed(2) : "н/д"}</span>
       </div>
     </div>`;
   }).join("");
@@ -351,12 +506,12 @@ function renderStrategies(rows) {
 
 function traceObjectText(object={}) {
   if (object.low != null && object.high != null) {
-    return `${object.label || object.type}: ${price(object.low)}–${price(object.high)}`;
+    return `${marketObjectLabel(object.label || object.type)}: ${price(object.low)}–${price(object.high)}`;
   }
   if (object.price != null) {
-    return `${object.label || object.type}: ${price(object.price)}`;
+    return `${marketObjectLabel(object.label || object.type)}: ${price(object.price)}`;
   }
-  return object.label || object.type || "market context";
+  return marketObjectLabel(object.label || object.type || "market context");
 }
 
 function renderDecisions(decisions) {
@@ -367,18 +522,18 @@ function renderDecisions(decisions) {
     const observed = trace.observedAtMs
       ? new Date(trace.observedAtMs).toLocaleTimeString()
       : "—";
-    const confirmed = (trace.confirmed || []).map(row => `<span class="trace-tag confirmed">${row}</span>`).join("");
-    const waiting = (trace.waitingFor || []).map(row => `<li>${row}</li>`).join("");
+    const confirmed = (trace.confirmed || []).map(row => `<span class="trace-tag confirmed">${translatePhrase(row)}</span>`).join("");
+    const waiting = (trace.waitingFor || []).map(row => `<li>${translatePhrase(row)}</li>`).join("");
     return `<article class="decision-card">
       <div class="decision-card-head">
         <div>
-          <strong>${decision.strategy.replaceAll("_", " ")}</strong>
-          <span>${decision.action.toUpperCase()} · ${String(state).toUpperCase()}</span>
+          <strong>${strategyLabel(decision.strategy)}</strong>
+          <span>${actionLabel(decision.action)} · ${stateLabel(state)}</span>
         </div>
         <time>${observed}</time>
       </div>
       <div class="decision-object">${traceObjectText(trace.object)}</div>
-      <div class="decision-context">Trend: <b>${String(trace.trend || "—").toUpperCase()}</b> · confidence ${Number(trace.confidence || 0).toFixed(2)}</div>
+      <div class="decision-context">Тренд: <b>${trendLabel(trace.trend)}</b> · уверенность ${Number(trace.confidence || 0).toFixed(2)}</div>
       <div class="trace-tags">${confirmed || '<span class="trace-tag">нет подтверждений</span>'}</div>
       ${waiting ? `<div class="decision-wait"><small>Чего ждём</small><ul>${waiting}</ul></div>` : ""}
     </article>`;
@@ -387,30 +542,30 @@ function renderDecisions(decisions) {
 
 function eventText(event) {
   const payload = event.payload || {};
-  if (event.event === "trade_opened") return `${payload.plan?.side || ""} ${money(payload.plan?.notional)} · net@target ${money(payload.plan?.net_at_target ?? payload.plan?.expected_net_profit)} · quality ${Number(payload.opportunityQuality ?? 0).toFixed(2)}`;
-  if (event.event === "partial_take") return `partial ${money(payload.netPnl)} · осталось ${money(payload.remainingNotional)} · stop→${price(payload.newStop)}`;
-  if (event.event === "trade_closed") return `${payload.reason} · ${money(payload.netPnl)} · MAE ${money(payload.maeUsd)} · MFE ${money(payload.mfeUsd)}`;
+  if (event.event === "trade_opened") return `${sideLabel(payload.plan?.side)} · ${money(payload.plan?.notional)} · net на цели ${money(payload.plan?.net_at_target ?? payload.plan?.expected_net_profit)} · качество ${Number(payload.opportunityQuality ?? 0).toFixed(2)}`;
+  if (event.event === "partial_take") return `частичная фиксация ${money(payload.netPnl)} · осталось ${money(payload.remainingNotional)} · стоп→${price(payload.newStop)}`;
+  if (event.event === "trade_closed") return `${reasonText(payload.reason)} · ${money(payload.netPnl)} · MAE ${money(payload.maeUsd)} · MFE ${money(payload.mfeUsd)}`;
   if (event.event === "risk_reject") {
     const d = payload.diagnostics || {};
     const economics = d.netAtTargetUsd != null
-      ? ` · net ${money(d.netAtTargetUsd)} / loss ${money(d.allInNetLossUsd)} / RR ${Number(d.netRewardRisk || 0).toFixed(2)}`
+      ? ` · net ${money(d.netAtTargetUsd)} / риск ${money(d.allInNetLossUsd)} / R:R ${Number(d.netRewardRisk || 0).toFixed(2)}`
       : "";
-    return `${payload.reason || "rejected"}${economics}`;
+    return `${reasonText(payload.reason || "отклонено")}${economics}`;
   }
-  if (event.event === "economic_shadow") return `shadow: ${(payload.shadowRejectReasons || []).join(", ")}`;
-  if (event.event === "setup_blocked") return `${payload.strategy}: ${payload.reason}`;
-  if (event.event === "setup_consumed") return `${payload.strategy}: setup consumed`;
-  if (event.event === "setup_rearmed") return `${payload.strategy}: rearmed`;
-  if (event.event === "decision") return `${payload.strategy}: ${(payload.reasons || []).join(" · ")}`;
+  if (event.event === "economic_shadow") return `наблюдение: ${(payload.shadowRejectReasons || []).map(reasonText).join(", ")}`;
+  if (event.event === "setup_blocked") return `${strategyLabel(payload.strategy)}: ${reasonText(payload.reason)}`;
+  if (event.event === "setup_consumed") return `${strategyLabel(payload.strategy)}: сетап использован`;
+  if (event.event === "setup_rearmed") return `${strategyLabel(payload.strategy)}: переактивирован`;
+  if (event.event === "decision") return `${strategyLabel(payload.strategy)}: ${(payload.reasons || []).map(reasonText).join(" · ")}`;
   if (event.event === "symbol_activated") return "монета стала активной";
-  if (event.event === "symbol_deactivated") return payload.reason || "deactivated";
-  if (event.event === "run_summary") return `${payload.reason} · elapsed ${duration(payload.elapsedSeconds)} · PnL ${money(payload.realizedPnl)} · trades ${payload.closedTrades}`;
-  if (event.event === "bot_stopped") return payload.reason || "stopped";
-  if (event.event === "startup_scan_error") return payload.error || "startup scanner failed";
-  if (event.event === "scanner_error") return payload.error || "scanner failed";
-  if (event.event === "symbol_bootstrap_error") return payload.error || "symbol bootstrap failed";
-  if (event.event === "context_error") return payload.error || "context refresh failed";
-  if (event.event === "strategy_error") return payload.error || "strategy failed";
+  if (event.event === "symbol_deactivated") return reasonText(payload.reason || "deactivated");
+  if (event.event === "run_summary") return `${reasonText(payload.reason)} · прошло ${duration(payload.elapsedSeconds)} · PnL ${money(payload.realizedPnl)} · сделок ${payload.closedTrades}`;
+  if (event.event === "bot_stopped") return reasonText(payload.reason || "stopped");
+  if (event.event === "startup_scan_error") return payload.error || "Ошибка стартового сканера";
+  if (event.event === "scanner_error") return payload.error || "Ошибка сканера";
+  if (event.event === "symbol_bootstrap_error") return payload.error || "Ошибка загрузки рынка";
+  if (event.event === "context_error") return payload.error || "Ошибка обновления контекста";
+  if (event.event === "strategy_error") return payload.error || "Ошибка стратегии";
   return payload.error || "";
 }
 
@@ -459,13 +614,19 @@ function renderEvents(rows) {
   });
   $("events").innerHTML = filtered.slice(0, 80).map(event => `<div class="event">
     <time>${new Date(event.ts * 1000).toLocaleTimeString()}</time>
-    <span class="type">${event.event}</span>
+    <span class="type">${eventLabel(event.event)}</span>
     <span class="text">${event.symbol || ""} ${eventText(event)}</span>
   </div>`).join("");
 }
 
 async function loadReviewSession(sessionName) {
-  selectedReviewSession = sessionName || "current";
+  const nextSession = sessionName || "current";
+  if (nextSession !== selectedReviewSession) {
+    for (const reviewId of reviewCharts.keys()) destroyReviewChart(reviewId);
+    expandedTradeReviewIds.clear();
+    tradeReviewCache.clear();
+  }
+  selectedReviewSession = nextSession;
   tradeReviewSummaries = [];
   lastClosedTradeCount = -1;
   try {
@@ -490,10 +651,10 @@ async function bindReviewSessions() {
   try {
     const payload = await api("/api/replay/sessions");
     const sessions = payload.sessions || [];
-    select.innerHTML = '<option value="current">Current session</option>'
+    select.innerHTML = '<option value="current">Текущая сессия</option>'
       + sessions.map(row => `<option value="${row.name}">${row.name}</option>`).join("");
   } catch (_) {
-    select.innerHTML = '<option value="current">Current session</option>';
+    select.innerHTML = '<option value="current">Текущая сессия</option>';
   }
   select.onchange = () => {
     loadReviewSession(select.value);
@@ -532,23 +693,23 @@ function renderPosition(position) {
   }
   box.classList.remove("hidden");
   const pnlClass = position.unrealized_pnl >= 0 ? "positive" : "negative";
-  const phase = position.partial_taken ? "RUNNER" : "INITIAL";
-  box.innerHTML = `<strong>${position.side.toUpperCase()} ${position.symbol} · ${phase}</strong>
-    <span>remaining ${money(position.notional)}</span>
-    <span>entry ${price(position.entry)}</span><span>stop ${price(position.stop)}</span><span>target ${price(position.target)}</span>
-    <span class="${pnlClass}">uPnL ${money(position.unrealized_pnl)}</span>
-    <span>locked ${money(position.realized_net_usd)}</span>
+  const phase = position.partial_taken ? "РАННЕР" : "ПОЛНАЯ ПОЗИЦИЯ";
+  box.innerHTML = `<strong>${sideLabel(position.side)} ${position.symbol} · ${phase}</strong>
+    <span>остаток ${money(position.notional)}</span>
+    <span>вход ${price(position.entry)}</span><span>стоп ${price(position.stop)}</span><span>цель ${price(position.target)}</span>
+    <span class="${pnlClass}">открытый PnL ${money(position.unrealized_pnl)}</span>
+    <span>зафиксировано ${money(position.realized_net_usd)}</span>
     <span>MAE ${Number(position.mae_r || 0).toFixed(2)}R</span><span>MFE ${Number(position.mfe_r || 0).toFixed(2)}R</span>`;
 }
 
 function reviewClassLabel(value) {
   return ({
-    missed_target_first:"TARGET был раньше STOP",
-    correct_reject_candidate:"STOP был раньше TARGET",
-    ambiguous:"TARGET/STOP в одном кадре",
+    missed_target_first:"Цель была раньше стопа",
+    correct_reject_candidate:"Стоп был раньше цели",
+    ambiguous:"Цель и стоп в одном кадре",
     unresolved:"Не разрешилось",
-    early_exit_review:"После выхода дошло до target",
-    exit_supported_by_followup:"Target после выхода не достигнут",
+    early_exit_review:"После выхода цена дошла до цели",
+    exit_supported_by_followup:"После выхода цель не достигнута",
   })[value] || value || "—";
 }
 
@@ -565,19 +726,19 @@ function renderOpportunityReview(report) {
 
   root.innerHTML = `
     <div class="opportunity-summary">
-      <span><small>Rejected</small>${summary.rejectedCandidates || 0}</span>
-      <span class="warn"><small>Target-first</small>${summary.missedTargetFirst || 0}</span>
-      <span class="good"><small>Stop-first</small>${summary.correctRejectCandidates || 0}</span>
-      <span><small>Ambiguous</small>${summary.ambiguous || 0}</span>
-      <span class="warn"><small>Early-exit review</small>${summary.earlyExitReviews || 0}</span>
+      <span><small>Отклонено</small>${summary.rejectedCandidates || 0}</span>
+      <span class="warn"><small>Сначала цель</small>${summary.missedTargetFirst || 0}</span>
+      <span class="good"><small>Сначала стоп</small>${summary.correctRejectCandidates || 0}</span>
+      <span><small>Неоднозначно</small>${summary.ambiguous || 0}</span>
+      <span class="warn"><small>Ранние выходы</small>${summary.earlyExitReviews || 0}</span>
     </div>
     <div class="opportunity-columns">
       <div>
         <h3>Отклонённые входы</h3>
         <div class="opportunity-list">
           ${candidateRows.map(row => `<div class="opportunity-row ${row.classification}">
-            <div><strong>${row.symbol}</strong><span>${row.strategy || "—"} · ${row.sourceEvent}</span></div>
-            <div><span>${reviewClassLabel(row.classification)}</span><small>${row.reason || "—"}</small></div>
+            <div><strong>${row.symbol}</strong><span>${strategyLabel(row.strategy)} · ${eventLabel(row.sourceEvent)}</span></div>
+            <div><span>${reviewClassLabel(row.classification)}</span><small>${reasonText(row.reason)}</small></div>
             <div><span>MFE ${row.mfeR == null ? "—" : Number(row.mfeR).toFixed(2) + "R"}</span><small>MAE ${row.maeR == null ? "—" : Number(row.maeR).toFixed(2) + "R"}</small></div>
           </div>`).join("") || '<div class="empty-row">Нет симулируемых отклонённых входов.</div>'}
         </div>
@@ -586,8 +747,8 @@ function renderOpportunityReview(report) {
         <h3>Выходы для проверки</h3>
         <div class="opportunity-list">
           ${exitRows.map(row => `<div class="opportunity-row early_exit_review">
-            <div><strong>${row.symbol}</strong><span>${row.strategy || "—"} · ${row.reason}</span></div>
-            <div><span>${reviewClassLabel(row.classification)}</span><small>post-exit MFE ${row.postExitMfeR == null ? "—" : Number(row.postExitMfeR).toFixed(2) + "R"}</small></div>
+            <div><strong>${row.symbol}</strong><span>${strategyLabel(row.strategy)} · ${reasonText(row.reason)}</span></div>
+            <div><span>${reviewClassLabel(row.classification)}</span><small>MFE после выхода ${row.postExitMfeR == null ? "—" : Number(row.postExitMfeR).toFixed(2) + "R"}</small></div>
           </div>`).join("") || '<div class="empty-row">Нет ранних выходов, требующих проверки.</div>'}
         </div>
       </div>
@@ -629,14 +790,14 @@ function timelineText(row) {
       : object.low != null && object.high != null
         ? ` ${price(object.low)}–${price(object.high)}`
         : "";
-    const waiting = (trace.waitingFor || []).slice(0, 2).join(" · ");
-    return `${trace.strategy || payload.strategy || ""} · ${trace.state || payload.details?.state || ""}${objectText}${waiting ? " · ждём: " + waiting : ""}`;
+    const waiting = (trace.waitingFor || []).slice(0, 2).map(translatePhrase).join(" · ");
+    return `${strategyLabel(trace.strategy || payload.strategy)} · ${stateLabel(trace.state || payload.details?.state)}${objectText}${waiting ? " · ждём: " + waiting : ""}`;
   }
   if (row.event === "trade_opened") return "Позиция открыта";
-  if (row.event === "partial_take") return `Partial · ${money(payload.netPnl)}`;
-  if (row.event === "trade_closed") return `${payload.reason || "closed"} · ${money(payload.netPnl)}`;
-  if (row.event === "risk_reject") return `Risk reject · ${payload.reason || ""}`;
-  if (row.event === "setup_blocked") return `Setup blocked · ${payload.reason || ""}`;
+  if (row.event === "partial_take") return `Частичная фиксация · ${money(payload.netPnl)}`;
+  if (row.event === "trade_closed") return `${reasonText(payload.reason || "closed")} · ${money(payload.netPnl)}`;
+  if (row.event === "risk_reject") return `Отклонено риском · ${reasonText(payload.reason)}`;
+  if (row.event === "setup_blocked") return `Сетап заблокирован · ${reasonText(payload.reason)}`;
   return row.event.replaceAll("_", " ");
 }
 
@@ -656,22 +817,22 @@ function renderTradeReviewDetail(reviewId, review) {
     <div class="review-grid">
       <div class="review-chart" data-review-chart="${reviewId}"></div>
       <div class="review-timeline">
-        <div class="review-subtitle">Decision timeline</div>
+        <div class="review-subtitle">Хронология решений</div>
         <div class="review-events">
           ${(review.timeline || []).map(row => `<div class="review-event">
             <time>${new Date(row.ts * 1000).toLocaleTimeString()}</time>
-            <span class="review-event-type">${row.event}</span>
+            <span class="review-event-type">${eventLabel(row.event)}</span>
             <span>${timelineText(row)}</span>
-          </div>`).join("") || '<div class="empty-row">Timeline отсутствует.</div>'}
+          </div>`).join("") || '<div class="empty-row">Хронология отсутствует.</div>'}
         </div>
       </div>
     </div>
     <div class="review-context">
-      <div><b>Strategy:</b> ${summary.strategy || "—"}</div>
-      <div><b>Setup:</b> ${summary.setupId || "—"}</div>
-      <div><b>Target source:</b> ${details.targetSource || "—"}</div>
-      <div><b>Execution:</b> ${details.economics?.executionProfile?.entry || "—"} → ${details.economics?.executionProfile?.target_exit || "—"}</div>
-      <div><b>Exit:</b> ${summary.reason || "—"}</div>
+      <div><b>Стратегия:</b> ${strategyLabel(summary.strategy)}</div>
+      <div><b>Сетап:</b> ${summary.setupId || "—"}</div>
+      <div><b>Источник цели:</b> ${marketObjectLabel(details.targetSource || "—")}</div>
+      <div><b>Исполнение:</b> ${details.economics?.executionProfile?.entry || "—"} → ${details.economics?.executionProfile?.target_exit || "—"}</div>
+      <div><b>Выход:</b> ${reasonText(summary.reason)}</div>
     </div>`;
 
   const chartRoot = root.querySelector("[data-review-chart]");
@@ -702,33 +863,49 @@ function renderTradeReviewDetail(reviewId, review) {
       lineStyle:0, axisLabelVisible:true,
     });
   };
-  line(summary.entry, "ENTRY", "#007aff");
-  line(summary.initialStop, "STOP", "#ff3b30");
-  line(summary.target, "TARGET", "#34c759");
-  line(summary.exit, "EXIT", "#af52de");
+  line(summary.entry, "ВХОД", "#007aff");
+  line(summary.initialStop, "СТОП", "#ff3b30");
+  line(summary.target, "ЦЕЛЬ", "#34c759");
+  line(summary.exit, "ВЫХОД", "#af52de");
   mini.timeScale().fitContent();
   reviewCharts.set(reviewId, mini);
 }
 
-async function openTradeReview(reviewId) {
+async function loadTradeReviewDetail(reviewId) {
   const detail = document.querySelector(`[data-review-detail="${CSS.escape(reviewId)}"]`);
-  if (!detail) return;
-  if (!detail.classList.contains("hidden")) {
-    detail.classList.add("hidden");
-    destroyReviewChart(reviewId);
+  if (!detail || !expandedTradeReviewIds.has(reviewId)) return;
+  const cached = tradeReviewCache.get(reviewId);
+  if (cached) {
+    renderTradeReviewDetail(reviewId, cached);
     return;
   }
-  detail.classList.remove("hidden");
   detail.innerHTML = '<div class="empty-row">Загрузка разбора сделки…</div>';
   try {
     const sessionQuery = selectedReviewSession === "current"
       ? ""
       : `?session=${encodeURIComponent(selectedReviewSession)}`;
     const review = await api(`/api/reviews/trades/${encodeURIComponent(reviewId)}${sessionQuery}`);
-    renderTradeReviewDetail(reviewId, review);
+    tradeReviewCache.set(reviewId, review);
+    if (expandedTradeReviewIds.has(reviewId)) renderTradeReviewDetail(reviewId, review);
   } catch (error) {
-    detail.innerHTML = `<div class="review-error">${String(error.message || error)}</div>`;
+    if (expandedTradeReviewIds.has(reviewId)) {
+      detail.innerHTML = `<div class="review-error">${String(error.message || error)}</div>`;
+    }
   }
+}
+
+async function openTradeReview(reviewId) {
+  const detail = document.querySelector(`[data-review-detail="${CSS.escape(reviewId)}"]`);
+  if (!detail) return;
+  if (expandedTradeReviewIds.has(reviewId)) {
+    expandedTradeReviewIds.delete(reviewId);
+    detail.classList.add("hidden");
+    destroyReviewChart(reviewId);
+    return;
+  }
+  expandedTradeReviewIds.add(reviewId);
+  detail.classList.remove("hidden");
+  await loadTradeReviewDetail(reviewId);
 }
 
 function renderTrades(rows) {
@@ -742,42 +919,47 @@ function renderTrades(rows) {
     const review = reviewSummaryFor(trade);
     const reviewButton = review
       ? `<button class="button secondary review-open" data-open-review="${review.reviewId}">Разбор сделки</button>`
-      : '<span class="review-pending">Review формируется</span>';
+      : '<span class="review-pending">Разбор формируется</span>';
     return `<article class="trade-card">
       <div class="trade-card-head">
         <div>
-          <strong>${trade.symbol} · ${trade.side.toUpperCase()}</strong>
-          <span>${trade.strategy || "strategy"}</span>
+          <strong>${trade.symbol} · ${sideLabel(trade.side)}</strong>
+          <span>${strategyLabel(trade.strategy)}</span>
         </div>
         <strong class="trade-card-net ${netClass}">${money(trade.netPnl)}</strong>
       </div>
       <div class="trade-card-metrics">
-        <span><small>Entry → Exit</small>${price(trade.entry)} → ${price(trade.exit)}</span>
+        <span><small>Вход → выход</small>${price(trade.entry)} → ${price(trade.exit)}</span>
         <span><small>MAE</small>${money(trade.maeUsd)} · ${Number(trade.maeR || 0).toFixed(2)}R</span>
         <span><small>MFE</small>${money(trade.mfeUsd)} · ${Number(trade.mfeR || 0).toFixed(2)}R</span>
-        <span><small>Fees</small>${money(trade.fees)}</span>
-        <span><small>Exit reason</small>${trade.reason || "—"}</span>
+        <span><small>Комиссии</small>${money(trade.fees)}</span>
+        <span><small>Причина выхода</small>${reasonText(trade.reason)}</span>
       </div>
       <div class="trade-card-actions">${reviewButton}</div>
-      ${review ? `<div class="trade-review-detail hidden" data-review-detail="${review.reviewId}"></div>` : ""}
+      ${review ? `<div class="trade-review-detail ${expandedTradeReviewIds.has(review.reviewId) ? "" : "hidden"}" data-review-detail="${review.reviewId}"></div>` : ""}
     </article>`;
   }).join("");
   document.querySelectorAll("[data-open-review]").forEach(button => {
     button.onclick = () => openTradeReview(button.dataset.openReview);
   });
+  for (const reviewId of expandedTradeReviewIds) {
+    if (document.querySelector(`[data-review-detail="${CSS.escape(reviewId)}"]`)) {
+      loadTradeReviewDetail(reviewId);
+    }
+  }
 }
 
 function render(data) {
   const status = $("connection");
-  const lossCap = data.risk?.sessionLossLimitEnabled ? "LOSS CAP ON" : "RESEARCH · LOSS CAP OFF";
+  const lossCap = data.risk?.sessionLossLimitEnabled ? "лимит убытка включён" : "исследование · лимит убытка выключен";
   const marketHealth = data.marketHealth || {};
   const marketReady = Boolean(marketHealth.ready);
   status.textContent = data.botRunning
-    ? `PAPER TRADING ON · ${lossCap}`
+    ? `PAPER · торговля включена · ${lossCap}`
     : marketReady
-      ? `PAPER READY · ${lossCap}`
+      ? `PAPER · готово · ${lossCap}`
       : marketHealth.scannerError
-        ? "MARKET DATA ERROR"
+        ? "ОШИБКА РЫНОЧНЫХ ДАННЫХ"
         : "ОЖИДАНИЕ РЫНКА";
   status.className = data.botRunning
     ? "live trading-on"
@@ -815,13 +997,13 @@ function render(data) {
     * Number(data.risk.maxPortfolioLeverage || 0)
     * Number(data.risk.maxPositionExposureFraction || 0);
   const perPositionCap = Math.min(positionLeverageCap, positionShareCap);
-  $("availableExposure").textContent = money(data.portfolio.availableNotional) + " · " + money(perPositionCap) + "/pos";
+  $("availableExposure").textContent = money(data.portfolio.availableNotional) + " · " + money(perPositionCap) + "/позицию";
   const minNetGate = data.risk.enforceMinNetProfitGate
-    ? `≥ ${money(data.risk.minNetProfitUsd)} net`
-    : `${money(data.risk.minNetProfitUsd)} net shadow`;
+    ? `net ≥ ${money(data.risk.minNetProfitUsd)}`
+    : `net ${money(data.risk.minNetProfitUsd)} · наблюдение`;
   const rrGate = data.risk.enforceNetRewardRiskGate
-    ? `RR≥${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}`
-    : `RR ${Number(data.risk.minNetRewardRisk || 0).toFixed(2)} shadow`;
+    ? `R:R≥${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}`
+    : `R:R ${Number(data.risk.minNetRewardRisk || 0).toFixed(2)} · наблюдение`;
   $("costGate").textContent = `${minNetGate} · ${rrGate}`;
   $("runTimer").textContent = data.botRunning
     ? duration(data.run?.remainingSeconds)
@@ -833,12 +1015,9 @@ function render(data) {
   renderStrategies(data.strategies);
   renderEvents(data.events);
   lastLiveClosedTrades = data.closedTrades;
-  if (selectedReviewSession === "current") {
-    renderTrades(data.closedTrades);
-  }
-
   if (selectedReviewSession === "current" && data.closedTrades.length !== lastClosedTradeCount) {
     lastClosedTradeCount = data.closedTrades.length;
+    renderTrades(data.closedTrades);
     api("/api/reviews/trades")
       .then(payload => {
         tradeReviewSummaries = payload.reviews || [];
@@ -868,24 +1047,10 @@ function render(data) {
     const row = data.working.find(x => x.symbol === selectedSymbol);
     const position = row?.position || null;
     const book = data.market.orderbook;
-    const mid = book?.bestBid && book?.bestAsk ? (book.bestBid + book.bestAsk) / 2 : null;
-    const gapBps = mid ? (data.market.lastPrice - mid) / mid * 10000 : null;
-    const gapText = gapBps == null ? "" : ` · last↔book ${gapBps >= 0 ? "+" : ""}${gapBps.toFixed(1)} bps`;
 
     $("symbolTitle").textContent = data.market.symbol;
-    const flow = data.market.tradeFlow || {};
-    const flowText = flow.tradeCount5s
-      ? ` · flow5s ${(Number(flow.imbalance5s || 0) * 100).toFixed(0)}% · speed x${Number(flow.acceleration || 0).toFixed(1)}`
-      : "";
-    const profile = data.market.activityProfile || {};
-    const corr = profile.correlation_1h_btc == null
-      ? "corr1h n/a"
-      : `corr1h BTC ${(Number(profile.correlation_1h_btc) * 100).toFixed(0)}%`;
-    const trades24h = profile.trade_count_24h == null
-      ? "trades24h n/a"
-      : `trades24h ${compact(profile.trade_count_24h)}`;
-    $("symbolMeta").textContent = `1m · last ${price(data.market.lastPrice)}${gapText} · 24h ${pct(profile.change_24h)} · vol ${compact(profile.turnover_24h)} · ${corr} · ${trades24h} · score ${Number(profile.activity_score || 0).toFixed(0)}${flowText}`;
-    $("trendBadge").textContent = data.market.trend.toUpperCase();
+    renderSymbolMeta(data.market);
+    $("trendBadge").textContent = trendLabel(data.market.trend);
     $("trendBadge").className = `trend ${data.market.trend}`;
     renderMarketChart(data.market, position);
     renderBook(book, data.market.densityContext);

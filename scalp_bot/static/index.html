@@ -15,7 +15,7 @@
       <strong>Scalp Bot</strong><span class="badge">PAPER</span>
     </div>
     <div class="actions">
-      <a class="button secondary link-button" href="/replay">Replay</a>
+      <a class="button secondary link-button" href="/replay">Реплей</a>
       <span id="connection" class="live observing">Подключение…</span>
       <button id="stopBtn" class="button secondary">Стоп</button>
       <button id="startBtn" class="button primary">Запустить</button>
@@ -23,13 +23,13 @@
   </header>
   <section class="metrics">
     <div class="metric card"><span>Баланс</span><strong id="balance">—</strong></div>
-    <div class="metric card"><span>Realized PnL</span><strong id="realizedPnl">—</strong></div>
-    <div class="metric card"><span>Open net PnL</span><strong id="openPnl">—</strong></div>
-    <div class="metric card"><span>Total net PnL</span><strong id="netPnl">—</strong></div>
+    <div class="metric card"><span>Реализованный PnL</span><strong id="realizedPnl">—</strong></div>
+    <div class="metric card"><span>Открытый PnL</span><strong id="openPnl">—</strong></div>
+    <div class="metric card"><span>Общий PnL</span><strong id="netPnl">—</strong></div>
     <div class="metric card"><span>Открыто позиций</span><strong id="positionCount">0</strong></div>
     <div class="metric card"><span>Свободная экспозиция</span><strong id="availableExposure">—</strong></div>
-    <div class="metric card"><span>Cost gate</span><strong id="costGate">—</strong></div>
-    <div class="metric card"><span>До авто-stop</span><strong id="runTimer">10:00:00</strong></div>
+    <div class="metric card"><span>Экономика</span><strong id="costGate">—</strong></div>
+    <div class="metric card"><span>До автостопа</span><strong id="runTimer">10:00:00</strong></div>
   </section>
   <div id="marketAlert" class="market-alert hidden"></div>
   <section class="workspace">
@@ -47,7 +47,7 @@
       </div>
       <div class="chart-toolbar">
         <div class="toolbar-group timeframe-group">
-          <span>TF</span>
+          <span>Таймфрейм</span>
           <button class="chart-chip" data-timeframe="5s">5s</button>
           <button class="chart-chip" data-timeframe="15s">15s</button>
           <button class="chart-chip active" data-timeframe="1m">1m</button>
@@ -61,7 +61,7 @@
           <button class="chart-chip active" data-level-filter="active">Активные</button>
           <button class="chart-chip" data-level-filter="htf">HTF</button>
           <button class="chart-chip" data-level-filter="all">Все</button>
-          <button id="trendlineToggle" class="chart-chip active">Trendlines</button>
+          <button id="trendlineToggle" class="chart-chip active">Трендовые линии</button>
         </div>
       </div>
       <div id="chart"></div>
@@ -82,32 +82,32 @@
       <div class="divider"></div>
       <div class="dom-inspector-title">Что видит бот</div>
       <div id="domInspector" class="dom-inspector">
-        <div class="dom-empty">Density сейчас не отслеживает активную wall.</div>
+        <div class="dom-empty">Стратегия плотности сейчас не отслеживает активную стенку.</div>
       </div>
     </aside>
   </section>
   <section class="bottom">
     <article class="card panel">
-      <div class="heading"><h2>Стратегии</h2><span>trend-aligned only</span></div>
+      <div class="heading"><h2>Стратегии</h2><span>только по направлению тренда</span></div>
       <div id="strategyList"></div>
     </article>
     <article class="card panel">
       <div class="heading"><h2>Лента решений</h2><span id="sessionFile">session</span></div>
       <div class="event-filters">
         <div>
-          <button class="chart-chip active" data-event-strategy="all">All</button>
-          <button class="chart-chip" data-event-strategy="trend_structure">Trend</button>
-          <button class="chart-chip" data-event-strategy="weak_level_rejection">Rejection</button>
-          <button class="chart-chip" data-event-strategy="orderbook_density">Density</button>
-          <button class="chart-chip" data-event-strategy="level_breakout">Breakout</button>
+          <button class="chart-chip active" data-event-strategy="all">Все</button>
+          <button class="chart-chip" data-event-strategy="trend_structure">Тренд</button>
+          <button class="chart-chip" data-event-strategy="weak_level_rejection">Отбой</button>
+          <button class="chart-chip" data-event-strategy="orderbook_density">Плотность</button>
+          <button class="chart-chip" data-event-strategy="level_breakout">Пробой</button>
         </div>
         <div>
           <button class="chart-chip active" data-event-type="all">Все</button>
-          <button class="chart-chip" data-event-type="decision">Decision</button>
-          <button class="chart-chip" data-event-type="entry">Entry</button>
-          <button class="chart-chip" data-event-type="reject">Reject</button>
-          <button class="chart-chip" data-event-type="exit">Exit</button>
-          <button class="chart-chip" data-event-type="error">Error</button>
+          <button class="chart-chip" data-event-type="decision">Решения</button>
+          <button class="chart-chip" data-event-type="entry">Входы</button>
+          <button class="chart-chip" data-event-type="reject">Отклонения</button>
+          <button class="chart-chip" data-event-type="exit">Выходы</button>
+          <button class="chart-chip" data-event-type="error">Ошибки</button>
         </div>
       </div>
       <div id="events" class="events"></div>
@@ -116,27 +116,27 @@
 
   <section class="card observatory-session">
     <div class="heading">
-      <h2>Trade Observatory</h2>
+      <h2>Наблюдение за сделками</h2>
       <select id="reviewSessionSelect" class="session-select">
-        <option value="current">Current session</option>
+        <option value="current">Текущая сессия</option>
       </select>
     </div>
-    <div class="opportunity-note">Выбранная сессия используется для Trade Review и post-run Opportunity Review.</div>
+    <div class="opportunity-note">Выбранная сессия используется для разбора сделок и постанализа упущенных возможностей.</div>
   </section>
 
   <section class="card opportunity-panel">
     <div class="heading">
-      <h2>Post-run Opportunity Review</h2>
+      <h2>Постанализ возможностей</h2>
       <button id="opportunityRefresh" class="button secondary">Пересчитать</button>
     </div>
-    <div class="opportunity-note">Offline-анализ: он смотрит только на рынок после уже принятого решения и не участвует в live-торговле.</div>
+    <div class="opportunity-note">Офлайн-анализ: оценивает движение рынка после уже принятого решения и не влияет на текущую торговлю.</div>
     <div id="opportunityReview" class="opportunity-review">
       <div class="empty-row">Запусти анализ после завершения сессии.</div>
     </div>
   </section>
 
   <section class="card trades-panel">
-    <div class="heading"><h2>Закрытые сделки</h2><span>Trade Review · chart · decisions · MAE/MFE · net</span></div>
+    <div class="heading"><h2>Закрытые сделки</h2><span>разбор · график · решения · MAE/MFE · net</span></div>
     <div id="closedTrades" class="closed-trades review-cards"></div>
   </section>
 </main>
