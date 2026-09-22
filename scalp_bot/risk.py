@@ -12,6 +12,7 @@ class RiskResult:
     allowed: bool
     reason: str
     plan: TradePlan | None = None
+    diagnostics: dict | None = None
 
 
 class RiskEngine:
@@ -283,48 +284,13 @@ class RiskEngine:
                 self.config.min_net_profit_equity_fraction,
             ),
         )
-
-        if expected_net <= 0:
-            return RiskResult(
-                False,
-                f"net at target ${expected_net:.2f} <= 0 after estimated trading costs",
-            )
-        minimum_net_profit_failed = expected_net < required_net_profit
-        if (
-            self.config.enforce_min_net_profit_gate
-            and minimum_net_profit_failed
-        ):
-            return RiskResult(
-                False,
-                (
-                    f"net at target ${expected_net:.2f} < required "
-                    f"${required_net_profit:.2f}"
-                ),
-            )
         minimum_net_reward = (
             all_in_net_loss * self.config.min_net_reward_risk
         )
+        minimum_net_profit_failed = expected_net < required_net_profit
         net_reward_risk_failed = expected_net < minimum_net_reward
-        if (
-            self.config.enforce_net_reward_risk_gate
-            and net_reward_risk_failed
-        ):
-            return RiskResult(
-                False,
-                (
-                    "economic_gate: insufficient_net_reward_risk: "
-                    f"net reward/risk {net_rr:.4f} < minimum "
-                    f"{self.config.min_net_reward_risk:.4f}"
-                ),
-            )
 
-        shadow_reject_reasons: list[str] = []
-        if minimum_net_profit_failed:
-            shadow_reject_reasons.append("minimum_net_profit")
-        if net_reward_risk_failed:
-            shadow_reject_reasons.append("minimum_net_reward_risk")
-
-        economics = {
+        economic_diagnostics = {
             "riskBudgetUsd": structural_risk_budget,
             "structuralRiskBudgetUsd": structural_risk_budget,
             "tradeAllInLossCapUsd": trade_all_in_cap_usd,
@@ -332,12 +298,14 @@ class RiskEngine:
             "notionalByRiskUsd": notional_by_structural_risk,
             "notionalByStructuralRiskUsd": notional_by_structural_risk,
             "notionalByTradeAllInCapUsd": notional_by_trade_all_in_cap,
-            "notionalByAllInPortfolioRiskUsd": (
-                notional_by_all_in_portfolio_risk
-            ),
+            "notionalByAllInPortfolioRiskUsd": notional_by_all_in_portfolio_risk,
             "effectiveLeverage": notional / balance if balance else 0.0,
+            "setupEntry": setup_entry,
+            "marketEntry": market_entry,
+            "stop": stop,
+            "target": target,
             "stopDistancePct": stop_pct,
-            "roundTripCostPct": stop_cost_pct,
+            "targetMovePct": target_pct,
             "targetCostPct": target_cost_pct,
             "stopCostPct": stop_cost_pct,
             "executionProfile": execution.public(),
@@ -348,37 +316,69 @@ class RiskEngine:
             "targetExitSlippageRate": target_exit_slippage_rate,
             "stopExitSlippageRate": stop_exit_slippage_rate,
             "allInLossPct": all_in_loss_pct,
-            "targetMovePct": target_pct,
-            "takerFeeCostUsd": fee_cost,
-            "slippageCostUsd": slippage_cost,
-            "estimatedCostsUsd": estimated_costs,
             "targetEstimatedCostsUsd": estimated_costs,
             "stopEstimatedCostsUsd": stop_estimated_costs,
             "entrySpreadPct": max(book.spread_pct, 0.0),
             "entryDepthImpactBps": entry_depth_impact_bps,
             "visibleEntryDepthUsd": visible_entry_depth,
-            "spreadCostDoubleCounted": False,
             "grossAtTargetUsd": gross_profit,
             "structuralLossAtStopUsd": gross_loss,
             "plannedAllInLossUsd": all_in_net_loss,
             "netAtTargetUsd": expected_net,
             "netAtStopUsd": expected_net_loss,
             "allInNetLossUsd": all_in_net_loss,
-            "netReturnOnEquity": (
-                expected_net / balance if balance > 0 else 0.0
-            ),
+            "netReturnOnEquity": expected_net / balance if balance > 0 else 0.0,
             "netRewardRisk": net_rr,
             "requiredNetRewardRisk": self.config.min_net_reward_risk,
-            "netRewardRiskRatio": net_rr,
-            "minimumNetRewardRiskRatio": self.config.min_net_reward_risk,
-            "minimumNetProfitGateEnabled": (
-                self.config.enforce_min_net_profit_gate
-            ),
-            "payoffGateEnabled": (
-                self.config.enforce_net_reward_risk_gate
-            ),
+            "minimumNetProfitGateEnabled": self.config.enforce_min_net_profit_gate,
+            "payoffGateEnabled": self.config.enforce_net_reward_risk_gate,
+            "requiredNetProfitUsd": required_net_profit,
+            "requiredNetProfitEquityFraction": self.config.min_net_profit_equity_fraction,
             "wouldFailMinimumNetProfit": minimum_net_profit_failed,
             "wouldFailNetRewardRisk": net_reward_risk_failed,
+        }
+
+        if expected_net <= 0:
+            return RiskResult(
+                False,
+                f"net at target ${expected_net:.2f} <= 0 after estimated trading costs",
+                diagnostics=dict(economic_diagnostics),
+            )
+        if self.config.enforce_min_net_profit_gate and minimum_net_profit_failed:
+            return RiskResult(
+                False,
+                (
+                    f"net at target ${expected_net:.2f} < required "
+                    f"${required_net_profit:.2f}"
+                ),
+                diagnostics=dict(economic_diagnostics),
+            )
+        if self.config.enforce_net_reward_risk_gate and net_reward_risk_failed:
+            return RiskResult(
+                False,
+                (
+                    "economic_gate: insufficient_net_reward_risk: "
+                    f"net reward/risk {net_rr:.4f} < minimum "
+                    f"{self.config.min_net_reward_risk:.4f}"
+                ),
+                diagnostics=dict(economic_diagnostics),
+            )
+
+        shadow_reject_reasons: list[str] = []
+        if minimum_net_profit_failed:
+            shadow_reject_reasons.append("minimum_net_profit")
+        if net_reward_risk_failed:
+            shadow_reject_reasons.append("minimum_net_reward_risk")
+
+        economics = {
+            **economic_diagnostics,
+            "roundTripCostPct": stop_cost_pct,
+            "takerFeeCostUsd": fee_cost,
+            "slippageCostUsd": slippage_cost,
+            "estimatedCostsUsd": estimated_costs,
+            "spreadCostDoubleCounted": False,
+            "netRewardRiskRatio": net_rr,
+            "minimumNetRewardRiskRatio": self.config.min_net_reward_risk,
             "shadowRejectReasons": shadow_reject_reasons,
             "economicPolicy": (
                 "strict"
@@ -389,10 +389,6 @@ class RiskEngine:
                 else "research_shadow"
             ),
             "payoffMarginUsd": expected_net - minimum_net_reward,
-            "requiredNetProfitUsd": required_net_profit,
-            "requiredNetProfitEquityFraction": (
-                self.config.min_net_profit_equity_fraction
-            ),
         }
         strategy_details = dict(decision.details)
         strategy_details["economics"] = economics
@@ -422,4 +418,9 @@ class RiskEngine:
             setup_id=resolved_setup_id,
             strategy_details=strategy_details,
         )
-        return RiskResult(True, "allowed", plan)
+        return RiskResult(
+            True,
+            "allowed",
+            plan,
+            diagnostics=dict(economics),
+        )

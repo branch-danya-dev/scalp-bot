@@ -712,3 +712,26 @@ def test_target_path_uses_maker_exit_but_stop_path_keeps_taker_costs() -> None:
         cfg.taker_fee_rate
     )
     assert economics["targetEstimatedCostsUsd"] < economics["stopEstimatedCostsUsd"]
+
+
+
+def test_economic_reject_carries_calculated_diagnostics() -> None:
+    result = RiskEngine(economic_settings()).build_plan(
+        "BTCUSDT",
+        decision(100.09, stop=99.90),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+    assert not result.allowed
+    assert result.diagnostics is not None
+    diagnostics = result.diagnostics
+    assert diagnostics["setupEntry"] == pytest.approx(100.0)
+    assert diagnostics["stop"] == pytest.approx(99.90)
+    assert diagnostics["target"] == pytest.approx(100.09)
+    assert diagnostics["grossAtTargetUsd"] > 0
+    assert diagnostics["targetEstimatedCostsUsd"] > 0
+    assert diagnostics["stopEstimatedCostsUsd"] > diagnostics["targetEstimatedCostsUsd"]
+    assert diagnostics["allInNetLossUsd"] > 0
+    assert diagnostics["requiredNetProfitUsd"] == pytest.approx(1.0)

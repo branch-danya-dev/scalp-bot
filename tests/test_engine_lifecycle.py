@@ -1145,3 +1145,35 @@ def test_arbiter_records_shadow_economics_without_blocking_trade(tmp_path) -> No
         assert any(event["event"] == "economic_shadow" for event in engine.events)
     finally:
         close_rest(engine)
+
+
+
+def test_risk_reject_event_includes_diagnostics_snapshot(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100,
+        )
+        decision = StrategyDecision(
+            strategy="trend_structure",
+            action=Action.LONG,
+            reasons=["test"],
+            entry=100,
+            stop=99.5,
+            target=100.1,
+        )
+        engine._risk_reject_if_changed(
+            session,
+            decision,
+            "test reject",
+            diagnostics={"netAtTargetUsd": 0.5},
+        )
+        payload = engine.events[0]["payload"]
+        assert payload["diagnostics"]["netAtTargetUsd"] == 0.5
+        assert payload["diagnostics"]["bestBid"] == pytest.approx(99.99)
+        assert payload["diagnostics"]["target"] == pytest.approx(100.1)
+    finally:
+        close_rest(engine)

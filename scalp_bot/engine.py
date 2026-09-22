@@ -1129,7 +1129,12 @@ class TradingEngine:
                     setup_id=setup_id,
                 )
                 if not result.allowed or result.plan is None:
-                    self._risk_reject_if_changed(session, decision, result.reason)
+                    self._risk_reject_if_changed(
+                        session,
+                        decision,
+                        result.reason,
+                        diagnostics=result.diagnostics,
+                    )
                     continue
 
                 economics = (
@@ -1383,6 +1388,8 @@ class TradingEngine:
         session: ActiveSymbolSession,
         decision: StrategyDecision | None,
         reason: str,
+        *,
+        diagnostics: dict | None = None,
     ) -> None:
         fingerprint = (
             decision.strategy if decision else "portfolio",
@@ -1403,6 +1410,20 @@ class TradingEngine:
                 "strategy": decision.strategy if decision else None,
                 "reason": reason,
                 "decision": decision.public() if decision else None,
+                "diagnostics": {
+                    "balance": self.broker.balance,
+                    "availableNotionalUsd": self.broker.available_notional,
+                    "availableRiskUsd": self.broker.available_risk_usd,
+                    "portfolioExposureUsd": self.broker.total_exposure,
+                    "portfolioOpenRiskUsd": self.broker.open_risk_usd,
+                    "bestBid": session.orderbook.best_bid,
+                    "bestAsk": session.orderbook.best_ask,
+                    "spreadPct": session.orderbook.spread_pct,
+                    "setupEntry": decision.entry if decision else None,
+                    "stop": decision.stop if decision else None,
+                    "target": decision.target if decision else None,
+                    **(diagnostics or {}),
+                },
             },
             snapshot=True,
         )
