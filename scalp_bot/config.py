@@ -22,7 +22,9 @@ class Settings(BaseSettings):
     activity_request_concurrency: int = 2
     activity_request_pause_seconds: float = 0.20
     bootstrap_1m_candles: int = 720
+    bootstrap_5m_candles: int = 576
     bootstrap_15m_candles: int = 480
+    bootstrap_1h_candles: int = 336
     rest_request_min_interval_seconds: float = 0.25
     rest_rate_limit_retries: int = 6
     rest_rate_limit_backoff_seconds: float = 1.0
