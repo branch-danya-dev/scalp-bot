@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from dataclasses import dataclass, field
 from enum import StrEnum
 from statistics import median
+from time import time
 
 from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .base import Strategy
@@ -39,6 +40,7 @@ class BreakoutWatchState:
     zone_key: tuple[str, str, float] | None = None
     stage: BreakoutStage = BreakoutStage.SEARCH
     used_generations: set[tuple[str, str, float]] = field(default_factory=set)
+    break_started_at: float = 0.0
 
 
 class LevelBreakoutStrategy(Strategy):
@@ -51,12 +53,19 @@ class LevelBreakoutStrategy(Strategy):
     max_stop_pct = 0.006
     max_zone_distance_pct = 0.012
     min_pressure_score = 3
+    min_break_hold_seconds = 3.0
 
     def __init__(self) -> None:
         self._states: dict[str, BreakoutWatchState] = {}
 
     def reset(self, symbol: str) -> None:
         self._states.pop(symbol, None)
+
+    def mark_opened(self, symbol: str, decision: StrategyDecision) -> None:
+        state = self._states.get(symbol)
+        generation = decision.details.get("zoneGeneration")
+        if state is not None and generation is not None:
+            state.used_generations.add(tuple(generation))
 
     @staticmethod
     def _generation(zone: LevelZone) -> tuple[str, str, float]:
@@ -250,7 +259,10 @@ class LevelBreakoutStrategy(Strategy):
                     matched.generation_id,
                     round(zone.center, 8),
                 )
-        state.zone_key = generation
+        if state.zone_key != generation:
+            state.zone_key = generation
+            state.stage = BreakoutStage.FOUND
+            state.break_started_at = 0.0
         visuals = zone_visual(zone, "breakout zone")
         flow = compute_trade_flow(trades)
         level_tolerance = max(
@@ -326,6 +338,7 @@ class LevelBreakoutStrategy(Strategy):
         )
 
         if not broke:
+            state.break_started_at = 0.0
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
@@ -365,6 +378,7 @@ class LevelBreakoutStrategy(Strategy):
             )
         )
         if pressure_score < self.min_pressure_score or not aligned_after_break:
+            state.break_started_at = 0.0
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
@@ -380,6 +394,31 @@ class LevelBreakoutStrategy(Strategy):
                     "pressure": pressure,
                     "flow": flow,
                     "levelFlow": level_flow.public(),
+                },
+            )
+
+        now = time()
+        if state.break_started_at <= 0:
+            state.break_started_at = now
+        held_seconds = max(0.0, now - state.break_started_at)
+        if held_seconds < self.min_break_hold_seconds:
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Пробой подтверждён потоком; ждём удержание цены за уровнем перед входом"],
+                0.64,
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    "zone": zone.public(),
+                    "zoneGeneration": generation,
+                    "pressureScore": pressure_score,
+                    "pressure": pressure,
+                    "flow": flow,
+                    "levelFlow": level_flow.public(),
+                    "breakHoldSeconds": held_seconds,
+                    "requiredBreakHoldSeconds": self.min_break_hold_seconds,
                 },
             )
 
@@ -470,7 +509,6 @@ class LevelBreakoutStrategy(Strategy):
         )
 
         state.stage = BreakoutStage.IMPULSE
-        state.used_generations.add(generation)
         setup_id = (
             f"{self.key}:{action.value}:{generation[0]}:"
             f"{generation[1]}:{generation[2]:.10g}"
@@ -503,6 +541,8 @@ class LevelBreakoutStrategy(Strategy):
                 "levelFlow": level_flow.public(),
                 "pressure": pressure,
                 "pressureScore": pressure_score,
+                "breakHoldSeconds": max(0.0, time() - state.break_started_at),
+                "requiredBreakHoldSeconds": self.min_break_hold_seconds,
                 "stopDistancePct": stop_pct,
                 "exitMode": "impulse_first",
                 "liquidityTarget": (
