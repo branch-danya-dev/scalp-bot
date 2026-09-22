@@ -1007,3 +1007,48 @@ def test_market_snapshot_exposes_multi_timeframe_chart_series() -> None:
     assert len(series["1h"]) == 1
     assert len(series["5s"]) >= 2
     assert series["5s"][0]["open"] == pytest.approx(100.0)
+
+
+
+def test_density_context_exposes_wall_flow_and_book_focus() -> None:
+    session = ActiveSymbolSession(
+        symbol="AAAUSDT",
+        orderbook=OrderBook(
+            bids=[(99.99 - i * 0.01, 10) for i in range(20)],
+            asks=[(100.01 + i * 0.01, 10) for i in range(20)],
+        ),
+    )
+    session.decisions["orderbook_density"] = StrategyDecision(
+        strategy="orderbook_density",
+        action=Action.WAIT,
+        reasons=["wall test"],
+        details={
+            "state": "test",
+            "wallSide": "ask",
+            "wallPrice": 100.10,
+            "notionalUsd": 75_000,
+            "strengthMultiple": 6.5,
+            "remainingRatio": 0.88,
+            "attackNotional5s": 12_000,
+            "attackRatio": 0.16,
+            "depletionPerSecond": 0.03,
+            "replenishmentRatio": 0.12,
+            "absorptionObserved": True,
+            "wallPresent": True,
+            "recentLevelFlow": {
+                "imbalance": -0.11,
+                "tradeCount": 8,
+            },
+        },
+    )
+    session.record_book_flow(100_000, -5_000)
+
+    context = session.density_context(101_000)
+
+    assert context is not None
+    assert context["wallPrice"] == pytest.approx(100.10)
+    assert context["state"] == "test"
+    assert context["absorptionObserved"] is True
+    assert context["recentLevelFlow"]["tradeCount"] == 8
+    assert context["bookFlow"]["bestLevelOfiUsd5s"] == pytest.approx(-5_000)
+    assert context["focusLevels"]

@@ -69,10 +69,20 @@
     </section>
     <aside class="card book">
       <div class="heading"><h2>Стакан</h2><span id="spread">—</span></div>
+      <div class="dom-depth-controls">
+        <button class="chart-chip active" data-dom-depth="12">12</button>
+        <button class="chart-chip" data-dom-depth="25">25</button>
+        <button class="chart-chip" data-dom-depth="50">50</button>
+      </div>
       <div class="book-head"><span>Цена</span><span>Кол-во</span><span>USD</span></div>
       <div id="asks"></div>
       <div id="midPrice" class="mid">—</div>
       <div id="bids"></div>
+      <div class="divider"></div>
+      <div class="dom-inspector-title">Что видит бот</div>
+      <div id="domInspector" class="dom-inspector">
+        <div class="dom-empty">Density сейчас не отслеживает активную wall.</div>
+      </div>
     </aside>
   </section>
   <section class="bottom">

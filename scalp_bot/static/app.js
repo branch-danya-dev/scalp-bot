@@ -11,6 +11,7 @@ let levelFilter = "active";
 let showTrendlines = true;
 let lastMarketForChart = null;
 let lastPositionForChart = null;
+let domDisplayDepth = 12;
 
 const $ = id => document.getElementById(id);
 const money = value => new Intl.NumberFormat("en-US", {style:"currency", currency:"USD", maximumFractionDigits:2}).format(value || 0);
@@ -248,16 +249,70 @@ function renderCandidates(rows) {
   }).join("");
 }
 
-function renderBook(book) {
+function renderBook(book, densityContext=null) {
   if (!book) return;
   const max = Math.max(1, ...book.bids.map(x => x[2]), ...book.asks.map(x => x[2]));
-  const row = (item, kind) => `<div class="book-row ${kind}" style="--depth:${Math.max(3, item[2] / max * 100)}%">
+  const wallPrice = Number(densityContext?.wallPrice);
+  const isWall = item => Number.isFinite(wallPrice)
+    && Math.abs(Number(item[0]) - wallPrice) / Math.max(Math.abs(wallPrice), 1e-9) <= 1e-9;
+  const row = (item, kind) => `<div class="book-row ${kind} ${isWall(item) ? "bot-wall" : ""}" style="--depth:${Math.max(3, item[2] / max * 100)}%">
     <span>${price(item[0])}</span><span>${Number(item[1]).toFixed(3)}</span><span>${compact(item[2])}</span>
   </div>`;
-  $("asks").innerHTML = [...book.asks].slice(0, 10).reverse().map(x => row(x, "ask")).join("");
-  $("bids").innerHTML = book.bids.slice(0, 10).map(x => row(x, "bid")).join("");
+  $("asks").innerHTML = [...book.asks].slice(0, domDisplayDepth).reverse().map(x => row(x, "ask")).join("");
+  $("bids").innerHTML = book.bids.slice(0, domDisplayDepth).map(x => row(x, "bid")).join("");
   $("midPrice").textContent = book.bestBid && book.bestAsk ? price((book.bestBid + book.bestAsk) / 2) : "—";
   $("spread").textContent = `spread ${(book.spreadPct * 100).toFixed(4)}%`;
+}
+
+function domPct(value) {
+  return value == null ? "—" : `${(Number(value) * 100).toFixed(1)}%`;
+}
+
+function renderDomInspector(context) {
+  const root = $("domInspector");
+  if (!root) return;
+  if (!context) {
+    root.innerHTML = '<div class="dom-empty">Density сейчас не отслеживает активную wall.</div>';
+    return;
+  }
+  const flow = context.recentLevelFlow || context.levelFlow || {};
+  const ofi = context.bookFlow || {};
+  const state = String(context.state || "watch").toUpperCase();
+  root.innerHTML = `
+    <div class="dom-state-line">
+      <strong>${String(context.wallSide || "").toUpperCase()} WALL · ${price(context.wallPrice)}</strong>
+      <span class="dom-state">${state}</span>
+    </div>
+    <div class="dom-metrics">
+      <span><small>Wall</small>${compact(context.notionalUsd)}</span>
+      <span><small>Strength</small>${Number(context.strengthMultiple || 0).toFixed(1)}x</span>
+      <span><small>Remaining</small>${domPct(context.remainingRatio)}</span>
+      <span><small>Attack 5s</small>${compact(context.attackNotional5s)}</span>
+      <span><small>Depletion/s</small>${domPct(context.depletionPerSecond)}</span>
+      <span><small>Replenish</small>${domPct(context.replenishmentRatio)}</span>
+      <span><small>Local flow</small>${flow.imbalance == null ? "—" : (Number(flow.imbalance) * 100).toFixed(0) + "%"}</span>
+      <span><small>OFI 5s</small>${compact(ofi.bestLevelOfiUsd5s)}</span>
+    </div>
+    <div class="dom-flags">
+      <span class="${context.absorptionObserved ? "flag good" : "flag"}">absorption ${context.absorptionObserved ? "YES" : "NO"}</span>
+      <span class="${context.wallPresent === false ? "flag bad" : "flag"}">wall ${context.wallPresent === false ? "REMOVED" : "present"}</span>
+      <span class="${context.positionInvalidated ? "flag bad" : "flag"}">invalidation ${context.positionInvalidated ? "YES" : "NO"}</span>
+    </div>
+  `;
+}
+
+function bindDomControls() {
+  document.querySelectorAll("[data-dom-depth]").forEach(button => {
+    button.onclick = () => {
+      domDisplayDepth = Number(button.dataset.domDepth);
+      document.querySelectorAll("[data-dom-depth]").forEach(row =>
+        row.classList.toggle("active", Number(row.dataset.domDepth) === domDisplayDepth)
+      );
+      if (lastMarketForChart) {
+        renderBook(lastMarketForChart.orderbook, lastMarketForChart.densityContext);
+      }
+    };
+  });
 }
 
 function renderStrategies(rows) {
@@ -586,6 +641,7 @@ function render(data) {
     $("bids").innerHTML = "";
     $("midPrice").textContent = "—";
     $("spread").textContent = "—";
+    renderDomInspector(null);
     $("decisionStrip").innerHTML = "";
     renderPosition(null);
   }
@@ -615,7 +671,8 @@ function render(data) {
     $("trendBadge").textContent = data.market.trend.toUpperCase();
     $("trendBadge").className = `trend ${data.market.trend}`;
     renderMarketChart(data.market, position);
-    renderBook(book);
+    renderBook(book, data.market.densityContext);
+    renderDomInspector(data.market.densityContext);
     renderDecisions(data.market.decisions);
     renderPosition(position);
   }
@@ -644,5 +701,6 @@ $("startBtn").onclick = async () => {
 };
 $("stopBtn").onclick = async () => { await api("/api/bot/stop", {method:"POST"}); refresh(); };
 bindChartControls();
+bindDomControls();
 refresh();
 setInterval(refresh, 900);

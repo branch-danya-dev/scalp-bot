@@ -182,6 +182,77 @@ class ActiveSymbolSession:
             "1h": [x.public() for x in self.context_1h[-336:]],
         }
 
+    def density_context(
+        self,
+        now_ms: int | None = None,
+    ) -> dict | None:
+        decision = self.decisions.get("orderbook_density")
+        if decision is None:
+            return None
+        details = decision.details or {}
+        wall_price = details.get("wallPrice")
+        if wall_price is None:
+            return None
+        wall_price = float(wall_price)
+        wall_side = str(details.get("wallSide") or "")
+        rows = (
+            self.orderbook.bids
+            if wall_side == "bid"
+            else self.orderbook.asks
+        )
+        nearest_index = None
+        if rows:
+            nearest_index = min(
+                range(len(rows)),
+                key=lambda index: abs(rows[index][0] - wall_price),
+            )
+        focus: list[list[float]] = []
+        if nearest_index is not None:
+            start = max(0, nearest_index - 6)
+            end = min(len(rows), nearest_index + 7)
+            focus = [
+                [price, qty, price * qty]
+                for price, qty in rows[start:end]
+            ]
+        resolved_now = (
+            int(time() * 1000)
+            if now_ms is None
+            else now_ms
+        )
+        return {
+            "state": details.get("state"),
+            "wallSide": wall_side,
+            "wallPrice": wall_price,
+            "notionalUsd": details.get("notionalUsd"),
+            "strengthMultiple": details.get("strengthMultiple"),
+            "requiredStrengthMultiple": details.get(
+                "requiredStrengthMultiple"
+            ),
+            "remainingRatio": details.get("remainingRatio"),
+            "attackNotional5s": details.get("attackNotional5s"),
+            "attackRatio": details.get("attackRatio"),
+            "depletionPerSecond": details.get(
+                "depletionPerSecond"
+            ),
+            "replenishmentRatio": details.get(
+                "replenishmentRatio"
+            ),
+            "absorptionObserved": details.get(
+                "absorptionObserved"
+            ),
+            "wallPresent": details.get("wallPresent"),
+            "distancePct": details.get("distancePct"),
+            "levelFlow": details.get("levelFlow"),
+            "recentLevelFlow": details.get(
+                "recentLevelFlow"
+            ),
+            "positionInvalidated": details.get(
+                "positionInvalidated"
+            ),
+            "bookFlow": self.book_flow_snapshot(resolved_now),
+            "focusLevels": focus,
+        }
+
     def market_snapshot(self) -> dict:
         now_ms = int(time() * 1000)
         return {
@@ -190,7 +261,8 @@ class ActiveSymbolSession:
             "trend": self.trend.value,
             "candles": [x.public() for x in self.candles[-240:]],
             "chartSeries": self.chart_series(now_ms),
-            "orderbook": self.orderbook.public(),
+            "orderbook": self.orderbook.public(50),
+            "densityContext": self.density_context(now_ms),
             "bookHealth": self.book_health(),
             "tradeFlow": compute_trade_flow(list(self.trades), now_ms),
             "bookFlow": self.book_flow_snapshot(now_ms),
