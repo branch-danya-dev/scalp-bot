@@ -90,6 +90,24 @@ class TrendStructureStrategy(Strategy):
         )
 
     @classmethod
+    def _micro_reclaim_level(
+        cls,
+        projected: float,
+        book: OrderBook,
+        *,
+        long_side: bool,
+    ) -> float:
+        confirmation_pct = max(
+            max(book.spread_pct, 0.0) * 2.0,
+            cls.test_tolerance_pct * 0.20,
+        )
+        return (
+            projected * (1 + confirmation_pct)
+            if long_side
+            else projected * (1 - confirmation_pct)
+        )
+
+    @classmethod
     def _pullback_character(
         cls,
         candles: list[Candle],
@@ -411,11 +429,17 @@ class TrendStructureStrategy(Strategy):
             state.stage = TrendPullbackStage.TEST
             state.test_line_price = projected
             state.test_extreme = test_price
-            recent = candles[-3:]
-            state.reclaim_level = (
-                max(c.high for c in recent)
-                if long_side
-                else min(c.low for c in recent)
+            state.reclaim_level = self._micro_reclaim_level(
+                projected,
+                book,
+                long_side=long_side,
+            )
+            reclaim_distance_bps = (
+                abs(state.reclaim_level - projected)
+                / projected
+                * 10_000
+                if projected > 0
+                else 0.0
             )
             return StrategyDecision(
                 self.key,
@@ -428,6 +452,7 @@ class TrendStructureStrategy(Strategy):
                     **common_details,
                     "state": state.stage.value,
                     "reclaimLevel": state.reclaim_level,
+                    "reclaimDistanceBps": reclaim_distance_bps,
                     "testExtreme": state.test_extreme,
                 },
             )
