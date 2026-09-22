@@ -30,7 +30,9 @@ ACTIVE_SETUP_STATES = {"found", "persisting", "approach", "pressure", "test", "d
 class ActiveSymbolSession:
     symbol: str
     candles: list[Candle] = field(default_factory=list)
+    context_5m: list[Candle] = field(default_factory=list)
     context_15m: list[Candle] = field(default_factory=list)
+    context_1h: list[Candle] = field(default_factory=list)
     orderbook: OrderBook = field(default_factory=OrderBook)
     last_price: float = 0.0
     trend: Trend = Trend.FLAT
@@ -373,20 +375,40 @@ class TradingEngine:
         self.sessions.pop(symbol, None)
 
     async def _bootstrap_symbol(self, symbol: str) -> None:
-        candles, context = await asyncio.gather(
-            self.rest.klines(symbol, "1", self.config.bootstrap_1m_candles),
-            self.rest.klines(symbol, "15", self.config.bootstrap_15m_candles),
+        candles, context_5m, context_15m, context_1h = await asyncio.gather(
+            self.rest.klines(
+                symbol,
+                "1",
+                self.config.bootstrap_1m_candles,
+            ),
+            self.rest.klines(
+                symbol,
+                "5",
+                self.config.bootstrap_5m_candles,
+            ),
+            self.rest.klines(
+                symbol,
+                "15",
+                self.config.bootstrap_15m_candles,
+            ),
+            self.rest.klines(
+                symbol,
+                "60",
+                self.config.bootstrap_1h_candles,
+            ),
         )
         now = time()
         session = ActiveSymbolSession(
             symbol=symbol,
             candles=candles,
-            context_15m=context,
+            context_5m=context_5m,
+            context_15m=context_15m,
+            context_1h=context_1h,
             activated_at=now,
             last_ranked_at=now,
         )
         session.last_price = candles[-1].close if candles else 0
-        session.trend = classify_trend(context)
+        session.trend = classify_trend(context_15m)
         self.sessions[symbol] = session
         self._emit(
             "symbol_activated",
@@ -404,22 +426,41 @@ class TradingEngine:
                 items = list(self.sessions.items())
                 if not items:
                     continue
-                results = await asyncio.gather(
-                    *(
+                async def refresh(symbol: str):
+                    return await asyncio.gather(
+                        self.rest.klines(
+                            symbol,
+                            "5",
+                            self.config.bootstrap_5m_candles,
+                        ),
                         self.rest.klines(
                             symbol,
                             "15",
                             self.config.bootstrap_15m_candles,
-                        )
-                        for symbol, _ in items
-                    ),
+                        ),
+                        self.rest.klines(
+                            symbol,
+                            "60",
+                            self.config.bootstrap_1h_candles,
+                        ),
+                    )
+
+                results = await asyncio.gather(
+                    *(refresh(symbol) for symbol, _ in items),
                     return_exceptions=True,
                 )
-                for (symbol, session), result in zip(items, results, strict=True):
+                for (symbol, session), result in zip(
+                    items,
+                    results,
+                    strict=True,
+                ):
                     if isinstance(result, Exception):
                         continue
-                    session.context_15m = result
-                    session.trend = classify_trend(result)
+                    context_5m, context_15m, context_1h = result
+                    session.context_5m = context_5m
+                    session.context_15m = context_15m
+                    session.context_1h = context_1h
+                    session.trend = classify_trend(context_15m)
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
@@ -548,6 +589,8 @@ class TradingEngine:
             session.candles,
             session.context_15m,
             reference_price,
+            context_5m=session.context_5m,
+            context_1h=session.context_1h,
         )
         session.structure = session.level_tracker.update(
             session.structure,
