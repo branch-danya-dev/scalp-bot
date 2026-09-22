@@ -163,10 +163,67 @@ def aggregate_candles(candles: list[Candle], interval_minutes: int) -> list[Cand
     return result
 
 
+def _historical_level_stats(
+    zone: LevelZone,
+    candles: list[Candle],
+) -> dict[str, int]:
+    if not candles:
+        return {
+            "approaches": 0,
+            "dwell": 0,
+            "acceptance": 0,
+            "failed_breaks": 0,
+            "sweeps": 0,
+        }
+    local_range = typical_range_abs(candles)
+    tolerance = max(zone.width * 0.5, local_range * 0.20, zone.center * 0.0004)
+    reset_distance = tolerance * 2.0
+    was_near = False
+    approaches = dwell = acceptance = failed_breaks = sweeps = 0
+
+    for candle in candles[-160:]:
+        near = (
+            candle.high >= zone.low - tolerance
+            and candle.low <= zone.high + tolerance
+        )
+        if near and not was_near:
+            approaches += 1
+        if near:
+            dwell += 1
+        if zone.low <= candle.close <= zone.high:
+            acceptance += 1
+
+        if zone.kind == "resistance":
+            pierced = candle.high > zone.high + tolerance * 0.5
+            reclaimed = candle.close < zone.low
+            far = candle.high < zone.low - reset_distance
+        else:
+            pierced = candle.low < zone.low - tolerance * 0.5
+            reclaimed = candle.close > zone.high
+            far = candle.low > zone.high + reset_distance
+
+        if pierced and reclaimed:
+            failed_breaks += 1
+            sweeps += 1
+        if far:
+            was_near = False
+        elif near:
+            was_near = True
+
+    return {
+        "approaches": approaches,
+        "dwell": dwell,
+        "acceptance": acceptance,
+        "failed_breaks": failed_breaks,
+        "sweeps": sweeps,
+    }
+
+
 def _zone_level(zone: LevelZone, candles: list[Candle], timeframe: str) -> StructuralLevel:
     center = zone.center
     local_range = max(typical_range_pct(candles), 1e-9)
-    touch_quality = clamp(zone.touches / 6.0)
+    stats = _historical_level_stats(zone, candles)
+    touch_quality = clamp(stats["approaches"] / 6.0)
     reaction_quality = clamp(zone.reaction_pct / (local_range * 2.0))
     volume_quality = clamp(zone.volume_ratio / 2.0)
     age = max(0, len(candles) - 1 - zone.last_touch_index)
@@ -186,15 +243,6 @@ def _zone_level(zone: LevelZone, candles: list[Candle], timeframe: str) -> Struc
         if 0 <= zone.last_touch_index < len(candles)
         else None
     )
-    recent = candles[-20:]
-    dwell_bars = sum(
-        1 for candle in recent
-        if candle.high >= zone.low and candle.low <= zone.high
-    )
-    acceptance_bars = sum(
-        1 for candle in recent
-        if zone.low <= candle.close <= zone.high
-    )
     return StructuralLevel(
         kind=zone.kind,
         low=zone.low,
@@ -208,9 +256,11 @@ def _zone_level(zone: LevelZone, candles: list[Candle], timeframe: str) -> Struc
         round_confluence=nearby_round_level(center, center * 0.0003) is not None,
         sources=[timeframe],
         last_touch_index=zone.last_touch_index,
-        distinct_approaches=max(1, min(zone.touches, 5)),
-        dwell_bars=dwell_bars,
-        acceptance_bars=acceptance_bars,
+        distinct_approaches=stats["approaches"],
+        dwell_bars=stats["dwell"],
+        acceptance_bars=stats["acceptance"],
+        failed_breaks=stats["failed_breaks"],
+        sweeps=stats["sweeps"],
     )
 
 
