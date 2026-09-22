@@ -581,6 +581,8 @@ class DensityBounceStrategy(Strategy):
             "turnoverFloorFraction": self.turnover_floor_fraction,
             "turnoverFloorUsd": turnover_floor,
             "localBaselineNotionalUsd": local_baseline,
+            "strengthMultiple": strength,
+            "requiredStrengthMultiple": self.strength_multiple,
             "relativeRequiredNotionalUsd": (
                 local_baseline * self.strength_multiple
             ),
