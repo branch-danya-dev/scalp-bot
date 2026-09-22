@@ -189,3 +189,110 @@ def test_research_mode_still_rejects_setup_with_negative_expected_net_after_cost
 
     assert not result.allowed
     assert "after estimated trading costs" in result.reason
+
+
+
+def scalp_settings(**overrides) -> Settings:
+    values = dict(
+        start_balance=1000,
+        risk_fraction=0.005,
+        max_total_risk_fraction=0.02,
+        max_leverage=10.0,
+        max_position_leverage=5.0,
+        max_position_exposure_fraction=1.0,
+        min_net_profit_usd=0,
+        min_net_reward_risk=0,
+        enforce_net_reward_risk_gate=False,
+        taker_fee_rate=0,
+        slippage_bps=0,
+    )
+    values.update(overrides)
+    return Settings(**values)
+
+
+def test_tight_stop_scales_position_to_five_x() -> None:
+    result = RiskEngine(scalp_settings()).build_plan(
+        "BTCUSDT",
+        decision(100.5, stop=99.90),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.notional == 5000
+    assert result.plan.leverage == 5.0
+    assert result.plan.max_loss_usd == 5.0
+
+
+def test_two_tenths_percent_stop_sizes_to_two_and_half_x() -> None:
+    result = RiskEngine(scalp_settings()).build_plan(
+        "BTCUSDT",
+        decision(100.6, stop=99.80),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.notional == 2500
+    assert result.plan.leverage == 2.5
+    assert result.plan.max_loss_usd == 5.0
+
+
+def test_wider_stop_naturally_reduces_effective_leverage() -> None:
+    result = RiskEngine(scalp_settings()).build_plan(
+        "BTCUSDT",
+        decision(101.0, stop=99.50),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.notional == 1000
+    assert result.plan.leverage == 1.0
+    assert result.plan.max_loss_usd == 5.0
+
+
+def test_position_leverage_cap_is_separate_from_portfolio_cap() -> None:
+    result = RiskEngine(
+        scalp_settings(
+            max_leverage=10.0,
+            max_position_leverage=3.0,
+        )
+    ).build_plan(
+        "BTCUSDT",
+        decision(100.5, stop=99.90),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.notional == 3000
+    assert result.plan.leverage == 3.0
+
+
+def test_remaining_portfolio_notional_still_caps_tight_stop_trade() -> None:
+    result = RiskEngine(scalp_settings()).build_plan(
+        "BTCUSDT",
+        decision(100.5, stop=99.90),
+        1000,
+        book(99.99, 100.00),
+        1800,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.notional == 1800
+    assert result.plan.leverage == 1.8
