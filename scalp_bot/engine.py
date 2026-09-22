@@ -50,6 +50,8 @@ class ActiveSymbolSession:
     last_trade_at: float = 0.0
     last_market_at: float = 0.0
     last_book_at: float = 0.0
+    book_stale_after_seconds: float = 1.5
+    book_synced: bool | None = None
     last_trade_stream_at: float = 0.0
     last_kline_at: float = 0.0
     last_eval: float = 0.0
@@ -58,6 +60,32 @@ class ActiveSymbolSession:
     last_risk_fingerprint: tuple | None = None
     last_blocked_fingerprint: tuple | None = None
 
+    def book_age_seconds(self, now: float | None = None) -> float | None:
+        if self.last_book_at <= 0:
+            return None
+        resolved_now = time() if now is None else now
+        return max(0.0, resolved_now - self.last_book_at)
+
+    def book_is_fresh(self, now: float | None = None) -> bool:
+        age = self.book_age_seconds(now)
+        if age is None:
+            return False
+        if self.book_synced is False:
+            return False
+        if not self.orderbook.bids or not self.orderbook.asks:
+            return False
+        return age <= self.book_stale_after_seconds
+
+    def book_health(self, now: float | None = None) -> dict:
+        return {
+            "fresh": self.book_is_fresh(now),
+            "synced": self.book_synced,
+            "ageSeconds": self.book_age_seconds(now),
+            "staleAfterSeconds": self.book_stale_after_seconds,
+            "bidLevels": len(self.orderbook.bids),
+            "askLevels": len(self.orderbook.asks),
+        }
+
     def market_snapshot(self) -> dict:
         return {
             "symbol": self.symbol,
@@ -65,6 +93,7 @@ class ActiveSymbolSession:
             "trend": self.trend.value,
             "candles": [x.public() for x in self.candles[-240:]],
             "orderbook": self.orderbook.public(),
+            "bookHealth": self.book_health(),
             "tradeFlow": compute_trade_flow(list(self.trades)),
             "tradeBufferSeconds": (
                 (self.trades[-1].ts_ms - self.trades[0].ts_ms) / 1000
@@ -81,6 +110,7 @@ class ActiveSymbolSession:
             "trend": self.trend.value,
             "candle": self.candles[-1].public() if self.candles else None,
             "orderbook": self.orderbook.public(book_depth),
+            "bookHealth": self.book_health(),
             "tradeFlow": compute_trade_flow(list(self.trades)),
             "position": position,
             "recentTrades": [trade.public() for trade in list(self.trades)[-250:]],
@@ -404,6 +434,7 @@ class TradingEngine:
             context_5m=context_5m,
             context_15m=context_15m,
             context_1h=context_1h,
+            book_stale_after_seconds=self.config.book_stale_seconds,
             activated_at=now,
             last_ranked_at=now,
         )
@@ -482,8 +513,10 @@ class TradingEngine:
                     session.orderbook = book_state.apply(message)
                 except OrderBookSequenceError:
                     session.last_book_at = 0.0
+                    session.book_synced = False
                     session.orderbook = OrderBook()
                     raise
+                session.book_synced = book_state.synced
                 session.last_book_at = wall_now
             elif topic.startswith("kline."):
                 self._apply_kline(session, message)
@@ -599,8 +632,25 @@ class TradingEngine:
             int(time() * 1000),
         )
         now = time()
+        book_fresh = session.book_is_fresh(now)
         for key, strategy in self.strategies.items():
             if not self.strategy_enabled[key]:
+                continue
+            if key == "orderbook_density" and not book_fresh:
+                decision = StrategyDecision(
+                    strategy=key,
+                    action=Action.WAIT,
+                    reasons=[
+                        "Стакан не синхронизирован или устарел; density не оценивается"
+                    ],
+                    details={
+                        "state": "stale_book",
+                        "bookHealth": session.book_health(now),
+                        "positionInvalidated": False,
+                    },
+                )
+                session.decisions[key] = decision
+                self._record_decision_if_changed(session, decision)
                 continue
             try:
                 decision = strategy.evaluate(
@@ -697,11 +747,7 @@ class TradingEngine:
                 > self.config.market_stale_seconds
             ):
                 continue
-            if (
-                session.last_book_at <= 0
-                or now - session.last_book_at
-                > self.config.book_stale_seconds
-            ):
+            if not session.book_is_fresh(now):
                 continue
 
             for decision in session.decisions.values():
