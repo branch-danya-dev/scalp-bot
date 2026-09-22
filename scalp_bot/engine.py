@@ -318,6 +318,20 @@ class TradingEngine:
         self.recorder = SessionRecorder(config.session_dir)
         self.strategies: dict[str, Strategy] = {x.key: x for x in DEFAULT_STRATEGIES}
         self.strategy_enabled: dict[str, bool] = {x.key: True for x in DEFAULT_STRATEGIES}
+        self.strategy_stats: dict[str, dict[str, float | int]] = {
+            x.key: {
+                "decisions": 0,
+                "tradeableSignals": 0,
+                "waitDecisions": 0,
+                "riskRejects": 0,
+                "tradesOpened": 0,
+                "tradesClosed": 0,
+                "wins": 0,
+                "losses": 0,
+                "netPnl": 0.0,
+            }
+            for x in DEFAULT_STRATEGIES
+        }
         density_strategy = self.strategies.get("orderbook_density")
         if density_strategy is not None:
             setattr(
@@ -1138,6 +1152,9 @@ class TradingEngine:
         best.session.last_trade_at = now
         position = self.broker.open(best.plan, best.session.orderbook)
         strategy = self.strategies.get(best.decision.strategy)
+        stats = self.strategy_stats.get(best.decision.strategy)
+        if stats is not None:
+            stats["tradesOpened"] += 1
         if strategy is not None:
             strategy.mark_opened(best.session.symbol, best.decision)
         self._emit(
@@ -1274,6 +1291,16 @@ class TradingEngine:
                 self._emit("partial_take", session.symbol, event, snapshot=True)
                 continue
             if event_type == "trade_closed":
+                strategy_key = str(event.get("strategy") or "")
+                stats = self.strategy_stats.get(strategy_key)
+                if stats is not None:
+                    net = float(event.get("netPnl") or 0.0)
+                    stats["tradesClosed"] += 1
+                    stats["netPnl"] += net
+                    if net > 0:
+                        stats["wins"] += 1
+                    elif net < 0:
+                        stats["losses"] += 1
                 self._consume_setup(
                     session,
                     str(event.get("strategy") or ""),
@@ -1321,6 +1348,10 @@ class TradingEngine:
         if session.last_risk_fingerprint == fingerprint:
             return
         session.last_risk_fingerprint = fingerprint
+        if decision is not None:
+            stats = self.strategy_stats.get(decision.strategy)
+            if stats is not None:
+                stats["riskRejects"] += 1
         self._emit(
             "risk_reject",
             session.symbol,
@@ -1344,6 +1375,13 @@ class TradingEngine:
         if session.decision_fingerprints.get(decision.strategy) == fingerprint:
             return
         session.decision_fingerprints[decision.strategy] = fingerprint
+        stats = self.strategy_stats.get(decision.strategy)
+        if stats is not None:
+            stats["decisions"] += 1
+            if decision.tradeable:
+                stats["tradeableSignals"] += 1
+            else:
+                stats["waitDecisions"] += 1
         observed_at_ms = int(time() * 1000)
         payload = decision.public()
         payload["trace"] = build_decision_trace(
@@ -1441,9 +1479,18 @@ class TradingEngine:
             "market": market,
             "events": list(self.events)[:100],
             "strategies": [
-                {"key": key, "label": strategy.label, "enabled": self.strategy_enabled[key]}
+                {
+                    "key": key,
+                    "label": strategy.label,
+                    "enabled": self.strategy_enabled[key],
+                    "stats": dict(self.strategy_stats.get(key) or {}),
+                }
                 for key, strategy in self.strategies.items()
             ],
+            "strategyAnalytics": {
+                key: dict(value)
+                for key, value in self.strategy_stats.items()
+            },
             "risk": {
                 "minNetProfitUsd": self.config.min_net_profit_usd,
                 "minNetProfitEquityFraction": self.config.min_net_profit_equity_fraction,

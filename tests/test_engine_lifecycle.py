@@ -1052,3 +1052,48 @@ def test_density_context_exposes_wall_flow_and_book_focus() -> None:
     assert context["recentLevelFlow"]["tradeCount"] == 8
     assert context["bookFlow"]["bestLevelOfiUsd5s"] == pytest.approx(-5_000)
     assert context["focusLevels"]
+
+
+
+def test_strategy_runtime_stats_track_decisions_rejects_and_closed_trade(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            trend=Trend.UP,
+        )
+        decision = StrategyDecision(
+            strategy="trend_structure",
+            action=Action.LONG,
+            reasons=["confirmed"],
+            entry=100,
+            stop=99,
+            target=102,
+        )
+        engine._record_decision_if_changed(session, decision)
+        engine._risk_reject_if_changed(
+            session,
+            decision,
+            "test rejection",
+        )
+
+        stats = engine.strategy_stats["trend_structure"]
+        assert stats["decisions"] == 1
+        assert stats["tradeableSignals"] == 1
+        assert stats["riskRejects"] == 1
+
+        engine._handle_broker_events(
+            session,
+            [{
+                "event": "trade_closed",
+                "strategy": "trend_structure",
+                "setupId": "x",
+                "netPnl": 3.5,
+            }],
+        )
+        assert stats["tradesClosed"] == 1
+        assert stats["wins"] == 1
+        assert stats["losses"] == 0
+        assert stats["netPnl"] == pytest.approx(3.5)
+    finally:
+        close_rest(engine)

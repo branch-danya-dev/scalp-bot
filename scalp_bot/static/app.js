@@ -12,6 +12,8 @@ let showTrendlines = true;
 let lastMarketForChart = null;
 let lastPositionForChart = null;
 let domDisplayDepth = 12;
+let strategyEventFilter = "all";
+let eventTypeFilter = "all";
 
 const $ = id => document.getElementById(id);
 const money = value => new Intl.NumberFormat("en-US", {style:"currency", currency:"USD", maximumFractionDigits:2}).format(value || 0);
@@ -316,9 +318,23 @@ function bindDomControls() {
 }
 
 function renderStrategies(rows) {
-  $("strategyList").innerHTML = rows.map(row => `<div class="strategy-row">
-    <span>${row.label}</span><button class="switch ${row.enabled ? "on" : ""}" data-strategy="${row.key}" data-enabled="${row.enabled}"></button>
-  </div>`).join("");
+  $("strategyList").innerHTML = rows.map(row => {
+    const stats = row.stats || {};
+    const netClass = Number(stats.netPnl || 0) >= 0 ? "positive" : "negative";
+    return `<div class="strategy-card">
+      <div class="strategy-row">
+        <span><strong>${row.label}</strong><small>${row.key}</small></span>
+        <button class="switch ${row.enabled ? "on" : ""}" data-strategy="${row.key}" data-enabled="${row.enabled}"></button>
+      </div>
+      <div class="strategy-stats">
+        <span><small>Signals</small>${stats.tradeableSignals || 0}</span>
+        <span><small>Trades</small>${stats.tradesClosed || 0}</span>
+        <span><small>W/L</small>${stats.wins || 0}/${stats.losses || 0}</span>
+        <span class="${netClass}"><small>Net</small>${money(stats.netPnl || 0)}</span>
+        <span><small>Rejects</small>${stats.riskRejects || 0}</span>
+      </div>
+    </div>`;
+  }).join("");
   document.querySelectorAll("[data-strategy]").forEach(button => {
     button.onclick = async () => {
       await api(`/api/strategies/${button.dataset.strategy}`, {
@@ -330,13 +346,39 @@ function renderStrategies(rows) {
   });
 }
 
+function traceObjectText(object={}) {
+  if (object.low != null && object.high != null) {
+    return `${object.label || object.type}: ${price(object.low)}–${price(object.high)}`;
+  }
+  if (object.price != null) {
+    return `${object.label || object.type}: ${price(object.price)}`;
+  }
+  return object.label || object.type || "market context";
+}
+
 function renderDecisions(decisions) {
-  $("decisionStrip").innerHTML = Object.values(decisions || {}).map(decision => {
-    const state = decision.details?.state ? ` · ${decision.details.state.toUpperCase()}` : "";
-    return `<div class="decision">
-      <strong>${decision.strategy.replaceAll("_", " ")} · ${decision.action.toUpperCase()}${state}</strong>
-      <span>${(decision.reasons || []).join(" · ")}</span>
-    </div>`;
+  const rows = Object.values(decisions || {});
+  $("decisionStrip").innerHTML = rows.map(decision => {
+    const trace = decision.trace || {};
+    const state = trace.state || decision.details?.state || "unknown";
+    const observed = trace.observedAtMs
+      ? new Date(trace.observedAtMs).toLocaleTimeString()
+      : "—";
+    const confirmed = (trace.confirmed || []).map(row => `<span class="trace-tag confirmed">${row}</span>`).join("");
+    const waiting = (trace.waitingFor || []).map(row => `<li>${row}</li>`).join("");
+    return `<article class="decision-card">
+      <div class="decision-card-head">
+        <div>
+          <strong>${decision.strategy.replaceAll("_", " ")}</strong>
+          <span>${decision.action.toUpperCase()} · ${String(state).toUpperCase()}</span>
+        </div>
+        <time>${observed}</time>
+      </div>
+      <div class="decision-object">${traceObjectText(trace.object)}</div>
+      <div class="decision-context">Trend: <b>${String(trace.trend || "—").toUpperCase()}</b> · confidence ${Number(trace.confidence || 0).toFixed(2)}</div>
+      <div class="trace-tags">${confirmed || '<span class="trace-tag">нет подтверждений</span>'}</div>
+      ${waiting ? `<div class="decision-wait"><small>Чего ждём</small><ul>${waiting}</ul></div>` : ""}
+    </article>`;
   }).join("");
 }
 
@@ -380,12 +422,57 @@ function compactEvents(rows) {
   return result;
 }
 
+function eventStrategy(event) {
+  const payload = event.payload || {};
+  return payload.strategy
+    || payload.plan?.strategy
+    || payload.decision?.strategy
+    || payload.trace?.strategy
+    || null;
+}
+
+function eventGroup(event) {
+  if (event.event.endsWith("_error")) return "error";
+  if (event.event === "trade_opened") return "entry";
+  if (event.event === "trade_closed" || event.event === "partial_take") return "exit";
+  if (event.event === "risk_reject" || event.event === "setup_blocked") return "reject";
+  if (event.event === "decision") return "decision";
+  return "system";
+}
+
 function renderEvents(rows) {
-  $("events").innerHTML = compactEvents(rows).slice(0, 60).map(event => `<div class="event">
+  const filtered = compactEvents(rows).filter(event => {
+    const strategy = eventStrategy(event);
+    const strategyOk = strategyEventFilter === "all" || strategy === strategyEventFilter;
+    const typeOk = eventTypeFilter === "all" || eventGroup(event) === eventTypeFilter;
+    return strategyOk && typeOk;
+  });
+  $("events").innerHTML = filtered.slice(0, 80).map(event => `<div class="event">
     <time>${new Date(event.ts * 1000).toLocaleTimeString()}</time>
     <span class="type">${event.event}</span>
     <span class="text">${event.symbol || ""} ${eventText(event)}</span>
   </div>`).join("");
+}
+
+function bindEventFilters() {
+  document.querySelectorAll("[data-event-strategy]").forEach(button => {
+    button.onclick = () => {
+      strategyEventFilter = button.dataset.eventStrategy;
+      document.querySelectorAll("[data-event-strategy]").forEach(row =>
+        row.classList.toggle("active", row.dataset.eventStrategy === strategyEventFilter)
+      );
+      refresh();
+    };
+  });
+  document.querySelectorAll("[data-event-type]").forEach(button => {
+    button.onclick = () => {
+      eventTypeFilter = button.dataset.eventType;
+      document.querySelectorAll("[data-event-type]").forEach(row =>
+        row.classList.toggle("active", row.dataset.eventType === eventTypeFilter)
+      );
+      refresh();
+    };
+  });
 }
 
 function renderPosition(position) {
@@ -702,5 +789,6 @@ $("startBtn").onclick = async () => {
 $("stopBtn").onclick = async () => { await api("/api/bot/stop", {method:"POST"}); refresh(); };
 bindChartControls();
 bindDomControls();
+bindEventFilters();
 refresh();
 setInterval(refresh, 900);

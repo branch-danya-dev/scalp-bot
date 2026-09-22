@@ -92,6 +92,23 @@
     </article>
     <article class="card panel">
       <div class="heading"><h2>Лента решений</h2><span id="sessionFile">session</span></div>
+      <div class="event-filters">
+        <div>
+          <button class="chart-chip active" data-event-strategy="all">All</button>
+          <button class="chart-chip" data-event-strategy="trend_structure">Trend</button>
+          <button class="chart-chip" data-event-strategy="weak_level_rejection">Rejection</button>
+          <button class="chart-chip" data-event-strategy="orderbook_density">Density</button>
+          <button class="chart-chip" data-event-strategy="level_breakout">Breakout</button>
+        </div>
+        <div>
+          <button class="chart-chip active" data-event-type="all">Все</button>
+          <button class="chart-chip" data-event-type="decision">Decision</button>
+          <button class="chart-chip" data-event-type="entry">Entry</button>
+          <button class="chart-chip" data-event-type="reject">Reject</button>
+          <button class="chart-chip" data-event-type="exit">Exit</button>
+          <button class="chart-chip" data-event-type="error">Error</button>
+        </div>
+      </div>
       <div id="events" class="events"></div>
     </article>
   </section>
