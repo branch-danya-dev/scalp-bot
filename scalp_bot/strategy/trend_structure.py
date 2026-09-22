@@ -49,6 +49,12 @@ class TrendStructureStrategy(Strategy):
     def reset(self, symbol: str) -> None:
         self._states.pop(symbol, None)
 
+    def mark_opened(self, symbol: str, decision: StrategyDecision) -> None:
+        state = self._states.get(symbol)
+        anchor = decision.details.get("trendlineAnchor")
+        if state is not None and anchor is not None:
+            state.used_anchors.add(tuple(anchor))
+
     @staticmethod
     def _anchor_key(line: "TrendLine") -> tuple:
         return (
@@ -487,7 +493,6 @@ class TrendStructureStrategy(Strategy):
                 + min(abs(level_flow["imbalance"]) / 0.30, 1.0) * 0.05,
             )
             state.stage = TrendPullbackStage.CONTINUATION
-            state.used_anchors.add(anchor)
             setup_id = (
                 f"{self.key}:{action.value}:{line.timeframe}:"
                 f"{line.start_ms}:{state.reclaim_level:.10g}"
