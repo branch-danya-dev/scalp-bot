@@ -54,6 +54,7 @@ class TrendStructureStrategy(Strategy):
         anchor = decision.details.get("trendlineAnchor")
         if state is not None and anchor is not None:
             state.used_anchors.add(tuple(anchor))
+            state.stage = TrendPullbackStage.CONTINUATION
 
     @staticmethod
     def _anchor_key(line: "TrendLine") -> tuple:
@@ -492,7 +493,6 @@ class TrendStructureStrategy(Strategy):
                 + min(abs(flow["imbalance5s"]) / 0.30, 1.0) * 0.07
                 + min(abs(level_flow["imbalance"]) / 0.30, 1.0) * 0.05,
             )
-            state.stage = TrendPullbackStage.CONTINUATION
             setup_id = (
                 f"{self.key}:{action.value}:{line.timeframe}:"
                 f"{line.start_ms}:{state.reclaim_level:.10g}"
@@ -515,7 +515,7 @@ class TrendStructureStrategy(Strategy):
                 visuals=visuals,
                 details={
                     **common_details,
-                    "state": state.stage.value,
+                    "state": TrendPullbackStage.CONTINUATION.value,
                     "setupQuality": quality,
                     "reclaimLevel": state.reclaim_level,
                     "reclaimPrice": state.reclaim_price,
