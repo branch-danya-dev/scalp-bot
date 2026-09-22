@@ -315,7 +315,7 @@ def economic_settings(**overrides) -> Settings:
         max_position_exposure_fraction=1.0,
         min_net_profit_usd=1.0,
         min_net_profit_equity_fraction=0.001,
-        min_net_reward_risk=0,
+        min_net_reward_risk=1.15,
         enforce_net_reward_risk_gate=True,
         taker_fee_rate=0.00055,
         slippage_bps=1.0,
