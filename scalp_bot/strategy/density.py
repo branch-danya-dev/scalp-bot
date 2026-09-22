@@ -476,11 +476,31 @@ class DensityBounceStrategy(Strategy):
         if state.side == "bid":
             action = Action.LONG
             reacted = mid >= wall_price * (1 + self.reaction_pct)
-            flow_reversed = flow["tradeCount5s"] >= 3 and flow["imbalance5s"] >= 0.03
+            flow_reversed = (
+                level_flow.trade_count >= 3
+                and (
+                    level_flow.imbalance >= 0.03
+                    or (
+                        level_flow.absorption_efficiency >= 0.30
+                        and flow["tradeCount5s"] >= 3
+                        and flow["imbalance5s"] >= 0.03
+                    )
+                )
+            )
         else:
             action = Action.SHORT
             reacted = mid <= wall_price * (1 - self.reaction_pct)
-            flow_reversed = flow["tradeCount5s"] >= 3 and flow["imbalance5s"] <= -0.03
+            flow_reversed = (
+                level_flow.trade_count >= 3
+                and (
+                    level_flow.imbalance <= -0.03
+                    or (
+                        level_flow.absorption_efficiency >= 0.30
+                        and flow["tradeCount5s"] >= 3
+                        and flow["imbalance5s"] <= -0.03
+                    )
+                )
+            )
 
         if not (reacted and flow_reversed):
             state.stage = DensityStage.DEFENDED if state.touched else DensityStage.APPROACH
@@ -536,7 +556,7 @@ class DensityBounceStrategy(Strategy):
 
         strength_score = clamp((strength - self.strength_multiple) / 6.0)
         stability_score = clamp((remaining_ratio - 0.70) / 0.30)
-        flow_score = clamp(abs(flow["imbalance5s"]) / 0.25)
+        flow_score = clamp(abs(level_flow.imbalance) / 0.25)
         absorption_score = 1.0 if absorption else clamp(replenishment_ratio / 0.20)
         quality = clamp(
             0.40
