@@ -22,7 +22,7 @@ from .common import (
     zone_overlap_count,
     zone_visual,
 )
-from .flow import flow_at_level
+from .flow import flow_at_level, flow_beyond_level
 from .liquidity import find_liquidity_target
 
 
@@ -178,7 +178,18 @@ class WeakLevelRejectionStrategy(Strategy):
 
         if zone.kind == "resistance":
             tested = last.high >= zone.low
-            failed_break = last.high >= zone.high * 0.9995 and last.close < zone.low
+            breakout_flow = flow_beyond_level(
+                trades,
+                zone.high,
+                long_side=True,
+                seconds=15,
+                now_ms=observed_at_ms,
+            )
+            failed_break = (
+                last.high > zone.high
+                and last.close < zone.low
+                and breakout_flow.trade_count > 0
+            )
             attack_absorbed = (
                 level_flow.buy_notional > level_flow.sell_notional
                 and level_flow.absorption_efficiency >= 0.30
@@ -200,7 +211,18 @@ class WeakLevelRejectionStrategy(Strategy):
             risk = stop - price
         else:
             tested = last.low <= zone.high
-            failed_break = last.low <= zone.low * 1.0005 and last.close > zone.high
+            breakout_flow = flow_beyond_level(
+                trades,
+                zone.low,
+                long_side=False,
+                seconds=15,
+                now_ms=observed_at_ms,
+            )
+            failed_break = (
+                last.low < zone.low
+                and last.close > zone.high
+                and breakout_flow.trade_count > 0
+            )
             attack_absorbed = (
                 level_flow.sell_notional > level_flow.buy_notional
                 and level_flow.absorption_efficiency >= 0.30
@@ -237,6 +259,7 @@ class WeakLevelRejectionStrategy(Strategy):
                     "zone": zone.public(),
                     "flow": flow,
                     "levelFlow": level_flow.public(),
+                    "breakoutFlow": breakout_flow.public(),
                     "roundLevel": round_level,
                     "weakLevel": True,
                 },
@@ -256,6 +279,7 @@ class WeakLevelRejectionStrategy(Strategy):
                     "zone": zone.public(),
                     "flow": flow,
                     "levelFlow": level_flow.public(),
+                    "breakoutFlow": breakout_flow.public(),
                     "roundLevel": round_level,
                     "weakLevel": True,
                 },
@@ -372,6 +396,7 @@ class WeakLevelRejectionStrategy(Strategy):
                 "zone": zone.public(),
                 "flow": flow,
                 "levelFlow": level_flow.public(),
+                "breakoutFlow": breakout_flow.public(),
                 "roundLevel": round_level,
                 "weakLevel": True,
                 "levelGeneration": generation_id,

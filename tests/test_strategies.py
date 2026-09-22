@@ -74,7 +74,16 @@ def weak_support_rejection_candles() -> list[Candle]:
 
 def buy_flow(price: float = 100.10) -> list[TradeTick]:
     start = 20_000_000
-    return [TradeTick(start + i * 200, price, 3, "Buy") for i in range(20)]
+    # A real failed support break trades below the level before buyers reclaim it.
+    rows = [
+        TradeTick(start + i * 200, 99.95, 1, "Sell")
+        for i in range(3)
+    ]
+    rows += [
+        TradeTick(start + 1_000 + i * 200, price, 3, "Buy")
+        for i in range(20)
+    ]
+    return rows
 
 
 def test_weak_level_rejection_support_can_produce_long() -> None:
@@ -90,6 +99,28 @@ def test_weak_level_rejection_support_can_produce_long() -> None:
     assert decision.action == Action.LONG
     assert decision.details["tradeMode"] == "trend_following"
     assert decision.details["allowRunner"] is True
+
+
+def test_weak_level_rejection_requires_actual_trade_beyond_zone() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    rows = weak_support_rejection_candles()
+    book = OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)])
+    start = 20_000_000
+    inside_only = [
+        TradeTick(start + i * 200, 100.10, 3, "Buy")
+        for i in range(20)
+    ]
+
+    decision = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="NOFAKEBREAKUSDT",
+        trades=inside_only,
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["breakoutFlow"]["tradeCount"] == 0
 
 
 def mature_breakout_candles() -> list[Candle]:
