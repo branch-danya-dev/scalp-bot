@@ -150,6 +150,7 @@ def test_research_mode_allows_positive_net_setup_even_when_net_rr_is_below_live_
         max_position_exposure_fraction=0.25,
         risk_fraction=0.005,
         min_net_profit_usd=0.10,
+        min_net_profit_equity_fraction=0.0,
         min_net_reward_risk=1.15,
         enforce_net_reward_risk_gate=False,
         taker_fee_rate=0.00055,
@@ -203,6 +204,7 @@ def scalp_settings(**overrides) -> Settings:
         max_position_leverage=5.0,
         max_position_exposure_fraction=1.0,
         min_net_profit_usd=0,
+        min_net_profit_equity_fraction=0.0,
         min_net_reward_risk=0,
         enforce_net_reward_risk_gate=False,
         taker_fee_rate=0,
@@ -298,3 +300,104 @@ def test_remaining_portfolio_notional_still_caps_tight_stop_trade() -> None:
     assert result.plan is not None
     assert result.plan.notional == pytest.approx(1800)
     assert result.plan.leverage == pytest.approx(1.8)
+
+
+
+def economic_settings(**overrides) -> Settings:
+    values = dict(
+        start_balance=1000,
+        risk_fraction=0.005,
+        max_total_risk_fraction=0.02,
+        max_leverage=10.0,
+        max_position_leverage=5.0,
+        max_position_exposure_fraction=1.0,
+        min_net_profit_usd=1.0,
+        min_net_profit_equity_fraction=0.001,
+        min_net_reward_risk=0,
+        enforce_net_reward_risk_gate=False,
+        taker_fee_rate=0.00055,
+        slippage_bps=1.0,
+    )
+    values.update(overrides)
+    return Settings(**values)
+
+
+def test_micro_move_passes_when_scaled_notional_leaves_real_net_profit() -> None:
+    result = RiskEngine(economic_settings()).build_plan(
+        "BTCUSDT",
+        decision(100.20, stop=99.90),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.notional == pytest.approx(5000)
+    assert result.plan.expected_gross_profit == pytest.approx(10.0)
+    assert result.plan.estimated_costs == pytest.approx(6.5)
+    assert result.plan.expected_net_profit == pytest.approx(3.5)
+    economics = result.plan.strategy_details["economics"]
+    assert economics["requiredNetProfitUsd"] == pytest.approx(1.0)
+    assert economics["netReturnOnEquity"] == pytest.approx(0.0035)
+
+
+def test_micro_move_is_rejected_when_net_is_only_cents_after_costs() -> None:
+    result = RiskEngine(economic_settings()).build_plan(
+        "BTCUSDT",
+        decision(100.14, stop=99.90),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+
+    assert not result.allowed
+    assert "required $1.00" in result.reason
+
+
+def test_minimum_net_profit_scales_with_equity() -> None:
+    cfg = economic_settings(start_balance=10_000)
+    engine = RiskEngine(cfg)
+
+    too_small = engine.build_plan(
+        "BTCUSDT",
+        decision(100.20, stop=99.50),
+        10_000,
+        book(99.99, 100.00),
+        100_000,
+        200,
+    )
+    assert not too_small.allowed
+    assert "required $10.00" in too_small.reason
+
+    enough = engine.build_plan(
+        "BTCUSDT",
+        decision(100.24, stop=99.50),
+        10_000,
+        book(99.99, 100.00),
+        100_000,
+        200,
+    )
+    assert enough.allowed
+    assert enough.plan is not None
+    assert enough.plan.expected_net_profit == pytest.approx(11.0)
+
+
+def test_executable_spread_is_not_subtracted_twice() -> None:
+    result = RiskEngine(economic_settings()).build_plan(
+        "BTCUSDT",
+        decision(100.20, stop=99.90),
+        1000,
+        book(99.90, 100.00),
+        10_000,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.estimated_costs == pytest.approx(6.5)
+    economics = result.plan.strategy_details["economics"]
+    assert economics["entrySpreadPct"] == pytest.approx(0.0010005, rel=1e-3)
+    assert economics["spreadCostDoubleCounted"] is False
