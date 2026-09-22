@@ -18,7 +18,6 @@ from .common import (
     compute_trade_flow,
     nearby_round_level,
     price_visual,
-    trade_mode,
     typical_range_abs,
 )
 from .flow import flow_at_level
@@ -723,6 +722,20 @@ class DensityBounceStrategy(Strategy):
                 details=shared,
             )
 
+        expected_action = Action.LONG if trend == Trend.UP else Action.SHORT
+        if action != expected_action:
+            state.stage = DensityStage.DEFENDED
+            return self._wait(
+                state,
+                "Плотность защищена, но отбой направлен против HTF тренда; контртрендовый вход запрещён",
+                confidence=0.48,
+                details={
+                    **shared,
+                    "trendAligned": False,
+                    "rejectedAction": action.value,
+                },
+            )
+
         state.stage = DensityStage.REACTION
         if state.defended_at <= 0:
             state.defended_at = now
@@ -747,24 +760,16 @@ class DensityBounceStrategy(Strategy):
                 details=shared,
             )
 
-        mode, allow_runner = trade_mode(action, trend)
-        target_r = 1.6 if allow_runner else 0.75
+        mode = "trend_following"
+        allow_runner = True
+        target_r = 1.6
         reaction_target = (
             mid + risk * target_r
             if action == Action.LONG
             else mid - risk * target_r
         )
         liquidity_target = find_liquidity_target(candles, mid, action, structure=structure)
-        if allow_runner and liquidity_target is not None:
-            target = liquidity_target.price
-        elif not allow_runner and liquidity_target is not None:
-            target = (
-                min(reaction_target, liquidity_target.price)
-                if action == Action.LONG
-                else max(reaction_target, liquidity_target.price)
-            )
-        else:
-            target = reaction_target
+        target = liquidity_target.price if liquidity_target is not None else reaction_target
 
         strength_score = clamp((strength - self.strength_multiple) / 6.0)
         stability_score = clamp((remaining_ratio - 0.70) / 0.30)
@@ -796,15 +801,13 @@ class DensityBounceStrategy(Strategy):
                 "strengthMultiple": strength,
                 "tradeMode": mode,
                 "allowRunner": allow_runner,
-                "exitMode": "runner_allowed" if allow_runner else "reaction_only",
+                "exitMode": "runner_allowed",
                 "targetR": target_r,
                 "liquidityTarget": (
                     liquidity_target.public() if liquidity_target else None
                 ),
                 "targetSource": (
-                    "liquidity"
-                    if allow_runner and liquidity_target is not None
-                    else "reaction_cap"
+                    "liquidity" if liquidity_target is not None else "risk_multiple"
                 ),
                 "densityFresh": True,
                 "setupQuality": quality,
@@ -830,11 +833,7 @@ class DensityBounceStrategy(Strategy):
                     else "Wall стабильна и не показывает быстрого depletion"
                 ),
                 "Цена протестировала wall и поток развернулся от неё",
-                (
-                    "Отскок по тренду: runner разрешён"
-                    if allow_runner
-                    else "Отскок против тренда: только короткая реакция"
-                ),
+                "Отскок подтверждён в направлении HTF тренда",
             ],
             confidence=quality,
             watched_level=wall_price,
