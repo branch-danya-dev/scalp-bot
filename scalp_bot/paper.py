@@ -45,6 +45,20 @@ class Position:
             adverse = max(0.0, self.stop - self.entry)
         return self.notional * adverse / self.entry
 
+    def cost_reserve_usd(self, config: Settings) -> float:
+        exit_fee = self.notional * config.taker_fee_rate
+        exit_slippage = (
+            self.notional * config.slippage_bps / 10_000
+        )
+        return (
+            max(0.0, self.entry_fee_remaining)
+            + exit_fee
+            + exit_slippage
+        )
+
+    def all_in_risk_usd(self, config: Settings) -> float:
+        return self.current_risk_usd + self.cost_reserve_usd(config)
+
     @property
     def mfe_r(self) -> float:
         return self.mfe_usd / self.initial_risk_usd if self.initial_risk_usd > 0 else 0.0
@@ -58,6 +72,7 @@ class Position:
         data["side"] = self.side.value
         data["initial_risk_usd"] = self.initial_risk_usd
         data["current_risk_usd"] = self.current_risk_usd
+        data["cost_reserve_usd"] = None
         data["mfe_r"] = self.mfe_r
         data["mae_r"] = self.mae_r
         return data
@@ -81,8 +96,25 @@ class PaperBroker:
         return sum(x.notional for x in self.positions.values())
 
     @property
+    def open_structural_risk_usd(self) -> float:
+        return sum(
+            x.current_risk_usd
+            for x in self.positions.values()
+        )
+
+    @property
+    def open_cost_reserve_usd(self) -> float:
+        return sum(
+            x.cost_reserve_usd(self.config)
+            for x in self.positions.values()
+        )
+
+    @property
     def open_risk_usd(self) -> float:
-        return sum(x.current_risk_usd for x in self.positions.values())
+        return sum(
+            x.all_in_risk_usd(self.config)
+            for x in self.positions.values()
+        )
 
     @property
     def available_notional(self) -> float:
