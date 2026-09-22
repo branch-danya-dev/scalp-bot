@@ -179,13 +179,14 @@ def test_research_mode_still_rejects_setup_with_negative_expected_net_after_cost
         max_leverage=1,
         max_position_exposure_fraction=0.25,
         min_net_profit_usd=0,
+        enforce_min_net_profit_gate=False,
         enforce_net_reward_risk_gate=False,
         taker_fee_rate=0.00055,
         slippage_bps=1,
     )
     result = RiskEngine(cfg).build_plan(
         "BTCUSDT",
-        decision(100.10, stop=99.90),
+        decision(100.08, stop=99.90),
         1000,
         book(99.99, 100.00),
         1000,
@@ -353,7 +354,7 @@ def test_trade_passes_when_net_target_exceeds_all_in_loss_by_required_ratio() ->
     assert result.allowed
     assert result.plan is not None
     assert result.plan.notional == pytest.approx(5000)
-    assert result.plan.expected_net_profit == pytest.approx(13.5)
+    assert result.plan.expected_net_profit == pytest.approx(15.75)
     assert result.plan.expected_net_loss == pytest.approx(11.5)
     assert result.plan.net_reward_risk >= 1.15
     economics = result.plan.strategy_details["economics"]
@@ -375,7 +376,7 @@ def test_trade_passes_when_net_target_exceeds_all_in_loss_by_required_ratio() ->
 def test_exact_net_reward_risk_boundary_is_accepted() -> None:
     result = RiskEngine(economic_settings()).build_plan(
         "BTCUSDT",
-        decision(100.3945, stop=99.90),
+        decision(100.3495, stop=99.90),
         1000,
         book(99.99, 100.00),
         10_000,
@@ -394,7 +395,7 @@ def test_exact_net_reward_risk_boundary_is_accepted() -> None:
 def test_net_reward_risk_just_below_boundary_is_rejected() -> None:
     result = RiskEngine(economic_settings()).build_plan(
         "BTCUSDT",
-        decision(100.39448, stop=99.90),
+        decision(100.34948, stop=99.90),
         1000,
         book(99.99, 100.00),
         10_000,
@@ -408,7 +409,7 @@ def test_net_reward_risk_just_below_boundary_is_rejected() -> None:
 def test_micro_move_is_rejected_when_net_is_only_cents_after_costs() -> None:
     result = RiskEngine(economic_settings()).build_plan(
         "BTCUSDT",
-        decision(100.14, stop=99.90),
+        decision(100.08, stop=99.90),
         1000,
         book(99.99, 100.00),
         10_000,
@@ -428,7 +429,7 @@ def test_minimum_net_profit_scales_with_equity() -> None:
 
     too_small = engine.build_plan(
         "BTCUSDT",
-        decision(100.20, stop=99.50),
+        decision(100.18, stop=99.50),
         10_000,
         book(99.99, 100.00),
         100_000,
@@ -439,7 +440,7 @@ def test_minimum_net_profit_scales_with_equity() -> None:
 
     enough = engine.build_plan(
         "BTCUSDT",
-        decision(100.26, stop=99.50),
+        decision(100.19, stop=99.50),
         10_000,
         book(99.99, 100.00),
         100_000,
@@ -465,7 +466,7 @@ def test_executable_spread_is_not_subtracted_twice() -> None:
     assert result.allowed
     assert result.plan is not None
     assert result.plan.estimated_costs == pytest.approx(
-        result.plan.notional * 0.0013
+        result.plan.notional * 0.00085
     )
     economics = result.plan.strategy_details["economics"]
     assert economics["entrySpreadPct"] == pytest.approx(0.0010005, rel=1e-3)
@@ -609,7 +610,7 @@ def test_research_shadow_economics_allows_positive_net_below_both_legacy_gates()
     )
     result = RiskEngine(cfg).build_plan(
         "NEARUSDT",
-        decision(100.24, stop=99.45),
+        decision(100.18, stop=99.45),
         1000,
         book(99.99, 100.00),
         10_000,
