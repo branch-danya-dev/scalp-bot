@@ -1,6 +1,10 @@
 import pytest
 
-from scalp_bot.bybit import OrderBookSequenceError, OrderBookState
+from scalp_bot.bybit import (
+    OrderBookSequenceError,
+    OrderBookState,
+    _kline_is_confirmed,
+)
 
 
 def test_orderbook_sequence_gap_is_detected() -> None:
@@ -190,3 +194,17 @@ def test_orderbook_depth_1000_preserves_full_requested_window() -> None:
 
     assert len(book.bids) == 1000
     assert len(book.asks) == 1000
+
+
+def test_rest_kline_confirmation_respects_open_interval() -> None:
+    start = 1_000_000
+    assert not _kline_is_confirmed(
+        start,
+        "15",
+        now_ms=start + 14 * 60_000,
+    )
+    assert _kline_is_confirmed(
+        start,
+        "15",
+        now_ms=start + 15 * 60_000,
+    )
