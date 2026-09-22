@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import floor
+from math import floor, log
 
 from ..domain import Candle
 from .structure import MarketStructure, StructuralLevel
@@ -21,6 +21,7 @@ class LevelLife:
     sweeps: int = 0
     was_near: bool = False
     broken: bool = False
+    last_counted_bar_ms: int | None = None
 
 
 class LevelLifecycleTracker:
@@ -29,8 +30,8 @@ class LevelLifecycleTracker:
 
     @staticmethod
     def _id(level: StructuralLevel, reference_price: float) -> str:
-        step = max(reference_price * 0.0006, 1e-12)
-        bucket = floor(level.center / step + 0.5)
+        ratio = 1.0006
+        bucket = floor(log(max(level.center, 1e-12)) / log(ratio))
         side = "S" if level.kind in {"support", "day_low", "previous_day_low"} else "R"
         return f"{side}:{bucket}"
 
@@ -88,10 +89,12 @@ class LevelLifecycleTracker:
             if latest is not None:
                 overlaps = latest.high >= level.low and latest.low <= level.high
                 closes_inside = level.low <= latest.close <= level.high
-                if overlaps:
-                    life.dwell_bars += 1
-                if closes_inside:
-                    life.acceptance_bars += 1
+                if life.last_counted_bar_ms != latest.start_ms:
+                    if overlaps:
+                        life.dwell_bars += 1
+                    if closes_inside:
+                        life.acceptance_bars += 1
+                    life.last_counted_bar_ms = latest.start_ms
 
                 break_buffer = max(level.width * 0.25, reference_price * 0.0004)
                 if level.kind in {"resistance", "day_high", "previous_day_high"}:
