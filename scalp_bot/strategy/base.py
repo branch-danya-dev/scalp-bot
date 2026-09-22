@@ -21,6 +21,7 @@ class Strategy:
         symbol: str = "",
         trades: list[TradeTick] | None = None,
         structure: "MarketStructure | None" = None,
+        observed_at_ms: int | None = None,
     ) -> StrategyDecision:
         raise NotImplementedError
 
