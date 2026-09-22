@@ -217,6 +217,32 @@ def test_central_arbiter_ignores_stale_market_snapshot(tmp_path) -> None:
 
 
 
+def test_density_engagement_records_full_research_book_depth(tmp_path) -> None:
+    engine = make_engine(tmp_path, orderbook_depth=1000)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+        )
+        assert engine._research_book_depth(session, None) == 50
+
+        session.decisions["orderbook_density"] = StrategyDecision(
+            strategy="orderbook_density",
+            action=Action.WAIT,
+            reasons=["wall found"],
+            details={"state": "found"},
+        )
+        assert engine._research_book_depth(session, None) == 1000
+
+        p = plan("AAAUSDT")
+        p.strategy = "orderbook_density"
+        position = engine.broker.open(p, book())
+        session.decisions.clear()
+        assert engine._research_book_depth(session, position) == 1000
+    finally:
+        close_rest(engine)
+
+
 def test_replay_sampling_is_fast_only_for_engaged_market(tmp_path) -> None:
     engine = make_engine(
         tmp_path,

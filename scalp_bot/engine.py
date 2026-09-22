@@ -459,6 +459,28 @@ class TradingEngine:
                 return True
         return False
 
+    def _research_book_depth(
+        self,
+        session: ActiveSymbolSession,
+        position: Position | None,
+    ) -> int:
+        density = session.decisions.get("orderbook_density")
+        density_state = (
+            str(density.details.get("state") or "")
+            if density is not None
+            else ""
+        )
+        density_engaged = (
+            density_state in ACTIVE_SETUP_STATES
+            or (
+                position is not None
+                and position.strategy == "orderbook_density"
+            )
+        )
+        if density_engaged:
+            return self.config.orderbook_depth
+        return min(self.config.orderbook_depth, 50)
+
     def _deactivate_symbol(self, symbol: str, reason: str) -> None:
         worker = self._worker_tasks.pop(symbol, None)
         if worker:
@@ -651,7 +673,10 @@ class TradingEngine:
                     "research_frame",
                     symbol,
                     session.frame(
-                        min(self.config.orderbook_depth, 50),
+                        self._research_book_depth(
+                            session,
+                            position,
+                        ),
                         position.public() if position else None,
                     ),
                 )
