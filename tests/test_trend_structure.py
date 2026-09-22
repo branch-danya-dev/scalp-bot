@@ -264,3 +264,58 @@ def test_uptrend_rejects_descending_support_trendline() -> None:
 
     assert decision.action == Action.WAIT
     assert "правильного наклона" in decision.reasons[0]
+
+
+def test_stale_trade_flow_cannot_confirm_reclaim() -> None:
+    strategy = TrendStructureStrategy()
+    candles = long_pullback_candles()
+    market_structure = structure("support")
+    trades = buy_flow()
+    last_trade_ms = trades[-1].ts_ms
+
+    first = strategy.evaluate(
+        candles,
+        book(100.09, 100.11),
+        Trend.UP,
+        symbol="STALEFLOWUSDT",
+        trades=trades,
+        structure=market_structure,
+        observed_at_ms=last_trade_ms,
+    )
+    assert first.details["state"] == "test"
+
+    stale = strategy.evaluate(
+        candles,
+        book(100.69, 100.71),
+        Trend.UP,
+        symbol="STALEFLOWUSDT",
+        trades=trades,
+        structure=market_structure,
+        observed_at_ms=last_trade_ms + 6_000,
+    )
+    assert stale.action == Action.WAIT
+    assert stale.details["flowConfirmed"] is False
+    assert stale.details["flow"]["tradeCount5s"] == 0
+
+
+def test_aggressive_countertrend_impulse_is_not_treated_as_pullback() -> None:
+    strategy = TrendStructureStrategy()
+    candles = long_pullback_candles()
+    for row in candles[-5:-1]:
+        row.volume = 2_000
+        row.high += 0.20
+        row.low -= 0.20
+
+    decision = strategy.evaluate(
+        candles,
+        book(100.09, 100.11),
+        Trend.UP,
+        symbol="IMPULSEUSDT",
+        trades=buy_flow(),
+        structure=structure("support"),
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["aggressiveCountertrend"] is True
+    assert decision.details["pullbackCharacter"]["volumeRatio"] >= 1.35
+    assert decision.details["pullbackCharacter"]["rangeRatio"] >= 1.35

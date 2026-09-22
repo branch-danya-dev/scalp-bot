@@ -401,6 +401,7 @@ def test_density_only_invalidates_on_explicit_price_flow_failure(tmp_path) -> No
         engine._maybe_strategy_invalidation(session)
         assert "AAAUSDT" in engine.broker.positions
 
+        pos.partial_taken = True
         session.decisions["orderbook_density"].details["positionInvalidated"] = True
         engine._maybe_strategy_invalidation(session)
         assert "AAAUSDT" not in engine.broker.positions
@@ -617,3 +618,18 @@ def test_book_health_is_exposed_in_market_snapshot(tmp_path) -> None:
         assert session.book_health()["fresh"] is False
     finally:
         close_rest(engine)
+
+
+def test_book_flow_snapshot_expires_against_observation_clock() -> None:
+    session = ActiveSymbolSession(
+        symbol="AAAUSDT",
+        orderbook=book(),
+    )
+    session.record_book_flow(100_000, 500.0)
+
+    fresh = session.book_flow_snapshot(103_000)
+    stale = session.book_flow_snapshot(106_000)
+
+    assert fresh["bestLevelOfiUsd5s"] == 500.0
+    assert stale["bestLevelOfiUsd5s"] == 0.0
+    assert stale["bestLevelOfiUsd15s"] == 500.0

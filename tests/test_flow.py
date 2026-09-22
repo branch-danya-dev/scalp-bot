@@ -97,3 +97,36 @@ def test_best_level_ofi_is_negative_when_best_bid_steps_down() -> None:
         asks=[(101.0, 1.0)],
     )
     assert best_level_ofi_usd(previous, weaker) == -100.0
+
+
+def test_trade_flow_expires_against_current_observation_time() -> None:
+    last_trade = 100_000
+    rows = [
+        TradeTick(last_trade - 1_000, 100, 1, "Buy"),
+        TradeTick(last_trade, 100, 1, "Buy"),
+    ]
+
+    flow = compute_trade_flow(rows, last_trade + 6_000)
+    assert flow["tradeCount5s"] == 0
+    assert flow["cvd5s"] == 0
+    assert flow["latestTradeAgeMs"] == 6_000
+
+    local = flow_at_level(
+        rows,
+        100,
+        seconds=5,
+        now_ms=last_trade + 6_000,
+    )
+    assert local.trade_count == 0
+
+
+def test_flow_windows_ignore_future_rows() -> None:
+    now = 100_000
+    rows = [
+        TradeTick(now - 1_000, 100, 1, "Buy"),
+        TradeTick(now + 1_000, 100, 10, "Sell"),
+    ]
+    flow = compute_trade_flow(rows, now)
+    assert flow["buyNotional5s"] == 100
+    assert flow["sellNotional5s"] == 0
+    assert cumulative_delta(rows, 5, now) == 100

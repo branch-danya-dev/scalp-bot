@@ -3,6 +3,7 @@ from scalp_bot.strategy import (
     DensityBounceStrategy,
     LevelBreakoutStrategy,
     WeakLevelRejectionStrategy,
+    classify_context_trend,
     classify_trend,
     detect_level_zones,
 )
@@ -466,3 +467,19 @@ def test_density_countertrend_reaction_is_not_tradeable() -> None:
     )
     assert decision.action == Action.WAIT
     assert decision.details["trendAligned"] is False
+
+
+def test_higher_timeframe_opposition_vetoes_intraday_bias(monkeypatch) -> None:
+    import scalp_bot.strategy.common as common
+
+    sequence = iter([Trend.UP, Trend.DOWN])
+    monkeypatch.setattr(common, "classify_trend", lambda _: next(sequence))
+    assert classify_context_trend([], []) == Trend.FLAT
+
+
+def test_flat_higher_timeframe_does_not_block_intraday_bias(monkeypatch) -> None:
+    import scalp_bot.strategy.common as common
+
+    sequence = iter([Trend.UP, Trend.FLAT])
+    monkeypatch.setattr(common, "classify_trend", lambda _: next(sequence))
+    assert classify_context_trend([], []) == Trend.UP
