@@ -114,9 +114,17 @@ class OfflineStrategyReplay:
                 trend = Trend.FLAT
             structure = market_structure_from_public(payload.get("structure"))
             for strategy in self.strategies.values():
+                observed_at_ms = int(float(row.get("ts") or 0) * 1000)
                 decision = strategy.evaluate(
-                    candles, book, trend, symbol=row_symbol,
-                    trades=trades, structure=structure,
+                    candles,
+                    book,
+                    trend,
+                    symbol=row_symbol,
+                    trades=trades,
+                    structure=structure,
+                    observed_at_ms=(
+                        observed_at_ms if observed_at_ms > 0 else None
+                    ),
                 )
                 if not decision.tradeable:
                     continue
