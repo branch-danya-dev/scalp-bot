@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from statistics import median
 
-from ..domain import Action, Candle, OrderBook, StrategyDecision, TradeTick, Trend
+from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .base import Strategy
 
 if TYPE_CHECKING:
@@ -141,6 +141,36 @@ class LevelBreakoutStrategy(Strategy):
             and zone.volume_ratio >= 0.80
         )
 
+    def manage_position(
+        self,
+        *,
+        side: Side,
+        unrealized_pnl: float,
+        opened_at: float,
+        strategy_details: dict,
+        decision: StrategyDecision | None,
+        trend: Trend,
+        last_price: float,
+    ) -> str | None:
+        if unrealized_pnl >= 0:
+            return None
+        expected = Trend.UP if side == Side.LONG else Trend.DOWN
+        if trend != expected:
+            return "breakout_context_lost"
+        zone = (
+            strategy_details.get("zone")
+            if isinstance(strategy_details, dict)
+            else None
+        )
+        if isinstance(zone, dict):
+            low = float(zone.get("low") or 0)
+            high = float(zone.get("high") or 0)
+            if side == Side.LONG and high > 0 and last_price < high:
+                return "breakout_failed_back_inside"
+            if side == Side.SHORT and low > 0 and last_price > low:
+                return "breakout_failed_back_inside"
+        return None
+
     def evaluate(
         self,
         candles: list[Candle],
@@ -170,7 +200,12 @@ class LevelBreakoutStrategy(Strategy):
             structural = [
                 level
                 for level in structure.levels
-                if level.kind == zone_kind and level.touches >= self.min_zone_touches
+                if level.kind == zone_kind
+                and level.touches >= self.min_zone_touches
+                and level.distinct_approaches >= 3
+                and level.reaction_pct >= typical_range_pct(candles) * 0.45
+                and level.volume_ratio >= 0.80
+                and level.lifecycle in {"tested", "worked"}
             ]
             zones = [level.as_zone() for level in structural]
         else:
@@ -193,6 +228,22 @@ class LevelBreakoutStrategy(Strategy):
             )
 
         generation = self._generation(zone)
+        if structure is not None:
+            matched = next(
+                (
+                    level
+                    for level in structural
+                    if abs(level.center - zone.center)
+                    <= max(zone.width, price * 0.0006)
+                ),
+                None,
+            )
+            if matched is not None and matched.generation_id:
+                generation = (
+                    zone.kind,
+                    hash(matched.generation_id),
+                    round(zone.center, 8),
+                )
         state.zone_key = generation
         visuals = zone_visual(zone, "breakout zone")
         flow = compute_trade_flow(trades)
