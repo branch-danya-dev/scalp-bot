@@ -113,3 +113,53 @@ def test_broken_level_gets_new_generation_after_disappearing() -> None:
 
     assert replacement.generation_id != first_generation
     assert replacement.lifecycle != "broken"
+
+
+
+def test_level_id_is_stable_across_small_detector_drift() -> None:
+    tracker = LevelLifecycleTracker()
+    rows = [candle(i, 99.0) for i in range(20)]
+
+    first = StructuralLevel(
+        kind="resistance",
+        low=100.00,
+        high=100.10,
+        touches=3,
+        timeframe="5m",
+        score=0.8,
+    )
+    tracker.update(MarketStructure(levels=[first]), rows, 99.5, 1_000)
+
+    shifted = StructuralLevel(
+        kind="resistance",
+        low=100.01,
+        high=100.11,
+        touches=3,
+        timeframe="5m",
+        score=0.8,
+    )
+    tracker.update(MarketStructure(levels=[shifted]), rows, 99.5, 2_000)
+
+    assert shifted.level_id == first.level_id
+    assert shifted.generation_id == first.generation_id
+
+
+def test_lifecycle_timestamps_are_exposed_on_level() -> None:
+    tracker = LevelLifecycleTracker()
+    rows = [candle(i, 99.0) for i in range(20)]
+    level = StructuralLevel(
+        kind="support",
+        low=99.8,
+        high=99.9,
+        touches=2,
+        timeframe="5m",
+        score=0.7,
+    )
+    structure = MarketStructure(levels=[level])
+
+    tracker.update(structure, rows, 99.0, 10_000)
+    tracker.update(structure, rows, 99.85, 20_000)
+
+    assert level.first_seen_ms == 10_000
+    assert level.last_seen_ms == 20_000
+    assert level.last_approach_ms == 20_000

@@ -149,6 +149,9 @@ class LevelLifecycleTracker:
             level.acceptance_bars = life.acceptance_bars
             level.failed_breaks = life.failed_breaks
             level.sweeps = life.sweeps
+            level.first_seen_ms = life.first_seen_ms
+            level.last_seen_ms = life.last_seen_ms
+            level.last_approach_ms = life.last_approach_ms
             level.lifecycle = (
                 "broken" if life.broken
                 else "fresh" if life.distinct_approaches <= 1

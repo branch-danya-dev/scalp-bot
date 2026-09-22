@@ -40,6 +40,9 @@ class StructuralLevel:
     failed_breaks: int = 0
     sweeps: int = 0
     lifecycle: str = "fresh"
+    first_seen_ms: int | None = None
+    last_seen_ms: int | None = None
+    last_approach_ms: int | None = None
 
     @property
     def center(self) -> float:
@@ -291,6 +294,17 @@ def _merge_levels(levels: list[StructuralLevel], reference_price: float) -> list
         match.round_confluence = match.round_confluence or level.round_confluence
         match.sources = sorted(set(match.sources + level.sources))
         match.last_touch_index = max(match.last_touch_index, level.last_touch_index)
+        match.distinct_approaches = max(
+            match.distinct_approaches,
+            level.distinct_approaches,
+        )
+        match.dwell_bars = max(match.dwell_bars, level.dwell_bars)
+        match.acceptance_bars = max(
+            match.acceptance_bars,
+            level.acceptance_bars,
+        )
+        match.failed_breaks = max(match.failed_breaks, level.failed_breaks)
+        match.sweeps = max(match.sweeps, level.sweeps)
         if level.last_touch_ms and (
             match.last_touch_ms is None or level.last_touch_ms > match.last_touch_ms
         ):
