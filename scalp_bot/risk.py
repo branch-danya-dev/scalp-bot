@@ -115,8 +115,12 @@ class RiskEngine:
         gross_profit = notional * target_pct
         gross_loss = notional * stop_pct
         expected_net = gross_profit - estimated_costs
-        expected_net_loss = gross_loss + estimated_costs
-        net_rr = expected_net / expected_net_loss if expected_net_loss > 0 else 0.0
+        all_in_net_loss = gross_loss + estimated_costs
+        # Keep expected_net_loss as the internal/public compatibility alias.
+        # The payoff gate uses the explicit all-in loss amount so fees and
+        # slippage are counted exactly once on both target and stop outcomes.
+        expected_net_loss = all_in_net_loss
+        net_rr = expected_net / all_in_net_loss if all_in_net_loss > 0 else 0.0
 
         required_net_profit = max(
             self.config.min_net_profit_usd,
@@ -139,13 +143,20 @@ class RiskEngine:
                     f"${required_net_profit:.2f}"
                 ),
             )
+        minimum_net_reward = (
+            all_in_net_loss * self.config.min_net_reward_risk
+        )
         if (
             self.config.enforce_net_reward_risk_gate
-            and net_rr < self.config.min_net_reward_risk
+            and expected_net < minimum_net_reward
         ):
             return RiskResult(
                 False,
-                f"net reward/risk {net_rr:.2f} < minimum {self.config.min_net_reward_risk:.2f}",
+                (
+                    "economic_gate: insufficient_net_reward_risk: "
+                    f"net reward/risk {net_rr:.4f} < minimum "
+                    f"{self.config.min_net_reward_risk:.4f}"
+                ),
             )
 
         economics = {
@@ -167,18 +178,18 @@ class RiskEngine:
             "grossAtTargetUsd": gross_profit,
             "netAtTargetUsd": expected_net,
             "netAtStopUsd": expected_net_loss,
+            "allInNetLossUsd": all_in_net_loss,
             "netReturnOnEquity": (
                 expected_net / balance if balance > 0 else 0.0
             ),
             "netRewardRisk": net_rr,
             "requiredNetRewardRisk": self.config.min_net_reward_risk,
+            "netRewardRiskRatio": net_rr,
+            "minimumNetRewardRiskRatio": self.config.min_net_reward_risk,
             "payoffGateEnabled": (
                 self.config.enforce_net_reward_risk_gate
             ),
-            "payoffMarginUsd": (
-                expected_net
-                - expected_net_loss * self.config.min_net_reward_risk
-            ),
+            "payoffMarginUsd": expected_net - minimum_net_reward,
             "requiredNetProfitUsd": required_net_profit,
             "requiredNetProfitEquityFraction": (
                 self.config.min_net_profit_equity_fraction

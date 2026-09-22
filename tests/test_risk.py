@@ -357,7 +357,45 @@ def test_trade_passes_when_net_target_exceeds_all_in_loss_by_required_ratio() ->
     economics = result.plan.strategy_details["economics"]
     assert economics["payoffGateEnabled"] is True
     assert economics["requiredNetRewardRisk"] == pytest.approx(1.15)
+    assert economics["allInNetLossUsd"] == pytest.approx(11.5)
+    assert economics["netRewardRiskRatio"] == pytest.approx(
+        result.plan.net_reward_risk
+    )
+    assert economics["minimumNetRewardRiskRatio"] == pytest.approx(1.15)
     assert economics["payoffMarginUsd"] >= 0
+
+
+def test_exact_net_reward_risk_boundary_is_accepted() -> None:
+    result = RiskEngine(economic_settings()).build_plan(
+        "BTCUSDT",
+        decision(100.3945, stop=99.90),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.expected_net_loss == pytest.approx(11.5)
+    assert result.plan.expected_net_profit == pytest.approx(13.225)
+    assert result.plan.expected_net_profit == pytest.approx(
+        result.plan.expected_net_loss * 1.15
+    )
+
+
+def test_net_reward_risk_just_below_boundary_is_rejected() -> None:
+    result = RiskEngine(economic_settings()).build_plan(
+        "BTCUSDT",
+        decision(100.39448, stop=99.90),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+
+    assert not result.allowed
+    assert "economic_gate: insufficient_net_reward_risk" in result.reason
 
 
 def test_micro_move_is_rejected_when_net_is_only_cents_after_costs() -> None:
