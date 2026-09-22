@@ -317,14 +317,36 @@ class WeakLevelRejectionStrategy(Strategy):
             return StrategyDecision(self.key, Action.WAIT, ["Нет текущей цены"])
 
         if structure is not None:
-            resistance_level = structure.nearest_horizontal(
-                price, "resistance", max_distance_pct=self.approach_pct,
-                min_touches=1, max_touches=self.max_touches,
+            resistance_candidates = [
+                level
+                for level in structure.levels
+                if level.kind == "resistance"
+                and 1 <= level.touches <= self.max_touches
+                and level.approach_count <= 3
+                and level.acceptance_bars <= 3
+                and level.lifecycle in {"fresh", "tested", "swept"}
+                and abs(level.center - price) / price <= self.approach_pct
+            ]
+            resistance_candidates.sort(
+                key=lambda level: (abs(level.center - price), -level.score)
             )
-            support_level = structure.nearest_horizontal(
-                price, "support", max_distance_pct=self.approach_pct,
-                min_touches=1, max_touches=self.max_touches,
+            resistance_level = (
+                resistance_candidates[0] if resistance_candidates else None
             )
+            support_candidates = [
+                level
+                for level in structure.levels
+                if level.kind == "support"
+                and 1 <= level.touches <= self.max_touches
+                and level.approach_count <= 3
+                and level.acceptance_bars <= 3
+                and level.lifecycle in {"fresh", "tested", "swept"}
+                and abs(level.center - price) / price <= self.approach_pct
+            ]
+            support_candidates.sort(
+                key=lambda level: (abs(level.center - price), -level.score)
+            )
+            support_level = support_candidates[0] if support_candidates else None
             resistance = resistance_level.as_zone() if resistance_level else None
             support = support_level.as_zone() if support_level else None
         else:
@@ -343,7 +365,18 @@ class WeakLevelRejectionStrategy(Strategy):
             )
 
         zone = min(choices, key=lambda item: abs(item.center - price))
-        return self._decision_for_zone(
+        selected_level = None
+        if structure is not None:
+            selected_level = min(
+                (
+                    level
+                    for level in (resistance_level, support_level)
+                    if level is not None
+                ),
+                key=lambda level: abs(level.center - zone.center),
+                default=None,
+            )
+        decision = self._decision_for_zone(
             candles,
             book,
             trend,
@@ -352,3 +385,10 @@ class WeakLevelRejectionStrategy(Strategy):
             zone,
             structure,
         )
+        if selected_level is not None:
+            decision.details["levelId"] = selected_level.level_id
+            decision.details["levelGeneration"] = selected_level.generation
+            decision.details["levelLifecycle"] = selected_level.lifecycle
+            decision.details["levelApproaches"] = selected_level.approach_count
+            decision.details["levelAcceptanceBars"] = selected_level.acceptance_bars
+        return decision

@@ -21,6 +21,14 @@ class LevelZone:
     volume_ratio: float
     score: float
     last_touch_index: int
+    level_id: str | None = None
+    generation: int = 1
+    approach_count: int = 0
+    dwell_bars: int = 0
+    acceptance_bars: int = 0
+    rejection_count: int = 0
+    sweep_count: int = 0
+    lifecycle: str = "fresh"
 
     @property
     def center(self) -> float:

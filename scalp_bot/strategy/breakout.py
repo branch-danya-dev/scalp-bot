@@ -58,6 +58,12 @@ class LevelBreakoutStrategy(Strategy):
 
     @staticmethod
     def _generation(zone: LevelZone) -> tuple[str, int, float]:
+        if zone.level_id:
+            return (
+                zone.level_id,
+                zone.generation,
+                round(zone.center, 8),
+            )
         return (zone.kind, zone.last_touch_index, round(zone.center, 8))
 
     @staticmethod
@@ -170,7 +176,12 @@ class LevelBreakoutStrategy(Strategy):
             structural = [
                 level
                 for level in structure.levels
-                if level.kind == zone_kind and level.touches >= self.min_zone_touches
+                if level.kind == zone_kind
+                and level.touches >= self.min_zone_touches
+                and level.approach_count >= 3
+                and level.reaction_pct >= typical_range_pct(candles) * 0.45
+                and level.volume_ratio >= 0.80
+                and level.lifecycle in {"mature", "tested", "weakened"}
             ]
             zones = [level.as_zone() for level in structural]
         else:
@@ -211,6 +222,16 @@ class LevelBreakoutStrategy(Strategy):
                     "state": state.stage.value,
                     "zone": zone.public(),
                     "zoneGeneration": generation,
+                    "levelId": zone.level_id,
+                    "levelGeneration": zone.generation,
+                    "levelLifecycle": zone.lifecycle,
+                    "levelApproaches": zone.approach_count,
+                    "levelAcceptanceBars": zone.acceptance_bars,
+                "levelId": zone.level_id,
+                "levelGeneration": zone.generation,
+                "levelLifecycle": zone.lifecycle,
+                "levelApproaches": zone.approach_count,
+                "levelAcceptanceBars": zone.acceptance_bars,
                     "alreadyUsed": True,
                 },
             )
@@ -233,6 +254,11 @@ class LevelBreakoutStrategy(Strategy):
                     "state": state.stage.value,
                     "zone": zone.public(),
                     "zoneGeneration": generation,
+                    "levelId": zone.level_id,
+                    "levelGeneration": zone.generation,
+                    "levelLifecycle": zone.lifecycle,
+                    "levelApproaches": zone.approach_count,
+                    "levelAcceptanceBars": zone.acceptance_bars,
                     "pressureScore": pressure_score,
                     "pressure": pressure,
                     "flow": flow,
@@ -269,6 +295,11 @@ class LevelBreakoutStrategy(Strategy):
                     "state": state.stage.value,
                     "zone": zone.public(),
                     "zoneGeneration": generation,
+                    "levelId": zone.level_id,
+                    "levelGeneration": zone.generation,
+                    "levelLifecycle": zone.lifecycle,
+                    "levelApproaches": zone.approach_count,
+                    "levelAcceptanceBars": zone.acceptance_bars,
                     "pressureScore": pressure_score,
                     "pressure": pressure,
                     "flow": flow,
@@ -293,6 +324,11 @@ class LevelBreakoutStrategy(Strategy):
                     "state": state.stage.value,
                     "zone": zone.public(),
                     "zoneGeneration": generation,
+                    "levelId": zone.level_id,
+                    "levelGeneration": zone.generation,
+                    "levelLifecycle": zone.lifecycle,
+                    "levelApproaches": zone.approach_count,
+                    "levelAcceptanceBars": zone.acceptance_bars,
                     "pressureScore": pressure_score,
                     "pressure": pressure,
                     "flow": flow,
@@ -339,6 +375,11 @@ class LevelBreakoutStrategy(Strategy):
                     "state": state.stage.value,
                     "zone": zone.public(),
                     "zoneGeneration": generation,
+                    "levelId": zone.level_id,
+                    "levelGeneration": zone.generation,
+                    "levelLifecycle": zone.lifecycle,
+                    "levelApproaches": zone.approach_count,
+                    "levelAcceptanceBars": zone.acceptance_bars,
                     "stopDistancePct": stop_pct,
                 },
             )
@@ -358,8 +399,9 @@ class LevelBreakoutStrategy(Strategy):
         state.stage = BreakoutStage.IMPULSE
         state.used_generations.add(generation)
         setup_id = (
-            f"{self.key}:{action.value}:{zone.kind}:"
-            f"{zone.last_touch_index}:{zone.center:.10g}"
+            f"{self.key}:{action.value}:"
+            f"{zone.level_id or zone.kind}:"
+            f"{zone.generation}:{zone.center:.10g}"
         )
         return StrategyDecision(
             strategy=self.key,
@@ -380,6 +422,11 @@ class LevelBreakoutStrategy(Strategy):
                 "state": state.stage.value,
                 "zone": zone.public(),
                 "zoneGeneration": generation,
+                "levelId": zone.level_id,
+                "levelGeneration": zone.generation,
+                "levelLifecycle": zone.lifecycle,
+                "levelApproaches": zone.approach_count,
+                "levelAcceptanceBars": zone.acceptance_bars,
                 "flow": flow,
                 "pressure": pressure,
                 "pressureScore": pressure_score,

@@ -13,6 +13,7 @@ from .recorder import SessionRecorder
 from .risk import RiskEngine
 from .strategy import (
     DEFAULT_STRATEGIES,
+    LevelEngine,
     MarketStructure,
     Strategy,
     build_market_structure,
@@ -33,6 +34,7 @@ class ActiveSymbolSession:
     last_price: float = 0.0
     trend: Trend = Trend.FLAT
     structure: MarketStructure | None = None
+    level_engine: LevelEngine | None = None
     decisions: dict[str, StrategyDecision] = field(default_factory=dict)
     decision_fingerprints: dict[str, tuple] = field(default_factory=dict)
     trades: deque[TradeTick] = field(default_factory=lambda: deque(maxlen=2000))
@@ -59,6 +61,11 @@ class ActiveSymbolSession:
             "tradeFlow": compute_trade_flow(list(self.trades)),
             "recentTrades": [trade.public() for trade in list(self.trades)[-20:]],
             "structure": self.structure.public() if self.structure else None,
+            "levelMemory": (
+                self.level_engine.public_memory()
+                if self.level_engine
+                else []
+            ),
             "decisions": {k: v.public() for k, v in self.decisions.items()},
         }
 
@@ -354,8 +361,8 @@ class TradingEngine:
 
     async def _bootstrap_symbol(self, symbol: str) -> None:
         candles, context = await asyncio.gather(
-            self.rest.klines(symbol, "1", 240),
-            self.rest.klines(symbol, "15", 120),
+            self.rest.klines(symbol, "1", self.config.bootstrap_1m_limit),
+            self.rest.klines(symbol, "15", self.config.bootstrap_15m_limit),
         )
         now = time()
         session = ActiveSymbolSession(
@@ -364,6 +371,7 @@ class TradingEngine:
             context_15m=context,
             activated_at=now,
             last_ranked_at=now,
+            level_engine=LevelEngine(symbol),
         )
         session.last_price = candles[-1].close if candles else 0
         session.trend = classify_trend(context)
@@ -385,7 +393,14 @@ class TradingEngine:
                 if not items:
                     continue
                 results = await asyncio.gather(
-                    *(self.rest.klines(symbol, "15", 120) for symbol, _ in items),
+                    *(
+                        self.rest.klines(
+                            symbol,
+                            "15",
+                            self.config.bootstrap_15m_limit,
+                        )
+                        for symbol, _ in items
+                    ),
                     return_exceptions=True,
                 )
                 for (symbol, session), result in zip(items, results, strict=True):
@@ -452,8 +467,7 @@ class TradingEngine:
 
         await stream_symbol(self.config.bybit_public_ws_url, symbol, on_message, stop_event)
 
-    @staticmethod
-    def _apply_kline(session: ActiveSymbolSession, message: dict) -> None:
+    def _apply_kline(self, session: ActiveSymbolSession, message: dict) -> None:
         rows = message.get("data") or []
         if not rows:
             return
@@ -473,14 +487,16 @@ class TradingEngine:
             session.candles[-1] = candle
         else:
             session.candles.append(candle)
-            session.candles = session.candles[-240:]
+            session.candles = session.candles[-self.config.bootstrap_1m_limit:]
 
     async def _evaluate(self, session: ActiveSymbolSession) -> None:
         if not session.candles:
             return
 
         session.trend = classify_trend(session.context_15m)
-        session.structure = build_market_structure(
+        if session.level_engine is None:
+            session.level_engine = LevelEngine(session.symbol)
+        session.structure = session.level_engine.update(
             session.candles,
             session.context_15m,
             session.orderbook.mid or session.last_price,
@@ -775,6 +791,12 @@ class TradingEngine:
         session.consumed_setups[strategy] = setup_id
         session.cooldown_until[strategy] = time() + self.config.setup_rearm_seconds
         session.nontradeable_since.pop(strategy, None)
+        decision = session.decisions.get(strategy)
+        if decision is not None and session.level_engine is not None:
+            session.level_engine.consume(
+                decision.details.get("levelId"),
+                decision.details.get("levelGeneration"),
+            )
         self._emit(
             "setup_consumed",
             session.symbol,
