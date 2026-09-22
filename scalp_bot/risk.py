@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from .config import Settings
 from .domain import OrderBook, Side, StrategyDecision, TradePlan
+from .execution import execution_profile, fee_rate, slippage_rate
 
 
 @dataclass(slots=True)
@@ -74,11 +75,42 @@ class RiskEngine:
         if available_risk_usd <= 0:
             return RiskResult(False, "portfolio risk budget exhausted")
 
-        round_trip_cost_pct = (
-            self.config.taker_fee_rate * 2
-            + (self.config.slippage_bps / 10_000) * 2
+        execution = execution_profile(decision.strategy)
+        entry_fee_rate = fee_rate(self.config, execution.entry)
+        target_exit_fee_rate = fee_rate(
+            self.config,
+            execution.target_exit,
         )
-        all_in_loss_pct = stop_pct + round_trip_cost_pct
+        stop_exit_fee_rate = fee_rate(
+            self.config,
+            execution.stop_exit,
+        )
+        entry_slippage_rate = slippage_rate(
+            self.config,
+            execution.entry,
+        )
+        target_exit_slippage_rate = slippage_rate(
+            self.config,
+            execution.target_exit,
+        )
+        stop_exit_slippage_rate = slippage_rate(
+            self.config,
+            execution.stop_exit,
+        )
+        target_cost_pct = (
+            entry_fee_rate
+            + target_exit_fee_rate
+            + entry_slippage_rate
+            + target_exit_slippage_rate
+        )
+        stop_cost_pct = (
+            entry_fee_rate
+            + stop_exit_fee_rate
+            + entry_slippage_rate
+            + stop_exit_slippage_rate
+        )
+        round_trip_cost_pct = stop_cost_pct
+        all_in_loss_pct = stop_pct + stop_cost_pct
         # Size from the strategy invalidation distance first. Costs are not
         # allowed to silently shrink structural risk; they are constrained by
         # a separate per-trade all-in loss cap and the aggregate portfolio cap.
@@ -211,20 +243,33 @@ class RiskEngine:
             else max(0.0, (best_entry - market_entry) / best_entry * 10_000)
         )
 
-        fee_cost = notional * self.config.taker_fee_rate * 2
-        slippage_cost = (
-            notional
-            * (self.config.slippage_bps / 10_000)
-            * 2
+        target_fee_cost = notional * (
+            entry_fee_rate + target_exit_fee_rate
         )
-        # Entry already uses the executable ask/bid and paper exits are
-        # triggered on the executable opposite side. Subtracting a second
-        # full spread here would double-count the same friction.
-        estimated_costs = fee_cost + slippage_cost
+        target_slippage_cost = notional * (
+            entry_slippage_rate + target_exit_slippage_rate
+        )
+        stop_fee_cost = notional * (
+            entry_fee_rate + stop_exit_fee_rate
+        )
+        stop_slippage_cost = notional * (
+            entry_slippage_rate + stop_exit_slippage_rate
+        )
+        # Entry price already walks executable book depth. Resting target
+        # limits are modeled at the configured target without exit slippage;
+        # stop/invalidation exits remain taker-market.
+        estimated_costs = (
+            target_fee_cost + target_slippage_cost
+        )
+        stop_estimated_costs = (
+            stop_fee_cost + stop_slippage_cost
+        )
+        fee_cost = target_fee_cost
+        slippage_cost = target_slippage_cost
         gross_profit = notional * target_pct
         gross_loss = notional * stop_pct
         expected_net = gross_profit - estimated_costs
-        all_in_net_loss = gross_loss + estimated_costs
+        all_in_net_loss = gross_loss + stop_estimated_costs
         # Keep expected_net_loss as the internal/public compatibility alias.
         # The payoff gate uses the explicit all-in loss amount so fees and
         # slippage are counted exactly once on both target and stop outcomes.
@@ -292,12 +337,23 @@ class RiskEngine:
             ),
             "effectiveLeverage": notional / balance if balance else 0.0,
             "stopDistancePct": stop_pct,
-            "roundTripCostPct": round_trip_cost_pct,
+            "roundTripCostPct": stop_cost_pct,
+            "targetCostPct": target_cost_pct,
+            "stopCostPct": stop_cost_pct,
+            "executionProfile": execution.public(),
+            "entryFeeRate": entry_fee_rate,
+            "targetExitFeeRate": target_exit_fee_rate,
+            "stopExitFeeRate": stop_exit_fee_rate,
+            "entrySlippageRate": entry_slippage_rate,
+            "targetExitSlippageRate": target_exit_slippage_rate,
+            "stopExitSlippageRate": stop_exit_slippage_rate,
             "allInLossPct": all_in_loss_pct,
             "targetMovePct": target_pct,
             "takerFeeCostUsd": fee_cost,
             "slippageCostUsd": slippage_cost,
             "estimatedCostsUsd": estimated_costs,
+            "targetEstimatedCostsUsd": estimated_costs,
+            "stopEstimatedCostsUsd": stop_estimated_costs,
             "entrySpreadPct": max(book.spread_pct, 0.0),
             "entryDepthImpactBps": entry_depth_impact_bps,
             "visibleEntryDepthUsd": visible_entry_depth,

@@ -10,6 +10,7 @@ from scalp_bot.strategy import (
     detect_level_zones,
 )
 from scalp_bot.strategy.common import approach_is_directional, nearby_round_level
+from scalp_bot.strategy.density import DensityStage
 
 
 def candle(i: int, o: float, h: float, l: float, c: float, volume: float = 100) -> Candle:

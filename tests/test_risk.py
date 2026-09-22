@@ -675,3 +675,39 @@ def test_trade_all_in_cap_limits_extremely_cost_heavy_tight_stop() -> None:
     assert result.plan.expected_net_loss <= 12.5 + 1e-6
     assert result.plan.notional <= economics["notionalByTradeAllInCapUsd"] + 1e-6
     assert economics["notionalByStructuralRiskUsd"] > result.plan.notional
+
+
+
+def test_target_path_uses_maker_exit_but_stop_path_keeps_taker_costs() -> None:
+    cfg = economic_settings(
+        enforce_min_net_profit_gate=False,
+        enforce_net_reward_risk_gate=False,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        StrategyDecision(
+            strategy="level_breakout",
+            action=Action.LONG,
+            reasons=["test"],
+            entry=100,
+            stop=99.9,
+            target=100.4,
+        ),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    economics = result.plan.strategy_details["economics"]
+    assert economics["executionProfile"]["entry"] == "taker_market"
+    assert economics["executionProfile"]["target_exit"] == "maker_limit"
+    assert economics["targetExitFeeRate"] == pytest.approx(
+        cfg.maker_fee_rate
+    )
+    assert economics["stopExitFeeRate"] == pytest.approx(
+        cfg.taker_fee_rate
+    )
+    assert economics["targetEstimatedCostsUsd"] < economics["stopEstimatedCostsUsd"]

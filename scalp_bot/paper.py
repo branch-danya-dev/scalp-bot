@@ -6,6 +6,7 @@ from typing import Any
 
 from .config import Settings
 from .domain import OrderBook, Side, TradePlan
+from .execution import execution_profile, fee_rate, slippage_rate
 
 
 @dataclass(slots=True)
@@ -49,9 +50,14 @@ class Position:
         return self.notional * adverse / self.entry
 
     def cost_reserve_usd(self, config: Settings) -> float:
-        exit_fee = self.notional * config.taker_fee_rate
-        exit_slippage = (
-            self.notional * config.slippage_bps / 10_000
+        profile = execution_profile(self.strategy)
+        exit_fee = self.notional * fee_rate(
+            config,
+            profile.stop_exit,
+        )
+        exit_slippage = self.notional * slippage_rate(
+            config,
+            profile.stop_exit,
         )
         return (
             max(0.0, self.entry_fee_remaining)
@@ -167,9 +173,13 @@ class PaperBroker:
             < plan.notional
         ):
             raise RuntimeError("insufficient visible entry depth")
-        slip = self.config.slippage_bps / 10_000
+        profile = execution_profile(plan.strategy)
+        slip = slippage_rate(self.config, profile.entry)
         fill = raw * (1 + slip if plan.side == Side.LONG else 1 - slip)
-        fee = plan.notional * self.config.taker_fee_rate
+        fee = plan.notional * fee_rate(
+            self.config,
+            profile.entry,
+        )
         position = Position(
             symbol=plan.symbol,
             strategy=plan.strategy,
@@ -228,6 +238,7 @@ class PaperBroker:
                 pos,
                 close_notional,
                 book,
+                reason="partial_take",
             )
             required_net = self._partial_required_net_usd(pos)
             pos.partial_net_preview_usd = preview["net"]
@@ -259,7 +270,12 @@ class PaperBroker:
         pos = self.positions.get(symbol)
         if pos is None:
             raise RuntimeError("no paper position for symbol")
-        final_leg = self._realize(pos, pos.notional, book)
+        final_leg = self._realize(
+            pos,
+            pos.notional,
+            book,
+            reason=reason,
+        )
         trade = {
             "event": "trade_closed",
             "symbol": pos.symbol,
@@ -312,6 +328,10 @@ class PaperBroker:
         )
         if not isinstance(economics, dict):
             return 0.0
+        if not bool(
+            economics.get("minimumNetProfitGateEnabled", True)
+        ):
+            return 0.0
         return max(
             0.0,
             float(economics.get("requiredNetProfitUsd") or 0.0),
@@ -320,7 +340,11 @@ class PaperBroker:
     def _runner_breakeven_stop(self, pos: Position) -> float:
         if pos.notional <= 0:
             return pos.entry
-        exit_fee = pos.notional * self.config.taker_fee_rate
+        profile = execution_profile(pos.strategy)
+        exit_fee = pos.notional * fee_rate(
+            self.config,
+            profile.stop_exit,
+        )
         profit_buffer = (
             pos.notional
             * self.config.breakeven_buffer_bps
@@ -332,7 +356,10 @@ class PaperBroker:
             + profit_buffer
         )
         gross_needed_pct = gross_needed / pos.notional
-        slip = self.config.slippage_bps / 10_000
+        slip = slippage_rate(
+            self.config,
+            profile.stop_exit,
+        )
 
         if pos.side == Side.LONG:
             required_fill = pos.entry * (1 + gross_needed_pct)
@@ -354,13 +381,19 @@ class PaperBroker:
             pos,
             close_notional,
             book,
+            reason="partial_take",
         )
         if preview["net"] < required_net:
             raise RuntimeError(
                 "partial take attempted before economic threshold"
             )
 
-        leg = self._realize(pos, close_notional, book)
+        leg = self._realize(
+            pos,
+            close_notional,
+            book,
+            reason="partial_take",
+        )
         pos.partial_taken = True
         pos.partial_net_preview_usd = leg["net"]
         pos.partial_required_net_usd = required_net
@@ -421,6 +454,8 @@ class PaperBroker:
         pos: Position,
         close_notional: float,
         book: OrderBook,
+        *,
+        reason: str = "market_exit",
     ) -> dict:
         if close_notional <= 0 or pos.notional <= 0:
             return {
@@ -431,27 +466,57 @@ class PaperBroker:
             }
 
         close_notional = min(close_notional, pos.notional)
-        raw, visible_depth = book.exit_vwap(
-            pos.side,
-            close_notional,
+        profile = execution_profile(pos.strategy)
+        target_limit = (
+            reason in {"target", "runner_target"}
+            and profile.target_exit == "maker_limit"
         )
-        if raw is None:
-            raw = book.executable_exit(pos.side) or pos.last_price
-        elif (
-            visible_depth + max(1e-9, close_notional * 1e-9)
-            < close_notional
-        ):
-            levels = book.bids if pos.side == Side.LONG else book.asks
-            if levels:
-                worst = levels[-1][0]
-                visible_base = visible_depth / raw if raw > 0 else 0.0
-                missing = max(0.0, close_notional - visible_depth)
-                total_base = visible_base + (
-                    missing / worst if worst > 0 else 0.0
+        if target_limit:
+            raw = pos.target
+            exit_mode = profile.target_exit
+        else:
+            raw, visible_depth = book.exit_vwap(
+                pos.side,
+                close_notional,
+            )
+            if raw is None:
+                raw = book.executable_exit(pos.side) or pos.last_price
+            elif (
+                visible_depth + max(1e-9, close_notional * 1e-9)
+                < close_notional
+            ):
+                levels = (
+                    book.bids
+                    if pos.side == Side.LONG
+                    else book.asks
                 )
-                if total_base > 0:
-                    raw = close_notional / total_base
-        slip = self.config.slippage_bps / 10_000
+                if levels:
+                    worst = levels[-1][0]
+                    visible_base = (
+                        visible_depth / raw
+                        if raw > 0
+                        else 0.0
+                    )
+                    missing = max(
+                        0.0,
+                        close_notional - visible_depth,
+                    )
+                    total_base = visible_base + (
+                        missing / worst
+                        if worst > 0
+                        else 0.0
+                    )
+                    if total_base > 0:
+                        raw = close_notional / total_base
+            exit_mode = (
+                profile.partial_exit
+                if reason == "partial_take"
+                else profile.stop_exit
+            )
+        slip = slippage_rate(
+            self.config,
+            exit_mode,
+        )
         fill = raw * (
             1 - slip
             if pos.side == Side.LONG
@@ -466,7 +531,10 @@ class PaperBroker:
         )
         share = close_notional / pos.notional
         allocated_entry_fee = pos.entry_fee_remaining * share
-        exit_fee = close_notional * self.config.taker_fee_rate
+        exit_fee = close_notional * fee_rate(
+            self.config,
+            exit_mode,
+        )
         fees = allocated_entry_fee + exit_fee
         return {
             "fill": fill,
@@ -475,7 +543,14 @@ class PaperBroker:
             "net": gross - fees,
         }
 
-    def _realize(self, pos: Position, close_notional: float, book: OrderBook) -> dict:
+    def _realize(
+        self,
+        pos: Position,
+        close_notional: float,
+        book: OrderBook,
+        *,
+        reason: str = "market_exit",
+    ) -> dict:
         if close_notional <= 0 or pos.notional <= 0:
             return {"fill": pos.last_price, "gross": 0.0, "fees": 0.0, "net": 0.0}
 
@@ -484,6 +559,7 @@ class PaperBroker:
             pos,
             close_notional,
             book,
+            reason=reason,
         )
         fill = leg["fill"]
         gross = leg["gross"]

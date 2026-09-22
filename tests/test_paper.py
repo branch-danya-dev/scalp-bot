@@ -549,3 +549,36 @@ def test_partial_keeps_structural_liquidity_target() -> None:
     assert pos.target < pos.entry + (
         abs(pos.entry - pos.initial_stop) * cfg.runner_target_r
     )
+
+
+
+def test_target_exit_uses_resting_maker_limit_execution() -> None:
+    cfg = Settings(
+        taker_fee_rate=0.00055,
+        maker_fee_rate=0.00020,
+        slippage_bps=1,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+        max_total_risk_fraction=1,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("TARGETMAKERUSDT", Side.LONG, 1000)
+    p.strategy = "level_breakout"
+    p.target = 101.0
+    broker.open(p, book(99.99, 100.00))
+
+    events = broker.mark(
+        "TARGETMAKERUSDT",
+        101.1,
+        book(101.05, 101.06),
+    )
+
+    assert len(events) == 1
+    trade = events[0]
+    assert trade["reason"] == "target"
+    assert trade["exit"] == pytest.approx(101.0)
+    expected_entry_fee = 1000 * cfg.taker_fee_rate
+    expected_exit_fee = 1000 * cfg.maker_fee_rate
+    assert trade["fees"] == pytest.approx(
+        expected_entry_fee + expected_exit_fee
+    )
