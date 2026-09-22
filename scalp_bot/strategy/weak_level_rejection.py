@@ -108,6 +108,7 @@ class WeakLevelRejectionStrategy(Strategy):
         zone: LevelZone,
         structure: "MarketStructure | None" = None,
         structural_level=None,
+        observed_at_ms: int | None = None,
     ) -> StrategyDecision:
         state = self._states.setdefault(symbol, RejectionWatchState())
         generation_id = (
@@ -137,7 +138,7 @@ class WeakLevelRejectionStrategy(Strategy):
 
         last = candles[-1]
         price = book.mid or last.close
-        flow = compute_trade_flow(trades)
+        flow = compute_trade_flow(trades, observed_at_ms)
         level_tolerance = max(
             zone.width_pct * 1.5,
             book.spread_pct * 2.0,
@@ -148,6 +149,7 @@ class WeakLevelRejectionStrategy(Strategy):
             zone.center,
             tolerance_pct=level_tolerance,
             seconds=15,
+            now_ms=observed_at_ms,
         )
         visuals = zone_visual(zone, "weak rejection zone")
         range_abs = typical_range_abs(candles)
@@ -532,4 +534,5 @@ class WeakLevelRejectionStrategy(Strategy):
             zone,
             structure,
             structural_level,
+            observed_at_ms=observed_at_ms,
         )

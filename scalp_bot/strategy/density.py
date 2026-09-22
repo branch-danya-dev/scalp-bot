@@ -512,12 +512,13 @@ class DensityBounceStrategy(Strategy):
             self._states[symbol] = state
 
         wall_price = float(state.price)
-        flow = compute_trade_flow(trades)
+        flow = compute_trade_flow(trades, observed_at_ms)
         level_flow = flow_at_level(
             trades,
             wall_price,
             tolerance_pct=max(self.touch_pct * 2, 0.0006),
             seconds=15,
+            now_ms=observed_at_ms,
         )
         remaining_ratio = (
             state.current_notional / state.peak_notional if state.peak_notional > 0 else 0.0

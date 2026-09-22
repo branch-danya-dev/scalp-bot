@@ -264,7 +264,7 @@ class LevelBreakoutStrategy(Strategy):
             state.stage = BreakoutStage.FOUND
             state.break_started_at = 0.0
         visuals = zone_visual(zone, "breakout zone")
-        flow = compute_trade_flow(trades)
+        flow = compute_trade_flow(trades, observed_at_ms)
         level_tolerance = max(
             zone.width_pct * 1.5,
             book.spread_pct * 2.0,
@@ -275,6 +275,7 @@ class LevelBreakoutStrategy(Strategy):
             zone.center,
             tolerance_pct=level_tolerance,
             seconds=15,
+            now_ms=observed_at_ms,
         )
         pressure_score, pressure = self._pressure_score(
             candles,

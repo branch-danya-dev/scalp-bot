@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from statistics import median
 from typing import TYPE_CHECKING
 
 from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
@@ -42,6 +43,8 @@ class TrendStructureStrategy(Strategy):
     test_tolerance_pct = 0.0015
     deep_break_pct = 0.0025
     continuation_bps = 1.0
+    aggressive_pullback_volume_ratio = 1.35
+    aggressive_pullback_range_ratio = 1.35
 
     def __init__(self) -> None:
         self._states: dict[str, TrendPullbackState] = {}
@@ -86,6 +89,48 @@ class TrendStructureStrategy(Strategy):
             and sum(right >= left for left, right in pairs) >= 2
         )
 
+    @classmethod
+    def _pullback_character(
+        cls,
+        candles: list[Candle],
+        *,
+        directional: bool,
+    ) -> dict:
+        if len(candles) < 15:
+            return {
+                "volumeRatio": 1.0,
+                "rangeRatio": 1.0,
+                "aggressiveCountertrend": False,
+            }
+        pullback = candles[-5:-1]
+        baseline = candles[-15:-5]
+        baseline_volumes = [c.volume for c in baseline if c.volume > 0]
+        baseline_ranges = [
+            c.high - c.low
+            for c in baseline
+            if c.high >= c.low
+        ]
+        if not pullback or not baseline_volumes or not baseline_ranges:
+            return {
+                "volumeRatio": 1.0,
+                "rangeRatio": 1.0,
+                "aggressiveCountertrend": False,
+            }
+        pullback_volume = sum(max(c.volume, 0.0) for c in pullback) / len(pullback)
+        pullback_range = sum(max(0.0, c.high - c.low) for c in pullback) / len(pullback)
+        volume_ratio = pullback_volume / max(median(baseline_volumes), 1e-9)
+        range_ratio = pullback_range / max(median(baseline_ranges), 1e-9)
+        aggressive = (
+            directional
+            and volume_ratio >= cls.aggressive_pullback_volume_ratio
+            and range_ratio >= cls.aggressive_pullback_range_ratio
+        )
+        return {
+            "volumeRatio": volume_ratio,
+            "rangeRatio": range_ratio,
+            "aggressiveCountertrend": aggressive,
+        }
+
     def _flow_confirmation(
         self,
         *,
@@ -93,8 +138,9 @@ class TrendStructureStrategy(Strategy):
         book: OrderBook,
         level: float,
         long_side: bool,
+        now_ms: int | None = None,
     ) -> tuple[bool, dict, dict]:
-        flow = compute_trade_flow(trades)
+        flow = compute_trade_flow(trades, now_ms)
         tolerance = max(
             self.test_tolerance_pct,
             book.spread_pct * 2.0,
@@ -104,6 +150,7 @@ class TrendStructureStrategy(Strategy):
             level,
             tolerance_pct=tolerance,
             seconds=15,
+            now_ms=now_ms,
         )
 
         if long_side:
@@ -255,6 +302,10 @@ class TrendStructureStrategy(Strategy):
             candles,
             long_side=long_side,
         )
+        pullback_character = self._pullback_character(
+            candles,
+            directional=directional,
+        )
 
         common_details = {
             "state": state.stage.value,
@@ -263,6 +314,7 @@ class TrendStructureStrategy(Strategy):
             "trendline": line.public(),
             "trendlineAnchor": anchor,
             "pullbackDirectional": directional,
+            "pullbackCharacter": pullback_character,
         }
 
         if anchor in state.used_anchors:
@@ -274,6 +326,28 @@ class TrendStructureStrategy(Strategy):
                 projected,
                 visuals=visuals,
                 details={**common_details, "alreadyUsed": True},
+            )
+
+        if (
+            state.stage in {TrendPullbackStage.SEARCH, TrendPullbackStage.PULLBACK}
+            and pullback_character["aggressiveCountertrend"]
+        ):
+            state.stage = TrendPullbackStage.SEARCH
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                [
+                    "Встречное движение слишком активно по объёму и диапазону; "
+                    "это больше похоже на импульс против тренда, чем на слабый pullback"
+                ],
+                0.30,
+                projected,
+                visuals=visuals,
+                details={
+                    **common_details,
+                    "state": state.stage.value,
+                    "aggressiveCountertrend": True,
+                },
             )
 
         if state.stage == TrendPullbackStage.SEARCH:
@@ -359,6 +433,7 @@ class TrendStructureStrategy(Strategy):
             book=book,
             level=state.test_line_price or projected,
             long_side=long_side,
+            now_ms=observed_at_ms,
         )
 
         if state.stage == TrendPullbackStage.TEST:
