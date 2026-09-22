@@ -144,6 +144,12 @@ function reasonText(value) {
   if (text.startsWith("setup expired after depth: entry drift")) return text.replace("setup expired after depth: entry drift", "Сетап устарел после проверки глубины: дрейф входа");
   if (text.startsWith("setup expired: entry drift")) return text.replace("setup expired: entry drift", "Сетап устарел: дрейф входа");
   if (text.startsWith("net at target")) return text.replace("net at target", "Net на цели").replace("after estimated trading costs", "после расчётных торговых издержек").replace("required", "требуется");
+  if (text.startsWith("economic_gate: winner_cost_share")) return text.replace("economic_gate: winner_cost_share", "Экономика: доля издержек winner");
+  if (text.startsWith("economic_gate: stop_cost_share")) return text.replace("economic_gate: stop_cost_share", "Экономика: доля издержек stop");
+  if (text === "passive_entry_timeout") return "PostOnly вход не исполнился до таймаута";
+  if (text.startsWith("passive_fill_blocked:")) return text.replace("passive_fill_blocked:", "PostOnly fill отменён:");
+  if (text === "passive_fill_exposure_budget") return "PostOnly fill отменён: исчерпан лимит экспозиции";
+  if (text === "passive_fill_risk_budget") return "PostOnly fill отменён: исчерпан лимит риска";
   if (text.includes("economic_gate: insufficient_net_reward_risk")) return text.replace("economic_gate: insufficient_net_reward_risk:", "Экономика: недостаточный net R:R:");
   if (text === "setup consumed") return "сетап использован";
   if (text === "rearmed") return "переактивирован";
@@ -1008,7 +1014,10 @@ function render(data) {
   const rrGate = data.risk.enforceNetRewardRiskGate
     ? `R:R≥${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}`
     : `R:R ${Number(data.risk.minNetRewardRisk || 0).toFixed(2)} · наблюдение`;
-  $("costGate").textContent = `${minNetGate} · ${rrGate}`;
+  const winnerCostGate = data.risk.winnerCostShareGateEnabled
+    ? `издержки winner ≤ ${(Number(data.risk.maxWinnerCostShare || 0) * 100).toFixed(0)}%`
+    : `доля издержек · наблюдение`;
+  $("costGate").textContent = `${winnerCostGate} · ${minNetGate} · ${rrGate}`;
   $("runTimer").textContent = data.botRunning
     ? duration(data.run?.remainingSeconds)
     : duration(data.run?.configuredDurationSeconds);
