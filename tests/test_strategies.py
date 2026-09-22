@@ -1,3 +1,5 @@
+import pytest
+
 from scalp_bot.domain import Action, Candle, OrderBook, TradeTick, Trend
 from scalp_bot.strategy import (
     DensityBounceStrategy,
