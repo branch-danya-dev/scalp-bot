@@ -409,7 +409,7 @@ def test_net_reward_risk_just_below_boundary_is_rejected() -> None:
 def test_micro_move_is_rejected_when_net_is_only_cents_after_costs() -> None:
     result = RiskEngine(economic_settings()).build_plan(
         "BTCUSDT",
-        decision(100.08, stop=99.90),
+        decision(100.09, stop=99.90),
         1000,
         book(99.99, 100.00),
         10_000,
@@ -642,7 +642,7 @@ def test_research_shadow_still_rejects_non_positive_net() -> None:
     )
     result = RiskEngine(cfg).build_plan(
         "BTCUSDT",
-        decision(100.10, stop=99.90),
+        decision(100.08, stop=99.90),
         1000,
         book(99.99, 100.00),
         10_000,
