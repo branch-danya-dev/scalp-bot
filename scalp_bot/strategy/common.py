@@ -228,6 +228,9 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
             "notionalPerSecond5s": 0.0,
             "acceleration": 0.0,
             "tradeCount5s": 0,
+            "cvd5s": 0.0,
+            "cvd15s": 0.0,
+            "cvd60s": 0.0,
         }
     if now_ms is None:
         now_ms = trades[-1].ts_ms
