@@ -57,6 +57,7 @@ class DensityBounceStrategy(Strategy):
     label = "Отскок от свежей плотности"
 
     strength_multiple = 4.0
+    min_wall_notional_usd = 25_000.0
     max_distance_pct = 0.004
     approach_pct = 0.0022
     approach_reset_pct = 0.0035
@@ -264,7 +265,10 @@ class DensityBounceStrategy(Strategy):
             if recent_turnovers
             else 0.0
         )
-        absolute_wall_floor = max(25_000.0, turnover_floor)
+        absolute_wall_floor = max(
+            self.min_wall_notional_usd,
+            turnover_floor,
+        )
 
         now = monotonic()
         state = self._states.setdefault(symbol, DensityWallState())
