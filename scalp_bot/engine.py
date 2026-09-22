@@ -9,6 +9,8 @@ from .bybit import BybitRestClient, OrderBookSequenceError, OrderBookState, stre
 from .config import Settings
 from .domain import Action, Candle, Candidate, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .paper import PaperBroker, Position
+from .expectancy import StrategyExpectancyBook
+from .strategy_policy import minimum_expectancy_r
 from .observability import build_decision_trace
 from .recorder import SessionRecorder
 from .risk import RiskEngine
@@ -327,6 +329,9 @@ class TradingEngine:
         self.recorder = SessionRecorder(config.session_dir)
         self.strategies: dict[str, Strategy] = {x.key: x for x in DEFAULT_STRATEGIES}
         self.strategy_enabled: dict[str, bool] = {x.key: True for x in DEFAULT_STRATEGIES}
+        self.expectancy = StrategyExpectancyBook(
+            list(self.strategies)
+        )
         self.strategy_stats: dict[str, dict[str, float | int]] = {
             x.key: {
                 "decisions": 0,
@@ -1114,6 +1119,33 @@ class TradingEngine:
                     self._record_setup_blocked(session, decision, blocked_reason)
                     continue
 
+                expectancy_snapshot = self.expectancy.snapshot(
+                    decision.strategy,
+                    min_samples=self.config.strategy_expectancy_min_samples,
+                    minimum_expectancy_r=minimum_expectancy_r(
+                        self.config,
+                        decision.strategy,
+                    ),
+                )
+                if (
+                    self.config.enforce_strategy_expectancy_gate
+                    and expectancy_snapshot["sampleReady"]
+                    and expectancy_snapshot["status"] == "negative"
+                ):
+                    self._risk_reject_if_changed(
+                        session,
+                        decision,
+                        (
+                            "strategy expectancy gate: "
+                            f"{expectancy_snapshot['expectancyR']:.3f}R < "
+                            f"{expectancy_snapshot['minimumExpectancyR']:.3f}R"
+                        ),
+                        diagnostics={
+                            "expectancy": expectancy_snapshot,
+                        },
+                    )
+                    continue
+
                 allowed, portfolio_reason = self.broker.can_open(session.symbol)
                 if not allowed:
                     self._risk_reject_if_changed(session, decision, portfolio_reason)
@@ -1350,6 +1382,15 @@ class TradingEngine:
                         stats["wins"] += 1
                     elif net < 0:
                         stats["losses"] += 1
+                self.expectancy.record(
+                    strategy_key,
+                    net_pnl_usd=float(
+                        event.get("netPnl") or 0.0
+                    ),
+                    initial_risk_usd=float(
+                        event.get("initialRiskUsd") or 0.0
+                    ),
+                )
                 self._consume_setup(
                     session,
                     str(event.get("strategy") or ""),
@@ -1549,6 +1590,14 @@ class TradingEngine:
                     "label": strategy.label,
                     "enabled": self.strategy_enabled[key],
                     "stats": dict(self.strategy_stats.get(key) or {}),
+                    "expectancy": self.expectancy.snapshot(
+                        key,
+                        min_samples=self.config.strategy_expectancy_min_samples,
+                        minimum_expectancy_r=minimum_expectancy_r(
+                            self.config,
+                            key,
+                        ),
+                    ),
                 }
                 for key, strategy in self.strategies.items()
             ],
@@ -1576,6 +1625,8 @@ class TradingEngine:
                 "runnerTargetR": self.config.runner_target_r,
                 "sessionLossLimitEnabled": self.config.enforce_session_loss_limit,
                 "sessionLossLimitFraction": self.config.max_daily_loss_fraction,
+                "strategyExpectancyGateEnabled": self.config.enforce_strategy_expectancy_gate,
+                "strategyExpectancyMinSamples": self.config.strategy_expectancy_min_samples,
             },
             "sessionFile": str(self.recorder.path),
         }

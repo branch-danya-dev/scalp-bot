@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     max_position_exposure_fraction: float = 1.0
     max_daily_loss_fraction: float = 0.03
     enforce_session_loss_limit: bool = False
+
+    strategy_expectancy_min_samples: int = 30
+    enforce_strategy_expectancy_gate: bool = False
+    trend_structure_min_expectancy_r: float = 0.0
+    weak_level_rejection_min_expectancy_r: float = 0.0
+    density_min_expectancy_r: float = 0.0
+    breakout_min_expectancy_r: float = 0.0
     max_entry_drift_bps: float = 8.0
     taker_fee_rate: float = 0.00055
     maker_fee_rate: float = 0.00020

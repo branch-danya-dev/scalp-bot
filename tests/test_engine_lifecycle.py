@@ -1177,3 +1177,47 @@ def test_risk_reject_event_includes_diagnostics_snapshot(tmp_path) -> None:
         assert payload["diagnostics"]["target"] == pytest.approx(100.1)
     finally:
         close_rest(engine)
+
+
+
+def test_strategy_expectancy_remains_observational_until_sample_ready(tmp_path) -> None:
+    engine = make_engine(
+        tmp_path,
+        strategy_expectancy_min_samples=3,
+        enforce_strategy_expectancy_gate=True,
+        trend_structure_min_expectancy_r=0.0,
+    )
+    try:
+        engine.expectancy.record(
+            "trend_structure",
+            net_pnl_usd=-2.0,
+            initial_risk_usd=1.0,
+        )
+        snapshot = engine.expectancy.snapshot(
+            "trend_structure",
+            min_samples=3,
+            minimum_expectancy_r=0.0,
+        )
+        assert snapshot["sampleReady"] is False
+        assert snapshot["status"] == "insufficient_samples"
+
+        engine.expectancy.record(
+            "trend_structure",
+            net_pnl_usd=-1.0,
+            initial_risk_usd=1.0,
+        )
+        engine.expectancy.record(
+            "trend_structure",
+            net_pnl_usd=0.5,
+            initial_risk_usd=1.0,
+        )
+        snapshot = engine.expectancy.snapshot(
+            "trend_structure",
+            min_samples=3,
+            minimum_expectancy_r=0.0,
+        )
+        assert snapshot["sampleReady"] is True
+        assert snapshot["status"] == "negative"
+        assert snapshot["expectancyR"] < 0
+    finally:
+        close_rest(engine)
