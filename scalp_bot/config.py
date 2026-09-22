@@ -101,6 +101,7 @@ class Settings(BaseSettings):
     density_max_distance_pct: float = 0.05
     research_frame_seconds: float = 1.0
     research_recent_trades: int = 250
+    replay_recent_trades: int = 250
 
     run_label: str = "paper-v3-scalp-econ-4h"
     paper_run_duration_seconds: float = 14_400.0
