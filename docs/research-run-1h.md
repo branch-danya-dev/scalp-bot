@@ -107,3 +107,24 @@ The command selects the latest `data/sessions/session-*.jsonl` and writes a sibl
 - explicit confirmation that raw order-book/research/replay frames remain in the source `session-*.jsonl`.
 
 The report deliberately does not duplicate every raw order-book frame. Keep the report JSON and its source JSONL together in the analysis archive: the report is the compact index/derived layer, while the JSONL remains the lossless market-data source for deep book and replay analysis.
+
+
+## Compact analysis pack
+
+Full research sessions can exceed 1 GB because 1-second research frames may contain deep order books. Keep the original `session-*.jsonl` locally as the lossless source of truth and generate a separate upload artifact for model review:
+
+```powershell
+.\.venv\Scripts\python.exe .\scripts\build-analysis-pack.py
+```
+
+The command selects the latest session and writes `session-*-analysis-pack.zip`.
+
+The pack contains:
+
+- all non-frame events (decisions, rejects, entries, partials, exits, scanner updates, run summary);
+- 1-second compact market frames with candles, flow, position state and top-5 book;
+- the complete derived post-run report, including Opportunity Review and Trade Review;
+- periodic top-16 order-book samples;
+- deeper top-50 order-book samples around entries, exits, rejects and other focus events.
+
+This is the artifact intended for ChatGPT/Claude. Do not upload the multi-gigabyte raw session unless a specific lossless forensic check is required.
