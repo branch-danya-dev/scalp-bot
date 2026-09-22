@@ -186,6 +186,15 @@ def _zone_level(zone: LevelZone, candles: list[Candle], timeframe: str) -> Struc
         if 0 <= zone.last_touch_index < len(candles)
         else None
     )
+    recent = candles[-20:]
+    dwell_bars = sum(
+        1 for candle in recent
+        if candle.high >= zone.low and candle.low <= zone.high
+    )
+    acceptance_bars = sum(
+        1 for candle in recent
+        if zone.low <= candle.close <= zone.high
+    )
     return StructuralLevel(
         kind=zone.kind,
         low=zone.low,
@@ -199,6 +208,9 @@ def _zone_level(zone: LevelZone, candles: list[Candle], timeframe: str) -> Struc
         round_confluence=nearby_round_level(center, center * 0.0003) is not None,
         sources=[timeframe],
         last_touch_index=zone.last_touch_index,
+        distinct_approaches=max(1, min(zone.touches, 5)),
+        dwell_bars=dwell_bars,
+        acceptance_bars=acceptance_bars,
     )
 
 
@@ -346,10 +358,10 @@ def build_market_structure(
         reference_price = candles_1m[-1].close
 
     frames: list[tuple[str, list[Candle]]] = [
-        ("1m", candles_1m[-240:]),
-        ("5m", aggregate_candles(candles_1m[-240:], 5)),
-        ("15m", context_15m[-120:]),
-        ("1h", aggregate_candles(context_15m[-120:], 60)),
+        ("1m", candles_1m[-720:]),
+        ("5m", aggregate_candles(candles_1m[-720:], 5)),
+        ("15m", context_15m[-480:]),
+        ("1h", aggregate_candles(context_15m[-480:], 60)),
     ]
 
     levels: list[StructuralLevel] = []
@@ -358,10 +370,16 @@ def build_market_structure(
             continue
         min_touches = 1 if timeframe == "1m" else 2
         for kind in ("support", "resistance"):
+            lookback_target = {
+                "1m": 240,
+                "5m": 144,
+                "15m": 320,
+                "1h": 120,
+            }.get(timeframe, 160)
             zones = detect_level_zones(
                 candles,
                 kind,
-                lookback=min(160, len(candles)),
+                lookback=min(lookback_target, len(candles)),
                 min_touches=min_touches,
             )
             levels.extend(_zone_level(zone, candles, timeframe) for zone in zones)
