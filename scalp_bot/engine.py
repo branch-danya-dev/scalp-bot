@@ -11,7 +11,7 @@ from .domain import Action, Candle, Candidate, OrderBook, Side, StrategyDecision
 from .paper import PaperBroker, Position
 from .recorder import SessionRecorder
 from .risk import RiskEngine
-from .strategy.flow import prune_trades
+from .strategy.flow import best_level_ofi_usd, prune_trades
 from .strategy.lifecycle import LevelLifecycleTracker
 from .strategy import (
     DEFAULT_STRATEGIES,
@@ -40,6 +40,8 @@ class ActiveSymbolSession:
     decisions: dict[str, StrategyDecision] = field(default_factory=dict)
     decision_fingerprints: dict[str, tuple] = field(default_factory=dict)
     trades: deque[TradeTick] = field(default_factory=deque)
+    book_flow: deque[tuple[int, float]] = field(default_factory=deque)
+    last_book_flow_ms: int = 0
     level_tracker: LevelLifecycleTracker = field(default_factory=LevelLifecycleTracker)
     consumed_setups: dict[str, str] = field(default_factory=dict)
     cooldown_until: dict[str, float] = field(default_factory=dict)
@@ -86,6 +88,40 @@ class ActiveSymbolSession:
             "askLevels": len(self.orderbook.asks),
         }
 
+    def record_book_flow(self, ts_ms: int, value: float) -> None:
+        if ts_ms <= 0:
+            return
+        self.last_book_flow_ms = max(self.last_book_flow_ms, ts_ms)
+        self.book_flow.append((ts_ms, value))
+        cutoff = self.last_book_flow_ms - 60_000
+        while self.book_flow and self.book_flow[0][0] < cutoff:
+            self.book_flow.popleft()
+
+    def book_flow_snapshot(self) -> dict:
+        now_ms = self.last_book_flow_ms
+        def window(seconds: int) -> float:
+            cutoff = now_ms - seconds * 1000
+            return sum(value for ts, value in self.book_flow if ts >= cutoff)
+
+        depth_usd = sum(
+            price * qty
+            for price, qty in (
+                self.orderbook.bids[:5] + self.orderbook.asks[:5]
+            )
+        )
+        ofi_5s = window(5) if now_ms else 0.0
+        ofi_15s = window(15) if now_ms else 0.0
+        ofi_60s = window(60) if now_ms else 0.0
+        return {
+            "bestLevelOfiUsd5s": ofi_5s,
+            "bestLevelOfiUsd15s": ofi_15s,
+            "bestLevelOfiUsd60s": ofi_60s,
+            "top5DepthUsd": depth_usd,
+            "normalizedOfi5s": ofi_5s / depth_usd if depth_usd > 0 else 0.0,
+            "normalizedOfi15s": ofi_15s / depth_usd if depth_usd > 0 else 0.0,
+            "normalizedOfi60s": ofi_60s / depth_usd if depth_usd > 0 else 0.0,
+        }
+
     def market_snapshot(self) -> dict:
         return {
             "symbol": self.symbol,
@@ -95,6 +131,7 @@ class ActiveSymbolSession:
             "orderbook": self.orderbook.public(),
             "bookHealth": self.book_health(),
             "tradeFlow": compute_trade_flow(list(self.trades)),
+            "bookFlow": self.book_flow_snapshot(),
             "tradeBufferSeconds": (
                 (self.trades[-1].ts_ms - self.trades[0].ts_ms) / 1000
                 if len(self.trades) >= 2 else 0.0
@@ -112,6 +149,7 @@ class ActiveSymbolSession:
             "orderbook": self.orderbook.public(book_depth),
             "bookHealth": self.book_health(),
             "tradeFlow": compute_trade_flow(list(self.trades)),
+            "bookFlow": self.book_flow_snapshot(),
             "position": position,
             "recentTrades": [trade.public() for trade in list(self.trades)[-250:]],
             "structure": self.structure.public() if self.structure else None,
@@ -530,6 +568,7 @@ class TradingEngine:
             session.last_market_at = wall_now
             topic = message.get("topic", "")
             if topic.startswith("orderbook."):
+                previous_book = session.orderbook
                 try:
                     session.orderbook = book_state.apply(message)
                 except OrderBookSequenceError:
@@ -539,6 +578,25 @@ class TradingEngine:
                     raise
                 session.book_synced = book_state.synced
                 session.last_book_at = wall_now
+                data = message.get("data") or {}
+                if (
+                    message.get("type") != "snapshot"
+                    and int(data.get("u") or 0) != 1
+                    and previous_book.bids
+                    and previous_book.asks
+                ):
+                    event_ms = int(
+                        message.get("cts")
+                        or message.get("ts")
+                        or wall_now * 1000
+                    )
+                    session.record_book_flow(
+                        event_ms,
+                        best_level_ofi_usd(
+                            previous_book,
+                            session.orderbook,
+                        ),
+                    )
             elif topic.startswith("kline."):
                 self._apply_kline(session, message)
                 session.last_kline_at = wall_now
