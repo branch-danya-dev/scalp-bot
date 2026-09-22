@@ -1,3 +1,5 @@
+import pytest
+
 from scalp_bot.config import Settings
 from scalp_bot.domain import Action, OrderBook, StrategyDecision
 from scalp_bot.risk import RiskEngine
@@ -222,9 +224,9 @@ def test_tight_stop_scales_position_to_five_x() -> None:
 
     assert result.allowed
     assert result.plan is not None
-    assert result.plan.notional == 5000
-    assert result.plan.leverage == 5.0
-    assert result.plan.max_loss_usd == 5.0
+    assert result.plan.notional == pytest.approx(5000)
+    assert result.plan.leverage == pytest.approx(5.0)
+    assert result.plan.max_loss_usd == pytest.approx(5.0)
 
 
 def test_two_tenths_percent_stop_sizes_to_two_and_half_x() -> None:
@@ -239,8 +241,8 @@ def test_two_tenths_percent_stop_sizes_to_two_and_half_x() -> None:
 
     assert result.allowed
     assert result.plan is not None
-    assert result.plan.notional == 2500
-    assert result.plan.leverage == 2.5
+    assert result.plan.notional == pytest.approx(2500)
+    assert result.plan.leverage == pytest.approx(2.5)
     assert result.plan.max_loss_usd == 5.0
 
 
@@ -256,8 +258,8 @@ def test_wider_stop_naturally_reduces_effective_leverage() -> None:
 
     assert result.allowed
     assert result.plan is not None
-    assert result.plan.notional == 1000
-    assert result.plan.leverage == 1.0
+    assert result.plan.notional == pytest.approx(1000)
+    assert result.plan.leverage == pytest.approx(1.0)
     assert result.plan.max_loss_usd == 5.0
 
 
@@ -278,8 +280,8 @@ def test_position_leverage_cap_is_separate_from_portfolio_cap() -> None:
 
     assert result.allowed
     assert result.plan is not None
-    assert result.plan.notional == 3000
-    assert result.plan.leverage == 3.0
+    assert result.plan.notional == pytest.approx(3000)
+    assert result.plan.leverage == pytest.approx(3.0)
 
 
 def test_remaining_portfolio_notional_still_caps_tight_stop_trade() -> None:
@@ -294,5 +296,5 @@ def test_remaining_portfolio_notional_still_caps_tight_stop_trade() -> None:
 
     assert result.allowed
     assert result.plan is not None
-    assert result.plan.notional == 1800
-    assert result.plan.leverage == 1.8
+    assert result.plan.notional == pytest.approx(1800)
+    assert result.plan.leverage == pytest.approx(1.8)
