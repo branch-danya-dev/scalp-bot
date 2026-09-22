@@ -1,18 +1,32 @@
 $ErrorActionPreference = "Stop"
 
 $venvPython = Join-Path $PWD ".venv\Scripts\python.exe"
+$runProfile = Join-Path $PWD ".env.example"
 
 if (-not (Test-Path $venvPython)) {
     throw ".venv is missing. Run .\scripts\setup.ps1 first."
 }
+if (-not (Test-Path $runProfile)) {
+    throw ".env.example run profile is missing."
+}
 
-# The run profile is forced here so an old local .env cannot silently restore
-# the previous 10-hour duration or label.
-$env:SCALP_RUN_LABEL = "paper-v3-4h"
-$env:SCALP_PAPER_RUN_DURATION_SECONDS = "14400"
+# Load the checked-in run profile into the current process. Process variables
+# have precedence over a stale local .env, so the paper run is reproducible.
+Get-Content $runProfile | ForEach-Object {
+    $line = $_.Trim()
+    if ($line -and -not $line.StartsWith("#") -and $line.Contains("=")) {
+        $parts = $line.Split("=", 2)
+        [Environment]::SetEnvironmentVariable(
+            $parts[0].Trim(),
+            $parts[1].Trim(),
+            "Process"
+        )
+    }
+}
 
 Write-Host ""
 Write-Host "Scalp Bot — paper-run-v3-4h"
+Write-Host "Run profile: .env.example (forced over stale local .env values)"
 Write-Host "Configured trading duration: 4 hours after pressing Start in the UI."
 Write-Host "Auto-stop will close remaining PAPER positions and write run_summary."
 Write-Host "Order book: depth 1000 with stale/desync protection."
