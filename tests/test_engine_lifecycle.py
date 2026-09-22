@@ -892,3 +892,82 @@ def test_market_health_requires_fresh_book_and_live_session(tmp_path) -> None:
         assert engine.start_block_reason() is None
     finally:
         close_rest(engine)
+
+
+
+def test_decision_trace_identifies_market_object_and_wait_condition(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            trend=Trend.UP,
+        )
+        decision = StrategyDecision(
+            strategy="weak_level_rejection",
+            action=Action.WAIT,
+            reasons=["waiting for local tape reversal"],
+            confidence=0.58,
+            watched_level=100.0,
+            details={
+                "state": "reject",
+                "zone": {
+                    "kind": "support",
+                    "low": 99.95,
+                    "high": 100.05,
+                    "touches": 2,
+                },
+                "trendAligned": True,
+                "recentLevelFlow": {
+                    "imbalance": -0.02,
+                    "tradeCount": 4,
+                },
+            },
+        )
+
+        engine._record_decision_if_changed(session, decision)
+
+        event = engine.events[0]
+        trace = event["payload"]["trace"]
+        assert event["event"] == "decision"
+        assert trace["strategy"] == "weak_level_rejection"
+        assert trace["state"] == "reject"
+        assert trace["trend"] == "up"
+        assert trace["object"]["type"] == "horizontal_zone"
+        assert trace["object"]["low"] == pytest.approx(99.95)
+        assert trace["object"]["high"] == pytest.approx(100.05)
+        assert "fresh local tape reversal at the level" in trace["waitingFor"]
+        assert "trend direction aligned" in trace["confirmed"]
+        assert trace["evidence"]["recentLevelFlow"]["tradeCount"] == 4
+    finally:
+        close_rest(engine)
+
+
+def test_market_snapshot_exposes_trace_for_current_decisions(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            trend=Trend.DOWN,
+        )
+        session.decisions["orderbook_density"] = StrategyDecision(
+            strategy="orderbook_density",
+            action=Action.WAIT,
+            reasons=["waiting for actual touch"],
+            details={
+                "state": "approach",
+                "wallSide": "ask",
+                "wallPrice": 101.0,
+                "notionalUsd": 75_000,
+                "strengthMultiple": 6.2,
+            },
+        )
+
+        snapshot = session.market_snapshot()
+        trace = snapshot["decisions"]["orderbook_density"]["trace"]
+
+        assert trace["object"]["type"] == "orderbook_wall"
+        assert trace["object"]["price"] == pytest.approx(101.0)
+        assert trace["state"] == "approach"
+        assert "actual trade touch of the wall" in trace["waitingFor"]
+    finally:
+        close_rest(engine)

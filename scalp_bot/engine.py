@@ -9,6 +9,7 @@ from .bybit import BybitRestClient, OrderBookSequenceError, OrderBookState, stre
 from .config import Settings
 from .domain import Action, Candle, Candidate, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .paper import PaperBroker, Position
+from .observability import build_decision_trace
 from .recorder import SessionRecorder
 from .risk import RiskEngine
 from .strategy.flow import best_level_ofi_usd, prune_trades
@@ -144,7 +145,17 @@ class ActiveSymbolSession:
             ),
             "recentTrades": [trade.public() for trade in list(self.trades)[-20:]],
             "structure": self.structure.public() if self.structure else None,
-            "decisions": {k: v.public() for k, v in self.decisions.items()},
+            "decisions": {
+                key: {
+                    **decision.public(),
+                    "trace": build_decision_trace(
+                        decision,
+                        self.trend,
+                        now_ms,
+                    ),
+                }
+                for key, decision in self.decisions.items()
+            },
         }
 
     def frame(self, book_depth: int, position: dict | None) -> dict:
@@ -1206,7 +1217,14 @@ class TradingEngine:
         if session.decision_fingerprints.get(decision.strategy) == fingerprint:
             return
         session.decision_fingerprints[decision.strategy] = fingerprint
-        self._emit("decision", session.symbol, decision.public())
+        observed_at_ms = int(time() * 1000)
+        payload = decision.public()
+        payload["trace"] = build_decision_trace(
+            decision,
+            session.trend,
+            observed_at_ms,
+        )
+        self._emit("decision", session.symbol, payload)
 
     def _emit(self, event: str, symbol: str | None, payload: dict, snapshot: bool = False) -> None:
         row = {"ts": time(), "event": event, "symbol": symbol, "payload": payload}
