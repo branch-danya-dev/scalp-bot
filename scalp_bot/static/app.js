@@ -3,6 +3,9 @@ let chart = null;
 let candleSeries = null;
 let overlaySeries = [];
 let priceLines = [];
+let tradeReviewSummaries = [];
+let lastClosedTradeCount = -1;
+const reviewCharts = new Map();
 
 const $ = id => document.getElementById(id);
 const money = value => new Intl.NumberFormat("en-US", {style:"currency", currency:"USD", maximumFractionDigits:2}).format(value || 0);
@@ -249,6 +252,122 @@ function renderPosition(position) {
     <span>MAE ${Number(position.mae_r || 0).toFixed(2)}R</span><span>MFE ${Number(position.mfe_r || 0).toFixed(2)}R</span>`;
 }
 
+function reviewSummaryFor(trade) {
+  return tradeReviewSummaries.find(review =>
+    review.symbol === trade.symbol
+    && review.setupId === trade.setupId
+    && review.strategy === trade.strategy
+  ) || null;
+}
+
+function timelineText(row) {
+  const payload = row.payload || {};
+  const trace = payload.trace || {};
+  if (row.event === "decision") {
+    const object = trace.object || {};
+    const objectText = object.price != null
+      ? ` @ ${price(object.price)}`
+      : object.low != null && object.high != null
+        ? ` ${price(object.low)}–${price(object.high)}`
+        : "";
+    const waiting = (trace.waitingFor || []).slice(0, 2).join(" · ");
+    return `${trace.strategy || payload.strategy || ""} · ${trace.state || payload.details?.state || ""}${objectText}${waiting ? " · ждём: " + waiting : ""}`;
+  }
+  if (row.event === "trade_opened") return "Позиция открыта";
+  if (row.event === "partial_take") return `Partial · ${money(payload.netPnl)}`;
+  if (row.event === "trade_closed") return `${payload.reason || "closed"} · ${money(payload.netPnl)}`;
+  if (row.event === "risk_reject") return `Risk reject · ${payload.reason || ""}`;
+  if (row.event === "setup_blocked") return `Setup blocked · ${payload.reason || ""}`;
+  return row.event.replaceAll("_", " ");
+}
+
+function destroyReviewChart(reviewId) {
+  const chart = reviewCharts.get(reviewId);
+  if (chart) chart.remove();
+  reviewCharts.delete(reviewId);
+}
+
+function renderTradeReviewDetail(reviewId, review) {
+  const root = document.querySelector(`[data-review-detail="${CSS.escape(reviewId)}"]`);
+  if (!root) return;
+  destroyReviewChart(reviewId);
+  const summary = review.summary || {};
+  const details = review.strategyDetails || {};
+  root.innerHTML = `
+    <div class="review-grid">
+      <div class="review-chart" data-review-chart="${reviewId}"></div>
+      <div class="review-timeline">
+        <div class="review-subtitle">Decision timeline</div>
+        <div class="review-events">
+          ${(review.timeline || []).map(row => `<div class="review-event">
+            <time>${new Date(row.ts * 1000).toLocaleTimeString()}</time>
+            <span class="review-event-type">${row.event}</span>
+            <span>${timelineText(row)}</span>
+          </div>`).join("") || '<div class="empty-row">Timeline отсутствует.</div>'}
+        </div>
+      </div>
+    </div>
+    <div class="review-context">
+      <div><b>Strategy:</b> ${summary.strategy || "—"}</div>
+      <div><b>Setup:</b> ${summary.setupId || "—"}</div>
+      <div><b>Target source:</b> ${details.targetSource || "—"}</div>
+      <div><b>Exit:</b> ${summary.reason || "—"}</div>
+    </div>`;
+
+  const chartRoot = root.querySelector("[data-review-chart]");
+  if (!chartRoot || !window.LightweightCharts) return;
+  const mini = LightweightCharts.createChart(chartRoot, {
+    autoSize:true,
+    height:300,
+    layout:{background:{color:"transparent"}, textColor:"#6e6e73"},
+    grid:{vertLines:{color:"#f1f1f3"}, horzLines:{color:"#f1f1f3"}},
+    rightPriceScale:{borderVisible:false},
+    timeScale:{timeVisible:true, secondsVisible:false, borderVisible:false},
+  });
+  const series = mini.addCandlestickSeries({
+    upColor:"#34c759", downColor:"#ff453a", borderVisible:false,
+    wickUpColor:"#34c759", wickDownColor:"#ff453a",
+  });
+  series.setData((review.candles || []).map(candle => ({
+    time:Number(candle.time),
+    open:Number(candle.open),
+    high:Number(candle.high),
+    low:Number(candle.low),
+    close:Number(candle.close),
+  })));
+  const line = (value, title, color) => {
+    if (value == null) return;
+    series.createPriceLine({
+      price:Number(value), title, color, lineWidth:2,
+      lineStyle:0, axisLabelVisible:true,
+    });
+  };
+  line(summary.entry, "ENTRY", "#007aff");
+  line(summary.initialStop, "STOP", "#ff3b30");
+  line(summary.target, "TARGET", "#34c759");
+  line(summary.exit, "EXIT", "#af52de");
+  mini.timeScale().fitContent();
+  reviewCharts.set(reviewId, mini);
+}
+
+async function openTradeReview(reviewId) {
+  const detail = document.querySelector(`[data-review-detail="${CSS.escape(reviewId)}"]`);
+  if (!detail) return;
+  if (!detail.classList.contains("hidden")) {
+    detail.classList.add("hidden");
+    destroyReviewChart(reviewId);
+    return;
+  }
+  detail.classList.remove("hidden");
+  detail.innerHTML = '<div class="empty-row">Загрузка разбора сделки…</div>';
+  try {
+    const review = await api(`/api/reviews/trades/${encodeURIComponent(reviewId)}`);
+    renderTradeReviewDetail(reviewId, review);
+  } catch (error) {
+    detail.innerHTML = `<div class="review-error">${String(error.message || error)}</div>`;
+  }
+}
+
 function renderTrades(rows) {
   const root = $("closedTrades");
   if (!rows?.length) {
@@ -257,17 +376,32 @@ function renderTrades(rows) {
   }
   root.innerHTML = rows.slice().reverse().map(trade => {
     const netClass = trade.netPnl >= 0 ? "positive" : "negative";
-    return `<div class="trade-row">
-      <strong>${trade.symbol}</strong>
-      <span>${trade.side.toUpperCase()}</span>
-      <span>${price(trade.entry)} → ${price(trade.exit)}</span>
-      <span>${money(trade.fees)}</span>
-      <span>${money(trade.maeUsd)}</span>
-      <span>${money(trade.mfeUsd)}</span>
-      <span>${trade.reason}</span>
-      <strong class="${netClass}">${money(trade.netPnl)}</strong>
-    </div>`;
+    const review = reviewSummaryFor(trade);
+    const reviewButton = review
+      ? `<button class="button secondary review-open" data-open-review="${review.reviewId}">Разбор сделки</button>`
+      : '<span class="review-pending">Review формируется</span>';
+    return `<article class="trade-card">
+      <div class="trade-card-head">
+        <div>
+          <strong>${trade.symbol} · ${trade.side.toUpperCase()}</strong>
+          <span>${trade.strategy || "strategy"}</span>
+        </div>
+        <strong class="trade-card-net ${netClass}">${money(trade.netPnl)}</strong>
+      </div>
+      <div class="trade-card-metrics">
+        <span><small>Entry → Exit</small>${price(trade.entry)} → ${price(trade.exit)}</span>
+        <span><small>MAE</small>${money(trade.maeUsd)} · ${Number(trade.maeR || 0).toFixed(2)}R</span>
+        <span><small>MFE</small>${money(trade.mfeUsd)} · ${Number(trade.mfeR || 0).toFixed(2)}R</span>
+        <span><small>Fees</small>${money(trade.fees)}</span>
+        <span><small>Exit reason</small>${trade.reason || "—"}</span>
+      </div>
+      <div class="trade-card-actions">${reviewButton}</div>
+      ${review ? `<div class="trade-review-detail hidden" data-review-detail="${review.reviewId}"></div>` : ""}
+    </article>`;
   }).join("");
+  document.querySelectorAll("[data-open-review]").forEach(button => {
+    button.onclick = () => openTradeReview(button.dataset.openReview);
+  });
 }
 
 function render(data) {
@@ -331,6 +465,16 @@ function render(data) {
   renderStrategies(data.strategies);
   renderEvents(data.events);
   renderTrades(data.closedTrades);
+
+  if (data.closedTrades.length !== lastClosedTradeCount) {
+    lastClosedTradeCount = data.closedTrades.length;
+    api("/api/reviews/trades")
+      .then(payload => {
+        tradeReviewSummaries = payload.reviews || [];
+        renderTrades(data.closedTrades);
+      })
+      .catch(() => {});
+  }
 
   if (!data.market) {
     $("symbolTitle").textContent = "—";
