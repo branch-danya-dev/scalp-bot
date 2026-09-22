@@ -23,6 +23,7 @@ from .common import (
     zone_overlap_count,
     zone_visual,
 )
+from .flow import flow_at_level
 from .liquidity import find_liquidity_target
 
 
@@ -132,6 +133,17 @@ class WeakLevelRejectionStrategy(Strategy):
         last = candles[-1]
         price = book.mid or last.close
         flow = compute_trade_flow(trades)
+        level_tolerance = max(
+            zone.width_pct * 1.5,
+            book.spread_pct * 2.0,
+            0.0008,
+        )
+        level_flow = flow_at_level(
+            trades,
+            zone.center,
+            tolerance_pct=level_tolerance,
+            seconds=15,
+        )
         visuals = zone_visual(zone, "weak rejection zone")
         range_abs = typical_range_abs(candles)
 
@@ -148,6 +160,7 @@ class WeakLevelRejectionStrategy(Strategy):
                     "state": state.stage.value,
                     "zone": zone.public(),
                     "flow": flow,
+                    "levelFlow": level_flow.public(),
                     "weakLevel": True,
                 },
             )
@@ -159,7 +172,21 @@ class WeakLevelRejectionStrategy(Strategy):
         if zone.kind == "resistance":
             tested = last.high >= zone.low
             failed_break = last.high >= zone.high * 0.9995 and last.close < zone.low
-            flow_reversed = flow["tradeCount5s"] >= 3 and flow["imbalance5s"] <= -0.05
+            attack_absorbed = (
+                level_flow.buy_notional > level_flow.sell_notional
+                and level_flow.absorption_efficiency >= 0.30
+            )
+            flow_reversed = (
+                level_flow.trade_count >= 3
+                and (
+                    level_flow.imbalance <= -0.03
+                    or (
+                        attack_absorbed
+                        and flow["tradeCount5s"] >= 3
+                        and flow["imbalance5s"] <= -0.03
+                    )
+                )
+            )
             action = Action.SHORT
             stop_anchor = max(zone.high, round_level or zone.high)
             stop = stop_anchor + buffer
@@ -167,7 +194,21 @@ class WeakLevelRejectionStrategy(Strategy):
         else:
             tested = last.low <= zone.high
             failed_break = last.low <= zone.low * 1.0005 and last.close > zone.high
-            flow_reversed = flow["tradeCount5s"] >= 3 and flow["imbalance5s"] >= 0.05
+            attack_absorbed = (
+                level_flow.sell_notional > level_flow.buy_notional
+                and level_flow.absorption_efficiency >= 0.30
+            )
+            flow_reversed = (
+                level_flow.trade_count >= 3
+                and (
+                    level_flow.imbalance >= 0.03
+                    or (
+                        attack_absorbed
+                        and flow["tradeCount5s"] >= 3
+                        and flow["imbalance5s"] >= 0.03
+                    )
+                )
+            )
             action = Action.LONG
             stop_anchor = min(zone.low, round_level or zone.low)
             stop = stop_anchor - buffer
@@ -188,6 +229,7 @@ class WeakLevelRejectionStrategy(Strategy):
                     "state": state.stage.value,
                     "zone": zone.public(),
                     "flow": flow,
+                    "levelFlow": level_flow.public(),
                     "roundLevel": round_level,
                     "weakLevel": True,
                 },
@@ -274,13 +316,15 @@ class WeakLevelRejectionStrategy(Strategy):
         freshness = clamp(1.0 - max(0, approaches - 1) * 0.30)
         clean_acceptance = clamp(1.0 - acceptance_bars / 4.0)
         rejection_history = clamp(failed_breaks / 2.0)
-        flow_strength = clamp(abs(flow["imbalance5s"]) / 0.25)
+        flow_strength = clamp(abs(level_flow.imbalance) / 0.25)
+        absorption_quality = clamp(level_flow.absorption_efficiency / 0.50)
         quality = clamp(
             0.42
             + freshness * 0.16
             + clean_acceptance * 0.10
             + rejection_history * 0.08
-            + flow_strength * 0.15
+            + flow_strength * 0.12
+            + absorption_quality * 0.06
             + (0.06 if allow_runner else 0.0)
             + (0.03 if round_level is not None else 0.0)
         )
@@ -293,7 +337,7 @@ class WeakLevelRejectionStrategy(Strategy):
             reasons=[
                 f"Слабый уровень: {approaches} отдельных подход(а), без длительной проторговки",
                 "Попытка пробоя не удержалась, цена вернулась за границу зоны",
-                "Поток исполненных сделок развернулся от уровня",
+                "Поток непосредственно у уровня подтвердил разворот/поглощение",
                 (
                     "Отскок идёт по тренду: runner разрешён"
                     if allow_runner
@@ -310,6 +354,7 @@ class WeakLevelRejectionStrategy(Strategy):
                 "state": state.stage.value,
                 "zone": zone.public(),
                 "flow": flow,
+                "levelFlow": level_flow.public(),
                 "roundLevel": round_level,
                 "weakLevel": True,
                 "levelGeneration": generation_id,
@@ -336,6 +381,7 @@ class WeakLevelRejectionStrategy(Strategy):
                     "cleanAcceptance": clean_acceptance,
                     "rejectionHistory": rejection_history,
                     "flowStrength": flow_strength,
+                    "absorptionAtLevel": absorption_quality,
                     "roundConfluence": round_level is not None,
                     "trendAligned": allow_runner,
                 },
