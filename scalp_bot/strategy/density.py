@@ -20,7 +20,7 @@ from .common import (
     typical_range_abs,
 )
 from .flow import flow_at_level
-from .liquidity import find_liquidity_target
+from .liquidity import find_liquidity_targets
 
 
 class DensityStage(StrEnum):
@@ -720,14 +720,34 @@ class DensityBounceStrategy(Strategy):
                 and recent_level_flow.imbalance <= -0.03
             )
 
+        reaction_status = {
+            "priceReactionConfirmed": reacted,
+            "flowReversalConfirmed": flow_reversed,
+            "entryConfirmationComplete": reacted and flow_reversed,
+        }
         if not (reacted and flow_reversed):
-            state.stage = DensityStage.DEFENDED if state.touched else DensityStage.APPROACH
+            state.stage = DensityStage.TEST if state.touched else DensityStage.APPROACH
+            missing = []
+            if not reacted:
+                missing.append("price reaction")
+            if not flow_reversed:
+                missing.append("local flow reversal")
             return self._wait(
                 state,
-                "Плотность выдерживает тест; ждём движение цены и потока от wall",
+                (
+                    "Wall протестирована; ждём подтверждение: "
+                    + ", ".join(missing)
+                ),
                 confidence=0.60,
-                details=shared,
+                details={
+                    **shared,
+                    **reaction_status,
+                },
             )
+
+        state.stage = DensityStage.DEFENDED
+        if state.defended_at <= 0:
+            state.defended_at = now
 
         expected_action = Action.LONG if trend == Trend.UP else Action.SHORT
         if action != expected_action:
@@ -744,8 +764,6 @@ class DensityBounceStrategy(Strategy):
             )
 
         state.stage = DensityStage.REACTION
-        if state.defended_at <= 0:
-            state.defended_at = now
 
         range_abs = typical_range_abs(candles)
         stop_buffer = max(
@@ -775,8 +793,31 @@ class DensityBounceStrategy(Strategy):
             if action == Action.LONG
             else mid - risk * target_r
         )
-        liquidity_target = find_liquidity_target(candles, mid, action, structure=structure)
-        target = liquidity_target.price if liquidity_target is not None else reaction_target
+        liquidity_ladder = find_liquidity_targets(
+            candles,
+            mid,
+            action,
+            min_distance_pct=0.0,
+            structure=structure,
+        )
+        nearest_obstacle = (
+            liquidity_ladder[0]
+            if liquidity_ladder
+            else None
+        )
+        liquidity_target = next(
+            (
+                row
+                for row in liquidity_ladder
+                if abs(row.price - mid) >= risk * target_r
+            ),
+            None,
+        )
+        target = (
+            liquidity_target.price
+            if liquidity_target is not None
+            else reaction_target
+        )
 
         strength_score = clamp((strength - self.strength_multiple) / 6.0)
         stability_score = clamp((remaining_ratio - 0.70) / 0.30)
@@ -810,12 +851,24 @@ class DensityBounceStrategy(Strategy):
                 "allowRunner": allow_runner,
                 "exitMode": "runner_allowed",
                 "targetR": target_r,
+                "nearestObstacle": (
+                    nearest_obstacle.public()
+                    if nearest_obstacle
+                    else None
+                ),
+                "liquidityLadder": [
+                    row.public()
+                    for row in liquidity_ladder[:8]
+                ],
                 "liquidityTarget": (
                     liquidity_target.public() if liquidity_target else None
                 ),
                 "targetSource": (
-                    "liquidity" if liquidity_target is not None else "risk_multiple"
+                    "liquidity_ladder"
+                    if liquidity_target is not None
+                    else "risk_multiple"
                 ),
+                **reaction_status,
                 "densityFresh": True,
                 "setupQuality": quality,
                 "qualityFactors": {

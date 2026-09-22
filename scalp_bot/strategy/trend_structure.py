@@ -9,7 +9,7 @@ from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTic
 from .base import Strategy
 from .common import compute_trade_flow
 from .flow import flow_at_level
-from .liquidity import find_liquidity_target
+from .liquidity import find_liquidity_targets
 
 if TYPE_CHECKING:
     from .structure import MarketStructure, TrendLine
@@ -557,20 +557,36 @@ class TrendStructureStrategy(Strategy):
                     visuals=visuals,
                 )
 
-            liquidity_target = find_liquidity_target(
+            target_r = 1.6
+            risk_target = (
+                price + risk * target_r
+                if long_side
+                else price - risk * target_r
+            )
+            liquidity_ladder = find_liquidity_targets(
                 candles,
                 price,
                 action,
+                min_distance_pct=0.0,
                 structure=structure,
+            )
+            nearest_obstacle = (
+                liquidity_ladder[0]
+                if liquidity_ladder
+                else None
+            )
+            liquidity_target = next(
+                (
+                    row
+                    for row in liquidity_ladder
+                    if abs(row.price - price) >= risk * target_r
+                ),
+                None,
             )
             target = (
                 liquidity_target.price
                 if liquidity_target is not None
-                else (
-                    price + risk * 1.6
-                    if long_side
-                    else price - risk * 1.6
-                )
+                else risk_target
             )
 
             quality = min(
@@ -609,13 +625,23 @@ class TrendStructureStrategy(Strategy):
                     "flowConfirmed": True,
                     "flow": flow,
                     "levelFlow": level_flow,
+                    "targetR": target_r,
+                    "nearestObstacle": (
+                        nearest_obstacle.public()
+                        if nearest_obstacle
+                        else None
+                    ),
+                    "liquidityLadder": [
+                        row.public()
+                        for row in liquidity_ladder[:8]
+                    ],
                     "liquidityTarget": (
                         liquidity_target.public()
                         if liquidity_target
                         else None
                     ),
                     "targetSource": (
-                        "liquidity"
+                        "liquidity_ladder"
                         if liquidity_target
                         else "risk_multiple"
                     ),

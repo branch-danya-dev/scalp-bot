@@ -23,7 +23,7 @@ from .common import (
     zone_visual,
 )
 from .flow import flow_at_level, flow_beyond_level
-from .liquidity import find_liquidity_target
+from .liquidity import find_liquidity_targets
 
 
 class RejectionStage(StrEnum):
@@ -338,8 +338,31 @@ class WeakLevelRejectionStrategy(Strategy):
             if action == Action.LONG
             else price - risk * target_r
         )
-        liquidity_target = find_liquidity_target(candles, price, action, structure=structure)
-        target = liquidity_target.price if liquidity_target is not None else reaction_target
+        liquidity_ladder = find_liquidity_targets(
+            candles,
+            price,
+            action,
+            min_distance_pct=0.0,
+            structure=structure,
+        )
+        nearest_obstacle = (
+            liquidity_ladder[0]
+            if liquidity_ladder
+            else None
+        )
+        liquidity_target = next(
+            (
+                row
+                for row in liquidity_ladder
+                if abs(row.price - price) >= risk * target_r
+            ),
+            None,
+        )
+        target = (
+            liquidity_target.price
+            if liquidity_target is not None
+            else reaction_target
+        )
 
         approaches = (
             structural_level.distinct_approaches
@@ -407,11 +430,22 @@ class WeakLevelRejectionStrategy(Strategy):
                 "allowRunner": allow_runner,
                 "exitMode": "runner_allowed",
                 "targetR": target_r,
+                "nearestObstacle": (
+                    nearest_obstacle.public()
+                    if nearest_obstacle
+                    else None
+                ),
+                "liquidityLadder": [
+                    row.public()
+                    for row in liquidity_ladder[:8]
+                ],
                 "liquidityTarget": (
                     liquidity_target.public() if liquidity_target else None
                 ),
                 "targetSource": (
-                    "liquidity" if liquidity_target is not None else "risk_multiple"
+                    "liquidity_ladder"
+                    if liquidity_target is not None
+                    else "risk_multiple"
                 ),
                 "setupQuality": quality,
                 "qualityFactors": {
