@@ -47,3 +47,56 @@ def test_repeated_rising_lows_form_diagonal_support() -> None:
     assert line is not None
     assert line.touches >= 3
     assert line.slope_per_bar > 0
+
+
+
+def test_market_structure_separates_current_and_previous_utc_day() -> None:
+    previous_day = int(
+        datetime(2026, 9, 21, tzinfo=timezone.utc).timestamp() * 1000
+    )
+    current_day = int(
+        datetime(2026, 9, 22, tzinfo=timezone.utc).timestamp() * 1000
+    )
+
+    previous = [
+        Candle(
+            previous_day + i * 900_000,
+            100,
+            105 + i * 0.01,
+            95 - i * 0.01,
+            100,
+            100,
+            10_000,
+        )
+        for i in range(96)
+    ]
+    current = [
+        Candle(
+            current_day + i * 900_000,
+            110,
+            112 + i * 0.01,
+            108 - i * 0.01,
+            110,
+            100,
+            10_000,
+        )
+        for i in range(20)
+    ]
+    one_min = [c(i, 110, 110.1, 109.9, 110) for i in range(80)]
+
+    structure = build_market_structure(
+        one_min,
+        previous + current,
+        110,
+    )
+
+    assert structure.previous_day_high == max(x.high for x in previous)
+    assert structure.previous_day_low == min(x.low for x in previous)
+    assert structure.day_high == max(x.high for x in current)
+    assert structure.day_low == min(x.low for x in current)
+
+    kinds = {level.kind for level in structure.levels}
+    assert "previous_day_high" in kinds
+    assert "previous_day_low" in kinds
+    assert "day_high" in kinds
+    assert "day_low" in kinds
