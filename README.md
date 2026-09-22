@@ -5,8 +5,7 @@ This run branch is the prepared Strategy Logic v3 state for a controlled four-ho
 ## Strategies in this run
 
 1. Trend structure.
-2. Horizontal traded-zone bounce.
-3. Weak-level rejection:
+2. Weak-level rejection:
    - young level with 1-3 approaches;
    - no prolonged acceptance around the zone;
    - failed breakout/reclaim;
@@ -14,7 +13,7 @@ This run branch is the prepared Strategy Logic v3 state for a controlled four-ho
    - round-number confluence;
    - trend-following reactions may use a runner;
    - countertrend reactions are reaction-only.
-4. Defended fresh order-book density:
+3. Defended fresh order-book density:
    - large bid/ask wall relative to local book;
    - persistence required before trust;
    - real approach/test required;
@@ -23,7 +22,7 @@ This run branch is the prepared Strategy Logic v3 state for a controlled four-ho
    - entry requires defended wall + flow reversal;
    - trend-following density reactions may use a runner;
    - countertrend density reactions are reaction-only.
-5. Stateful horizontal-zone breakout:
+4. Stateful horizontal-zone breakout:
    - SEARCH -> FOUND -> APPROACH -> PRESSURE -> BREAK -> IMPULSE;
    - zone crossing plus public-trade-flow confirmation.
 
@@ -57,9 +56,10 @@ SCALP_ENFORCE_SESSION_LOSS_LIMIT=false
 Per-trade and simultaneous portfolio risk controls remain enabled.
 
 Research cost gate:
-- a setup must remain net-positive after estimated taker fees and slippage, with spread represented by executable bid/ask pricing rather than subtracted twice;
+- a trade must remain net-positive after estimated taker fees and slippage, with spread represented by executable bid/ask pricing rather than subtracted twice;
 - minimum expected net is max($1, 0.1% of current equity);
-- net reward/risk is recorded for analysis but the live-style RR>=1.15 gate is disabled during research, because it mathematically suppresses most tight-stop scalp setups.
+- net reward / all-in net loss must be at least 1.15;
+- existing strategies trade only in the direction of the confirmed higher-timeframe trend; countertrend reactions are observed but not opened.
 
 ## 4-hour harness
 
