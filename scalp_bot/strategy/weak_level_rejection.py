@@ -151,6 +151,13 @@ class WeakLevelRejectionStrategy(Strategy):
             seconds=15,
             now_ms=observed_at_ms,
         )
+        recent_level_flow = flow_at_level(
+            trades,
+            zone.center,
+            tolerance_pct=level_tolerance,
+            seconds=5,
+            now_ms=observed_at_ms,
+        )
         visuals = zone_visual(zone, "weak rejection zone")
         range_abs = typical_range_abs(candles)
 
@@ -195,15 +202,8 @@ class WeakLevelRejectionStrategy(Strategy):
                 and level_flow.absorption_efficiency >= 0.30
             )
             flow_reversed = (
-                level_flow.trade_count >= 3
-                and (
-                    level_flow.imbalance <= -0.03
-                    or (
-                        attack_absorbed
-                        and flow["tradeCount5s"] >= 3
-                        and flow["imbalance5s"] <= -0.03
-                    )
-                )
+                recent_level_flow.trade_count >= 3
+                and recent_level_flow.imbalance <= -0.03
             )
             action = Action.SHORT
             stop_anchor = max(zone.high, round_level or zone.high)
@@ -228,15 +228,8 @@ class WeakLevelRejectionStrategy(Strategy):
                 and level_flow.absorption_efficiency >= 0.30
             )
             flow_reversed = (
-                level_flow.trade_count >= 3
-                and (
-                    level_flow.imbalance >= 0.03
-                    or (
-                        attack_absorbed
-                        and flow["tradeCount5s"] >= 3
-                        and flow["imbalance5s"] >= 0.03
-                    )
-                )
+                recent_level_flow.trade_count >= 3
+                and recent_level_flow.imbalance >= 0.03
             )
             action = Action.LONG
             stop_anchor = min(zone.low, round_level or zone.low)
@@ -259,6 +252,7 @@ class WeakLevelRejectionStrategy(Strategy):
                     "zone": zone.public(),
                     "flow": flow,
                     "levelFlow": level_flow.public(),
+                    "recentLevelFlow": recent_level_flow.public(),
                     "breakoutFlow": breakout_flow.public(),
                     "roundLevel": round_level,
                     "weakLevel": True,
@@ -279,6 +273,7 @@ class WeakLevelRejectionStrategy(Strategy):
                     "zone": zone.public(),
                     "flow": flow,
                     "levelFlow": level_flow.public(),
+                    "recentLevelFlow": recent_level_flow.public(),
                     "breakoutFlow": breakout_flow.public(),
                     "roundLevel": round_level,
                     "weakLevel": True,
@@ -396,6 +391,7 @@ class WeakLevelRejectionStrategy(Strategy):
                 "zone": zone.public(),
                 "flow": flow,
                 "levelFlow": level_flow.public(),
+                "recentLevelFlow": recent_level_flow.public(),
                 "breakoutFlow": breakout_flow.public(),
                 "roundLevel": round_level,
                 "weakLevel": True,

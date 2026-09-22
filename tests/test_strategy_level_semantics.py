@@ -317,8 +317,7 @@ def test_breakout_global_flow_away_from_level_does_not_confirm() -> None:
     assert decision.action == Action.WAIT
     assert decision.details["state"] == "break"
     assert decision.details["flow"]["imbalance5s"] > 0
-    assert decision.details["breakoutFlow"]["tradeCount"] > 0
-    assert decision.details["levelFlow"]["imbalance"] < 0
+    assert decision.details["levelFlow"]["tradeCount"] == 0
 
 
 def test_breakout_records_level_flow_on_entry() -> None:
@@ -372,7 +371,9 @@ def test_rejection_global_flow_away_from_level_does_not_confirm() -> None:
     assert decision.action == Action.WAIT
     assert decision.details["state"] == "reject"
     assert decision.details["flow"]["imbalance5s"] > 0
-    assert decision.details["levelFlow"]["tradeCount"] == 0
+    assert decision.details["breakoutFlow"]["tradeCount"] > 0
+    assert decision.details["levelFlow"]["imbalance"] < 0
+    assert decision.details["recentLevelFlow"]["imbalance"] < 0
 
 
 def test_rejection_records_level_flow_on_entry() -> None:
