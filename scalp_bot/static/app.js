@@ -14,6 +14,8 @@ let lastPositionForChart = null;
 let domDisplayDepth = 12;
 let strategyEventFilter = "all";
 let eventTypeFilter = "all";
+let selectedReviewSession = "current";
+let lastLiveClosedTrades = [];
 
 const $ = id => document.getElementById(id);
 const money = value => new Intl.NumberFormat("en-US", {style:"currency", currency:"USD", maximumFractionDigits:2}).format(value || 0);
@@ -454,6 +456,44 @@ function renderEvents(rows) {
   </div>`).join("");
 }
 
+async function loadReviewSession(sessionName) {
+  selectedReviewSession = sessionName || "current";
+  tradeReviewSummaries = [];
+  lastClosedTradeCount = -1;
+  try {
+    const query = selectedReviewSession === "current"
+      ? ""
+      : `?session=${encodeURIComponent(selectedReviewSession)}`;
+    const payload = await api(`/api/reviews/trades${query}`);
+    tradeReviewSummaries = payload.reviews || [];
+    if (selectedReviewSession === "current") {
+      renderTrades(lastLiveClosedTrades);
+    } else {
+      renderTrades(tradeReviewSummaries);
+    }
+  } catch (error) {
+    $("closedTrades").innerHTML = `<div class="review-error">${String(error.message || error)}</div>`;
+  }
+}
+
+async function bindReviewSessions() {
+  const select = $("reviewSessionSelect");
+  if (!select) return;
+  try {
+    const payload = await api("/api/replay/sessions");
+    const sessions = payload.sessions || [];
+    select.innerHTML = '<option value="current">Current session</option>'
+      + sessions.map(row => `<option value="${row.name}">${row.name}</option>`).join("");
+  } catch (_) {
+    select.innerHTML = '<option value="current">Current session</option>';
+  }
+  select.onchange = () => {
+    loadReviewSession(select.value);
+    const root = $("opportunityReview");
+    if (root) root.innerHTML = '<div class="empty-row">Нажми «Пересчитать» для выбранной сессии.</div>';
+  };
+}
+
 function bindEventFilters() {
   document.querySelectorAll("[data-event-strategy]").forEach(button => {
     button.onclick = () => {
@@ -551,7 +591,11 @@ async function loadOpportunityReview() {
   const root = $("opportunityReview");
   if (root) root.innerHTML = '<div class="empty-row">Анализируем прошедший рынок…</div>';
   try {
-    const report = await api("/api/reviews/opportunities?horizon=120");
+    const query = new URLSearchParams({horizon:"120"});
+    if (selectedReviewSession !== "current") {
+      query.set("session", selectedReviewSession);
+    }
+    const report = await api(`/api/reviews/opportunities?${query.toString()}`);
     renderOpportunityReview(report);
   } catch (error) {
     if (root) root.innerHTML = `<div class="review-error">${String(error.message || error)}</div>`;
@@ -559,6 +603,7 @@ async function loadOpportunityReview() {
 }
 
 function reviewSummaryFor(trade) {
+  if (trade.reviewId) return trade;
   return tradeReviewSummaries.find(review =>
     review.symbol === trade.symbol
     && review.setupId === trade.setupId
@@ -667,7 +712,10 @@ async function openTradeReview(reviewId) {
   detail.classList.remove("hidden");
   detail.innerHTML = '<div class="empty-row">Загрузка разбора сделки…</div>';
   try {
-    const review = await api(`/api/reviews/trades/${encodeURIComponent(reviewId)}`);
+    const sessionQuery = selectedReviewSession === "current"
+      ? ""
+      : `?session=${encodeURIComponent(selectedReviewSession)}`;
+    const review = await api(`/api/reviews/trades/${encodeURIComponent(reviewId)}${sessionQuery}`);
     renderTradeReviewDetail(reviewId, review);
   } catch (error) {
     detail.innerHTML = `<div class="review-error">${String(error.message || error)}</div>`;
@@ -770,9 +818,12 @@ function render(data) {
   renderCandidates(data.candidates);
   renderStrategies(data.strategies);
   renderEvents(data.events);
-  renderTrades(data.closedTrades);
+  lastLiveClosedTrades = data.closedTrades;
+  if (selectedReviewSession === "current") {
+    renderTrades(data.closedTrades);
+  }
 
-  if (data.closedTrades.length !== lastClosedTradeCount) {
+  if (selectedReviewSession === "current" && data.closedTrades.length !== lastClosedTradeCount) {
     lastClosedTradeCount = data.closedTrades.length;
     api("/api/reviews/trades")
       .then(payload => {
@@ -855,6 +906,7 @@ $("stopBtn").onclick = async () => { await api("/api/bot/stop", {method:"POST"})
 bindChartControls();
 bindDomControls();
 bindEventFilters();
+bindReviewSessions();
 const opportunityButton = $("opportunityRefresh");
 if (opportunityButton) opportunityButton.onclick = loadOpportunityReview;
 refresh();

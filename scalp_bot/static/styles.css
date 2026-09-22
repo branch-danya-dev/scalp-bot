@@ -395,3 +395,18 @@
   .opportunity-summary {grid-template-columns:repeat(2,minmax(0,1fr));}
   .opportunity-columns {grid-template-columns:1fr;}
 }
+
+
+.observatory-session {
+  margin-top:10px;
+}
+.session-select {
+  min-width:260px;
+  max-width:55vw;
+  border:1px solid #dedee3;
+  border-radius:9px;
+  background:#fff;
+  padding:6px 9px;
+  font-size:10px;
+  color:#3a3a3c;
+}
