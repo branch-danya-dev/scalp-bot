@@ -155,3 +155,31 @@ def test_flow_beyond_level_requires_executions_on_broken_side() -> None:
 
     assert above.trade_count == 1
     assert above.buy_notional > 0
+
+
+def test_trade_flow_requires_relative_participation_baseline() -> None:
+    now = 100_000
+    no_baseline = [
+        TradeTick(now - 2_000 + i * 300, 100, 1, "Buy")
+        for i in range(5)
+    ]
+    cold = compute_trade_flow(no_baseline, now)
+    assert cold["baselineReady"] is False
+    assert cold["participationConfirmed"] is False
+
+    rows = [
+        TradeTick(now - 18_000 + i * 2_000, 100, 1, "Sell")
+        for i in range(6)
+    ]
+    rows += [
+        TradeTick(now - 4_000 + i * 500, 100, 2, "Buy")
+        for i in range(8)
+    ]
+    active = compute_trade_flow(rows, now)
+    assert active["baselineReady"] is True
+    assert active["participationConfirmed"] is True
+    assert (
+        active["tradeRateRatio"] >= 1
+        or active["tradeSizeRatio"] >= 1
+        or active["acceleration"] >= 1
+    )

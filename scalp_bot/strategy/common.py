@@ -242,6 +242,11 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
             "notionalPerSecond5s": 0.0,
             "acceleration": 0.0,
             "tradeCount5s": 0,
+            "previousTradeCount15s": 0,
+            "tradeRateRatio": 0.0,
+            "tradeSizeRatio": 0.0,
+            "baselineReady": False,
+            "participationConfirmed": False,
             "latestTradeAgeMs": None,
             "cvd5s": 0.0,
             "cvd15s": 0.0,
@@ -269,7 +274,39 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
     previous_total = sum(t.notional for t in previous)
     recent_rate = recent_total / 5
     previous_rate = previous_total / 15
-    acceleration = recent_rate / previous_rate if previous_rate > 0 else (1.0 if recent_total > 0 else 0.0)
+    recent_count_rate = len(recent) / 5
+    previous_count_rate = len(previous) / 15
+    recent_average = recent_total / len(recent) if recent else 0.0
+    previous_average = (
+        previous_total / len(previous)
+        if previous
+        else 0.0
+    )
+    acceleration = (
+        recent_rate / previous_rate
+        if previous_rate > 0
+        else 0.0
+    )
+    trade_rate_ratio = (
+        recent_count_rate / previous_count_rate
+        if previous_count_rate > 0
+        else 0.0
+    )
+    trade_size_ratio = (
+        recent_average / previous_average
+        if previous_average > 0
+        else 0.0
+    )
+    baseline_ready = len(previous) >= 3 and previous_total > 0
+    participation_confirmed = (
+        baseline_ready
+        and len(recent) >= 3
+        and max(
+            acceleration,
+            trade_rate_ratio,
+            trade_size_ratio,
+        ) >= 1.0
+    )
 
     from .flow import cumulative_delta
 
@@ -281,6 +318,11 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
         "notionalPerSecond5s": recent_rate,
         "acceleration": acceleration,
         "tradeCount5s": len(recent),
+        "previousTradeCount15s": len(previous),
+        "tradeRateRatio": trade_rate_ratio,
+        "tradeSizeRatio": trade_size_ratio,
+        "baselineReady": baseline_ready,
+        "participationConfirmed": participation_confirmed,
         "latestTradeAgeMs": latest_age_ms,
         "cvd5s": cumulative_delta(trades, 5, now_ms),
         "cvd15s": cumulative_delta(trades, 15, now_ms),
