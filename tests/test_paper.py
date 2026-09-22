@@ -732,12 +732,15 @@ def test_pending_maker_entry_ignores_trade_from_before_order() -> None:
     p.entry_mode = "maker_limit"
     p.market_entry = 99.99
     p.expected_net_loss = 10
-    pending = broker.place_pending(p)
+    pending = broker.place_pending(
+        p,
+        min_trade_ts_ms=1_000,
+    )
     through = 99.99 * (1 - cfg.maker_fill_confirmation_bps / 10_000)
     events = broker.mark_pending(
         "STALEUSDT",
         through,
-        trade_ts=pending.created_at - 1,
+        trade_ts_ms=1_000,
     )
     assert events == []
     assert "STALEUSDT" in broker.pending_entries
