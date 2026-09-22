@@ -599,3 +599,53 @@ def test_breakout_does_not_accept_flow_that_only_traded_inside_level() -> None:
 
     assert decision.action == Action.WAIT
     assert decision.details["acceptanceFlow"]["tradeCount"] == 0
+
+
+def test_wick_only_sweep_does_not_confirm_uptrend(monkeypatch) -> None:
+    import scalp_bot.strategy.common as common
+
+    rows = [
+        candle(i, 100, 100.2, 99.8, 100.0)
+        for i in range(40)
+    ]
+    monkeypatch.setattr(
+        common,
+        "swing_lows",
+        lambda _: [(10, 99.0), (30, 99.5)],
+    )
+    monkeypatch.setattr(
+        common,
+        "swing_highs",
+        lambda _: [(15, 101.0), (35, 101.5)],
+    )
+    rows[35] = candle(35, 100.8, 101.5, 100.5, 100.95)
+
+    assert common.classify_trend(rows) == Trend.FLAT
+
+    rows[36] = candle(36, 100.95, 101.3, 100.8, 101.1)
+    assert common.classify_trend(rows) == Trend.UP
+
+
+def test_wick_only_sweep_does_not_confirm_downtrend(monkeypatch) -> None:
+    import scalp_bot.strategy.common as common
+
+    rows = [
+        candle(i, 100, 100.2, 99.8, 100.0)
+        for i in range(40)
+    ]
+    monkeypatch.setattr(
+        common,
+        "swing_lows",
+        lambda _: [(10, 99.0), (30, 98.5)],
+    )
+    monkeypatch.setattr(
+        common,
+        "swing_highs",
+        lambda _: [(15, 101.0), (35, 100.5)],
+    )
+    rows[30] = candle(30, 99.1, 99.3, 98.5, 99.05)
+
+    assert common.classify_trend(rows) == Trend.FLAT
+
+    rows[31] = candle(31, 99.0, 99.1, 98.7, 98.9)
+    assert common.classify_trend(rows) == Trend.DOWN

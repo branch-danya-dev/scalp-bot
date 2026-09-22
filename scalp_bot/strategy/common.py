@@ -86,9 +86,34 @@ def classify_trend(candles: list[Candle]) -> Trend:
     highs = swing_highs(window)
     if len(lows) < 2 or len(highs) < 2:
         return Trend.FLAT
-    if lows[-1][1] > lows[-2][1] and highs[-1][1] > highs[-2][1]:
+
+    previous_low, latest_low = lows[-2], lows[-1]
+    previous_high, latest_high = highs[-2], highs[-1]
+
+    higher_structure = (
+        latest_low[1] > previous_low[1]
+        and latest_high[1] > previous_high[1]
+    )
+    lower_structure = (
+        latest_low[1] < previous_low[1]
+        and latest_high[1] < previous_high[1]
+    )
+
+    # A wick through the previous swing can be a liquidity sweep rather than
+    # trend continuation. Require at least one closed candle to accept price
+    # beyond the prior structural extreme.
+    bullish_acceptance = any(
+        candle.close > previous_high[1]
+        for candle in window[previous_high[0] + 1 :]
+    )
+    bearish_acceptance = any(
+        candle.close < previous_low[1]
+        for candle in window[previous_low[0] + 1 :]
+    )
+
+    if higher_structure and bullish_acceptance:
         return Trend.UP
-    if lows[-1][1] < lows[-2][1] and highs[-1][1] < highs[-2][1]:
+    if lower_structure and bearish_acceptance:
         return Trend.DOWN
     return Trend.FLAT
 
