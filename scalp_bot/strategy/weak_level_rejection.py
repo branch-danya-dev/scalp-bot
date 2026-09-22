@@ -136,7 +136,7 @@ class WeakLevelRejectionStrategy(Strategy):
         level_tolerance = max(
             zone.width_pct * 1.5,
             book.spread_pct * 2.0,
-            0.0008,
+            0.0015,
         )
         level_flow = flow_at_level(
             trades,
@@ -248,6 +248,7 @@ class WeakLevelRejectionStrategy(Strategy):
                     "state": state.stage.value,
                     "zone": zone.public(),
                     "flow": flow,
+                    "levelFlow": level_flow.public(),
                     "roundLevel": round_level,
                     "weakLevel": True,
                 },
