@@ -62,7 +62,7 @@ def aggressive_buy_flow() -> list[TradeTick]:
 def far_buy_flow() -> list[TradeTick]:
     start = 30_000_000
     rows = [
-        TradeTick(start - 15_000 + i * 1_500, 100.00, 1, "Sell")
+        TradeTick(start - 15_000 + i * 1_500, 98.00, 1, "Sell")
         for i in range(7)
     ]
     rows += [
