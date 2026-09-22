@@ -34,3 +34,25 @@ def test_activity_score_rewards_large_move_and_recent_burst() -> None:
         correlation_1h_btc=-0.37,
     )
     assert activity_score(hot, 5) > activity_score(quiet, 5)
+
+
+def test_activity_score_prefers_local_relative_turnover_burst() -> None:
+    normal = Candidate(
+        "NORMALUSDT",
+        turnover_24h=500_000_000,
+        change_24h=0.03,
+        last_price=1,
+        activity_change=0.005,
+        activity_turnover=2_000_000,
+        activity_burst_ratio=1.0,
+    )
+    burst = Candidate(
+        "BURSTUSDT",
+        turnover_24h=500_000_000,
+        change_24h=0.03,
+        last_price=1,
+        activity_change=0.005,
+        activity_turnover=2_000_000,
+        activity_burst_ratio=3.0,
+    )
+    assert activity_score(burst, 5) > activity_score(normal, 5)
