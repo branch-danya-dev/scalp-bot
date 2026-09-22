@@ -170,6 +170,15 @@ class RiskEngine:
             "netReturnOnEquity": (
                 expected_net / balance if balance > 0 else 0.0
             ),
+            "netRewardRisk": net_rr,
+            "requiredNetRewardRisk": self.config.min_net_reward_risk,
+            "payoffGateEnabled": (
+                self.config.enforce_net_reward_risk_gate
+            ),
+            "payoffMarginUsd": (
+                expected_net
+                - expected_net_loss * self.config.min_net_reward_risk
+            ),
             "requiredNetProfitUsd": required_net_profit,
             "requiredNetProfitEquityFraction": (
                 self.config.min_net_profit_equity_fraction
