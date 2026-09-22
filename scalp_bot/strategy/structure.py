@@ -56,7 +56,11 @@ class StructuralLevel:
 
     def as_zone(self) -> LevelZone:
         return LevelZone(
-            kind="support" if "support" in self.kind or self.kind == "day_low" else "resistance",
+            kind=(
+                "support"
+                if "support" in self.kind or self.kind.endswith("_low")
+                else "resistance"
+            ),
             low=self.low,
             high=self.high,
             touches=self.touches,
