@@ -194,6 +194,7 @@ class LevelBreakoutStrategy(Strategy):
         symbol: str = "",
         trades: list[TradeTick] | None = None,
         structure: "MarketStructure | None" = None,
+        observed_at_ms: int | None = None,
     ) -> StrategyDecision:
         if len(candles) < 60 or trend == Trend.FLAT or not symbol:
             if symbol:
@@ -396,7 +397,11 @@ class LevelBreakoutStrategy(Strategy):
                 },
             )
 
-        market_now = trades[-1].ts_ms / 1000
+        market_now = (
+            observed_at_ms / 1000
+            if observed_at_ms is not None
+            else trades[-1].ts_ms / 1000
+        )
         if state.break_started_at <= 0:
             state.break_started_at = market_now
         held_seconds = max(
