@@ -279,7 +279,19 @@ async def test_duration_timer_auto_stops_and_finalizes_position(tmp_path) -> Non
             orderbook=book(),
             last_price=100,
         )
+        session.last_market_at = time()
+        session.last_book_at = time()
+        session.book_synced = True
         engine.sessions["AAAUSDT"] = session
+        engine.candidates = [
+            Candidate(
+                "AAAUSDT",
+                200_000_000,
+                0,
+                100,
+                activity_rank=1,
+            )
+        ]
         engine.broker.open(plan("AAAUSDT"), book())
 
         engine.set_running(True)
@@ -877,8 +889,6 @@ def test_market_health_requires_fresh_book_and_live_session(tmp_path) -> None:
 
         assert health["ready"] is True
         assert health["liveSymbolCount"] == 1
-        engine.set_running(True)
-        assert engine.running is True
-        engine.set_running(False)
+        assert engine.start_block_reason() is None
     finally:
         close_rest(engine)
