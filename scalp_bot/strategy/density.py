@@ -58,6 +58,8 @@ class DensityBounceStrategy(Strategy):
 
     strength_multiple = 4.0
     min_wall_notional_usd = 25_000.0
+    turnover_floor_fraction = 0.01
+    neighbor_window_levels = 20
     max_distance_pct = 0.05
     approach_pct = 0.0022
     approach_reset_pct = 0.0035
@@ -128,18 +130,55 @@ class DensityBounceStrategy(Strategy):
     def _same_price(left: float, right: float) -> bool:
         return abs(left - right) / max(abs(left), abs(right), 1e-12) <= 1e-9
 
-    def _current_wall_notional(
+    def _local_baseline(
+        self,
+        rows: list[tuple[float, float, float]],
+        index: int,
+    ) -> float:
+        radius = max(1, int(self.neighbor_window_levels))
+        start = max(0, index - radius)
+        end = min(len(rows), index + radius + 1)
+        values = [
+            rows[i][2]
+            for i in range(start, end)
+            if i != index and rows[i][2] > 0
+        ]
+        if not values:
+            values = [
+                row[2]
+                for i, row in enumerate(rows)
+                if i != index and row[2] > 0
+            ]
+        return median(values) if values else 0.0
+
+    def _current_wall_metrics(
         self,
         state: DensityWallState,
         bids: list[tuple[float, float, float]],
         asks: list[tuple[float, float, float]],
-    ) -> float | None:
+        absolute_wall_floor: float,
+    ) -> tuple[float, float, float, float] | None:
         if state.side is None or state.price is None:
             return None
         rows = bids if state.side == "bid" else asks
-        for price, _qty, notional in rows:
-            if self._same_price(price, state.price):
-                return notional
+        for index, (price, _qty, notional) in enumerate(rows):
+            if not self._same_price(price, state.price):
+                continue
+            local_baseline = self._local_baseline(rows, index)
+            if local_baseline <= 0:
+                return None
+            relative_required = local_baseline * self.strength_multiple
+            effective_required = max(
+                absolute_wall_floor,
+                relative_required,
+            )
+            strength = notional / local_baseline
+            return (
+                notional,
+                local_baseline,
+                effective_required,
+                strength,
+            )
         return None
 
     def _select_wall(
@@ -149,23 +188,62 @@ class DensityBounceStrategy(Strategy):
         asks: list[tuple[float, float, float]],
         baseline: float,
         absolute_wall_floor: float,
-    ) -> tuple[str, float, float, float] | None:
+    ) -> tuple[str, float, float, float, float, float] | None:
         mid = book.mid
         if not mid or baseline <= 0:
             return None
-        candidates: list[tuple[str, float, float, float, float]] = []
+        candidates: list[
+            tuple[str, float, float, float, float, float, float]
+        ] = []
         for side, rows in (("bid", bids), ("ask", asks)):
-            for price, _qty, notional in rows:
-                strength = notional / baseline
-                if strength < self.strength_multiple or notional < absolute_wall_floor:
+            for index, (price, _qty, notional) in enumerate(rows):
+                local_baseline = self._local_baseline(rows, index)
+                if local_baseline <= 0:
                     continue
-                distance = (mid - price) / mid if side == "bid" else (price - mid) / mid
+                relative_required = local_baseline * self.strength_multiple
+                effective_required = max(
+                    absolute_wall_floor,
+                    relative_required,
+                )
+                strength = notional / local_baseline
+                if notional < effective_required:
+                    continue
+                distance = (
+                    (mid - price) / mid
+                    if side == "bid"
+                    else (price - mid) / mid
+                )
                 if 0 <= distance <= self.max_distance_pct:
-                    candidates.append((side, price, notional, strength, distance))
+                    candidates.append(
+                        (
+                            side,
+                            price,
+                            notional,
+                            strength,
+                            distance,
+                            local_baseline,
+                            effective_required,
+                        )
+                    )
         if not candidates:
             return None
-        side, price, notional, strength, _ = min(candidates, key=lambda row: (row[4], -row[3]))
-        return side, price, notional, strength
+        (
+            side,
+            price,
+            notional,
+            strength,
+            _distance,
+            local_baseline,
+            effective_required,
+        ) = min(candidates, key=lambda row: (row[4], -row[3]))
+        return (
+            side,
+            price,
+            notional,
+            strength,
+            local_baseline,
+            effective_required,
+        )
 
     @staticmethod
     def _wall_attack_notional(
@@ -316,10 +394,14 @@ class DensityBounceStrategy(Strategy):
             return StrategyDecision(self.key, Action.WAIT, ["Стакан пуст"])
 
         recent_turnovers = [c.turnover for c in candles[-20:] if c.turnover > 0]
-        turnover_floor = (
-            sorted(recent_turnovers)[len(recent_turnovers) // 2] * 0.01
+        typical_minute_turnover = (
+            median(recent_turnovers)
             if recent_turnovers
             else 0.0
+        )
+        turnover_floor = (
+            typical_minute_turnover
+            * max(0.0, self.turnover_floor_fraction)
         )
         absolute_wall_floor = max(
             self.min_wall_notional_usd,
@@ -337,9 +419,16 @@ class DensityBounceStrategy(Strategy):
 
         wall_present = True
         strength = 0.0
+        local_baseline = 0.0
+        effective_required = absolute_wall_floor
         if state.side is not None and state.price is not None:
-            current = self._current_wall_notional(state, bids, asks)
-            if current is None:
+            metrics = self._current_wall_metrics(
+                state,
+                bids,
+                asks,
+                absolute_wall_floor,
+            )
+            if metrics is None:
                 if not self._wall_is_observable(state, book):
                     return self._wait(
                         state,
@@ -365,9 +454,14 @@ class DensityBounceStrategy(Strategy):
                     )
                 state.current_notional = 0.0
             else:
+                (
+                    current,
+                    local_baseline,
+                    effective_required,
+                    strength,
+                ) = metrics
                 state.current_notional = current
                 state.peak_notional = max(state.peak_notional, current)
-                strength = current / baseline
                 self._record_observation(state, now, current)
         else:
             selected = self._select_wall(
@@ -394,7 +488,14 @@ class DensityBounceStrategy(Strategy):
                         "coverageIncomplete": not coverage["coverageComplete"],
                     },
                 )
-            side, price, notional, strength = selected
+            (
+                side,
+                price,
+                notional,
+                strength,
+                local_baseline,
+                effective_required,
+            ) = selected
             state = DensityWallState(
                 side=side,
                 price=price,
@@ -424,6 +525,10 @@ class DensityBounceStrategy(Strategy):
         absorption = (
             attack_ratio >= 0.05 and remaining_ratio >= 0.80
         ) or level_flow.absorption_efficiency >= 0.35
+        lost_significance = (
+            state.current_notional > 0
+            and state.current_notional < effective_required
+        )
         consuming = (
             remaining_ratio < self.min_remaining_ratio
             or depletion_rate > self.max_depletion_per_second
@@ -471,6 +576,15 @@ class DensityBounceStrategy(Strategy):
             "erosionSeconds": erosion_seconds,
             "roundConfluence": round_confluence,
             "notionalUsd": state.current_notional,
+            "configuredMinWallUsd": self.min_wall_notional_usd,
+            "typicalMinuteTurnoverUsd": typical_minute_turnover,
+            "turnoverFloorFraction": self.turnover_floor_fraction,
+            "turnoverFloorUsd": turnover_floor,
+            "localBaselineNotionalUsd": local_baseline,
+            "relativeRequiredNotionalUsd": (
+                local_baseline * self.strength_multiple
+            ),
+            "effectiveWallFloorUsd": effective_required,
             "absoluteWallFloorUsd": absolute_wall_floor,
             "bookCoverage": coverage,
             "coverageIncomplete": not coverage["coverageComplete"],
@@ -484,6 +598,24 @@ class DensityBounceStrategy(Strategy):
                 "После подтверждённого отбоя wall снята; управляем позицией по цене и потоку",
                 confidence=0.55,
                 details=shared,
+            )
+
+        if state.defended_at <= 0 and lost_significance:
+            state.stage = DensityStage.EXHAUSTED
+            state.exhausted_until = now + self.exhausted_cooldown_seconds
+            return self._wait(
+                state,
+                "Плотность перестала быть значимой относительно локального стакана/активности",
+                details={
+                    "bookCoverage": coverage,
+                    "localBaselineNotionalUsd": local_baseline,
+                    "effectiveWallFloorUsd": effective_required,
+                    "absoluteWallFloorUsd": absolute_wall_floor,
+                    "turnoverFloorUsd": turnover_floor,
+                    "configuredMinWallUsd": self.min_wall_notional_usd,
+                    "strengthMultiple": strength,
+                    "reason": "wall_lost_significance",
+                },
             )
 
         if state.defended_at <= 0 and consuming:
