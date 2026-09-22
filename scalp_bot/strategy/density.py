@@ -8,7 +8,7 @@ from statistics import median
 from time import monotonic
 from typing import Literal
 
-from ..domain import Action, Candle, OrderBook, StrategyDecision, TradeTick, Trend
+from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .base import Strategy
 
 if TYPE_CHECKING:
@@ -21,6 +21,7 @@ from .common import (
     trade_mode,
     typical_range_abs,
 )
+from .flow import flow_at_level
 from .liquidity import find_liquidity_target
 
 
@@ -77,8 +78,8 @@ class DensityBounceStrategy(Strategy):
 
     @staticmethod
     def _rows(book: OrderBook) -> tuple[list[tuple[float, float, float]], list[tuple[float, float, float]], float]:
-        bids = [(p, q, p * q) for p, q in book.bids[:25]]
-        asks = [(p, q, p * q) for p, q in book.asks[:25]]
+        bids = [(p, q, p * q) for p, q in book.bids[:200]]
+        asks = [(p, q, p * q) for p, q in book.asks[:200]]
         notionals = [row[2] for row in bids + asks]
         return bids, asks, median(notionals) if notionals else 0.0
 
@@ -106,6 +107,7 @@ class DensityBounceStrategy(Strategy):
         bids: list[tuple[float, float, float]],
         asks: list[tuple[float, float, float]],
         baseline: float,
+        absolute_wall_floor: float,
     ) -> tuple[str, float, float, float] | None:
         mid = book.mid
         if not mid or baseline <= 0:
@@ -114,7 +116,7 @@ class DensityBounceStrategy(Strategy):
         for side, rows in (("bid", bids), ("ask", asks)):
             for price, _qty, notional in rows:
                 strength = notional / baseline
-                if strength < self.strength_multiple:
+                if strength < self.strength_multiple or notional < absolute_wall_floor:
                     continue
                 distance = (mid - price) / mid if side == "bid" else (price - mid) / mid
                 if 0 <= distance <= self.max_distance_pct:
@@ -210,6 +212,23 @@ class DensityBounceStrategy(Strategy):
             details=payload,
         )
 
+    def manage_position(
+        self,
+        *,
+        side: Side,
+        unrealized_pnl: float,
+        opened_at: float,
+        strategy_details: dict,
+        decision: StrategyDecision | None,
+        trend: Trend,
+        last_price: float,
+    ) -> str | None:
+        if unrealized_pnl >= 0 or decision is None:
+            return None
+        if bool(decision.details.get("positionInvalidated")):
+            return "density_price_flow_invalidated"
+        return None
+
     def evaluate(
         self,
         candles: list[Candle],
@@ -238,6 +257,14 @@ class DensityBounceStrategy(Strategy):
         bids, asks, baseline = self._rows(book)
         if baseline <= 0:
             return StrategyDecision(self.key, Action.WAIT, ["Стакан пуст"])
+
+        recent_turnovers = [c.turnover for c in candles[-20:] if c.turnover > 0]
+        turnover_floor = (
+            sorted(recent_turnovers)[len(recent_turnovers) // 2] * 0.01
+            if recent_turnovers
+            else 0.0
+        )
+        absolute_wall_floor = max(25_000.0, turnover_floor)
 
         now = monotonic()
         state = self._states.setdefault(symbol, DensityWallState())
@@ -269,7 +296,13 @@ class DensityBounceStrategy(Strategy):
                 strength = current / baseline
                 self._record_observation(state, now, current)
         else:
-            selected = self._select_wall(book, bids, asks, baseline)
+            selected = self._select_wall(
+                book,
+                bids,
+                asks,
+                baseline,
+                absolute_wall_floor,
+            )
             if selected is None:
                 return StrategyDecision(
                     self.key,
@@ -291,6 +324,12 @@ class DensityBounceStrategy(Strategy):
 
         wall_price = float(state.price)
         flow = compute_trade_flow(trades)
+        level_flow = flow_at_level(
+            trades,
+            wall_price,
+            tolerance_pct=max(self.touch_pct * 2, 0.0006),
+            seconds=15,
+        )
         remaining_ratio = (
             state.current_notional / state.peak_notional if state.peak_notional > 0 else 0.0
         )
@@ -298,7 +337,9 @@ class DensityBounceStrategy(Strategy):
         attack_ratio = attack_notional / state.peak_notional if state.peak_notional > 0 else 0.0
         depletion_rate = self._depletion_per_second(state)
         replenishment_ratio = self._replenishment_ratio(state)
-        absorption = attack_ratio >= 0.05 and remaining_ratio >= 0.80
+        absorption = (
+            attack_ratio >= 0.05 and remaining_ratio >= 0.80
+        ) or level_flow.absorption_efficiency >= 0.35
         consuming = (
             remaining_ratio < self.min_remaining_ratio
             or depletion_rate > self.max_depletion_per_second
@@ -346,6 +387,8 @@ class DensityBounceStrategy(Strategy):
             "erosionSeconds": erosion_seconds,
             "roundConfluence": round_confluence,
             "notionalUsd": state.current_notional,
+            "absoluteWallFloorUsd": absolute_wall_floor,
+            "levelFlow": level_flow.public(),
         }
 
         if state.defended_at > 0 and not wall_present:
