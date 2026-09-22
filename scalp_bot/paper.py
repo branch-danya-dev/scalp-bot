@@ -87,12 +87,35 @@ class Position:
         return data
 
 
+@dataclass(slots=True)
+class PendingEntry:
+    plan: TradePlan
+    limit_price: float
+    created_at: float
+    expires_at: float
+
+    def public(self) -> dict:
+        return {
+            "symbol": self.plan.symbol,
+            "strategy": self.plan.strategy,
+            "side": self.plan.side.value,
+            "setupId": self.plan.setup_id,
+            "limitPrice": self.limit_price,
+            "notional": self.plan.notional,
+            "expectedNetLoss": self.plan.expected_net_loss,
+            "createdAt": self.created_at,
+            "expiresAt": self.expires_at,
+            "entryMode": self.plan.entry_mode,
+        }
+
+
 class PaperBroker:
     def __init__(self, config: Settings) -> None:
         self.config = config
         self.balance = config.start_balance
         self.start_balance = config.start_balance
         self.positions: dict[str, Position] = {}
+        self.pending_entries: dict[str, PendingEntry] = {}
         self.closed_trades: list[dict] = []
         self.total_closed_trades: int = 0
 
@@ -126,19 +149,29 @@ class PaperBroker:
         )
 
     @property
+    def pending_exposure_usd(self) -> float:
+        return sum(x.plan.notional for x in self.pending_entries.values())
+
+    @property
+    def pending_risk_usd(self) -> float:
+        return sum(x.plan.expected_net_loss for x in self.pending_entries.values())
+
+    @property
     def available_notional(self) -> float:
         cap = self.balance * self.config.max_leverage
-        return max(0.0, cap - self.total_exposure)
+        return max(0.0, cap - self.total_exposure - self.pending_exposure_usd)
 
     @property
     def available_risk_usd(self) -> float:
         cap = self.balance * self.config.max_total_risk_fraction
-        return max(0.0, cap - self.open_risk_usd)
+        return max(0.0, cap - self.open_risk_usd - self.pending_risk_usd)
 
     def can_open(self, symbol: str) -> tuple[bool, str]:
         if symbol in self.positions:
             return False, "symbol already has an open position"
-        if len(self.positions) >= self.config.max_open_positions:
+        if symbol in self.pending_entries:
+            return False, "symbol already has a pending entry"
+        if len(self.positions) + len(self.pending_entries) >= self.config.max_open_positions:
             return False, "maximum open positions reached"
         if (
             self.config.enforce_session_loss_limit
@@ -152,7 +185,133 @@ class PaperBroker:
             return False, "portfolio risk budget exhausted"
         return True, "allowed"
 
+    def _position_from_fill(
+        self,
+        plan: TradePlan,
+        fill: float,
+        entry_fee: float,
+    ) -> Position:
+        position = Position(
+            symbol=plan.symbol,
+            strategy=plan.strategy,
+            side=plan.side,
+            original_notional=plan.notional,
+            notional=plan.notional,
+            setup_entry=plan.setup_entry,
+            entry=fill,
+            initial_stop=plan.stop,
+            stop=plan.stop,
+            target=plan.target,
+            opened_at=time(),
+            entry_fee_remaining=entry_fee,
+            last_price=fill,
+            setup_id=plan.setup_id,
+            strategy_details=dict(plan.strategy_details),
+        )
+        self.positions[plan.symbol] = position
+        return position
+
+    def place_pending(self, plan: TradePlan) -> PendingEntry:
+        if plan.entry_mode != "maker_limit":
+            raise RuntimeError("pending entry requires maker_limit plan")
+        allowed, reason = self.can_open(plan.symbol)
+        if not allowed:
+            raise RuntimeError(reason)
+        if plan.notional > self.available_notional + 1e-9:
+            raise RuntimeError("plan exceeds remaining portfolio exposure budget")
+        if plan.expected_net_loss > self.available_risk_usd + 1e-9:
+            raise RuntimeError("plan exceeds remaining all-in portfolio risk budget")
+        now = time()
+        pending = PendingEntry(
+            plan=plan,
+            limit_price=plan.market_entry,
+            created_at=now,
+            expires_at=now + max(0.1, self.config.passive_entry_timeout_seconds),
+        )
+        self.pending_entries[plan.symbol] = pending
+        return pending
+
+    def mark_pending(self, symbol: str, last_trade_price: float) -> list[dict]:
+        pending = self.pending_entries.get(symbol)
+        if pending is None:
+            return []
+        now = time()
+        if now >= pending.expires_at:
+            del self.pending_entries[symbol]
+            return [{
+                "event": "entry_cancelled",
+                "symbol": symbol,
+                "strategy": pending.plan.strategy,
+                "setupId": pending.plan.setup_id,
+                "reason": "passive_entry_timeout",
+                "limitPrice": pending.limit_price,
+            }]
+        confirm = max(0.0, self.config.maker_fill_confirmation_bps) / 10_000
+        if pending.plan.side == Side.LONG:
+            filled = last_trade_price <= pending.limit_price * (1 - confirm)
+        else:
+            filled = last_trade_price >= pending.limit_price * (1 + confirm)
+        if not filled:
+            return []
+        del self.pending_entries[symbol]
+        allowed, reason = self.can_open(symbol)
+        if not allowed:
+            return [{
+                "event": "entry_cancelled",
+                "symbol": symbol,
+                "strategy": pending.plan.strategy,
+                "setupId": pending.plan.setup_id,
+                "reason": f"passive_fill_blocked: {reason}",
+                "limitPrice": pending.limit_price,
+            }]
+        if pending.plan.notional > self.available_notional + 1e-9:
+            return [{
+                "event": "entry_cancelled",
+                "symbol": symbol,
+                "strategy": pending.plan.strategy,
+                "setupId": pending.plan.setup_id,
+                "reason": "passive_fill_exposure_budget",
+                "limitPrice": pending.limit_price,
+            }]
+        if pending.plan.expected_net_loss > self.available_risk_usd + 1e-9:
+            return [{
+                "event": "entry_cancelled",
+                "symbol": symbol,
+                "strategy": pending.plan.strategy,
+                "setupId": pending.plan.setup_id,
+                "reason": "passive_fill_risk_budget",
+                "limitPrice": pending.limit_price,
+            }]
+        fee = pending.plan.notional * fee_rate(self.config, "maker_limit")
+        position = self._position_from_fill(
+            pending.plan, pending.limit_price, fee
+        )
+        return [{
+            "event": "entry_filled",
+            "symbol": symbol,
+            "strategy": pending.plan.strategy,
+            "setupId": pending.plan.setup_id,
+            "plan": pending.plan.public(),
+            "position": position.public(),
+            "limitPrice": pending.limit_price,
+            "fillModel": "trade_through",
+        }]
+
+    def cancel_all_pending(self, reason: str) -> list[dict]:
+        events = [{
+            "event": "entry_cancelled",
+            "symbol": symbol,
+            "strategy": pending.plan.strategy,
+            "setupId": pending.plan.setup_id,
+            "reason": reason,
+            "limitPrice": pending.limit_price,
+        } for symbol, pending in self.pending_entries.items()]
+        self.pending_entries.clear()
+        return events
+
     def open(self, plan: TradePlan, book: OrderBook) -> Position:
+        if plan.entry_mode == "maker_limit":
+            raise RuntimeError("maker_limit plan must be placed as pending entry")
         allowed, reason = self.can_open(plan.symbol)
         if not allowed:
             raise RuntimeError(reason)
@@ -181,25 +340,7 @@ class PaperBroker:
             self.config,
             profile.entry,
         )
-        position = Position(
-            symbol=plan.symbol,
-            strategy=plan.strategy,
-            side=plan.side,
-            original_notional=plan.notional,
-            notional=plan.notional,
-            setup_entry=plan.setup_entry,
-            entry=fill,
-            initial_stop=plan.stop,
-            stop=plan.stop,
-            target=plan.target,
-            opened_at=time(),
-            entry_fee_remaining=fee,
-            last_price=fill,
-            setup_id=plan.setup_id,
-            strategy_details=dict(plan.strategy_details),
-        )
-        self.positions[plan.symbol] = position
-        return position
+        return self._position_from_fill(plan, fill, fee)
 
     def mark(self, symbol: str, last_price: float, book: OrderBook) -> list[dict]:
         pos = self.positions.get(symbol)

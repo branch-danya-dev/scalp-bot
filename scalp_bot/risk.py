@@ -4,7 +4,12 @@ from dataclasses import dataclass
 
 from .config import Settings
 from .domain import OrderBook, Side, StrategyDecision, TradePlan
-from .execution import execution_profile, fee_rate, slippage_rate
+from .execution import (
+    execution_profile,
+    fee_rate,
+    preferred_entry_mode,
+    slippage_rate,
+)
 from .strategy_policy import partial_take_fraction
 
 
@@ -38,7 +43,19 @@ class RiskEngine:
 
         side = decision.side
         setup_entry = float(decision.entry)
-        market_entry = float(book.executable_entry(side) or 0)
+        execution = execution_profile(decision.strategy)
+        entry_mode = preferred_entry_mode(
+            self.config,
+            decision.strategy,
+        )
+        if entry_mode == "maker_limit":
+            market_entry = float(
+                min(setup_entry, book.best_bid)
+                if side == Side.LONG
+                else max(setup_entry, book.best_ask)
+            )
+        else:
+            market_entry = float(book.executable_entry(side) or 0)
         stop = float(decision.stop)
         target = float(decision.target)
         if market_entry <= 0:
@@ -77,8 +94,7 @@ class RiskEngine:
         if available_risk_usd <= 0:
             return RiskResult(False, "portfolio risk budget exhausted")
 
-        execution = execution_profile(decision.strategy)
-        entry_fee_rate = fee_rate(self.config, execution.entry)
+        entry_fee_rate = fee_rate(self.config, entry_mode)
         target_exit_fee_rate = fee_rate(
             self.config,
             execution.target_exit,
@@ -93,7 +109,7 @@ class RiskEngine:
         )
         entry_slippage_rate = slippage_rate(
             self.config,
-            execution.entry,
+            entry_mode,
         )
         target_exit_slippage_rate = slippage_rate(
             self.config,
@@ -158,23 +174,26 @@ class RiskEngine:
             return RiskResult(False, "portfolio exposure budget exhausted")
 
         best_entry = market_entry
-        depth_entry, visible_entry_depth = book.entry_vwap(
-            side,
-            notional,
-        )
-        if (
-            depth_entry is None
-            or visible_entry_depth + max(1e-9, notional * 1e-9)
-            < notional
-        ):
-            return RiskResult(
-                False,
-                (
-                    "insufficient visible entry depth: "
-                    f"{visible_entry_depth:.2f} < {notional:.2f} USD"
-                ),
+        if entry_mode == "maker_limit":
+            depth_entry = market_entry
+            visible_entry_depth = notional
+        else:
+            depth_entry, visible_entry_depth = book.entry_vwap(
+                side,
+                notional,
             )
-
+            if (
+                depth_entry is None
+                or visible_entry_depth + max(1e-9, notional * 1e-9)
+                < notional
+            ):
+                return RiskResult(
+                    False,
+                    (
+                        "insufficient visible entry depth: "
+                        f"{visible_entry_depth:.2f} < {notional:.2f} USD"
+                    ),
+                )
         market_entry = depth_entry
         if side == Side.LONG:
             entry_drift = (market_entry - setup_entry) / setup_entry
@@ -224,19 +243,23 @@ class RiskEngine:
         )
         if depth_sized_notional < notional:
             notional = depth_sized_notional
-            depth_entry, visible_entry_depth = book.entry_vwap(
-                side,
-                notional,
-            )
-            if (
-                depth_entry is None
-                or visible_entry_depth + max(1e-9, notional * 1e-9)
-                < notional
-            ):
-                return RiskResult(
-                    False,
-                    "insufficient visible entry depth after risk sizing",
+            if entry_mode == "maker_limit":
+                depth_entry = market_entry
+                visible_entry_depth = notional
+            else:
+                depth_entry, visible_entry_depth = book.entry_vwap(
+                    side,
+                    notional,
                 )
+                if (
+                    depth_entry is None
+                    or visible_entry_depth + max(1e-9, notional * 1e-9)
+                    < notional
+                ):
+                    return RiskResult(
+                        False,
+                        "insufficient visible entry depth after risk sizing",
+                    )
             market_entry = depth_entry
             if side == Side.LONG:
                 entry_drift = (market_entry - setup_entry) / setup_entry
@@ -402,7 +425,12 @@ class RiskEngine:
             "lifecycleCostPct": lifecycle_cost_pct,
             "partialExitFeeRate": partial_exit_fee_rate,
             "partialExitSlippageRate": partial_exit_slippage_rate,
-            "executionProfile": execution.public(),
+            "executionProfile": {
+                **execution.public(),
+                "entry": entry_mode,
+                "baseEntry": execution.entry,
+            },
+            "entryMode": entry_mode,
             "entryFeeRate": entry_fee_rate,
             "targetExitFeeRate": target_exit_fee_rate,
             "stopExitFeeRate": stop_exit_fee_rate,
@@ -542,6 +570,7 @@ class RiskEngine:
             net_reward_risk=net_rr,
             entry_drift_pct=entry_drift,
             setup_id=resolved_setup_id,
+            entry_mode=entry_mode,
             strategy_details=strategy_details,
         )
         return RiskResult(

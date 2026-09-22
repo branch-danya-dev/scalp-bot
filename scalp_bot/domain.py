@@ -222,6 +222,7 @@ class TradePlan:
     net_reward_risk: float
     entry_drift_pct: float
     setup_id: str
+    entry_mode: str = "taker_market"
     strategy_details: dict[str, Any] = field(default_factory=dict)
 
     def public(self) -> dict[str, Any]:

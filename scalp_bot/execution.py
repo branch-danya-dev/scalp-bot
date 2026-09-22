@@ -63,3 +63,13 @@ def slippage_rate(config: Settings, mode: str) -> float:
         if mode == "maker_limit"
         else config.slippage_bps / 10_000
     )
+
+
+def preferred_entry_mode(
+    config: Settings,
+    strategy: str,
+) -> str:
+    profile = execution_profile(strategy)
+    if config.passive_entry_enabled and profile.passive_entry_eligible:
+        return "maker_limit"
+    return profile.entry

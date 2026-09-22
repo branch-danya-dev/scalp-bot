@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     maker_fee_rate: float = 0.00020
     slippage_bps: float = 1.0
     maker_fill_confirmation_bps: float = 0.5
+    passive_entry_enabled: bool = False
+    passive_entry_timeout_seconds: float = 15.0
     max_winner_cost_share: float = 0.35
     enforce_winner_cost_share_gate: bool = False
     max_stop_cost_share: float = 1.0
