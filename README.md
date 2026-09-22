@@ -215,8 +215,8 @@ The paper account starts at $1,000.
 Position sizing is derived from structural invalidation distance:
 
 ```
-risk budget per trade = 0.5% of equity
-theoretical notional = risk budget / stop distance
+all-in risk budget per trade = 0.5% of equity
+theoretical notional = risk budget / (stop distance + round-trip fees/slippage)
 ```
 
 The result is then capped by:
@@ -230,9 +230,9 @@ max aggregate all-in open risk = 2% equity
 Example at $1,000 equity:
 
 ```
-0.10% structural stop -> up to ~$5,000 notional
-0.20% structural stop -> up to ~$2,500 notional
-0.50% structural stop -> up to ~$1,000 notional
+0.10% structural stop -> size is reduced materially because costs are part of the 0.5% loss budget
+0.20% structural stop -> size is reduced by the same all-in rule
+0.50% structural stop -> size approaches the structural-risk result as costs become a smaller share
 ```
 
 The economic gate requires:

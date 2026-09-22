@@ -350,14 +350,17 @@ def test_trade_passes_when_net_target_exceeds_all_in_loss_by_required_ratio() ->
 
     assert result.allowed
     assert result.plan is not None
-    assert result.plan.notional == pytest.approx(5000)
-    assert result.plan.expected_net_profit == pytest.approx(13.5)
-    assert result.plan.expected_net_loss == pytest.approx(11.5)
+    assert result.plan.notional == pytest.approx(5000 / 2.3)
+    assert result.plan.expected_net_profit == pytest.approx(5.8695652174)
+    assert result.plan.expected_net_loss == pytest.approx(5.0)
     assert result.plan.net_reward_risk >= 1.15
     economics = result.plan.strategy_details["economics"]
     assert economics["payoffGateEnabled"] is True
     assert economics["requiredNetRewardRisk"] == pytest.approx(1.15)
-    assert economics["allInNetLossUsd"] == pytest.approx(11.5)
+    assert economics["allInNetLossUsd"] == pytest.approx(5.0)
+    assert economics["plannedAllInLossUsd"] == pytest.approx(5.0)
+    assert economics["riskSizingBasis"] == "all_in_stop_plus_costs"
+    assert economics["notionalByStructuralRiskUsd"] == pytest.approx(5000)
     assert economics["netRewardRiskRatio"] == pytest.approx(
         result.plan.net_reward_risk
     )
@@ -377,8 +380,8 @@ def test_exact_net_reward_risk_boundary_is_accepted() -> None:
 
     assert result.allowed
     assert result.plan is not None
-    assert result.plan.expected_net_loss == pytest.approx(11.5)
-    assert result.plan.expected_net_profit == pytest.approx(13.225)
+    assert result.plan.expected_net_loss == pytest.approx(5.0)
+    assert result.plan.expected_net_profit == pytest.approx(5.75)
     assert result.plan.expected_net_profit == pytest.approx(
         result.plan.expected_net_loss * 1.15
     )
@@ -462,6 +465,29 @@ def test_executable_spread_is_not_subtracted_twice() -> None:
     assert economics["entrySpreadPct"] == pytest.approx(0.0010005, rel=1e-3)
     assert economics["spreadCostDoubleCounted"] is False
 
+
+
+def test_per_trade_risk_fraction_caps_all_in_stop_loss() -> None:
+    cfg = economic_settings(
+        risk_fraction=0.005,
+        max_total_risk_fraction=0.05,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        decision(100.40, stop=99.90),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        50,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.expected_net_loss == pytest.approx(5.0)
+    assert result.plan.expected_net_loss == pytest.approx(
+        1000 * cfg.risk_fraction
+    )
+    assert result.plan.max_loss_usd < result.plan.expected_net_loss
 
 
 def test_second_tight_stop_trade_is_scaled_by_remaining_all_in_risk() -> None:

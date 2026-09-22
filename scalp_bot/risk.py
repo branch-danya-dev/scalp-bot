@@ -69,13 +69,21 @@ class RiskEngine:
         )
         if risk_budget <= 0:
             return RiskResult(False, "portfolio risk budget exhausted")
-        notional_by_risk = risk_budget / stop_pct
 
         round_trip_cost_pct = (
             self.config.taker_fee_rate * 2
             + (self.config.slippage_bps / 10_000) * 2
         )
         all_in_loss_pct = stop_pct + round_trip_cost_pct
+        # risk_fraction is the maximum planned loss of one trade, not just
+        # the price move to the structural stop. Taker fees and configured
+        # slippage are unavoidable parts of a scalp's loss budget.
+        notional_by_structural_risk = risk_budget / stop_pct
+        notional_by_risk = (
+            risk_budget / all_in_loss_pct
+            if all_in_loss_pct > 0
+            else 0.0
+        )
         notional_by_all_in_portfolio_risk = (
             max(available_risk_usd, 0) / all_in_loss_pct
             if all_in_loss_pct > 0
@@ -161,7 +169,9 @@ class RiskEngine:
 
         economics = {
             "riskBudgetUsd": risk_budget,
+            "riskSizingBasis": "all_in_stop_plus_costs",
             "notionalByRiskUsd": notional_by_risk,
+            "notionalByStructuralRiskUsd": notional_by_structural_risk,
             "notionalByAllInPortfolioRiskUsd": (
                 notional_by_all_in_portfolio_risk
             ),
@@ -176,6 +186,8 @@ class RiskEngine:
             "entrySpreadPct": max(book.spread_pct, 0.0),
             "spreadCostDoubleCounted": False,
             "grossAtTargetUsd": gross_profit,
+            "structuralLossAtStopUsd": gross_loss,
+            "plannedAllInLossUsd": all_in_net_loss,
             "netAtTargetUsd": expected_net,
             "netAtStopUsd": expected_net_loss,
             "allInNetLossUsd": all_in_net_loss,
