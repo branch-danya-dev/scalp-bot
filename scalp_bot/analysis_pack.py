@@ -13,6 +13,8 @@ from .recorder import SessionRecorder
 
 FRAME_EVENTS = {"research_frame", "market_frame"}
 FOCUS_WINDOWS = {
+    "entry_pending": (10.0, 30.0),
+    "entry_cancelled": (15.0, 15.0),
     "trade_opened": (30.0, 60.0),
     "partial_take": (20.0, 40.0),
     "trade_closed": (30.0, 60.0),
