@@ -1,0 +1,52 @@
+{
+  "source": "paper-analysis-20260922-203956.zip",
+  "session": "session-20260922T165738Z.jsonl",
+  "breakoutCases": [
+    {
+      "id": "near_good_170657",
+      "timeUtc": "2026-09-22T17:06:57.013892Z",
+      "symbol": "NEARUSDT",
+      "side": "long",
+      "entry": 4.4545,
+      "stop": 4.430142307239476,
+      "oldNearestTarget": 4.465,
+      "setupQuality": 0.90298290525649,
+      "pressureScore": 4,
+      "flowImbalance5s": 1.0,
+      "oldTargetDelaySeconds": 39.01452302932739,
+      "oldStopDelaySeconds": null,
+      "mfeRUsingOldStop": 0.8826780192763288,
+      "maeRUsingOldStop": 0.39002052014531136,
+      "reviewLabel": "target_first"
+    },
+    {
+      "id": "near_bad_171040",
+      "timeUtc": "2026-09-22T17:10:40.412995Z",
+      "symbol": "NEARUSDT",
+      "side": "long",
+      "entry": 4.4855,
+      "stop": 4.467131812503692,
+      "oldNearestTarget": 4.505621521549183,
+      "setupQuality": 0.7660801341895429,
+      "pressureScore": 3,
+      "flowImbalance5s": 0.7175787638956219,
+      "oldTargetDelaySeconds": null,
+      "oldStopDelaySeconds": 149.1989598274231,
+      "mfeRUsingOldStop": 0.1905468354296438,
+      "maeRUsingOldStop": 1.0616180831080568,
+      "reviewLabel": "stop_first"
+    }
+  ],
+  "densityCases": [
+    {"time":"17:19:55","side":"bid","wallPrice":86256.4,"mid":86256.45,"participationConfirmed":false,"recentTradeCount":14,"recentImbalance":-0.9957716652985908,"expectedPriceReaction":false,"expectedFlowReversal":false,"nextState":"exhausted"},
+    {"time":"17:20:10","side":"ask","wallPrice":86376.8,"mid":86376.75,"participationConfirmed":false,"recentTradeCount":10,"recentImbalance":0.6666669882551387,"expectedPriceReaction":false,"expectedFlowReversal":false,"nextState":"exhausted"},
+    {"time":"17:22:25","side":"bid","wallPrice":86408.9,"mid":86408.95,"participationConfirmed":true,"recentTradeCount":122,"recentImbalance":0.547451231281291,"expectedPriceReaction":false,"expectedFlowReversal":true,"nextState":"exhausted"},
+    {"time":"17:25:27","side":"bid","wallPrice":86486.9,"mid":86486.95,"participationConfirmed":false,"recentTradeCount":11,"recentImbalance":-0.8224850200676127,"expectedPriceReaction":false,"expectedFlowReversal":false,"nextState":"exhausted"},
+    {"time":"17:27:25","side":"bid","wallPrice":86478.1,"mid":86481.05,"participationConfirmed":true,"recentTradeCount":129,"recentImbalance":-0.9901998882019739,"expectedPriceReaction":false,"expectedFlowReversal":false,"nextState":"exhausted"},
+    {"time":"17:27:47","side":"ask","wallPrice":86496.1,"mid":86496.05,"participationConfirmed":true,"recentTradeCount":89,"recentImbalance":0.48142958075164394,"expectedPriceReaction":false,"expectedFlowReversal":false,"nextState":"exhausted"},
+    {"time":"17:28:21","side":"bid","wallPrice":86499.9,"mid":86499.95,"participationConfirmed":false,"recentTradeCount":5,"recentImbalance":-0.996472659068671,"expectedPriceReaction":false,"expectedFlowReversal":false,"nextState":"exhausted"},
+    {"time":"17:28:34","side":"bid","wallPrice":86505.0,"mid":86505.05,"participationConfirmed":false,"recentTradeCount":24,"recentImbalance":-0.17894727517232295,"expectedPriceReaction":false,"expectedFlowReversal":false,"nextState":"exhausted"},
+    {"time":"17:29:11","side":"bid","wallPrice":86508.4,"mid":86508.45,"participationConfirmed":false,"recentTradeCount":11,"recentImbalance":-0.31832745486630437,"expectedPriceReaction":false,"expectedFlowReversal":false,"nextState":"exhausted"},
+    {"time":"17:36:33","side":"ask","wallPrice":86523.3,"mid":86518.85,"participationConfirmed":false,"recentTradeCount":74,"recentImbalance":-0.89999990116271,"expectedPriceReaction":false,"expectedFlowReversal":false,"nextState":"exhausted"}
+  ]
+}

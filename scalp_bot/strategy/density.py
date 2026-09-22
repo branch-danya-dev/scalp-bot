@@ -77,6 +77,37 @@ class DensityBounceStrategy(Strategy):
     def reset(self, symbol: str) -> None:
         self._states.pop(symbol, None)
 
+    @classmethod
+    def _reaction_confirmation(
+        cls,
+        side: str,
+        mid: float,
+        wall_price: float,
+        *,
+        participation_confirmed: bool,
+        recent_trade_count: int,
+        recent_imbalance: float,
+    ) -> dict:
+        if side == "bid":
+            reacted = mid >= wall_price * (1 + cls.reaction_pct)
+            flow_reversed = (
+                participation_confirmed
+                and recent_trade_count >= 3
+                and recent_imbalance >= 0.03
+            )
+        else:
+            reacted = mid <= wall_price * (1 - cls.reaction_pct)
+            flow_reversed = (
+                participation_confirmed
+                and recent_trade_count >= 3
+                and recent_imbalance <= -0.03
+            )
+        return {
+            "priceReactionConfirmed": reacted,
+            "flowReversalConfirmed": flow_reversed,
+            "entryConfirmationComplete": reacted and flow_reversed,
+        }
+
     @staticmethod
     def _rows(
         book: OrderBook,
@@ -703,28 +734,27 @@ class DensityBounceStrategy(Strategy):
                     details=shared,
                 )
 
-        if state.side == "bid":
-            action = Action.LONG
-            reacted = mid >= wall_price * (1 + self.reaction_pct)
-            flow_reversed = (
+        action = (
+            Action.LONG
+            if state.side == "bid"
+            else Action.SHORT
+        )
+        reaction_status = self._reaction_confirmation(
+            str(state.side),
+            mid,
+            wall_price,
+            participation_confirmed=bool(
                 flow["participationConfirmed"]
-                and recent_level_flow.trade_count >= 3
-                and recent_level_flow.imbalance >= 0.03
-            )
-        else:
-            action = Action.SHORT
-            reacted = mid <= wall_price * (1 - self.reaction_pct)
-            flow_reversed = (
-                flow["participationConfirmed"]
-                and recent_level_flow.trade_count >= 3
-                and recent_level_flow.imbalance <= -0.03
-            )
-
-        reaction_status = {
-            "priceReactionConfirmed": reacted,
-            "flowReversalConfirmed": flow_reversed,
-            "entryConfirmationComplete": reacted and flow_reversed,
-        }
+            ),
+            recent_trade_count=recent_level_flow.trade_count,
+            recent_imbalance=recent_level_flow.imbalance,
+        )
+        reacted = bool(
+            reaction_status["priceReactionConfirmed"]
+        )
+        flow_reversed = bool(
+            reaction_status["flowReversalConfirmed"]
+        )
         if not (reacted and flow_reversed):
             state.stage = DensityStage.TEST if state.touched else DensityStage.APPROACH
             missing = []

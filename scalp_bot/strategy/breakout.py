@@ -61,6 +61,55 @@ class LevelBreakoutStrategy(Strategy):
     def reset(self, symbol: str) -> None:
         self._states.pop(symbol, None)
 
+    @staticmethod
+    def _select_breakout_target(
+        entry: float,
+        risk: float,
+        action: Action,
+        expected_impulse: float,
+        liquidity_ladder: list,
+        minimum_target_r: float,
+    ) -> tuple[float, object | None, object | None, float]:
+        nearest_obstacle = (
+            liquidity_ladder[0]
+            if liquidity_ladder
+            else None
+        )
+        minimum_distance = risk * minimum_target_r
+        liquidity_target = next(
+            (
+                row
+                for row in liquidity_ladder
+                if abs(row.price - entry) >= minimum_distance
+            ),
+            None,
+        )
+        fallback_distance = max(
+            expected_impulse,
+            minimum_distance,
+        )
+        fallback_target = (
+            entry + fallback_distance
+            if action == Action.LONG
+            else entry - fallback_distance
+        )
+        target = (
+            liquidity_target.price
+            if liquidity_target is not None
+            else fallback_target
+        )
+        target_r = (
+            abs(target - entry) / risk
+            if risk > 0
+            else 0.0
+        )
+        return (
+            target,
+            nearest_obstacle,
+            liquidity_target,
+            target_r,
+        )
+
     def mark_opened(self, symbol: str, decision: StrategyDecision) -> None:
         state = self._states.get(symbol)
         generation = decision.details.get("zoneGeneration")
@@ -496,16 +545,9 @@ class LevelBreakoutStrategy(Strategy):
             action = Action.SHORT
 
         structural_risk = abs(entry - stop)
-        expected_impulse = max(zone.width * 1.3, range_abs * 2.0)
-        minimum_target_distance = structural_risk * self.minimum_target_r
-        fallback_distance = max(
-            expected_impulse,
-            minimum_target_distance,
-        )
-        fallback_target = (
-            entry + fallback_distance
-            if action == Action.LONG
-            else entry - fallback_distance
+        expected_impulse = max(
+            zone.width * 1.3,
+            range_abs * 2.0,
         )
         liquidity_ladder = find_liquidity_targets(
             candles,
@@ -515,28 +557,18 @@ class LevelBreakoutStrategy(Strategy):
             max_distance_pct=0.06,
             structure=structure,
         )
-        nearest_obstacle = (
-            liquidity_ladder[0]
-            if liquidity_ladder
-            else None
-        )
-        liquidity_target = next(
-            (
-                row
-                for row in liquidity_ladder
-                if abs(row.price - entry) >= minimum_target_distance
-            ),
-            None,
-        )
-        target = (
-            liquidity_target.price
-            if liquidity_target is not None
-            else fallback_target
-        )
-        target_r = (
-            abs(target - entry) / structural_risk
-            if structural_risk > 0
-            else 0.0
+        (
+            target,
+            nearest_obstacle,
+            liquidity_target,
+            target_r,
+        ) = self._select_breakout_target(
+            entry,
+            structural_risk,
+            action,
+            expected_impulse,
+            liquidity_ladder,
+            self.minimum_target_r,
         )
 
         if stop_pct <= 0 or stop_pct > self.max_stop_pct:
