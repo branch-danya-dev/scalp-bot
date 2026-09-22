@@ -119,9 +119,9 @@ def flow_beyond_level(
         for trade in trades
         if cutoff <= trade.ts_ms <= now_ms
         and (
-            trade.price >= boundary_price
+            trade.price > boundary_price
             if long_side
-            else trade.price <= boundary_price
+            else trade.price < boundary_price
         )
     ]
     if not rows:

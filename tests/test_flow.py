@@ -203,3 +203,20 @@ def test_trade_flow_rejects_busy_but_weaker_notional_pace() -> None:
     assert flow["tradeSizeRatio"] < 1.0
     assert flow["acceleration"] < 1.0
     assert flow["participationConfirmed"] is False
+
+
+def test_flow_beyond_level_does_not_count_boundary_print() -> None:
+    now = 100_000
+    rows = [
+        TradeTick(now - 500, 100.01, 2, "Buy"),
+    ]
+
+    flow = flow_beyond_level(
+        rows,
+        100.01,
+        long_side=True,
+        seconds=5,
+        now_ms=now,
+    )
+
+    assert flow.trade_count == 0
