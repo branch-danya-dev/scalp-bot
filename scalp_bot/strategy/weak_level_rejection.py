@@ -305,6 +305,10 @@ class WeakLevelRejectionStrategy(Strategy):
     ) -> str | None:
         if unrealized_pnl >= 0:
             return None
+        mode = str(strategy_details.get("tradeMode") or "")
+        expected = Trend.UP if side == Side.LONG else Trend.DOWN
+        if mode == "trend_following" and trend != expected:
+            return "weak_level_context_lost"
         zone = (
             strategy_details.get("zone")
             if isinstance(strategy_details, dict)
