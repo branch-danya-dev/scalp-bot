@@ -11,6 +11,8 @@ from .domain import Action, Candle, Candidate, OrderBook, Side, StrategyDecision
 from .paper import PaperBroker, Position
 from .recorder import SessionRecorder
 from .risk import RiskEngine
+from .strategy.flow import prune_trades
+from .strategy.lifecycle import LevelLifecycleTracker
 from .strategy import (
     DEFAULT_STRATEGIES,
     MarketStructure,
@@ -35,7 +37,8 @@ class ActiveSymbolSession:
     structure: MarketStructure | None = None
     decisions: dict[str, StrategyDecision] = field(default_factory=dict)
     decision_fingerprints: dict[str, tuple] = field(default_factory=dict)
-    trades: deque[TradeTick] = field(default_factory=lambda: deque(maxlen=2000))
+    trades: deque[TradeTick] = field(default_factory=deque)
+    level_tracker: LevelLifecycleTracker = field(default_factory=LevelLifecycleTracker)
     consumed_setups: dict[str, str] = field(default_factory=dict)
     cooldown_until: dict[str, float] = field(default_factory=dict)
     nontradeable_since: dict[str, float] = field(default_factory=dict)
@@ -44,8 +47,12 @@ class ActiveSymbolSession:
     last_signal_at: float = 0.0
     last_trade_at: float = 0.0
     last_market_at: float = 0.0
+    last_book_at: float = 0.0
+    last_trade_stream_at: float = 0.0
+    last_kline_at: float = 0.0
     last_eval: float = 0.0
     last_frame: float = 0.0
+    last_research_frame: float = 0.0
     last_risk_fingerprint: tuple | None = None
     last_blocked_fingerprint: tuple | None = None
 
@@ -57,6 +64,10 @@ class ActiveSymbolSession:
             "candles": [x.public() for x in self.candles[-240:]],
             "orderbook": self.orderbook.public(),
             "tradeFlow": compute_trade_flow(list(self.trades)),
+            "tradeBufferSeconds": (
+                (self.trades[-1].ts_ms - self.trades[0].ts_ms) / 1000
+                if len(self.trades) >= 2 else 0.0
+            ),
             "recentTrades": [trade.public() for trade in list(self.trades)[-20:]],
             "structure": self.structure.public() if self.structure else None,
             "decisions": {k: v.public() for k, v in self.decisions.items()},
@@ -70,6 +81,8 @@ class ActiveSymbolSession:
             "orderbook": self.orderbook.public(book_depth),
             "tradeFlow": compute_trade_flow(list(self.trades)),
             "position": position,
+            "recentTrades": [trade.public() for trade in list(self.trades)[-250:]],
+            "structure": self.structure.public() if self.structure else None,
         }
 
 
@@ -354,8 +367,8 @@ class TradingEngine:
 
     async def _bootstrap_symbol(self, symbol: str) -> None:
         candles, context = await asyncio.gather(
-            self.rest.klines(symbol, "1", 240),
-            self.rest.klines(symbol, "15", 120),
+            self.rest.klines(symbol, "1", self.config.bootstrap_1m_candles),
+            self.rest.klines(symbol, "15", self.config.bootstrap_15m_candles),
         )
         now = time()
         session = ActiveSymbolSession(
@@ -385,7 +398,14 @@ class TradingEngine:
                 if not items:
                     continue
                 results = await asyncio.gather(
-                    *(self.rest.klines(symbol, "15", 120) for symbol, _ in items),
+                    *(
+                        self.rest.klines(
+                            symbol,
+                            "15",
+                            self.config.bootstrap_15m_candles,
+                        )
+                        for symbol, _ in items
+                    ),
                     return_exceptions=True,
                 )
                 for (symbol, session), result in zip(items, results, strict=True):
@@ -399,19 +419,22 @@ class TradingEngine:
                 self._emit("context_error", None, {"error": str(exc)})
 
     async def _symbol_worker(self, symbol: str, stop_event: asyncio.Event) -> None:
-        book_state = OrderBookState()
+        book_state = OrderBookState(self.config.orderbook_depth)
 
         async def on_message(message: dict) -> None:
             session = self.sessions.get(symbol)
             if session is None:
                 return
 
-            session.last_market_at = time()
+            wall_now = time()
+            session.last_market_at = wall_now
             topic = message.get("topic", "")
             if topic.startswith("orderbook."):
                 session.orderbook = book_state.apply(message)
+                session.last_book_at = wall_now
             elif topic.startswith("kline."):
                 self._apply_kline(session, message)
+                session.last_kline_at = wall_now
             elif topic.startswith("publicTrade."):
                 rows = message.get("data") or []
                 if rows:
@@ -425,7 +448,17 @@ class TradingEngine:
                             )
                         )
                     session.last_price = float(rows[-1]["p"])
-                    events = self.broker.mark(symbol, session.last_price, session.orderbook)
+                    session.last_trade_stream_at = wall_now
+                    prune_trades(
+                        session.trades,
+                        int(rows[-1].get("T") or time() * 1000),
+                        self.config.trade_buffer_seconds,
+                    )
+                    events = self.broker.mark(
+                        symbol,
+                        session.last_price,
+                        session.orderbook,
+                    )
                     self._handle_broker_events(session, events)
 
             now = monotonic()
@@ -434,6 +467,21 @@ class TradingEngine:
                 await self._evaluate(session)
 
             position = self.broker.positions.get(symbol)
+
+            if (
+                now - session.last_research_frame
+                >= self.config.research_frame_seconds
+            ):
+                session.last_research_frame = now
+                self.recorder.record(
+                    "research_frame",
+                    symbol,
+                    session.frame(
+                        min(self.config.orderbook_depth, 50),
+                        position.public() if position else None,
+                    ),
+                )
+
             frame_interval = (
                 self.config.replay_engaged_frame_seconds
                 if position is not None or self._session_engaged(session)
@@ -473,17 +521,24 @@ class TradingEngine:
             session.candles[-1] = candle
         else:
             session.candles.append(candle)
-            session.candles = session.candles[-240:]
+            session.candles = session.candles[-self.config.bootstrap_1m_candles:]
 
     async def _evaluate(self, session: ActiveSymbolSession) -> None:
         if not session.candles:
             return
 
         session.trend = classify_trend(session.context_15m)
+        reference_price = session.orderbook.mid or session.last_price
         session.structure = build_market_structure(
             session.candles,
             session.context_15m,
-            session.orderbook.mid or session.last_price,
+            reference_price,
+        )
+        session.structure = session.level_tracker.update(
+            session.structure,
+            session.candles,
+            reference_price,
+            int(time() * 1000),
         )
         now = time()
         for key, strategy in self.strategies.items():
@@ -578,7 +633,17 @@ class TradingEngine:
         for session in self.sessions.values():
             if session.symbol in self.broker.positions:
                 continue
-            if session.last_market_at <= 0 or now - session.last_market_at > self.config.market_stale_seconds:
+            if (
+                session.last_market_at <= 0
+                or now - session.last_market_at
+                > self.config.market_stale_seconds
+            ):
+                continue
+            if (
+                session.last_book_at <= 0
+                or now - session.last_book_at
+                > self.config.book_stale_seconds
+            ):
                 continue
 
             for decision in session.decisions.values():
@@ -714,45 +779,35 @@ class TradingEngine:
             },
         )
 
-    def _maybe_strategy_invalidation(self, session: ActiveSymbolSession) -> None:
+    def _maybe_strategy_invalidation(
+        self,
+        session: ActiveSymbolSession,
+    ) -> None:
         pos = self.broker.positions.get(session.symbol)
         if pos is None or pos.partial_taken:
             return
         if time() - pos.opened_at < 5:
             return
-
-        reason: str | None = None
-        trade_mode = (
-            str(pos.strategy_details.get("tradeMode") or "")
-            if isinstance(pos.strategy_details, dict)
-            else ""
-        )
-        expected_trend = Trend.UP if pos.side == Side.LONG else Trend.DOWN
-        if (
-            trade_mode != "countertrend_reaction"
-            and session.trend != expected_trend
-            and pos.unrealized_pnl < 0
-        ):
-            reason = "higher_timeframe_context_lost"
-
-        zone = pos.strategy_details.get("zone") if isinstance(pos.strategy_details, dict) else None
-        if reason is None and isinstance(zone, dict):
-            low = float(zone.get("low") or 0)
-            high = float(zone.get("high") or 0)
-            if pos.side == Side.LONG and low > 0 and session.last_price < low and pos.unrealized_pnl < 0:
-                reason = "strategy_zone_invalidated"
-            if pos.side == Side.SHORT and high > 0 and session.last_price > high and pos.unrealized_pnl < 0:
-                reason = "strategy_zone_invalidated"
-
-        if reason is None and pos.strategy == "orderbook_density" and pos.unrealized_pnl < 0:
-            decision = session.decisions.get(pos.strategy)
-            if decision is not None and bool(decision.details.get("positionInvalidated")):
-                reason = "density_price_flow_invalidated"
-
-        if reason is None:
+        strategy = self.strategies.get(pos.strategy)
+        if strategy is None:
             return
-
-        event = self.broker.close(session.symbol, session.orderbook, reason)
+        decision = session.decisions.get(pos.strategy)
+        reason = strategy.manage_position(
+            side=pos.side,
+            unrealized_pnl=pos.unrealized_pnl,
+            opened_at=pos.opened_at,
+            strategy_details=pos.strategy_details,
+            decision=decision,
+            trend=session.trend,
+            last_price=session.last_price,
+        )
+        if not reason:
+            return
+        event = self.broker.close(
+            session.symbol,
+            session.orderbook,
+            reason,
+        )
         self._handle_broker_events(session, [event])
 
     def _handle_broker_events(self, session: ActiveSymbolSession, events: list[dict]) -> None:
