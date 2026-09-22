@@ -12,8 +12,11 @@ def candle() -> Candle:
     return Candle(0, 100, 101, 99, 100, 1, 100)
 
 
-def book() -> OrderBook:
-    return OrderBook(bids=[(99.99, 100)], asks=[(100.01, 100)])
+def book(
+    bid: float = 99.99,
+    ask: float = 100.01,
+) -> OrderBook:
+    return OrderBook(bids=[(bid, 100)], asks=[(ask, 100)])
 
 
 def plan(symbol: str) -> TradePlan:
@@ -804,4 +807,4 @@ async def test_strategies_receive_only_confirmed_1m_candles(tmp_path) -> None:
         assert seen[0].confirmed is True
         assert seen[0].high == 101
     finally:
-        close_rest(engine)
+        await engine.rest.close()
