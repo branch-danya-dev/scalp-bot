@@ -32,6 +32,9 @@ class Position:
     mfe_usd: float = 0.0
     mae_usd: float = 0.0
     unrealized_pnl: float = 0.0
+    partial_net_preview_usd: float = 0.0
+    partial_required_net_usd: float = 0.0
+    partial_economic_ready: bool = False
 
     @property
     def initial_risk_usd(self) -> float:
@@ -211,7 +214,24 @@ class PaperBroker:
             and not pos.partial_taken
             and pos.mfe_r >= self.config.partial_take_at_r
         ):
-            events.append(self._partial_take(pos, book))
+            close_notional = self._partial_close_notional(pos)
+            preview = self._preview_realize(
+                pos,
+                close_notional,
+                book,
+            )
+            required_net = self._partial_required_net_usd(pos)
+            pos.partial_net_preview_usd = preview["net"]
+            pos.partial_required_net_usd = required_net
+            pos.partial_economic_ready = preview["net"] >= required_net
+            if pos.partial_economic_ready:
+                events.append(
+                    self._partial_take(
+                        pos,
+                        book,
+                        preview=preview,
+                    )
+                )
 
         if symbol not in self.positions:
             return events
@@ -264,25 +284,95 @@ class PaperBroker:
         del self.positions[symbol]
         return trade
 
-    def _partial_take(self, pos: Position, book: OrderBook) -> dict:
-        close_notional = min(
+    def _partial_close_notional(self, pos: Position) -> float:
+        return min(
             pos.notional,
-            pos.original_notional * max(0.0, min(self.config.partial_take_fraction, 1.0)),
+            pos.original_notional
+            * max(
+                0.0,
+                min(self.config.partial_take_fraction, 1.0),
+            ),
         )
+
+    @staticmethod
+    def _partial_required_net_usd(pos: Position) -> float:
+        economics = (
+            pos.strategy_details.get("economics")
+            if isinstance(pos.strategy_details, dict)
+            else None
+        )
+        if not isinstance(economics, dict):
+            return 0.0
+        return max(
+            0.0,
+            float(economics.get("requiredNetProfitUsd") or 0.0),
+        )
+
+    def _runner_breakeven_stop(self, pos: Position) -> float:
+        if pos.notional <= 0:
+            return pos.entry
+        exit_fee = pos.notional * self.config.taker_fee_rate
+        profit_buffer = (
+            pos.notional
+            * self.config.breakeven_buffer_bps
+            / 10_000
+        )
+        gross_needed = (
+            max(0.0, pos.entry_fee_remaining)
+            + exit_fee
+            + profit_buffer
+        )
+        gross_needed_pct = gross_needed / pos.notional
+        slip = self.config.slippage_bps / 10_000
+
+        if pos.side == Side.LONG:
+            required_fill = pos.entry * (1 + gross_needed_pct)
+            return required_fill / max(1e-9, 1 - slip)
+
+        required_fill = pos.entry * (1 - gross_needed_pct)
+        return required_fill / (1 + slip)
+
+    def _partial_take(
+        self,
+        pos: Position,
+        book: OrderBook,
+        *,
+        preview: dict | None = None,
+    ) -> dict:
+        close_notional = self._partial_close_notional(pos)
+        required_net = self._partial_required_net_usd(pos)
+        preview = preview or self._preview_realize(
+            pos,
+            close_notional,
+            book,
+        )
+        if preview["net"] < required_net:
+            raise RuntimeError(
+                "partial take attempted before economic threshold"
+            )
+
         leg = self._realize(pos, close_notional, book)
         pos.partial_taken = True
+        pos.partial_net_preview_usd = leg["net"]
+        pos.partial_required_net_usd = required_net
+        pos.partial_economic_ready = True
 
-        cost_buffer = (
-            self.config.taker_fee_rate * 2
-            + (self.config.slippage_bps * 2 + self.config.breakeven_buffer_bps) / 10_000
-        )
         risk_distance = abs(pos.entry - pos.initial_stop)
+        runner_stop = self._runner_breakeven_stop(pos)
         if pos.side == Side.LONG:
-            pos.stop = max(pos.stop, pos.entry * (1 + cost_buffer))
-            pos.target = max(pos.target, pos.entry + risk_distance * self.config.runner_target_r)
+            pos.stop = max(pos.stop, runner_stop)
+            pos.target = max(
+                pos.target,
+                pos.entry
+                + risk_distance * self.config.runner_target_r,
+            )
         else:
-            pos.stop = min(pos.stop, pos.entry * (1 - cost_buffer))
-            pos.target = min(pos.target, pos.entry - risk_distance * self.config.runner_target_r)
+            pos.stop = min(pos.stop, runner_stop)
+            pos.target = min(
+                pos.target,
+                pos.entry
+                - risk_distance * self.config.runner_target_r,
+            )
 
         return {
             "event": "partial_take",
@@ -296,11 +386,53 @@ class PaperBroker:
             "grossPnl": leg["gross"],
             "fees": leg["fees"],
             "netPnl": leg["net"],
+            "requiredNetUsd": required_net,
+            "economicReady": True,
             "realizedNetTotal": pos.realized_net_usd,
             "newStop": pos.stop,
             "newTarget": pos.target,
             "mfeR": pos.mfe_r,
-            "reason": "partial_take_at_r",
+            "reason": "partial_take_at_r_and_net",
+        }
+
+    def _preview_realize(
+        self,
+        pos: Position,
+        close_notional: float,
+        book: OrderBook,
+    ) -> dict:
+        if close_notional <= 0 or pos.notional <= 0:
+            return {
+                "fill": pos.last_price,
+                "gross": 0.0,
+                "fees": 0.0,
+                "net": 0.0,
+            }
+
+        close_notional = min(close_notional, pos.notional)
+        raw = book.executable_exit(pos.side) or pos.last_price
+        slip = self.config.slippage_bps / 10_000
+        fill = raw * (
+            1 - slip
+            if pos.side == Side.LONG
+            else 1 + slip
+        )
+        direction = 1 if pos.side == Side.LONG else -1
+        gross = (
+            direction
+            * (fill - pos.entry)
+            / pos.entry
+            * close_notional
+        )
+        share = close_notional / pos.notional
+        allocated_entry_fee = pos.entry_fee_remaining * share
+        exit_fee = close_notional * self.config.taker_fee_rate
+        fees = allocated_entry_fee + exit_fee
+        return {
+            "fill": fill,
+            "gross": gross,
+            "fees": fees,
+            "net": gross - fees,
         }
 
     def _realize(self, pos: Position, close_notional: float, book: OrderBook) -> dict:
@@ -308,17 +440,17 @@ class PaperBroker:
             return {"fill": pos.last_price, "gross": 0.0, "fees": 0.0, "net": 0.0}
 
         close_notional = min(close_notional, pos.notional)
-        raw = book.executable_exit(pos.side) or pos.last_price
-        slip = self.config.slippage_bps / 10_000
-        fill = raw * (1 - slip if pos.side == Side.LONG else 1 + slip)
-        direction = 1 if pos.side == Side.LONG else -1
-
-        gross = direction * (fill - pos.entry) / pos.entry * close_notional
+        leg = self._preview_realize(
+            pos,
+            close_notional,
+            book,
+        )
+        fill = leg["fill"]
+        gross = leg["gross"]
+        fees = leg["fees"]
+        net = leg["net"]
         share = close_notional / pos.notional
         allocated_entry_fee = pos.entry_fee_remaining * share
-        exit_fee = close_notional * self.config.taker_fee_rate
-        fees = allocated_entry_fee + exit_fee
-        net = gross - fees
 
         pos.notional -= close_notional
         pos.entry_fee_remaining -= allocated_entry_fee
