@@ -75,7 +75,7 @@ class Settings(BaseSettings):
     research_frame_seconds: float = 1.0
     research_recent_trades: int = 250
 
-    run_label: str = "paper-v3-4h"
+    run_label: str = "paper-v3-scalp-econ-4h"
     paper_run_duration_seconds: float = 14_400.0
     replay_engaged_frame_seconds: float = 1.0
     replay_idle_frame_seconds: float = 5.0
