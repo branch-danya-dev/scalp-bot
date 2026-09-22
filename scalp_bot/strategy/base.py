@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from ..domain import Candle, OrderBook, StrategyDecision, TradeTick, Trend
+
+if TYPE_CHECKING:
+    from .structure import MarketStructure
 
 
 class Strategy:
@@ -15,6 +20,7 @@ class Strategy:
         *,
         symbol: str = "",
         trades: list[TradeTick] | None = None,
+        structure: "MarketStructure | None" = None,
     ) -> StrategyDecision:
         raise NotImplementedError
 

@@ -79,8 +79,23 @@ function addPriceLine(value, title, color="#8e8e93", style=2) {
   priceLines.push(candleSeries.createPriceLine({price:Number(value), color, lineWidth:1, lineStyle:style, axisLabelVisible:true, title}));
 }
 
-function renderVisuals(decisions, position) {
+function renderVisuals(decisions, position, structure) {
   clearOverlays();
+  const current = selectedSymbol ? null : null;
+  (structure?.levels || []).slice(0, 8).forEach(level => {
+    const label = level.kind === "day_high" ? "day high"
+      : level.kind === "day_low" ? "day low"
+      : `${level.kind} ${(level.sources || [level.timeframe]).join("/")}`;
+    addPriceLine(level.center, label, "#b0b0b5", level.kind.startsWith("day_") ? 0 : 2);
+  });
+  (structure?.trendlines || []).slice(0, 2).forEach(line => {
+    const series = chart.addLineSeries({color:"#98989d", lineWidth:1, lineStyle:2, priceLineVisible:false, lastValueVisible:false});
+    series.setData([
+      {time: Math.floor(line.start_ms / 1000), price: line.start_price},
+      {time: Math.floor(line.end_ms / 1000), price: line.end_price},
+    ]);
+    overlaySeries.push(series);
+  });
   Object.values(decisions || {}).forEach(decision => {
     const overlays = decision.visuals?.overlays || [];
     overlays.forEach(overlay => {
@@ -313,7 +328,7 @@ function render(data) {
     ensureChart();
     applyChartPrecision(data.market.lastPrice);
     candleSeries.setData(data.market.candles);
-    renderVisuals(data.market.decisions, position);
+    renderVisuals(data.market.decisions, position, data.market.structure);
     renderBook(book);
     renderDecisions(data.market.decisions);
     renderPosition(position);

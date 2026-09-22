@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from dataclasses import dataclass
 from enum import StrEnum
 
 from ..domain import Action, Candle, OrderBook, StrategyDecision, TradeTick, Trend
 from .base import Strategy
+
+if TYPE_CHECKING:
+    from .structure import MarketStructure
 from .common import (
     LevelKind,
     LevelZone,
@@ -216,7 +221,7 @@ class WeakLevelRejectionStrategy(Strategy):
             if action == Action.LONG
             else price - risk * target_r
         )
-        liquidity_target = find_liquidity_target(candles, price, action)
+        liquidity_target = find_liquidity_target(candles, price, action, structure=structure)
         if allow_runner and liquidity_target is not None:
             target = liquidity_target.price
         elif not allow_runner and liquidity_target is not None:
@@ -294,6 +299,7 @@ class WeakLevelRejectionStrategy(Strategy):
         *,
         symbol: str = "",
         trades: list[TradeTick] | None = None,
+        structure: "MarketStructure | None" = None,
     ) -> StrategyDecision:
         if len(candles) < 40 or trend == Trend.FLAT or not symbol:
             if symbol:
@@ -309,8 +315,20 @@ class WeakLevelRejectionStrategy(Strategy):
         if price <= 0:
             return StrategyDecision(self.key, Action.WAIT, ["Нет текущей цены"])
 
-        resistance = self._select_weak_zone(candles, price, "resistance")
-        support = self._select_weak_zone(candles, price, "support")
+        if structure is not None:
+            resistance_level = structure.nearest_horizontal(
+                price, "resistance", max_distance_pct=self.approach_pct,
+                min_touches=1, max_touches=self.max_touches,
+            )
+            support_level = structure.nearest_horizontal(
+                price, "support", max_distance_pct=self.approach_pct,
+                min_touches=1, max_touches=self.max_touches,
+            )
+            resistance = resistance_level.as_zone() if resistance_level else None
+            support = support_level.as_zone() if support_level else None
+        else:
+            resistance = self._select_weak_zone(candles, price, "resistance")
+            support = self._select_weak_zone(candles, price, "support")
         choices = [zone for zone in (resistance, support) if zone is not None]
         if not choices:
             state = self._states.setdefault(symbol, RejectionWatchState())

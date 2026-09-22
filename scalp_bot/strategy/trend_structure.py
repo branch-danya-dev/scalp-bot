@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from ..domain import Action, Candle, OrderBook, StrategyDecision, TradeTick, Trend
 from .base import Strategy
+
+if TYPE_CHECKING:
+    from .structure import MarketStructure
 from .common import (
     bearish_rejection,
     bullish_rejection,
@@ -24,6 +29,7 @@ class TrendStructureStrategy(Strategy):
         *,
         symbol: str = "",
         trades: list[TradeTick] | None = None,
+        structure: "MarketStructure | None" = None,
     ) -> StrategyDecision:
         if len(candles) < 40 or trend == Trend.FLAT:
             return StrategyDecision(self.key, Action.WAIT, ["Нет читаемой трендовой структуры"])
@@ -31,6 +37,51 @@ class TrendStructureStrategy(Strategy):
         window = candles[-80:]
         close = candles[-1].close
         if trend == Trend.UP:
+            structural_line = structure.trendline("support") if structure else None
+            if structural_line is not None:
+                projected = structural_line.current_price
+                visuals = {
+                    "overlays": [{
+                        "type": "line",
+                        "label": "trend support",
+                        "points": [
+                            {"time": structural_line.start_ms // 1000, "price": structural_line.start_price},
+                            {"time": structural_line.end_ms // 1000, "price": structural_line.end_price},
+                        ],
+                    }]
+                }
+                distance = abs(close - projected) / close
+                if distance <= 0.0025 and bullish_rejection(candles[-1]):
+                    stop = min(candles[-1].low, projected) * 0.999
+                    risk = close - stop
+                    liquidity_target = find_liquidity_target(
+                        candles, close, Action.LONG, structure=structure
+                    )
+                    target = liquidity_target.price if liquidity_target else close + risk * 1.6
+                    quality = min(0.92, 0.65 + structural_line.score * 0.25)
+                    return StrategyDecision(
+                        strategy=self.key,
+                        action=Action.LONG,
+                        reasons=[
+                            "Восходящая структура",
+                            f"Касание наклонной поддержки ({structural_line.touches} опор)",
+                            "Есть реакция покупателя",
+                        ],
+                        confidence=quality,
+                        watched_level=projected,
+                        entry=close,
+                        stop=stop,
+                        target=target,
+                        visuals=visuals,
+                        details={
+                            "setupQuality": quality,
+                            "tradeMode": "trend_following",
+                            "allowRunner": True,
+                            "trendline": structural_line.public(),
+                            "liquidityTarget": liquidity_target.public() if liquidity_target else None,
+                            "targetSource": "liquidity" if liquidity_target else "risk_multiple",
+                        },
+                    )
             lows = swing_lows(window)
             if len(lows) < 2:
                 return StrategyDecision(self.key, Action.WAIT, ["Недостаточно опорных минимумов"])
@@ -39,7 +90,7 @@ class TrendStructureStrategy(Strategy):
             if distance <= 0.0025 and bullish_rejection(candles[-1]):
                 stop = min(candles[-1].low, projected) * 0.999
                 risk = close - stop
-                liquidity_target = find_liquidity_target(candles, close, Action.LONG)
+                liquidity_target = find_liquidity_target(candles, close, Action.LONG, structure=structure)
                 target = (
                     liquidity_target.price
                     if liquidity_target is not None
@@ -76,6 +127,51 @@ class TrendStructureStrategy(Strategy):
                 visuals=visuals,
             )
 
+        structural_line = structure.trendline("resistance") if structure else None
+        if structural_line is not None:
+            projected = structural_line.current_price
+            visuals = {
+                "overlays": [{
+                    "type": "line",
+                    "label": "trend resistance",
+                    "points": [
+                        {"time": structural_line.start_ms // 1000, "price": structural_line.start_price},
+                        {"time": structural_line.end_ms // 1000, "price": structural_line.end_price},
+                    ],
+                }]
+            }
+            distance = abs(close - projected) / close
+            if distance <= 0.0025 and bearish_rejection(candles[-1]):
+                stop = max(candles[-1].high, projected) * 1.001
+                risk = stop - close
+                liquidity_target = find_liquidity_target(
+                    candles, close, Action.SHORT, structure=structure
+                )
+                target = liquidity_target.price if liquidity_target else close - risk * 1.6
+                quality = min(0.92, 0.65 + structural_line.score * 0.25)
+                return StrategyDecision(
+                    strategy=self.key,
+                    action=Action.SHORT,
+                    reasons=[
+                        "Нисходящая структура",
+                        f"Касание наклонного сопротивления ({structural_line.touches} опор)",
+                        "Есть реакция продавца",
+                    ],
+                    confidence=quality,
+                    watched_level=projected,
+                    entry=close,
+                    stop=stop,
+                    target=target,
+                    visuals=visuals,
+                    details={
+                        "setupQuality": quality,
+                        "tradeMode": "trend_following",
+                        "allowRunner": True,
+                        "trendline": structural_line.public(),
+                        "liquidityTarget": liquidity_target.public() if liquidity_target else None,
+                        "targetSource": "liquidity" if liquidity_target else "risk_multiple",
+                    },
+                )
         highs = swing_highs(window)
         if len(highs) < 2:
             return StrategyDecision(self.key, Action.WAIT, ["Недостаточно опорных максимумов"])
@@ -84,7 +180,7 @@ class TrendStructureStrategy(Strategy):
         if distance <= 0.0025 and bearish_rejection(candles[-1]):
             stop = max(candles[-1].high, projected) * 1.001
             risk = stop - close
-            liquidity_target = find_liquidity_target(candles, close, Action.SHORT)
+            liquidity_target = find_liquidity_target(candles, close, Action.SHORT, structure=structure)
             target = (
                 liquidity_target.price
                 if liquidity_target is not None

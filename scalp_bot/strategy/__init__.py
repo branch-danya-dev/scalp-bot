@@ -3,6 +3,7 @@ from .breakout import BreakoutStage, LevelBreakoutStrategy
 from .common import LevelZone, classify_trend, compute_trade_flow, detect_level_zones
 from .density import DensityBounceStrategy, DensityStage
 from .liquidity import LiquidityTarget, find_liquidity_target
+from .structure import MarketStructure, StructuralLevel, TrendLine, build_market_structure
 from .trend_structure import TrendStructureStrategy
 from .weak_level_rejection import RejectionStage, WeakLevelRejectionStrategy
 
@@ -27,6 +28,10 @@ __all__ = [
     "DensityStage",
     "LiquidityTarget",
     "find_liquidity_target",
+    "MarketStructure",
+    "StructuralLevel",
+    "TrendLine",
+    "build_market_structure",
     "BreakoutStage",
     "DEFAULT_STRATEGIES",
 ]

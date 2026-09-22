@@ -11,7 +11,14 @@ from .domain import Action, Candle, Candidate, OrderBook, Side, StrategyDecision
 from .paper import PaperBroker, Position
 from .recorder import SessionRecorder
 from .risk import RiskEngine
-from .strategy import DEFAULT_STRATEGIES, Strategy, classify_trend, compute_trade_flow
+from .strategy import (
+    DEFAULT_STRATEGIES,
+    MarketStructure,
+    Strategy,
+    build_market_structure,
+    classify_trend,
+    compute_trade_flow,
+)
 
 
 ACTIVE_SETUP_STATES = {"found", "persisting", "approach", "pressure", "test", "defended", "reject", "reaction", "break", "impulse"}
@@ -25,6 +32,7 @@ class ActiveSymbolSession:
     orderbook: OrderBook = field(default_factory=OrderBook)
     last_price: float = 0.0
     trend: Trend = Trend.FLAT
+    structure: MarketStructure | None = None
     decisions: dict[str, StrategyDecision] = field(default_factory=dict)
     decision_fingerprints: dict[str, tuple] = field(default_factory=dict)
     trades: deque[TradeTick] = field(default_factory=lambda: deque(maxlen=2000))
@@ -50,6 +58,7 @@ class ActiveSymbolSession:
             "orderbook": self.orderbook.public(),
             "tradeFlow": compute_trade_flow(list(self.trades)),
             "recentTrades": [trade.public() for trade in list(self.trades)[-20:]],
+            "structure": self.structure.public() if self.structure else None,
             "decisions": {k: v.public() for k, v in self.decisions.items()},
         }
 
@@ -471,6 +480,11 @@ class TradingEngine:
             return
 
         session.trend = classify_trend(session.context_15m)
+        session.structure = build_market_structure(
+            session.candles,
+            session.context_15m,
+            session.orderbook.mid or session.last_price,
+        )
         now = time()
         for key, strategy in self.strategies.items():
             if not self.strategy_enabled[key]:
@@ -482,6 +496,7 @@ class TradingEngine:
                     session.trend,
                     symbol=session.symbol,
                     trades=list(session.trades),
+                    structure=session.structure,
                 )
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"

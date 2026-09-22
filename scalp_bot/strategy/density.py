@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from dataclasses import dataclass, field
 from enum import StrEnum
 from statistics import median
@@ -8,7 +10,17 @@ from typing import Literal
 
 from ..domain import Action, Candle, OrderBook, StrategyDecision, TradeTick, Trend
 from .base import Strategy
-from .common import clamp, compute_trade_flow, price_visual, trade_mode, typical_range_abs
+
+if TYPE_CHECKING:
+    from .structure import MarketStructure
+from .common import (
+    clamp,
+    compute_trade_flow,
+    nearby_round_level,
+    price_visual,
+    trade_mode,
+    typical_range_abs,
+)
 from .liquidity import find_liquidity_target
 
 
@@ -206,6 +218,7 @@ class DensityBounceStrategy(Strategy):
         *,
         symbol: str = "",
         trades: list[TradeTick] | None = None,
+        structure: "MarketStructure | None" = None,
     ) -> StrategyDecision:
         if not candles or not book.bids or not book.asks or trend == Trend.FLAT or not symbol:
             if symbol:
@@ -304,6 +317,20 @@ class DensityBounceStrategy(Strategy):
             flow_through = flow["imbalance5s"] <= -0.15
         position_invalidated = state.defended_at > 0 and price_crossed and flow_through
 
+        distance_pct = abs(mid - wall_price) / mid if mid > 0 else 0.0
+        erosion_start = next(
+            (
+                ts
+                for ts, notional in state.observations
+                if state.peak_notional > 0 and notional <= state.peak_notional * 0.90
+            ),
+            None,
+        )
+        erosion_seconds = max(0.0, now - erosion_start) if erosion_start is not None else 0.0
+        round_confluence = nearby_round_level(
+            wall_price, wall_price * 0.0003
+        ) is not None
+
         shared = {
             "remainingRatio": remaining_ratio,
             "attackNotional5s": attack_notional,
@@ -314,6 +341,11 @@ class DensityBounceStrategy(Strategy):
             "wallPresent": wall_present,
             "flow": flow,
             "positionInvalidated": position_invalidated,
+            "distancePct": distance_pct,
+            "lifetimeSeconds": max(0.0, now - state.first_seen),
+            "erosionSeconds": erosion_seconds,
+            "roundConfluence": round_confluence,
+            "notionalUsd": state.current_notional,
         }
 
         if state.defended_at > 0 and not wall_present:
@@ -439,7 +471,7 @@ class DensityBounceStrategy(Strategy):
             if action == Action.LONG
             else mid - risk * target_r
         )
-        liquidity_target = find_liquidity_target(candles, mid, action)
+        liquidity_target = find_liquidity_target(candles, mid, action, structure=structure)
         if allow_runner and liquidity_target is not None:
             target = liquidity_target.price
         elif not allow_runner and liquidity_target is not None:

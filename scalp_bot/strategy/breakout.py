@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from dataclasses import dataclass, field
 from enum import StrEnum
 from statistics import median
 
 from ..domain import Action, Candle, OrderBook, StrategyDecision, TradeTick, Trend
 from .base import Strategy
+
+if TYPE_CHECKING:
+    from .structure import MarketStructure
 from .common import (
     LevelKind,
     LevelZone,
@@ -144,6 +149,7 @@ class LevelBreakoutStrategy(Strategy):
         *,
         symbol: str = "",
         trades: list[TradeTick] | None = None,
+        structure: "MarketStructure | None" = None,
     ) -> StrategyDecision:
         if len(candles) < 60 or trend == Trend.FLAT or not symbol:
             if symbol:
@@ -160,12 +166,20 @@ class LevelBreakoutStrategy(Strategy):
         price = book.mid or candles[-1].close
         long_side = trend == Trend.UP
         zone_kind: LevelKind = "resistance" if long_side else "support"
-        zones = detect_level_zones(
-            candles,
-            zone_kind,
-            min_touches=self.min_zone_touches,
-        )
-        zones = [zone for zone in zones if self._mature(zone, candles)]
+        if structure is not None:
+            structural = [
+                level
+                for level in structure.levels
+                if level.kind == zone_kind and level.touches >= self.min_zone_touches
+            ]
+            zones = [level.as_zone() for level in structural]
+        else:
+            zones = detect_level_zones(
+                candles,
+                zone_kind,
+                min_touches=self.min_zone_touches,
+            )
+            zones = [zone for zone in zones if self._mature(zone, candles)]
         zone = self._select_zone(zones, price, long_side=long_side)
 
         if zone is None:
@@ -305,6 +319,7 @@ class LevelBreakoutStrategy(Strategy):
             entry,
             action,
             max_distance_pct=0.06,
+            structure=structure,
         )
         target = (
             liquidity_target.price

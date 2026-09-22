@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from typing import TYPE_CHECKING
 
 from ..domain import Action, Candle
 from .common import detect_level_zones, swing_highs, swing_lows, typical_range_pct
+
+if TYPE_CHECKING:
+    from .structure import MarketStructure
 
 
 @dataclass(slots=True)
@@ -25,6 +29,7 @@ def find_liquidity_target(
     *,
     min_distance_pct: float | None = None,
     max_distance_pct: float = 0.05,
+    structure: "MarketStructure | None" = None,
 ) -> LiquidityTarget | None:
     if not candles or entry <= 0 or action not in {Action.LONG, Action.SHORT}:
         return None
@@ -37,6 +42,26 @@ def find_liquidity_target(
     )
     candidates: list[LiquidityTarget] = []
     window = candles[-200:]
+
+    if structure is not None:
+        for level in structure.levels:
+            target_price = level.center
+            if action == Action.LONG:
+                eligible_kind = level.kind in {"resistance", "day_high"}
+                distance = (target_price - entry) / entry
+            else:
+                eligible_kind = level.kind in {"support", "day_low"}
+                distance = (entry - target_price) / entry
+            if eligible_kind and minimum <= distance <= max_distance_pct:
+                candidates.append(
+                    LiquidityTarget(
+                        price=target_price,
+                        kind=level.kind,
+                        touches=level.touches,
+                        score=4.0 + level.score * 6.0,
+                        source_index=None,
+                    )
+                )
 
     if action == Action.LONG:
         for zone in detect_level_zones(candles, "resistance", min_touches=2):
