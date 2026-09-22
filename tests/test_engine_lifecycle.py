@@ -489,3 +489,126 @@ def test_active_session_trade_buffer_has_no_count_limit() -> None:
             )
         )
     assert len(session.trades) == 3_000
+
+
+
+def test_central_arbiter_ignores_stale_book_even_when_market_is_fresh(
+    tmp_path,
+) -> None:
+    engine = make_engine(tmp_path, book_stale_seconds=1)
+    try:
+        engine.running = True
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100,
+            last_market_at=time(),
+            last_book_at=time() - 10,
+            book_stale_after_seconds=1,
+            book_synced=True,
+        )
+        session.decisions["orderbook_density"] = StrategyDecision(
+            strategy="orderbook_density",
+            action=Action.LONG,
+            reasons=["stale book"],
+            confidence=0.99,
+            entry=100,
+            stop=99.5,
+            target=101,
+            watched_level=99.8,
+            setup_id="stale-book-setup",
+        )
+        engine.sessions = {"AAAUSDT": session}
+        engine.candidates = [
+            Candidate(
+                "AAAUSDT",
+                200_000_000,
+                0,
+                100,
+                activity_rank=1,
+            ),
+        ]
+
+        engine._arbitrate_once()
+
+        assert not engine.broker.positions
+        assert session.book_is_fresh(time()) is False
+    finally:
+        close_rest(engine)
+
+
+@pytest.mark.asyncio
+async def test_density_is_not_evaluated_when_book_is_stale(tmp_path) -> None:
+    engine = make_engine(tmp_path, book_stale_seconds=1)
+    try:
+        rows = [
+            Candle(
+                i * 60_000,
+                100,
+                100.2,
+                99.8,
+                100,
+                10,
+                1000,
+            )
+            for i in range(80)
+        ]
+        context = [
+            Candle(
+                i * 900_000,
+                100 + i * 0.01,
+                100.3 + i * 0.01,
+                99.7 + i * 0.01,
+                100.1 + i * 0.01,
+                10,
+                1000,
+            )
+            for i in range(80)
+        ]
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=rows,
+            context_15m=context,
+            orderbook=book(),
+            last_price=100,
+            last_book_at=time() - 5,
+            book_stale_after_seconds=1,
+            book_synced=True,
+        )
+
+        await engine._evaluate(session)
+
+        decision = session.decisions["orderbook_density"]
+        assert decision.action == Action.WAIT
+        assert decision.details["state"] == "stale_book"
+        assert decision.details["positionInvalidated"] is False
+        assert decision.details["bookHealth"]["fresh"] is False
+    finally:
+        await engine.rest.close()
+
+
+def test_book_health_is_exposed_in_market_snapshot(tmp_path) -> None:
+    engine = make_engine(tmp_path, book_stale_seconds=1)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100,
+            last_book_at=time(),
+            book_stale_after_seconds=1,
+            book_synced=True,
+        )
+
+        snapshot = session.market_snapshot()
+
+        assert snapshot["bookHealth"]["fresh"] is True
+        assert snapshot["bookHealth"]["synced"] is True
+        assert snapshot["bookHealth"]["bidLevels"] > 0
+        assert snapshot["bookHealth"]["askLevels"] > 0
+
+        session.book_synced = False
+        assert session.book_health()["fresh"] is False
+    finally:
+        close_rest(engine)
