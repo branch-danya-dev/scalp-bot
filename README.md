@@ -37,7 +37,7 @@ This run branch is the prepared Strategy Logic v3 state for a controlled four-ho
 - dynamic notional from structural stop distance;
 - partial requires both >=1R and an economically positive closed leg;
 - 30% runner -> true net breakeven after remaining costs;
-- runner target about 2.5R;
+- structural liquidity targets remain binding after a partial; only fallback/non-structural targets may extend toward the configured runner R;
 - no-follow-through early cutting;
 - structural invalidation before emergency hard stop;
 - paper positions finalize on Stop, shutdown, or the 4h deadline;
@@ -132,7 +132,7 @@ The former strategies.py is only a compatibility export shim.
 Long-run findings applied in this patch:
 - weak-level support and resistance paths are symmetric and tested;
 - psychological round-number confluence is intentionally rare instead of nearly universal;
-- countertrend reactions use a shorter 0.75R target and never create a runner;
+- weak-level rejection and defended-density entries are trend-aligned; countertrend entries are not traded in the current policy;
 - density tracks wall persistence, depletion, replenishment and absorption over time;
 - removal of a wall after a confirmed bounce is not by itself an exit signal;
 - density invalidation requires adverse price acceptance plus aggressive flow through the old wall;
@@ -150,11 +150,14 @@ Candidate selection now carries a market-activity profile:
 - verified 24h price change;
 - 5m turnover burst and price activity;
 - 1h Pearson correlation of aligned 1m returns versus BTCUSDT;
+- current best bid/ask spread and conservative top-of-book notional from the Bybit ticker;
 - an interpretable activity score used as a secondary arbiter input.
+
+The initial universe rejects symbols whose ticker spread alone would make the best executable quote violate the configured entry-drift limit. Full depth is still checked again at the actual entry.
 
 tradeCount24h exists as an optional external metric, but Bybit V5 tickers do not publish it and recent-trade REST is capped, so the bot deliberately does not fabricate a 24h trade count. A screener/provider can populate it later.
 
-Levels are explicit liquidity targets. strategy/liquidity.py searches in the direction of the trade for the nearest meaningful pool: a repeated horizontal zone or an isolated external swing high/low. Trend-following strategies may target that pool; countertrend reactions remain capped.
+Levels are explicit liquidity targets. strategy/liquidity.py searches in the direction of the trade for the nearest meaningful pool: a repeated horizontal zone or an isolated external swing high/low. The current trading policy only opens trend-aligned entries.
 
 ## Central Level Engine
 
@@ -186,21 +189,23 @@ Density decisions also expose amount, distance, lifetime, erosion duration and r
 - A wall outside the currently observable book is treated as unknown, not as removed.
 - Wall significance requires all of: an absolute USD floor, a local-neighbor relative multiple, and an activity-scaled turnover floor.
 - Density confirmation uses trade flow and absorption at the wall itself.
+- Paper entries walk visible order-book depth and use depth VWAP before the configured additional slippage reserve.
+- Research recording is adaptive: idle frames stay compact, while an engaged density setup records the full configured order-book depth so the decision can be replayed.
 
 ## Prepared run
 
 Branch:
 
 ```
-paper-run-v3-4h
+main
 ```
 
 Start it from a visible PowerShell window with:
 
 ```powershell
 git fetch origin
-git switch paper-run-v3-4h
-git pull origin paper-run-v3-4h
+git switch main
+git pull --ff-only origin main
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
 ```
@@ -241,7 +246,7 @@ The economic gate requires:
 net at configured target >= max($1, 0.1% current equity)
 ```
 
-The deterministic cost estimate includes taker fees and configured slippage. Entry/exit use executable ask/bid, so spread is not subtracted a second time.
+The deterministic cost estimate includes taker fees and configured slippage. Entry planning and paper fills use executable bid/ask plus visible-depth VWAP, so spread and depth impact are represented by executable prices rather than subtracted a second time.
 
 For runner-enabled setups, the legacy "take 70% exactly at 1R" rule is replaced by:
 
@@ -251,7 +256,7 @@ AND
 estimated net of the 70% closing leg >= required net threshold
 ```
 
-After the partial, the runner stop is calculated from remaining entry fee, exit fee, exit slippage and the breakeven buffer so the remaining leg is protected at actual net breakeven.
+After the partial, the runner stop is calculated from remaining entry fee, exit fee, exit slippage and the breakeven buffer so the remaining leg is protected at actual net breakeven. If the strategy target came from a detected liquidity pool, that structural target is preserved instead of being pushed mechanically to 2.5R.
 
 The run label for this exact economics revision is:
 
