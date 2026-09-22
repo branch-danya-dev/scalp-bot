@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 
-from ..domain import TradeTick
+from ..domain import OrderBook, TradeTick
 
 
 @dataclass(slots=True)
@@ -99,3 +99,38 @@ def flow_at_level(
         price_response_pct=response,
         absorption_efficiency=absorption,
     )
+
+
+def best_level_ofi_usd(previous: OrderBook, current: OrderBook) -> float:
+    """Best-level order-flow imbalance in quote notional.
+
+    Positive values mean net bid-side pressure / ask withdrawal; negative
+    values mean net ask-side pressure / bid withdrawal. This is the standard
+    best-level OFI event construction expressed in quote notional.
+    """
+    if (
+        not previous.bids
+        or not previous.asks
+        or not current.bids
+        or not current.asks
+    ):
+        return 0.0
+
+    prev_bid_price, prev_bid_qty = previous.bids[0]
+    bid_price, bid_qty = current.bids[0]
+    prev_ask_price, prev_ask_qty = previous.asks[0]
+    ask_price, ask_qty = current.asks[0]
+
+    bid = 0.0
+    if bid_price >= prev_bid_price:
+        bid += bid_price * bid_qty
+    if bid_price <= prev_bid_price:
+        bid -= prev_bid_price * prev_bid_qty
+
+    ask = 0.0
+    if ask_price <= prev_ask_price:
+        ask -= ask_price * ask_qty
+    if ask_price >= prev_ask_price:
+        ask += prev_ask_price * prev_ask_qty
+
+    return bid + ask
