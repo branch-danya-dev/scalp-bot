@@ -471,6 +471,47 @@ def test_density_accepts_wall_passing_absolute_relative_and_activity_floors() ->
     assert decision.details["turnoverFloorUsd"] < 25_000
 
 
+def test_density_global_flow_away_from_wall_does_not_confirm() -> None:
+    strategy = DensityBounceStrategy()
+    book = density_book(50_000)
+    rows = density_candles()
+    local_attack = [
+        TradeTick(40_000_000 + i * 200, 100.00, 2, "Buy")
+        for i in range(8)
+    ]
+    far_sell = [
+        TradeTick(40_002_000 + i * 150, 99.00, 8, "Sell")
+        for i in range(20)
+    ]
+    flow = local_attack + far_sell
+
+    strategy.evaluate(
+        rows,
+        book,
+        Trend.DOWN,
+        symbol="FARDENSITYUSDT",
+        trades=flow,
+    )
+    state = strategy._states["FARDENSITYUSDT"]
+    state.first_seen -= 4
+    state.observations = [
+        (state.first_seen, 50_000),
+        (state.first_seen + 1, 49_000),
+        (state.first_seen + 2, 50_000),
+    ]
+    decision = strategy.evaluate(
+        rows,
+        book,
+        Trend.DOWN,
+        symbol="FARDENSITYUSDT",
+        trades=flow,
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["flow"]["imbalance5s"] < 0
+    assert decision.details["recentLevelFlow"]["imbalance"] > 0
+
+
 def test_density_countertrend_reaction_is_not_tradeable() -> None:
     strategy = DensityBounceStrategy()
     book = density_book(50_000)

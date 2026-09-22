@@ -513,11 +513,19 @@ class DensityBounceStrategy(Strategy):
 
         wall_price = float(state.price)
         flow = compute_trade_flow(trades, observed_at_ms)
+        level_tolerance = max(self.touch_pct * 2, 0.0006)
         level_flow = flow_at_level(
             trades,
             wall_price,
-            tolerance_pct=max(self.touch_pct * 2, 0.0006),
+            tolerance_pct=level_tolerance,
             seconds=15,
+            now_ms=observed_at_ms,
+        )
+        recent_level_flow = flow_at_level(
+            trades,
+            wall_price,
+            tolerance_pct=level_tolerance,
+            seconds=5,
             now_ms=observed_at_ms,
         )
         remaining_ratio = (
@@ -596,6 +604,7 @@ class DensityBounceStrategy(Strategy):
             "bookCoverage": coverage,
             "coverageIncomplete": not coverage["coverageComplete"],
             "levelFlow": level_flow.public(),
+            "recentLevelFlow": recent_level_flow.public(),
         }
 
         if state.defended_at > 0 and not wall_present:
@@ -694,29 +703,15 @@ class DensityBounceStrategy(Strategy):
             action = Action.LONG
             reacted = mid >= wall_price * (1 + self.reaction_pct)
             flow_reversed = (
-                level_flow.trade_count >= 3
-                and (
-                    level_flow.imbalance >= 0.03
-                    or (
-                        level_flow.absorption_efficiency >= 0.30
-                        and flow["tradeCount5s"] >= 3
-                        and flow["imbalance5s"] >= 0.03
-                    )
-                )
+                recent_level_flow.trade_count >= 3
+                and recent_level_flow.imbalance >= 0.03
             )
         else:
             action = Action.SHORT
             reacted = mid <= wall_price * (1 - self.reaction_pct)
             flow_reversed = (
-                level_flow.trade_count >= 3
-                and (
-                    level_flow.imbalance <= -0.03
-                    or (
-                        level_flow.absorption_efficiency >= 0.30
-                        and flow["tradeCount5s"] >= 3
-                        and flow["imbalance5s"] <= -0.03
-                    )
-                )
+                recent_level_flow.trade_count >= 3
+                and recent_level_flow.imbalance <= -0.03
             )
 
         if not (reacted and flow_reversed):
