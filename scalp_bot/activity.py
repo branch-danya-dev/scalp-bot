@@ -54,17 +54,12 @@ def activity_score(candidate: Candidate, window_minutes: int) -> float:
     )
     burst = min(1.0, burst_ratio / 3.0)
 
-    corr = candidate.correlation_1h_btc
-    independence = (
-        0.5
-        if corr is None
-        else min(1.0, max(0.0, 1.0 - max(corr, 0.0)))
-    )
-
+    # Correlation is kept as neutral context. Until paper data proves that
+    # independence from BTC is itself predictive, it must not mechanically
+    # increase or decrease a coin's activity score.
     return 100.0 * (
-        turnover_component * 0.15
+        turnover_component * 0.20
         + move_24h * 0.30
         + move_recent * 0.25
-        + burst * 0.20
-        + independence * 0.10
+        + burst * 0.25
     )

@@ -16,6 +16,10 @@ class BybitError(RuntimeError):
     pass
 
 
+class OrderBookSyncError(RuntimeError):
+    pass
+
+
 class BybitRestClient:
     def __init__(self, config: Settings) -> None:
         self.config = config
@@ -186,21 +190,62 @@ class BybitRestClient:
 
 
 class OrderBookState:
-    def __init__(self) -> None:
+    def __init__(self, max_depth: int = 1000) -> None:
+        self.max_depth = max(1, max_depth)
         self.bids: dict[float, float] = {}
         self.asks: dict[float, float] = {}
+        self.last_u: int | None = None
+        self.last_seq: int | None = None
+        self.last_cts_ms: int | None = None
+        self.ready = False
 
     def apply(self, message: dict) -> OrderBook:
         data = message.get("data") or {}
-        if message.get("type") == "snapshot":
+        message_type = message.get("type")
+        update_id = int(data.get("u") or 0)
+        seq = int(data.get("seq") or 0)
+        cts = int(data.get("cts") or message.get("cts") or message.get("ts") or 0)
+
+        reset = message_type == "snapshot" or update_id == 1
+        if reset:
             self.bids.clear()
             self.asks.clear()
+            self.ready = True
+        elif not self.ready:
+            raise OrderBookSyncError("orderbook delta received before snapshot")
+
+        # Bybit documents seq as an ordering field. A decrease means this local
+        # book can no longer be trusted; reconnecting gets a fresh snapshot.
+        if (
+            not reset
+            and self.last_seq is not None
+            and seq > 0
+            and seq < self.last_seq
+        ):
+            self.ready = False
+            raise OrderBookSyncError(
+                f"orderbook sequence moved backwards: {seq} < {self.last_seq}"
+            )
 
         self._apply_side(self.bids, data.get("b", []))
         self._apply_side(self.asks, data.get("a", []))
 
-        bids = sorted(self.bids.items(), key=lambda x: x[0], reverse=True)[:50]
-        asks = sorted(self.asks.items(), key=lambda x: x[0])[:50]
+        if update_id > 0:
+            self.last_u = update_id
+        if seq > 0:
+            self.last_seq = seq
+        if cts > 0:
+            self.last_cts_ms = cts
+
+        bids = sorted(
+            self.bids.items(),
+            key=lambda x: x[0],
+            reverse=True,
+        )[: self.max_depth]
+        asks = sorted(
+            self.asks.items(),
+            key=lambda x: x[0],
+        )[: self.max_depth]
         return OrderBook(bids=bids, asks=asks)
 
     @staticmethod
@@ -221,8 +266,14 @@ async def stream_symbol(
     symbol: str,
     callback: StreamCallback,
     stop_event: asyncio.Event,
+    *,
+    orderbook_depth: int = 1000,
 ) -> None:
-    topics = [f"orderbook.50.{symbol}", f"kline.1.{symbol}", f"publicTrade.{symbol}"]
+    topics = [
+        f"orderbook.{orderbook_depth}.{symbol}",
+        f"kline.1.{symbol}",
+        f"publicTrade.{symbol}",
+    ]
     while not stop_event.is_set():
         try:
             async with websockets.connect(ws_url, ping_interval=20, ping_timeout=20) as ws:

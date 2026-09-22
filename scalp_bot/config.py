@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     scanner_interval_seconds: float = 60.0
     activity_request_concurrency: int = 2
     activity_request_pause_seconds: float = 0.20
+    bootstrap_1m_limit: int = 720
+    bootstrap_15m_limit: int = 480
     rest_request_min_interval_seconds: float = 0.25
     rest_rate_limit_retries: int = 6
     rest_rate_limit_backoff_seconds: float = 1.0
@@ -55,6 +57,11 @@ class Settings(BaseSettings):
     setup_reset_wait_seconds: float = 10.0
     arbiter_interval_seconds: float = 0.25
     market_stale_seconds: float = 3.0
+    book_stale_seconds: float = 1.5
+    orderbook_depth: int = 1000
+    trade_tape_seconds: float = 90.0
+    density_max_distance_pct: float = 0.05
+    density_min_wall_notional_usd: float = 100_000.0
 
     run_label: str = "paper-current-10h"
     paper_run_duration_seconds: float = 36_000.0

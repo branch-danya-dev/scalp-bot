@@ -21,6 +21,14 @@ class LevelZone:
     volume_ratio: float
     score: float
     last_touch_index: int
+    level_id: str | None = None
+    generation: int = 1
+    approach_count: int = 0
+    dwell_bars: int = 0
+    acceptance_bars: int = 0
+    rejection_count: int = 0
+    sweep_count: int = 0
+    lifecycle: str = "fresh"
 
     @property
     def center(self) -> float:
@@ -219,41 +227,120 @@ def approach_is_directional(candles: list[Candle], kind: LevelKind) -> bool:
     return closes[-1] < closes[0] and sum(right <= left for left, right in pairs) >= 2
 
 
+def _window_flow(
+    trades: list[TradeTick],
+    start_ms: int,
+) -> tuple[float, float, int]:
+    rows = [trade for trade in trades if trade.ts_ms >= start_ms]
+    buy = sum(trade.notional for trade in rows if trade.side.lower() == "buy")
+    sell = sum(trade.notional for trade in rows if trade.side.lower() == "sell")
+    return buy, sell, len(rows)
+
+
 def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> dict:
     if not trades:
         return {
             "buyNotional5s": 0.0,
             "sellNotional5s": 0.0,
             "imbalance5s": 0.0,
+            "buyNotional15s": 0.0,
+            "sellNotional15s": 0.0,
+            "imbalance15s": 0.0,
+            "buyNotional60s": 0.0,
+            "sellNotional60s": 0.0,
+            "imbalance60s": 0.0,
+            "cvdNotional60s": 0.0,
             "notionalPerSecond5s": 0.0,
             "acceleration": 0.0,
             "tradeCount5s": 0,
+            "tradeCount15s": 0,
+            "tradeCount60s": 0,
         }
     if now_ms is None:
         now_ms = trades[-1].ts_ms
 
-    recent_start = now_ms - 5_000
-    previous_start = now_ms - 20_000
-    recent = [t for t in trades if t.ts_ms >= recent_start]
-    previous = [t for t in trades if previous_start <= t.ts_ms < recent_start]
+    buy5, sell5, count5 = _window_flow(trades, now_ms - 5_000)
+    buy15, sell15, count15 = _window_flow(trades, now_ms - 15_000)
+    buy60, sell60, count60 = _window_flow(trades, now_ms - 60_000)
+    total5 = buy5 + sell5
+    total15 = buy15 + sell15
+    total60 = buy60 + sell60
 
-    buy = sum(t.notional for t in recent if t.side.lower() == "buy")
-    sell = sum(t.notional for t in recent if t.side.lower() == "sell")
-    recent_total = buy + sell
-    previous_total = sum(t.notional for t in previous)
-    recent_rate = recent_total / 5
+    previous = [
+        trade
+        for trade in trades
+        if now_ms - 20_000 <= trade.ts_ms < now_ms - 5_000
+    ]
+    previous_total = sum(trade.notional for trade in previous)
+    recent_rate = total5 / 5
     previous_rate = previous_total / 15
-    acceleration = recent_rate / previous_rate if previous_rate > 0 else (1.0 if recent_total > 0 else 0.0)
+    acceleration = (
+        recent_rate / previous_rate
+        if previous_rate > 0
+        else (1.0 if total5 > 0 else 0.0)
+    )
 
     return {
-        "buyNotional5s": buy,
-        "sellNotional5s": sell,
-        "imbalance5s": (buy - sell) / recent_total if recent_total > 0 else 0.0,
+        "buyNotional5s": buy5,
+        "sellNotional5s": sell5,
+        "imbalance5s": (buy5 - sell5) / total5 if total5 > 0 else 0.0,
+        "buyNotional15s": buy15,
+        "sellNotional15s": sell15,
+        "imbalance15s": (buy15 - sell15) / total15 if total15 > 0 else 0.0,
+        "buyNotional60s": buy60,
+        "sellNotional60s": sell60,
+        "imbalance60s": (buy60 - sell60) / total60 if total60 > 0 else 0.0,
+        "cvdNotional60s": buy60 - sell60,
         "notionalPerSecond5s": recent_rate,
         "acceleration": acceleration,
-        "tradeCount5s": len(recent),
+        "tradeCount5s": count5,
+        "tradeCount15s": count15,
+        "tradeCount60s": count60,
     }
 
+
+def compute_level_flow(
+    trades: list[TradeTick],
+    level_price: float,
+    *,
+    tolerance_pct: float = 0.0006,
+    window_seconds: float = 15.0,
+    now_ms: int | None = None,
+) -> dict:
+    if not trades or level_price <= 0:
+        return {
+            "buyNotional": 0.0,
+            "sellNotional": 0.0,
+            "deltaNotional": 0.0,
+            "imbalance": 0.0,
+            "tradeCount": 0,
+            "priceResponsePct": 0.0,
+        }
+    if now_ms is None:
+        now_ms = trades[-1].ts_ms
+    start_ms = now_ms - int(window_seconds * 1000)
+    rows = [
+        trade
+        for trade in trades
+        if trade.ts_ms >= start_ms
+        and abs(trade.price - level_price) / level_price <= tolerance_pct
+    ]
+    buy = sum(trade.notional for trade in rows if trade.side.lower() == "buy")
+    sell = sum(trade.notional for trade in rows if trade.side.lower() == "sell")
+    total = buy + sell
+    response = (
+        (rows[-1].price - rows[0].price) / level_price
+        if len(rows) >= 2
+        else 0.0
+    )
+    return {
+        "buyNotional": buy,
+        "sellNotional": sell,
+        "deltaNotional": buy - sell,
+        "imbalance": (buy - sell) / total if total > 0 else 0.0,
+        "tradeCount": len(rows),
+        "priceResponsePct": response,
+    }
 
 def bullish_rejection(candle: Candle) -> bool:
     body = abs(candle.close - candle.open)
