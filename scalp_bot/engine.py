@@ -693,6 +693,7 @@ class TradingEngine:
                     symbol=session.symbol,
                     trades=list(session.trades),
                     structure=session.structure,
+                    observed_at_ms=int(now * 1000),
                 )
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"
