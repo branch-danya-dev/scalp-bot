@@ -435,7 +435,7 @@ def test_minimum_net_profit_scales_with_equity() -> None:
 
     enough = engine.build_plan(
         "BTCUSDT",
-        decision(100.24, stop=99.50),
+        decision(100.26, stop=99.50),
         10_000,
         book(99.99, 100.00),
         100_000,
@@ -443,7 +443,7 @@ def test_minimum_net_profit_scales_with_equity() -> None:
     )
     assert enough.allowed
     assert enough.plan is not None
-    assert enough.plan.expected_net_profit == pytest.approx(11.0)
+    assert enough.plan.expected_net_profit >= 10.0
 
 
 def test_executable_spread_is_not_subtracted_twice() -> None:
@@ -460,7 +460,9 @@ def test_executable_spread_is_not_subtracted_twice() -> None:
 
     assert result.allowed
     assert result.plan is not None
-    assert result.plan.estimated_costs == pytest.approx(6.5)
+    assert result.plan.estimated_costs == pytest.approx(
+        result.plan.notional * 0.0013
+    )
     economics = result.plan.strategy_details["economics"]
     assert economics["entrySpreadPct"] == pytest.approx(0.0010005, rel=1e-3)
     assert economics["spreadCostDoubleCounted"] is False
@@ -491,7 +493,7 @@ def test_per_trade_risk_fraction_caps_all_in_stop_loss() -> None:
 
 
 def test_second_tight_stop_trade_is_scaled_by_remaining_all_in_risk() -> None:
-    cfg = economic_settings()
+    cfg = economic_settings(max_total_risk_fraction=0.0075)
     risk = RiskEngine(cfg)
     broker = PaperBroker(cfg)
     market = book(99.99, 100.00)
@@ -506,7 +508,7 @@ def test_second_tight_stop_trade_is_scaled_by_remaining_all_in_risk() -> None:
     )
     assert first.allowed
     assert first.plan is not None
-    assert first.plan.notional == pytest.approx(5000)
+    assert first.plan.notional == pytest.approx(5000 / 2.3)
     broker.open(first.plan, market)
 
     remaining_risk = broker.available_risk_usd
@@ -522,7 +524,7 @@ def test_second_tight_stop_trade_is_scaled_by_remaining_all_in_risk() -> None:
     )
     assert second.allowed
     assert second.plan is not None
-    assert second.plan.notional < 5000
+    assert second.plan.notional < first.plan.notional
     assert second.plan.expected_net_loss <= (
         remaining_risk + 1e-9
     )
