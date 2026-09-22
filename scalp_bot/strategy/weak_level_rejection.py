@@ -441,6 +441,7 @@ class WeakLevelRejectionStrategy(Strategy):
         symbol: str = "",
         trades: list[TradeTick] | None = None,
         structure: "MarketStructure | None" = None,
+        observed_at_ms: int | None = None,
     ) -> StrategyDecision:
         if len(candles) < 40 or trend == Trend.FLAT or not symbol:
             if symbol:
