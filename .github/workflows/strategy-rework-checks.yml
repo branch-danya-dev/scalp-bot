@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feat/trade-observatory
       - feat/level-zones-breakout
       - paper-run-v2-10h
       - paper-run-v3-4h
