@@ -16,6 +16,7 @@ from .common import (
     typical_range_pct,
     zone_visual,
 )
+from .liquidity import find_liquidity_target
 
 
 class BreakoutStage(StrEnum):
@@ -289,15 +290,27 @@ class LevelBreakoutStrategy(Strategy):
         if long_side:
             stop = zone.low - range_abs * 0.25
             expected_impulse = max(zone.width * 1.3, range_abs * 2.0)
-            target = entry + expected_impulse
+            fallback_target = entry + expected_impulse
             stop_pct = (entry - stop) / entry
             action = Action.LONG
         else:
             stop = zone.high + range_abs * 0.25
             expected_impulse = max(zone.width * 1.3, range_abs * 2.0)
-            target = entry - expected_impulse
+            fallback_target = entry - expected_impulse
             stop_pct = (stop - entry) / entry
             action = Action.SHORT
+
+        liquidity_target = find_liquidity_target(
+            candles,
+            entry,
+            action,
+            max_distance_pct=0.06,
+        )
+        target = (
+            liquidity_target.price
+            if liquidity_target is not None
+            else fallback_target
+        )
 
         if stop_pct <= 0 or stop_pct > self.max_stop_pct:
             return StrategyDecision(
@@ -357,6 +370,12 @@ class LevelBreakoutStrategy(Strategy):
                 "pressureScore": pressure_score,
                 "stopDistancePct": stop_pct,
                 "exitMode": "impulse_first",
+                "liquidityTarget": (
+                    liquidity_target.public() if liquidity_target else None
+                ),
+                "targetSource": (
+                    "liquidity" if liquidity_target else "impulse_fallback"
+                ),
                 "tradeMode": "trend_following",
                 "allowRunner": True,
                 "setupQuality": quality,

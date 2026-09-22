@@ -9,6 +9,7 @@ from .common import (
     swing_lows,
     trend_line_visual,
 )
+from .liquidity import find_liquidity_target
 
 
 class TrendStructureStrategy(Strategy):
@@ -38,6 +39,12 @@ class TrendStructureStrategy(Strategy):
             if distance <= 0.0025 and bullish_rejection(candles[-1]):
                 stop = min(candles[-1].low, projected) * 0.999
                 risk = close - stop
+                liquidity_target = find_liquidity_target(candles, close, Action.LONG)
+                target = (
+                    liquidity_target.price
+                    if liquidity_target is not None
+                    else close + risk * 1.6
+                )
                 return StrategyDecision(
                     strategy=self.key,
                     action=Action.LONG,
@@ -46,12 +53,18 @@ class TrendStructureStrategy(Strategy):
                     watched_level=projected,
                     entry=close,
                     stop=stop,
-                    target=close + risk * 1.6,
+                    target=target,
                     visuals=visuals,
                     details={
                         "setupQuality": 0.76,
                         "tradeMode": "trend_following",
                         "allowRunner": True,
+                        "liquidityTarget": (
+                            liquidity_target.public() if liquidity_target else None
+                        ),
+                        "targetSource": (
+                            "liquidity" if liquidity_target else "risk_multiple"
+                        ),
                     },
                 )
             return StrategyDecision(
@@ -71,6 +84,12 @@ class TrendStructureStrategy(Strategy):
         if distance <= 0.0025 and bearish_rejection(candles[-1]):
             stop = max(candles[-1].high, projected) * 1.001
             risk = stop - close
+            liquidity_target = find_liquidity_target(candles, close, Action.SHORT)
+            target = (
+                liquidity_target.price
+                if liquidity_target is not None
+                else close - risk * 1.6
+            )
             return StrategyDecision(
                 strategy=self.key,
                 action=Action.SHORT,
@@ -79,12 +98,18 @@ class TrendStructureStrategy(Strategy):
                 watched_level=projected,
                 entry=close,
                 stop=stop,
-                target=close - risk * 1.6,
+                target=target,
                 visuals=visuals,
                 details={
                     "setupQuality": 0.76,
                     "tradeMode": "trend_following",
                     "allowRunner": True,
+                    "liquidityTarget": (
+                        liquidity_target.public() if liquidity_target else None
+                    ),
+                    "targetSource": (
+                        "liquidity" if liquidity_target else "risk_multiple"
+                    ),
                 },
             )
         return StrategyDecision(

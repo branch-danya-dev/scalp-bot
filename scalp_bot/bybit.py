@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable
 import httpx
 import websockets
 
+from .activity import activity_score, correlation_1h
 from .config import Settings
 from .domain import Candidate, Candle, OrderBook
 
@@ -92,6 +93,9 @@ class BybitRestClient:
                     turnover_24h=turnover,
                     change_24h=float(item.get("price24hPcnt") or 0),
                     last_price=float(item.get("lastPrice") or 0),
+                    volume_24h=float(item.get("volume24h") or 0),
+                    trade_count_24h=None,
+                    trade_count_source="not_available_from_bybit_v5_ticker",
                 )
             )
         rows.sort(key=lambda x: x.turnover_24h, reverse=True)
@@ -100,29 +104,61 @@ class BybitRestClient:
     async def active_candidates(self) -> list[Candidate]:
         liquid = await self.liquid_candidates(self.config.liquid_universe_size)
         semaphore = asyncio.Semaphore(max(1, self.config.activity_request_concurrency))
+        correlation_limit = max(
+            self.config.activity_correlation_window_minutes + 1,
+            21,
+        )
+        benchmark = await self.klines(
+            self.config.activity_benchmark_symbol,
+            "1",
+            correlation_limit,
+        )
 
         async def enrich(candidate: Candidate) -> Candidate:
             async with semaphore:
                 candles = await self.klines(
                     candidate.symbol,
                     "1",
-                    max(self.config.activity_window_minutes + 1, 3),
+                    max(correlation_limit, self.config.activity_window_minutes + 1),
                 )
                 await asyncio.sleep(self.config.activity_request_pause_seconds)
             if len(candles) >= 2:
-                first = candles[0]
-                last = candles[-1]
+                recent = candles[-max(self.config.activity_window_minutes + 1, 2):]
+                first = recent[0]
+                last = recent[-1]
                 if first.open:
                     candidate.activity_change = (last.close - first.open) / first.open
-                candidate.activity_turnover = sum(x.turnover for x in candles[-self.config.activity_window_minutes :])
+                candidate.activity_turnover = sum(
+                    x.turnover
+                    for x in candles[-self.config.activity_window_minutes :]
+                )
+                candidate.correlation_1h_btc = (
+                    1.0
+                    if candidate.symbol == self.config.activity_benchmark_symbol
+                    else correlation_1h(candles, benchmark)
+                )
+                candidate.activity_score = activity_score(
+                    candidate,
+                    self.config.activity_window_minutes,
+                )
             return candidate
 
-        enriched = await asyncio.gather(*(enrich(x) for x in liquid), return_exceptions=True)
+        enriched = await asyncio.gather(
+            *(enrich(x) for x in liquid),
+            return_exceptions=True,
+        )
         rows: list[Candidate] = []
         for original, item in zip(liquid, enriched, strict=True):
             rows.append(original if isinstance(item, Exception) else item)
 
-        rows.sort(key=lambda x: (abs(x.activity_change), x.activity_turnover), reverse=True)
+        rows.sort(
+            key=lambda x: (
+                x.activity_score,
+                abs(x.activity_change),
+                x.activity_turnover,
+            ),
+            reverse=True,
+        )
         for index, item in enumerate(rows, start=1):
             item.activity_rank = index
         return rows

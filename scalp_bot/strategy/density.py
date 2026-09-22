@@ -9,6 +9,7 @@ from typing import Literal
 from ..domain import Action, Candle, OrderBook, StrategyDecision, TradeTick, Trend
 from .base import Strategy
 from .common import clamp, compute_trade_flow, price_visual, trade_mode, typical_range_abs
+from .liquidity import find_liquidity_target
 
 
 class DensityStage(StrEnum):
@@ -433,7 +434,22 @@ class DensityBounceStrategy(Strategy):
 
         mode, allow_runner = trade_mode(action, trend)
         target_r = 1.6 if allow_runner else 0.75
-        target = mid + risk * target_r if action == Action.LONG else mid - risk * target_r
+        reaction_target = (
+            mid + risk * target_r
+            if action == Action.LONG
+            else mid - risk * target_r
+        )
+        liquidity_target = find_liquidity_target(candles, mid, action)
+        if allow_runner and liquidity_target is not None:
+            target = liquidity_target.price
+        elif not allow_runner and liquidity_target is not None:
+            target = (
+                min(reaction_target, liquidity_target.price)
+                if action == Action.LONG
+                else max(reaction_target, liquidity_target.price)
+            )
+        else:
+            target = reaction_target
 
         strength_score = clamp((strength - self.strength_multiple) / 6.0)
         stability_score = clamp((remaining_ratio - 0.70) / 0.30)
@@ -467,6 +483,14 @@ class DensityBounceStrategy(Strategy):
                 "allowRunner": allow_runner,
                 "exitMode": "runner_allowed" if allow_runner else "reaction_only",
                 "targetR": target_r,
+                "liquidityTarget": (
+                    liquidity_target.public() if liquidity_target else None
+                ),
+                "targetSource": (
+                    "liquidity"
+                    if allow_runner and liquidity_target is not None
+                    else "reaction_cap"
+                ),
                 "densityFresh": True,
                 "setupQuality": quality,
                 "qualityFactors": {

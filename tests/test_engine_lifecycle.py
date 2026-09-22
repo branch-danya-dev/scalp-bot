@@ -366,7 +366,7 @@ def test_opportunity_score_prefers_setup_quality_not_geometry_rr(tmp_path) -> No
             confidence=0.85,
             details={"setupQuality": 0.40},
         )
-        assert engine._opportunity_score(high_quality, 5) > engine._opportunity_score(low_quality, 1)
+        assert engine._opportunity_score(high_quality, 5, 50) > engine._opportunity_score(low_quality, 1, 50)
     finally:
         close_rest(engine)
 
@@ -402,5 +402,23 @@ def test_density_only_invalidates_on_explicit_price_flow_failure(tmp_path) -> No
         engine._maybe_strategy_invalidation(session)
         assert "AAAUSDT" not in engine.broker.positions
         assert engine.broker.closed_trades[-1]["reason"] == "density_price_flow_invalidated"
+    finally:
+        close_rest(engine)
+
+
+
+def test_activity_score_can_break_close_setup_quality_tie(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        decision = StrategyDecision(
+            strategy="test",
+            action=Action.LONG,
+            reasons=["same quality"],
+            confidence=0.70,
+            details={"setupQuality": 0.70},
+        )
+        hot = engine._opportunity_score(decision, 5, 90)
+        quiet = engine._opportunity_score(decision, 5, 10)
+        assert hot > quiet
     finally:
         close_rest(engine)

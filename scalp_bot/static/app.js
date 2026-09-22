@@ -300,7 +300,14 @@ function render(data) {
     const flowText = flow.tradeCount5s
       ? ` · flow5s ${(Number(flow.imbalance5s || 0) * 100).toFixed(0)}% · speed x${Number(flow.acceleration || 0).toFixed(1)}`
       : "";
-    $("symbolMeta").textContent = `1m · last ${price(data.market.lastPrice)}${gapText} · activity ${pct(row?.activityChange)}${flowText}`;
+    const profile = data.market.activityProfile || {};
+    const corr = profile.correlation_1h_btc == null
+      ? "corr1h n/a"
+      : `corr1h BTC ${(Number(profile.correlation_1h_btc) * 100).toFixed(0)}%`;
+    const trades24h = profile.trade_count_24h == null
+      ? "trades24h n/a"
+      : `trades24h ${compact(profile.trade_count_24h)}`;
+    $("symbolMeta").textContent = `1m · last ${price(data.market.lastPrice)}${gapText} · 24h ${pct(profile.change_24h)} · vol ${compact(profile.turnover_24h)} · ${corr} · ${trades24h} · score ${Number(profile.activity_score || 0).toFixed(0)}${flowText}`;
     $("trendBadge").textContent = data.market.trend.toUpperCase();
     $("trendBadge").className = `trend ${data.market.trend}`;
     ensureChart();

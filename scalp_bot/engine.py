@@ -598,7 +598,11 @@ class TradingEngine:
 
                 candidate = candidate_map.get(session.symbol)
                 rank = candidate.activity_rank if candidate and candidate.activity_rank else 99
-                score = self._opportunity_score(decision, rank)
+                score = self._opportunity_score(
+                    decision,
+                    rank,
+                    candidate.activity_score if candidate else 0.0,
+                )
                 opportunities.append(
                     Opportunity(
                         score=score,
@@ -642,14 +646,24 @@ class TradingEngine:
         )
 
     @staticmethod
-    def _opportunity_score(decision: StrategyDecision, activity_rank: int) -> float:
+    def _opportunity_score(
+        decision: StrategyDecision,
+        activity_rank: int,
+        activity_score: float = 0.0,
+    ) -> float:
         # Geometry-derived net R/R was not predictive in the long paper run:
         # it describes payoff *if target is reached*, not the probability of
         # reaching it. Rank opportunities by strategy-specific setup quality
         # and use activity only as a small tie-breaker.
         quality = float(decision.details.get("setupQuality", decision.confidence) or 0.0)
         activity_bonus = max(0.0, 12 - min(activity_rank, 12)) * 0.5
-        return quality * 100 + decision.confidence * 15 + activity_bonus
+        market_attention_bonus = max(0.0, min(activity_score, 100.0)) * 0.12
+        return (
+            quality * 100
+            + decision.confidence * 15
+            + activity_bonus
+            + market_attention_bonus
+        )
 
     def _setup_blocked_reason(
         self,
@@ -819,6 +833,11 @@ class TradingEngine:
             selected_symbol = working[0] if working else None
         market = self.sessions[selected_symbol].market_snapshot() if selected_symbol else None
         candidate_map = {x.symbol: x for x in self.candidates}
+        if market is not None and selected_symbol is not None:
+            selected_candidate = candidate_map.get(selected_symbol)
+            market["activityProfile"] = (
+                selected_candidate.public() if selected_candidate else None
+            )
         now = time()
         working_rows = []
 
@@ -833,6 +852,10 @@ class TradingEngine:
                     "change24h": candidate.change_24h if candidate else None,
                     "activityChange": candidate.activity_change if candidate else None,
                     "activityRank": candidate.activity_rank if candidate else None,
+                    "activityScore": candidate.activity_score if candidate else None,
+                    "correlation1hBtc": candidate.correlation_1h_btc if candidate else None,
+                    "volume24h": candidate.volume_24h if candidate else None,
+                    "tradeCount24h": candidate.trade_count_24h if candidate else None,
                     "lastPrice": session.last_price,
                     "trend": session.trend.value,
                     "position": position.public() if position else None,

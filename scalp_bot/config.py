@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     active_symbol_min_seconds: float = 600.0
     active_symbol_idle_timeout_seconds: float = 300.0
     activity_window_minutes: int = 5
+    activity_correlation_window_minutes: int = 60
+    activity_benchmark_symbol: str = "BTCUSDT"
     scanner_interval_seconds: float = 60.0
     activity_request_concurrency: int = 2
     activity_request_pause_seconds: float = 0.20

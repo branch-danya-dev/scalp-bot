@@ -115,8 +115,13 @@ class Candidate:
     turnover_24h: float
     change_24h: float
     last_price: float
+    volume_24h: float = 0.0
+    trade_count_24h: int | None = None
+    trade_count_source: str | None = None
+    correlation_1h_btc: float | None = None
     activity_change: float = 0.0
     activity_turnover: float = 0.0
+    activity_score: float = 0.0
     activity_rank: int | None = None
 
     def public(self) -> dict[str, Any]:

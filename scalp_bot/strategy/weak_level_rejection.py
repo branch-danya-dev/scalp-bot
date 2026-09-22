@@ -18,6 +18,7 @@ from .common import (
     zone_overlap_count,
     zone_visual,
 )
+from .liquidity import find_liquidity_target
 
 
 class RejectionStage(StrEnum):
@@ -210,7 +211,22 @@ class WeakLevelRejectionStrategy(Strategy):
 
         mode, allow_runner = trade_mode(action, trend)
         target_r = 1.6 if allow_runner else 0.75
-        target = price + risk * target_r if action == Action.LONG else price - risk * target_r
+        reaction_target = (
+            price + risk * target_r
+            if action == Action.LONG
+            else price - risk * target_r
+        )
+        liquidity_target = find_liquidity_target(candles, price, action)
+        if allow_runner and liquidity_target is not None:
+            target = liquidity_target.price
+        elif not allow_runner and liquidity_target is not None:
+            target = (
+                min(reaction_target, liquidity_target.price)
+                if action == Action.LONG
+                else max(reaction_target, liquidity_target.price)
+            )
+        else:
+            target = reaction_target
 
         freshness = clamp(1.0 - (zone.touches - 1) * 0.25)
         flow_strength = clamp(abs(flow["imbalance5s"]) / 0.25)
@@ -252,6 +268,14 @@ class WeakLevelRejectionStrategy(Strategy):
                 "allowRunner": allow_runner,
                 "exitMode": "runner_allowed" if allow_runner else "reaction_only",
                 "targetR": target_r,
+                "liquidityTarget": (
+                    liquidity_target.public() if liquidity_target else None
+                ),
+                "targetSource": (
+                    "liquidity"
+                    if allow_runner and liquidity_target is not None
+                    else "reaction_cap"
+                ),
                 "setupQuality": quality,
                 "qualityFactors": {
                     "freshness": freshness,

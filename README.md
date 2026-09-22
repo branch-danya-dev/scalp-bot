@@ -131,3 +131,17 @@ Long-run findings applied in this patch:
 - arbiter ranks setup quality, not deterministic net R/R geometry;
 - paper stop/target/partial triggers use executable bid/ask;
 - run_summary keeps a lifetime closed-trade counter even though the UI history is capped.
+
+## Market activity and liquidity targets
+
+Candidate selection now carries a market-activity profile:
+- verified Bybit 24h turnover;
+- verified Bybit 24h base volume;
+- verified 24h price change;
+- 5m turnover burst and price activity;
+- 1h Pearson correlation of aligned 1m returns versus BTCUSDT;
+- an interpretable activity score used as a secondary arbiter input.
+
+tradeCount24h exists as an optional external metric, but Bybit V5 tickers do not publish it and recent-trade REST is capped, so the bot deliberately does not fabricate a 24h trade count. A screener/provider can populate it later.
+
+Levels are explicit liquidity targets. strategy/liquidity.py searches in the direction of the trade for the nearest meaningful pool: a repeated horizontal zone or an isolated external swing high/low. Trend-following strategies may target that pool; countertrend reactions remain capped.
