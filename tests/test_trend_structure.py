@@ -217,7 +217,7 @@ def test_short_entry_uses_symmetric_confirmation_sequence() -> None:
 
     reclaim = strategy.evaluate(
         candles,
-        book(99.34, 99.36),
+        book(99.33, 99.35),
         Trend.DOWN,
         symbol="SHORTUSDT",
         trades=trades,
