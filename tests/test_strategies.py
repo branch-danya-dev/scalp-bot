@@ -157,16 +157,16 @@ def density_sell_flow() -> list[TradeTick]:
 
 def test_density_tracks_stability_and_trades_defended_wall() -> None:
     strategy = DensityBounceStrategy()
-    book = density_book(20_000)
+    book = density_book(50_000)
     rows = density_candles()
     first = strategy.evaluate(rows, book, Trend.DOWN, symbol="TESTUSDT", trades=density_sell_flow())
     assert first.action == Action.WAIT
     state = strategy._states["TESTUSDT"]
     state.first_seen -= 4
     state.observations = [
-        (state.first_seen, 20_000),
-        (state.first_seen + 1, 19_500),
-        (state.first_seen + 2, 20_000),
+        (state.first_seen, 50_000),
+        (state.first_seen + 1, 49_000),
+        (state.first_seen + 2, 50_000),
     ]
     decision = strategy.evaluate(rows, book, Trend.DOWN, symbol="TESTUSDT", trades=density_sell_flow())
     assert decision.action == Action.SHORT
@@ -176,15 +176,15 @@ def test_density_tracks_stability_and_trades_defended_wall() -> None:
 
 def test_density_removed_after_confirmed_defense_is_not_automatic_invalidation() -> None:
     strategy = DensityBounceStrategy()
-    book = density_book(20_000)
+    book = density_book(50_000)
     rows = density_candles()
     strategy.evaluate(rows, book, Trend.DOWN, symbol="TESTUSDT", trades=density_sell_flow())
     state = strategy._states["TESTUSDT"]
     state.first_seen -= 4
     state.observations = [
-        (state.first_seen, 20_000),
+        (state.first_seen, 50_000),
         (state.first_seen + 1, 20_000),
-        (state.first_seen + 2, 20_000),
+        (state.first_seen + 2, 50_000),
     ]
     traded = strategy.evaluate(rows, book, Trend.DOWN, symbol="TESTUSDT", trades=density_sell_flow())
     assert traded.action == Action.SHORT
