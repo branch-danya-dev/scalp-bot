@@ -121,11 +121,23 @@ def test_breakout_shared_generation_is_used_only_once() -> None:
         trades=aggressive_buy_flow(),
         structure=structure,
     )
-    assert first.action == Action.LONG
-    assert first.details["levelLifecycle"]["generation_id"] == "R:100:g1"
-    assert first.details["qualityFactors"]["distinctApproaches"] > 0
-    assert first.details["qualityFactors"]["dwell"] > 0
+    assert first.action == Action.WAIT
+    strategy._states["BREAKUSDT"].break_started_at -= 4
 
+    entry = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="BREAKUSDT",
+        trades=aggressive_buy_flow(),
+        structure=structure,
+    )
+    assert entry.action == Action.LONG
+    assert entry.details["levelLifecycle"]["generation_id"] == "R:100:g1"
+    assert entry.details["qualityFactors"]["distinctApproaches"] > 0
+    assert entry.details["qualityFactors"]["dwell"] > 0
+
+    strategy.mark_opened("BREAKUSDT", entry)
     second = strategy.evaluate(
         rows,
         book,
@@ -146,7 +158,17 @@ def test_breakout_shared_generation_is_used_only_once() -> None:
         trades=aggressive_buy_flow(),
         structure=new_generation,
     )
-    assert third.action == Action.LONG
+    assert third.action == Action.WAIT
+    strategy._states["BREAKUSDT"].break_started_at -= 4
+    third_entry = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="BREAKUSDT",
+        trades=aggressive_buy_flow(),
+        structure=new_generation,
+    )
+    assert third_entry.action == Action.LONG
 
 
 def rejection_candles() -> list[Candle]:
@@ -249,8 +271,19 @@ def test_rejection_shared_generation_is_used_only_once() -> None:
         trades=buy_flow(),
         structure=structure,
     )
-    assert second.action == Action.WAIT
-    assert second.details["alreadyUsed"] is True
+    assert second.action == Action.LONG
+
+    strategy.mark_opened("REJECTUSDT", first)
+    consumed = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="REJECTUSDT",
+        trades=buy_flow(),
+        structure=structure,
+    )
+    assert consumed.action == Action.WAIT
+    assert consumed.details["alreadyUsed"] is True
 
     new_generation = young_support("S:100:g2")
     third = strategy.evaluate(
@@ -284,9 +317,20 @@ def test_breakout_global_flow_away_from_level_does_not_confirm() -> None:
 
 def test_breakout_records_level_flow_on_entry() -> None:
     strategy = LevelBreakoutStrategy()
+    book = OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)])
+    first = strategy.evaluate(
+        mature_breakout_candles(),
+        book,
+        Trend.UP,
+        symbol="LOCALFLOWUSDT",
+        trades=aggressive_buy_flow(),
+        structure=mature_structure(),
+    )
+    assert first.action == Action.WAIT
+    strategy._states["LOCALFLOWUSDT"].break_started_at -= 4
     decision = strategy.evaluate(
         mature_breakout_candles(),
-        OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)]),
+        book,
         Trend.UP,
         symbol="LOCALFLOWUSDT",
         trades=aggressive_buy_flow(),
@@ -333,3 +377,19 @@ def test_rejection_records_level_flow_on_entry() -> None:
     assert decision.action == Action.LONG
     assert decision.details["levelFlow"]["tradeCount"] > 0
     assert decision.details["levelFlow"]["buyNotional"] > 0
+
+
+def test_rejection_countertrend_signal_is_observed_but_not_tradeable() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    decision = strategy.evaluate(
+        rejection_candles(),
+        OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)]),
+        Trend.DOWN,
+        symbol="COUNTERREJECTUSDT",
+        trades=buy_flow(),
+        structure=young_support(),
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["trendAligned"] is False
+    assert decision.details["rejectedAction"] == "long"
