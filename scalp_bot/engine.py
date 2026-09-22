@@ -18,7 +18,7 @@ from .strategy import (
     MarketStructure,
     Strategy,
     build_market_structure,
-    classify_trend,
+    classify_context_trend,
     compute_trade_flow,
 )
 
@@ -97,11 +97,16 @@ class ActiveSymbolSession:
         while self.book_flow and self.book_flow[0][0] < cutoff:
             self.book_flow.popleft()
 
-    def book_flow_snapshot(self) -> dict:
-        now_ms = self.last_book_flow_ms
+    def book_flow_snapshot(self, now_ms: int | None = None) -> dict:
+        resolved_now_ms = int(time() * 1000) if now_ms is None else now_ms
+
         def window(seconds: int) -> float:
-            cutoff = now_ms - seconds * 1000
-            return sum(value for ts, value in self.book_flow if ts >= cutoff)
+            cutoff = resolved_now_ms - seconds * 1000
+            return sum(
+                value
+                for ts, value in self.book_flow
+                if cutoff <= ts <= resolved_now_ms
+            )
 
         depth_usd = sum(
             price * qty
@@ -109,9 +114,9 @@ class ActiveSymbolSession:
                 self.orderbook.bids[:5] + self.orderbook.asks[:5]
             )
         )
-        ofi_5s = window(5) if now_ms else 0.0
-        ofi_15s = window(15) if now_ms else 0.0
-        ofi_60s = window(60) if now_ms else 0.0
+        ofi_5s = window(5)
+        ofi_15s = window(15)
+        ofi_60s = window(60)
         return {
             "bestLevelOfiUsd5s": ofi_5s,
             "bestLevelOfiUsd15s": ofi_15s,
@@ -123,6 +128,7 @@ class ActiveSymbolSession:
         }
 
     def market_snapshot(self) -> dict:
+        now_ms = int(time() * 1000)
         return {
             "symbol": self.symbol,
             "lastPrice": self.last_price,
@@ -130,8 +136,8 @@ class ActiveSymbolSession:
             "candles": [x.public() for x in self.candles[-240:]],
             "orderbook": self.orderbook.public(),
             "bookHealth": self.book_health(),
-            "tradeFlow": compute_trade_flow(list(self.trades)),
-            "bookFlow": self.book_flow_snapshot(),
+            "tradeFlow": compute_trade_flow(list(self.trades), now_ms),
+            "bookFlow": self.book_flow_snapshot(now_ms),
             "tradeBufferSeconds": (
                 (self.trades[-1].ts_ms - self.trades[0].ts_ms) / 1000
                 if len(self.trades) >= 2 else 0.0
@@ -142,14 +148,15 @@ class ActiveSymbolSession:
         }
 
     def frame(self, book_depth: int, position: dict | None) -> dict:
+        now_ms = int(time() * 1000)
         return {
             "lastPrice": self.last_price,
             "trend": self.trend.value,
             "candle": self.candles[-1].public() if self.candles else None,
             "orderbook": self.orderbook.public(book_depth),
             "bookHealth": self.book_health(),
-            "tradeFlow": compute_trade_flow(list(self.trades)),
-            "bookFlow": self.book_flow_snapshot(),
+            "tradeFlow": compute_trade_flow(list(self.trades), now_ms),
+            "bookFlow": self.book_flow_snapshot(now_ms),
             "position": position,
             "recentTrades": [trade.public() for trade in list(self.trades)[-250:]],
             "structure": self.structure.public() if self.structure else None,
@@ -498,7 +505,10 @@ class TradingEngine:
             last_ranked_at=now,
         )
         session.last_price = candles[-1].close if candles else 0
-        session.trend = classify_trend(session.context_15m)
+        session.trend = classify_context_trend(
+            session.context_15m,
+            session.context_1h,
+        )
         self.sessions[symbol] = session
         self._emit(
             "symbol_activated",
@@ -550,7 +560,10 @@ class TradingEngine:
                     session.context_5m = [x for x in context_5m if x.confirmed]
                     session.context_15m = [x for x in context_15m if x.confirmed]
                     session.context_1h = [x for x in context_1h if x.confirmed]
-                    session.trend = classify_trend(session.context_15m)
+                    session.trend = classify_context_trend(
+                        session.context_15m,
+                        session.context_1h,
+                    )
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
@@ -707,7 +720,10 @@ class TradingEngine:
         closed_1h = [x for x in session.context_1h if x.confirmed]
         if not closed_1m:
             return
-        session.trend = classify_trend(closed_15m)
+        session.trend = classify_context_trend(
+            closed_15m,
+            closed_1h,
+        )
         reference_price = session.orderbook.mid or session.last_price
         session.structure = build_market_structure(
             closed_1m,
@@ -983,7 +999,7 @@ class TradingEngine:
         session: ActiveSymbolSession,
     ) -> None:
         pos = self.broker.positions.get(session.symbol)
-        if pos is None or pos.partial_taken:
+        if pos is None:
             return
         if time() - pos.opened_at < 5:
             return

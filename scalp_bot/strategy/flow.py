@@ -50,12 +50,12 @@ def cumulative_delta(
     buy = sum(
         t.notional
         for t in trades
-        if t.ts_ms >= cutoff and t.side.lower() == "buy"
+        if cutoff <= t.ts_ms <= now_ms and t.side.lower() == "buy"
     )
     sell = sum(
         t.notional
         for t in trades
-        if t.ts_ms >= cutoff and t.side.lower() == "sell"
+        if cutoff <= t.ts_ms <= now_ms and t.side.lower() == "sell"
     )
     return buy - sell
 
@@ -75,7 +75,7 @@ def flow_at_level(
     rows = [
         t
         for t in trades
-        if t.ts_ms >= cutoff
+        if cutoff <= t.ts_ms <= now_ms
         and abs(t.price - level_price) / level_price <= tolerance_pct
     ]
     if not rows:

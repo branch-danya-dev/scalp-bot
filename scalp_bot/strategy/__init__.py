@@ -1,6 +1,12 @@
 from .base import Strategy
 from .breakout import BreakoutStage, LevelBreakoutStrategy
-from .common import LevelZone, classify_trend, compute_trade_flow, detect_level_zones
+from .common import (
+    LevelZone,
+    classify_context_trend,
+    classify_trend,
+    compute_trade_flow,
+    detect_level_zones,
+)
 from .density import DensityBounceStrategy, DensityStage
 from .liquidity import LiquidityTarget, find_liquidity_target
 from .lifecycle import LevelLifecycleTracker
@@ -18,6 +24,7 @@ DEFAULT_STRATEGIES: list[Strategy] = [
 __all__ = [
     "Strategy",
     "LevelZone",
+    "classify_context_trend",
     "classify_trend",
     "compute_trade_flow",
     "detect_level_zones",

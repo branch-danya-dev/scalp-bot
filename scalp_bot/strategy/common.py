@@ -93,6 +93,20 @@ def classify_trend(candles: list[Candle]) -> Trend:
     return Trend.FLAT
 
 
+def classify_context_trend(
+    context_15m: list[Candle],
+    context_1h: list[Candle],
+) -> Trend:
+    """Use 15m direction with 1h structure as an opposition veto."""
+    intraday = classify_trend(context_15m)
+    if intraday == Trend.FLAT:
+        return Trend.FLAT
+    higher = classify_trend(context_1h)
+    if higher != Trend.FLAT and higher != intraday:
+        return Trend.FLAT
+    return intraday
+
+
 def detect_level_zones(
     candles: list[Candle],
     kind: LevelKind,
@@ -228,6 +242,7 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
             "notionalPerSecond5s": 0.0,
             "acceleration": 0.0,
             "tradeCount5s": 0,
+            "latestTradeAgeMs": None,
             "cvd5s": 0.0,
             "cvd15s": 0.0,
             "cvd60s": 0.0,
@@ -237,8 +252,16 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
 
     recent_start = now_ms - 5_000
     previous_start = now_ms - 20_000
-    recent = [t for t in trades if t.ts_ms >= recent_start]
-    previous = [t for t in trades if previous_start <= t.ts_ms < recent_start]
+    recent = [
+        t
+        for t in trades
+        if recent_start <= t.ts_ms <= now_ms
+    ]
+    previous = [
+        t
+        for t in trades
+        if previous_start <= t.ts_ms < recent_start
+    ]
 
     buy = sum(t.notional for t in recent if t.side.lower() == "buy")
     sell = sum(t.notional for t in recent if t.side.lower() == "sell")
@@ -250,6 +273,7 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
 
     from .flow import cumulative_delta
 
+    latest_age_ms = max(0, now_ms - trades[-1].ts_ms)
     return {
         "buyNotional5s": buy,
         "sellNotional5s": sell,
@@ -257,6 +281,7 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
         "notionalPerSecond5s": recent_rate,
         "acceleration": acceleration,
         "tradeCount5s": len(recent),
+        "latestTradeAgeMs": latest_age_ms,
         "cvd5s": cumulative_delta(trades, 5, now_ms),
         "cvd15s": cumulative_delta(trades, 15, now_ms),
         "cvd60s": cumulative_delta(trades, 60, now_ms),
