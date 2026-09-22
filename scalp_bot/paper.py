@@ -368,20 +368,32 @@ class PaperBroker:
 
         risk_distance = abs(pos.entry - pos.initial_stop)
         runner_stop = self._runner_breakeven_stop(pos)
+        target_source = str(
+            pos.strategy_details.get("targetSource") or ""
+        )
+        structural_liquidity_target = (
+            target_source == "liquidity"
+            or isinstance(
+                pos.strategy_details.get("liquidityTarget"),
+                dict,
+            )
+        )
         if pos.side == Side.LONG:
             pos.stop = max(pos.stop, runner_stop)
-            pos.target = max(
-                pos.target,
-                pos.entry
-                + risk_distance * self.config.runner_target_r,
-            )
+            if not structural_liquidity_target:
+                pos.target = max(
+                    pos.target,
+                    pos.entry
+                    + risk_distance * self.config.runner_target_r,
+                )
         else:
             pos.stop = min(pos.stop, runner_stop)
-            pos.target = min(
-                pos.target,
-                pos.entry
-                - risk_distance * self.config.runner_target_r,
-            )
+            if not structural_liquidity_target:
+                pos.target = min(
+                    pos.target,
+                    pos.entry
+                    - risk_distance * self.config.runner_target_r,
+                )
 
         return {
             "event": "partial_take",

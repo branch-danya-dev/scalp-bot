@@ -511,3 +511,41 @@ def test_open_uses_visible_depth_vwap() -> None:
     expected = 200 / (1 + 100 / 101)
     assert pos.entry == pytest.approx(expected)
     assert pos.entry > 100.00
+
+
+def test_partial_keeps_structural_liquidity_target() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_at_r=1.0,
+        partial_take_fraction=0.70,
+        runner_target_r=2.5,
+        breakeven_buffer_bps=0,
+        no_follow_through_seconds=999,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("LIQUSDT", Side.LONG, 1000)
+    p.target = 100.80
+    p.strategy_details = {
+        "allowRunner": True,
+        "targetSource": "liquidity",
+        "liquidityTarget": {
+            "price": 100.80,
+            "kind": "resistance",
+        },
+    }
+    broker.open(p, book(99.99, 100.00))
+
+    events = broker.mark(
+        "LIQUSDT",
+        100.55,
+        book(100.55, 100.56),
+    )
+
+    assert events and events[0]["event"] == "partial_take"
+    pos = broker.positions["LIQUSDT"]
+    assert pos.partial_taken is True
+    assert pos.target == pytest.approx(100.80)
+    assert pos.target < pos.entry + (
+        abs(pos.entry - pos.initial_stop) * cfg.runner_target_r
+    )
