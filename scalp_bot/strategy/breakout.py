@@ -35,9 +35,9 @@ class BreakoutStage(StrEnum):
 
 @dataclass(slots=True)
 class BreakoutWatchState:
-    zone_key: tuple[str, int, float] | None = None
+    zone_key: tuple[str, str, float] | None = None
     stage: BreakoutStage = BreakoutStage.SEARCH
-    used_generations: set[tuple[str, int, float]] = field(default_factory=set)
+    used_generations: set[tuple[str, str, float]] = field(default_factory=set)
 
 
 class LevelBreakoutStrategy(Strategy):
@@ -57,8 +57,12 @@ class LevelBreakoutStrategy(Strategy):
         self._states.pop(symbol, None)
 
     @staticmethod
-    def _generation(zone: LevelZone) -> tuple[str, int, float]:
-        return (zone.kind, zone.last_touch_index, round(zone.center, 8))
+    def _generation(zone: LevelZone) -> tuple[str, str, float]:
+        return (
+            zone.kind,
+            str(zone.last_touch_index),
+            round(zone.center, 8),
+        )
 
     @staticmethod
     def _select_zone(
@@ -241,7 +245,7 @@ class LevelBreakoutStrategy(Strategy):
             if matched is not None and matched.generation_id:
                 generation = (
                     zone.kind,
-                    hash(matched.generation_id),
+                    matched.generation_id,
                     round(zone.center, 8),
                 )
         state.zone_key = generation
@@ -409,8 +413,8 @@ class LevelBreakoutStrategy(Strategy):
         state.stage = BreakoutStage.IMPULSE
         state.used_generations.add(generation)
         setup_id = (
-            f"{self.key}:{action.value}:{zone.kind}:"
-            f"{zone.last_touch_index}:{zone.center:.10g}"
+            f"{self.key}:{action.value}:{generation[0]}:"
+            f"{generation[1]}:{generation[2]:.10g}"
         )
         return StrategyDecision(
             strategy=self.key,
