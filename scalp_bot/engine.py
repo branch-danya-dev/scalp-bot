@@ -144,6 +144,21 @@ class TradingEngine:
             )
             setattr(
                 density_strategy,
+                "strength_multiple",
+                config.density_strength_multiple,
+            )
+            setattr(
+                density_strategy,
+                "turnover_floor_fraction",
+                config.density_turnover_floor_fraction,
+            )
+            setattr(
+                density_strategy,
+                "neighbor_window_levels",
+                config.density_neighbor_window_levels,
+            )
+            setattr(
+                density_strategy,
                 "max_distance_pct",
                 config.density_max_distance_pct,
             )
