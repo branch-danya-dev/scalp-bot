@@ -55,10 +55,11 @@ SCALP_ENFORCE_SESSION_LOSS_LIMIT=false
 
 Per-trade and simultaneous portfolio risk controls remain enabled.
 
-Research cost gate:
+Research economics:
 - a trade must remain net-positive after estimated taker fees and slippage, with spread represented by executable bid/ask pricing rather than subtracted twice;
-- minimum expected net is max($1, 0.1% of current equity);
-- net reward / all-in net loss must be at least 1.15;
+- $1 / 0.1% minimum-net is a shadow diagnostic, not a hard research gate;
+- net reward / all-in net loss 1.15 is a shadow diagnostic, not a hard research gate;
+- every shadow breach is recorded as `economic_shadow` for later Trade Observatory analysis;
 - existing strategies trade only in the direction of the confirmed higher-timeframe trend; countertrend reactions are observed but not opened.
 
 ## Paper-run harness
@@ -228,31 +229,26 @@ The paper account starts at $1,000.
 Position sizing is derived from structural invalidation distance:
 
 ```
-all-in risk budget per trade = 0.5% of equity
-theoretical notional = risk budget / (stop distance + round-trip fees/slippage)
+structural risk budget per trade = 0.5% of equity
+theoretical notional = structural risk budget / stop distance
 ```
 
-The result is then capped by:
+Trading costs no longer silently reduce that structural budget. They are constrained separately by:
 
 ```
+max planned all-in loss per trade = 1.25% equity
+max aggregate all-in open risk = 2% equity
 max single-position leverage = 5x equity
 max aggregate portfolio leverage = 10x equity
-max aggregate all-in open risk = 2% equity
 ```
 
-Example at $1,000 equity:
+For research, the hard economic requirement is:
 
 ```
-0.10% structural stop -> size is reduced materially because costs are part of the 0.5% loss budget
-0.20% structural stop -> size is reduced by the same all-in rule
-0.50% structural stop -> size approaches the structural-risk result as costs become a smaller share
+net at configured target > 0 after estimated trading costs
 ```
 
-The economic gate requires:
-
-```
-net at configured target >= max($1, 0.1% current equity)
-```
+The legacy `$1 / 0.1% equity` minimum-net and `net R:R >= 1.15` checks remain visible as shadow diagnostics and are recorded without blocking an otherwise valid paper entry.
 
 The deterministic cost estimate includes taker fees and configured slippage. Entry planning and paper fills use executable bid/ask plus visible-depth VWAP, so spread and depth impact are represented by executable prices rather than subtracted a second time.
 
