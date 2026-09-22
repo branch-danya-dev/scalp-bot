@@ -276,3 +276,142 @@ def test_density_wall_outside_current_book_is_unknown_not_removed() -> None:
     assert second.details["reason"] == "wall_outside_book_coverage"
     assert second.details["positionInvalidated"] is False
     assert strategy._states["COVERAGEUSDT"].stage.value != "exhausted"
+
+
+
+def threshold_density_book(
+    *,
+    neighbor_notional: float,
+    wall_notional: float | None,
+    wall_price: float = 100.20,
+    levels: int = 300,
+) -> OrderBook:
+    bids = []
+    asks = []
+    for i in range(levels):
+        bid_price = 99.99 - i * 0.01
+        ask_price = 100.01 + i * 0.01
+        bids.append((bid_price, neighbor_notional / bid_price))
+        asks.append((ask_price, neighbor_notional / ask_price))
+    if wall_notional is not None:
+        asks = [
+            (
+                price,
+                wall_notional / price
+                if abs(price - wall_price) < 1e-9
+                else qty,
+            )
+            for price, qty in asks
+        ]
+    return OrderBook(bids=bids, asks=asks)
+
+
+def high_turnover_density_candles() -> list[Candle]:
+    rows = density_candles()
+    return [
+        Candle(
+            row.start_ms,
+            row.open,
+            row.high,
+            row.low,
+            row.close,
+            100_000,
+            10_000_000,
+        )
+        for row in rows
+    ]
+
+
+def test_density_rejects_wall_below_absolute_usd_floor() -> None:
+    strategy = DensityBounceStrategy()
+    strategy.max_distance_pct = 0.01
+    strategy.min_wall_notional_usd = 25_000
+    strategy.strength_multiple = 4.0
+    strategy.turnover_floor_fraction = 0.0
+
+    decision = strategy.evaluate(
+        density_candles(),
+        threshold_density_book(
+            neighbor_notional=1_000,
+            wall_notional=10_000,
+        ),
+        Trend.DOWN,
+        symbol="ABSUSDT",
+        trades=[],
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "search"
+    assert decision.details.get("wallPrice") is None
+
+
+def test_density_rejects_wall_that_is_not_strong_vs_local_neighbors() -> None:
+    strategy = DensityBounceStrategy()
+    strategy.max_distance_pct = 0.01
+    strategy.min_wall_notional_usd = 25_000
+    strategy.strength_multiple = 4.0
+    strategy.turnover_floor_fraction = 0.0
+
+    decision = strategy.evaluate(
+        density_candles(),
+        threshold_density_book(
+            neighbor_notional=10_000,
+            wall_notional=30_000,
+        ),
+        Trend.DOWN,
+        symbol="RELUSDT",
+        trades=[],
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "search"
+    assert decision.details.get("wallPrice") is None
+
+
+def test_density_rejects_wall_below_activity_scaled_floor() -> None:
+    strategy = DensityBounceStrategy()
+    strategy.max_distance_pct = 0.01
+    strategy.min_wall_notional_usd = 25_000
+    strategy.strength_multiple = 4.0
+    strategy.turnover_floor_fraction = 0.01
+
+    decision = strategy.evaluate(
+        high_turnover_density_candles(),
+        threshold_density_book(
+            neighbor_notional=2_000,
+            wall_notional=50_000,
+        ),
+        Trend.DOWN,
+        symbol="ACTIVITYUSDT",
+        trades=[],
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "search"
+    assert decision.details.get("wallPrice") is None
+
+
+def test_density_accepts_wall_passing_absolute_relative_and_activity_floors() -> None:
+    strategy = DensityBounceStrategy()
+    strategy.max_distance_pct = 0.01
+    strategy.min_wall_notional_usd = 25_000
+    strategy.strength_multiple = 4.0
+    strategy.turnover_floor_fraction = 0.01
+
+    decision = strategy.evaluate(
+        density_candles(),
+        threshold_density_book(
+            neighbor_notional=2_000,
+            wall_notional=50_000,
+        ),
+        Trend.DOWN,
+        symbol="VALIDWALLUSDT",
+        trades=[],
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["wallPrice"] == 100.20
+    assert decision.details["localBaselineNotionalUsd"] >= 1_900
+    assert decision.details["strengthMultiple"] >= 20
+    assert decision.details["effectiveWallFloorUsd"] == 25_000
+    assert decision.details["turnoverFloorUsd"] < 25_000
