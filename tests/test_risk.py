@@ -124,6 +124,7 @@ def test_position_exposure_cap_never_exceeds_remaining_portfolio_exposure() -> N
         max_position_exposure_fraction=0.25,
         risk_fraction=0.005,
         min_net_profit_usd=0,
+        min_net_profit_equity_fraction=0.0,
         min_net_reward_risk=0,
         taker_fee_rate=0,
         slippage_bps=0,
