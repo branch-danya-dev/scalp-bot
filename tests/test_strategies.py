@@ -64,7 +64,7 @@ def weak_support_rejection_candles() -> list[Candle]:
         (100.62, 100.68, 100.45, 100.50),
         (100.48, 100.54, 100.28, 100.34),
         (100.31, 100.37, 100.10, 100.16),
-        (100.12, 100.22, 99.96, 100.10),
+        (100.12, 100.22, 99.94, 100.10),
     ]
     start = len(rows)
     for j, values in enumerate(approach):

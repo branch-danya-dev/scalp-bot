@@ -181,7 +181,7 @@ def rejection_candles() -> list[Candle]:
         (100.62, 100.68, 100.45, 100.50),
         (100.48, 100.54, 100.28, 100.34),
         (100.31, 100.37, 100.10, 100.16),
-        (100.12, 100.22, 99.96, 100.10),
+        (100.12, 100.22, 99.94, 100.10),
     ]
     start = len(rows)
     for j, values in enumerate(approach):
@@ -191,10 +191,15 @@ def rejection_candles() -> list[Candle]:
 
 def buy_flow() -> list[TradeTick]:
     start = 20_000_000
-    return [
-        TradeTick(start + i * 200, 100.10, 3, "Buy")
+    rows = [
+        TradeTick(start + i * 200, 99.95, 1, "Sell")
+        for i in range(3)
+    ]
+    rows += [
+        TradeTick(start + 1_000 + i * 200, 100.10, 3, "Buy")
         for i in range(20)
     ]
+    return rows
 
 
 def young_support(generation: str = "S:100:g1") -> MarketStructure:
@@ -312,7 +317,8 @@ def test_breakout_global_flow_away_from_level_does_not_confirm() -> None:
     assert decision.action == Action.WAIT
     assert decision.details["state"] == "break"
     assert decision.details["flow"]["imbalance5s"] > 0
-    assert decision.details["levelFlow"]["tradeCount"] == 0
+    assert decision.details["breakoutFlow"]["tradeCount"] > 0
+    assert decision.details["levelFlow"]["imbalance"] < 0
 
 
 def test_breakout_records_level_flow_on_entry() -> None:
@@ -351,8 +357,14 @@ def test_rejection_global_flow_away_from_level_does_not_confirm() -> None:
         Trend.UP,
         symbol="FARREJECTUSDT",
         trades=[
-            TradeTick(20_000_000 + i * 200, 102.0, 3, "Buy")
-            for i in range(20)
+            *[
+                TradeTick(20_000_000 + i * 200, 99.95, 1, "Sell")
+                for i in range(3)
+            ],
+            *[
+                TradeTick(20_001_000 + i * 200, 102.0, 3, "Buy")
+                for i in range(20)
+            ],
         ],
         structure=young_support(),
     )
