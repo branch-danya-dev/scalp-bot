@@ -18,7 +18,6 @@ from .common import (
     compute_trade_flow,
     detect_level_zones,
     nearby_round_level,
-    trade_mode,
     typical_range_abs,
     zone_overlap_count,
     zone_visual,
@@ -56,6 +55,12 @@ class WeakLevelRejectionStrategy(Strategy):
 
     def reset(self, symbol: str) -> None:
         self._states.pop(symbol, None)
+
+    def mark_opened(self, symbol: str, decision: StrategyDecision) -> None:
+        state = self._states.get(symbol)
+        generation = decision.details.get("levelGeneration")
+        if state is not None and generation:
+            state.used_generations.add(str(generation))
 
     @staticmethod
     def _key(zone: LevelZone) -> tuple[str, float, float, int]:
@@ -254,6 +259,28 @@ class WeakLevelRejectionStrategy(Strategy):
                 },
             )
 
+        expected_action = Action.LONG if trend == Trend.UP else Action.SHORT
+        if action != expected_action:
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                ["Отбой подтверждён, но направлен против HTF тренда; контртрендовый вход запрещён"],
+                0.48,
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    "zone": zone.public(),
+                    "flow": flow,
+                    "levelFlow": level_flow.public(),
+                    "roundLevel": round_level,
+                    "weakLevel": True,
+                    "levelGeneration": generation_id,
+                    "trendAligned": False,
+                    "rejectedAction": action.value,
+                },
+            )
+
         if risk <= 0:
             return StrategyDecision(
                 self.key,
@@ -280,24 +307,16 @@ class WeakLevelRejectionStrategy(Strategy):
                 },
             )
 
-        mode, allow_runner = trade_mode(action, trend)
-        target_r = 1.6 if allow_runner else 0.75
+        mode = "trend_following"
+        allow_runner = True
+        target_r = 1.6
         reaction_target = (
             price + risk * target_r
             if action == Action.LONG
             else price - risk * target_r
         )
         liquidity_target = find_liquidity_target(candles, price, action, structure=structure)
-        if allow_runner and liquidity_target is not None:
-            target = liquidity_target.price
-        elif not allow_runner and liquidity_target is not None:
-            target = (
-                min(reaction_target, liquidity_target.price)
-                if action == Action.LONG
-                else max(reaction_target, liquidity_target.price)
-            )
-        else:
-            target = reaction_target
+        target = liquidity_target.price if liquidity_target is not None else reaction_target
 
         approaches = (
             structural_level.distinct_approaches
@@ -330,7 +349,6 @@ class WeakLevelRejectionStrategy(Strategy):
             + (0.03 if round_level is not None else 0.0)
         )
         state.stage = RejectionStage.REACTION
-        state.used_generations.add(generation_id)
 
         return StrategyDecision(
             strategy=self.key,
@@ -339,11 +357,7 @@ class WeakLevelRejectionStrategy(Strategy):
                 f"Слабый уровень: {approaches} отдельных подход(а), без длительной проторговки",
                 "Попытка пробоя не удержалась, цена вернулась за границу зоны",
                 "Поток непосредственно у уровня подтвердил разворот/поглощение",
-                (
-                    "Отскок идёт по тренду: runner разрешён"
-                    if allow_runner
-                    else "Отскок против тренда: берём только короткую реакцию"
-                ),
+                "Отскок подтверждён в направлении HTF тренда",
             ],
             confidence=quality,
             watched_level=zone.center,
@@ -366,15 +380,13 @@ class WeakLevelRejectionStrategy(Strategy):
                 ),
                 "tradeMode": mode,
                 "allowRunner": allow_runner,
-                "exitMode": "runner_allowed" if allow_runner else "reaction_only",
+                "exitMode": "runner_allowed",
                 "targetR": target_r,
                 "liquidityTarget": (
                     liquidity_target.public() if liquidity_target else None
                 ),
                 "targetSource": (
-                    "liquidity"
-                    if allow_runner and liquidity_target is not None
-                    else "reaction_cap"
+                    "liquidity" if liquidity_target is not None else "risk_multiple"
                 ),
                 "setupQuality": quality,
                 "qualityFactors": {
