@@ -170,3 +170,23 @@ def test_orderbook_u_one_reinitializes_state() -> None:
     assert state.last_seq == 900
     assert book.bids == [(90.0, 2.0)]
     assert book.asks == [(110.0, 3.0)]
+
+
+
+def test_orderbook_depth_1000_preserves_full_requested_window() -> None:
+    state = OrderBookState(depth=1000)
+    bids = [[str(100 - i * 0.001), "1"] for i in range(1000)]
+    asks = [[str(101 + i * 0.001), "1"] for i in range(1000)]
+
+    book = state.apply({
+        "type": "snapshot",
+        "data": {
+            "u": 1,
+            "seq": 1,
+            "b": bids,
+            "a": asks,
+        },
+    })
+
+    assert len(book.bids) == 1000
+    assert len(book.asks) == 1000
