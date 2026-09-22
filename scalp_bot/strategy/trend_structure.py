@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ..domain import Action, Candle, OrderBook, StrategyDecision, TradeTick, Trend
+from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .base import Strategy
 
 if TYPE_CHECKING:
@@ -20,6 +20,22 @@ from .liquidity import find_liquidity_target
 class TrendStructureStrategy(Strategy):
     key = "trend_structure"
     label = "Трендовая структура"
+
+    def manage_position(
+        self,
+        *,
+        side: Side,
+        unrealized_pnl: float,
+        opened_at: float,
+        strategy_details: dict,
+        decision: StrategyDecision | None,
+        trend: Trend,
+        last_price: float,
+    ) -> str | None:
+        expected = Trend.UP if side == Side.LONG else Trend.DOWN
+        if unrealized_pnl < 0 and trend != expected:
+            return "trend_structure_context_lost"
+        return None
 
     def evaluate(
         self,
