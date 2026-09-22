@@ -186,6 +186,17 @@ def test_long_entry_requires_test_reclaim_flow_and_follow_through() -> None:
     assert entry.details["flowConfirmed"] is True
     assert entry.stop < entry.entry
 
+    still_available = strategy.evaluate(
+        candles,
+        book(100.89, 100.91),
+        Trend.UP,
+        symbol="AAAUSDT",
+        trades=trades,
+        structure=market_structure,
+    )
+    assert still_available.action == Action.LONG
+
+    strategy.mark_opened("AAAUSDT", entry)
     repeated = strategy.evaluate(
         candles,
         book(100.89, 100.91),
