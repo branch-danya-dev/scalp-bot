@@ -247,3 +247,20 @@ def test_short_entry_uses_symmetric_confirmation_sequence() -> None:
     )
     assert entry.action == Action.SHORT
     assert entry.stop > entry.entry
+
+
+def test_uptrend_rejects_descending_support_trendline() -> None:
+    market_structure = structure("support")
+    market_structure.trendlines[0].slope_per_bar = -0.01
+
+    decision = TrendStructureStrategy().evaluate(
+        long_pullback_candles(),
+        book(100.09, 100.11),
+        Trend.UP,
+        symbol="WRONGSLOPEUSDT",
+        trades=buy_flow(),
+        structure=market_structure,
+    )
+
+    assert decision.action == Action.WAIT
+    assert "правильного наклона" in decision.reasons[0]
