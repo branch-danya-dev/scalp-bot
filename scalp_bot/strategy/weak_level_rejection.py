@@ -119,17 +119,34 @@ class WeakLevelRejectionStrategy(Strategy):
         structure: "MarketStructure | None" = None,
         structural_level=None,
         observed_at_ms: int | None = None,
+        generation_id_override: str | None = None,
     ) -> StrategyDecision:
         state = self._states.setdefault(symbol, RejectionWatchState())
         generation_id = (
-            structural_level.generation_id
-            if structural_level is not None and structural_level.generation_id
-            else f"{zone.kind}:{zone.last_touch_index}:{zone.center:.10g}"
+            generation_id_override
+            or (
+                structural_level.generation_id
+                if structural_level is not None and structural_level.generation_id
+                else f"{zone.kind}:{zone.last_touch_index}:{zone.center:.10g}"
+            )
+        )
+        now = (
+            observed_at_ms / 1000
+            if observed_at_ms is not None
+            else (
+                trades[-1].ts_ms / 1000
+                if trades
+                else candles[-1].start_ms / 1000
+            )
         )
         zone_key = generation_id
         if state.zone_key != zone_key:
             state.zone_key = zone_key
             state.stage = RejectionStage.FOUND
+            state.pinned_zone = None
+            state.pinned_generation_id = None
+            state.pinned_until = 0.0
+            state.swept = False
 
         if generation_id in state.used_generations:
             return StrategyDecision(
@@ -202,11 +219,14 @@ class WeakLevelRejectionStrategy(Strategy):
                 seconds=15,
                 now_ms=observed_at_ms,
             )
-            failed_break = (
+            sweep_observed = (
                 last.high > zone.high
-                and last.close < zone.low
-                and breakout_flow.trade_count > 0
+                or breakout_flow.trade_count > 0
             )
+            if sweep_observed:
+                state.swept = True
+            reclaimed = price < zone.low
+            failed_break = state.swept and reclaimed
             attack_absorbed = (
                 level_flow.buy_notional > level_flow.sell_notional
                 and level_flow.absorption_efficiency >= 0.30
@@ -229,11 +249,14 @@ class WeakLevelRejectionStrategy(Strategy):
                 seconds=15,
                 now_ms=observed_at_ms,
             )
-            failed_break = (
+            sweep_observed = (
                 last.low < zone.low
-                and last.close > zone.high
-                and breakout_flow.trade_count > 0
+                or breakout_flow.trade_count > 0
             )
+            if sweep_observed:
+                state.swept = True
+            reclaimed = price > zone.high
+            failed_break = state.swept and reclaimed
             attack_absorbed = (
                 level_flow.sell_notional > level_flow.buy_notional
                 and level_flow.absorption_efficiency >= 0.30
@@ -250,6 +273,12 @@ class WeakLevelRejectionStrategy(Strategy):
 
         if tested:
             state.stage = RejectionStage.TEST
+            state.pinned_zone = zone
+            state.pinned_generation_id = generation_id
+            state.pinned_until = max(
+                state.pinned_until,
+                now + self.test_pin_seconds,
+            )
 
         if not (tested and failed_break):
             return StrategyDecision(
@@ -268,6 +297,9 @@ class WeakLevelRejectionStrategy(Strategy):
                     "breakoutFlow": breakout_flow.public(),
                     "roundLevel": round_level,
                     "weakLevel": True,
+                    "sweepObserved": state.swept,
+                    "reclaimed": failed_break,
+                    "pinnedUntil": state.pinned_until or None,
                 },
             )
 
