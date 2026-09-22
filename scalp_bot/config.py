@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     trade_buffer_seconds: int = 90
     orderbook_depth: int = 1000
     density_min_wall_notional_usd: float = 25_000.0
+    density_strength_multiple: float = 4.0
+    density_turnover_floor_fraction: float = 0.01
+    density_neighbor_window_levels: int = 20
     density_max_distance_pct: float = 0.05
     research_frame_seconds: float = 1.0
     research_recent_trades: int = 250
