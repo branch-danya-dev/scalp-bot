@@ -54,16 +54,34 @@ class LevelLifecycleTracker:
             level_id = self._id(level, reference_price)
             life = self._levels.get(level_id)
             if life is None:
+                historical_approaches = max(
+                    1,
+                    min(level.distinct_approaches or level.touches, 5),
+                )
+                tolerance = max(
+                    level.width * 0.5,
+                    local_range * 0.15,
+                    reference_price * 0.0004,
+                )
+                currently_near = (
+                    reference_price >= level.low - tolerance
+                    and reference_price <= level.high + tolerance
+                )
                 life = LevelLife(
                     level_id=level_id,
                     first_seen_ms=now_ms,
                     last_seen_ms=now_ms,
-                    distinct_approaches=max(
-                        1,
-                        min(level.distinct_approaches or level.touches, 5),
-                    ),
+                    distinct_approaches=historical_approaches,
                     dwell_bars=level.dwell_bars,
                     acceptance_bars=level.acceptance_bars,
+                    was_near=currently_near,
+                    last_approach_ms=(now_ms if currently_near else None),
+                    last_counted_bar_ms=(
+                        latest.start_ms
+                        if latest is not None
+                        and (level.dwell_bars > 0 or level.acceptance_bars > 0)
+                        else None
+                    ),
                 )
                 self._levels[level_id] = life
             elif life.broken and now_ms - life.last_seen_ms > 60_000:
