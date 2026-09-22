@@ -312,8 +312,13 @@ function render(data) {
   $("netPnl").textContent = money(totalNet);
   $("netPnl").className = totalNet >= 0 ? "positive" : "negative";
   $("positionCount").textContent = data.positions.length;
-  const perPositionCap = Number(data.balance || 0) * Number(data.risk.maxLeverage || 0) * Number(data.risk.maxPositionExposureFraction || 0);
-  $("availableExposure").textContent = `${money(data.portfolio.availableNotional)} · ${money(perPositionCap)}/pos`;
+  const balance = Number(data.balance || 0);
+  const positionLeverageCap = balance * Number(data.risk.maxPositionLeverage || 0);
+  const positionShareCap = balance
+    * Number(data.risk.maxPortfolioLeverage || 0)
+    * Number(data.risk.maxPositionExposureFraction || 0);
+  const perPositionCap = Math.min(positionLeverageCap, positionShareCap);
+  $("availableExposure").textContent = money(data.portfolio.availableNotional) + " · " + money(perPositionCap) + "/pos";
   const rrGate = data.risk.enforceNetRewardRiskGate ? `RR≥${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}` : `RR monitor ${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}`;
   $("costGate").textContent = `≥ ${money(data.risk.minNetProfitUsd)} net · ${rrGate}`;
   $("runTimer").textContent = data.botRunning
