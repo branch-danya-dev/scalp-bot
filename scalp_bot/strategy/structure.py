@@ -417,15 +417,28 @@ def build_market_structure(
     candles_1m: list[Candle],
     context_15m: list[Candle],
     reference_price: float,
+    *,
+    context_5m: list[Candle] | None = None,
+    context_1h: list[Candle] | None = None,
 ) -> MarketStructure:
     if reference_price <= 0 and candles_1m:
         reference_price = candles_1m[-1].close
 
+    resolved_5m = (
+        context_5m[-576:]
+        if context_5m
+        else aggregate_candles(candles_1m[-720:], 5)
+    )
+    resolved_1h = (
+        context_1h[-336:]
+        if context_1h
+        else aggregate_candles(context_15m[-480:], 60)
+    )
     frames: list[tuple[str, list[Candle]]] = [
         ("1m", candles_1m[-720:]),
-        ("5m", aggregate_candles(candles_1m[-720:], 5)),
+        ("5m", resolved_5m),
         ("15m", context_15m[-480:]),
-        ("1h", aggregate_candles(context_15m[-480:], 60)),
+        ("1h", resolved_1h),
     ]
 
     levels: list[StructuralLevel] = []
