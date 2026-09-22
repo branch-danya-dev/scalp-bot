@@ -31,6 +31,15 @@ class StructuralLevel:
     last_touch_ms: int | None = None
     round_confluence: bool = False
     sources: list[str] = field(default_factory=list)
+    last_touch_index: int = 0
+    level_id: str | None = None
+    generation_id: str | None = None
+    distinct_approaches: int = 0
+    dwell_bars: int = 0
+    acceptance_bars: int = 0
+    failed_breaks: int = 0
+    sweeps: int = 0
+    lifecycle: str = "fresh"
 
     @property
     def center(self) -> float:
@@ -54,7 +63,7 @@ class StructuralLevel:
             reaction_pct=self.reaction_pct,
             volume_ratio=self.volume_ratio,
             score=self.score * 10.0,
-            last_touch_index=0,
+            last_touch_index=self.last_touch_index,
         )
 
 
@@ -81,6 +90,8 @@ class MarketStructure:
     trendlines: list[TrendLine] = field(default_factory=list)
     day_high: float | None = None
     day_low: float | None = None
+    previous_day_high: float | None = None
+    previous_day_low: float | None = None
 
     def public(self, max_levels: int = 14) -> dict:
         levels = sorted(self.levels, key=lambda item: item.score, reverse=True)[:max_levels]
@@ -89,6 +100,8 @@ class MarketStructure:
             "trendlines": [item.public() for item in self.trendlines],
             "dayHigh": self.day_high,
             "dayLow": self.day_low,
+            "previousDayHigh": self.previous_day_high,
+            "previousDayLow": self.previous_day_low,
         }
 
     def nearest_horizontal(
@@ -181,6 +194,7 @@ def _zone_level(zone: LevelZone, candles: list[Candle], timeframe: str) -> Struc
         last_touch_ms=last_touch_ms,
         round_confluence=nearby_round_level(center, center * 0.0003) is not None,
         sources=[timeframe],
+        last_touch_index=zone.last_touch_index,
     )
 
 
@@ -210,6 +224,7 @@ def _merge_levels(levels: list[StructuralLevel], reference_price: float) -> list
         match.volume_ratio = max(match.volume_ratio, level.volume_ratio)
         match.round_confluence = match.round_confluence or level.round_confluence
         match.sources = sorted(set(match.sources + level.sources))
+        match.last_touch_index = max(match.last_touch_index, level.last_touch_index)
         if level.last_touch_ms and (
             match.last_touch_ms is None or level.last_touch_ms > match.last_touch_ms
         ):
@@ -218,18 +233,32 @@ def _merge_levels(levels: list[StructuralLevel], reference_price: float) -> list
     return merged
 
 
-def _current_utc_day_extremes(context_15m: list[Candle]) -> tuple[float | None, float | None]:
+def _utc_day_extremes(
+    context_15m: list[Candle],
+) -> tuple[float | None, float | None, float | None, float | None]:
     if not context_15m:
-        return None, None
-    latest = datetime.fromtimestamp(context_15m[-1].start_ms / 1000, tz=timezone.utc).date()
-    rows = [
-        candle
-        for candle in context_15m
-        if datetime.fromtimestamp(candle.start_ms / 1000, tz=timezone.utc).date() == latest
+        return None, None, None, None
+    dates = sorted({
+        datetime.fromtimestamp(c.start_ms / 1000, tz=timezone.utc).date()
+        for c in context_15m
+    })
+    latest = dates[-1]
+    previous = dates[-2] if len(dates) >= 2 else None
+    current_rows = [
+        c for c in context_15m
+        if datetime.fromtimestamp(c.start_ms / 1000, tz=timezone.utc).date() == latest
     ]
-    if not rows:
-        return None, None
-    return max(c.high for c in rows), min(c.low for c in rows)
+    previous_rows = [
+        c for c in context_15m
+        if previous is not None
+        and datetime.fromtimestamp(c.start_ms / 1000, tz=timezone.utc).date() == previous
+    ]
+    return (
+        max((c.high for c in current_rows), default=None),
+        min((c.low for c in current_rows), default=None),
+        max((c.high for c in previous_rows), default=None),
+        min((c.low for c in previous_rows), default=None),
+    )
 
 
 def _fit_line(points: list[tuple[int, float]]) -> tuple[float, float]:
@@ -335,7 +364,7 @@ def build_market_structure(
 
     levels = _merge_levels(levels, reference_price or 1.0)
 
-    day_high, day_low = _current_utc_day_extremes(context_15m)
+    day_high, day_low, previous_day_high, previous_day_low = _utc_day_extremes(context_15m)
     if day_high is not None:
         levels.append(
             StructuralLevel(
@@ -365,6 +394,31 @@ def build_market_structure(
             )
         )
 
+    if previous_day_high is not None:
+        levels.append(
+            StructuralLevel(
+                kind="previous_day_high",
+                low=previous_day_high,
+                high=previous_day_high,
+                touches=1,
+                timeframe="1D",
+                score=0.88,
+                sources=["previous_day_high"],
+            )
+        )
+    if previous_day_low is not None:
+        levels.append(
+            StructuralLevel(
+                kind="previous_day_low",
+                low=previous_day_low,
+                high=previous_day_low,
+                touches=1,
+                timeframe="1D",
+                score=0.88,
+                sources=["previous_day_low"],
+            )
+        )
+
     trendlines: list[TrendLine] = []
     for timeframe, candles in frames[:2]:
         for kind in ("support", "resistance"):
@@ -377,4 +431,6 @@ def build_market_structure(
         trendlines=sorted(trendlines, key=lambda item: item.score, reverse=True)[:4],
         day_high=day_high,
         day_low=day_low,
+        previous_day_high=previous_day_high,
+        previous_day_low=previous_day_low,
     )
