@@ -67,10 +67,17 @@ class RiskEngine:
         if risk_budget <= 0:
             return RiskResult(False, "portfolio risk budget exhausted")
         notional_by_risk = risk_budget / stop_pct
-        position_exposure_cap = (
-            balance
-            * self.config.max_leverage
+        portfolio_exposure_cap = balance * self.config.max_leverage
+        position_leverage_cap = (
+            balance * max(0.0, self.config.max_position_leverage)
+        )
+        position_share_cap = (
+            portfolio_exposure_cap
             * max(0.0, self.config.max_position_exposure_fraction)
+        )
+        position_exposure_cap = min(
+            position_leverage_cap,
+            position_share_cap,
         )
         notional = min(
             notional_by_risk,
