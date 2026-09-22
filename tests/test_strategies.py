@@ -194,3 +194,85 @@ def test_density_removed_after_confirmed_defense_is_not_automatic_invalidation()
     after = strategy.evaluate(rows, no_wall, Trend.DOWN, symbol="TESTUSDT", trades=density_sell_flow())
     assert after.action == Action.WAIT
     assert after.details["positionInvalidated"] is False
+
+
+
+def deep_density_book(
+    wall_price: float | None = None,
+    wall_notional: float = 100_000,
+    levels: int = 1000,
+    step: float = 0.005,
+) -> OrderBook:
+    bids = [(99.99 - i * step, 10) for i in range(levels)]
+    asks = [(100.01 + i * step, 10) for i in range(levels)]
+    if wall_price is not None:
+        asks.append((wall_price, wall_notional / wall_price))
+        asks.sort(key=lambda row: row[0])
+    return OrderBook(bids=bids, asks=asks)
+
+
+def test_density_can_observe_far_wall_when_book_really_covers_it() -> None:
+    strategy = DensityBounceStrategy()
+    strategy.max_distance_pct = 0.05
+    book = deep_density_book(wall_price=104.0)
+
+    decision = strategy.evaluate(
+        density_candles(),
+        book,
+        Trend.DOWN,
+        symbol="DEEPUSDT",
+        trades=[],
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["wallPrice"] == 104.0
+    assert decision.details["bookCoverage"]["askCoveragePct"] >= 0.04
+    assert decision.details["bookCoverage"]["askLevels"] >= 1000
+
+
+def test_density_marks_search_incomplete_when_book_does_not_cover_range() -> None:
+    strategy = DensityBounceStrategy()
+    strategy.max_distance_pct = 0.05
+    book = deep_density_book(levels=40, step=0.002)
+
+    decision = strategy.evaluate(
+        density_candles(),
+        book,
+        Trend.DOWN,
+        symbol="SHALLOWUSDT",
+        trades=[],
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "search"
+    assert decision.details["coverageIncomplete"] is True
+    assert decision.details["bookCoverage"]["coverageComplete"] is False
+
+
+def test_density_wall_outside_current_book_is_unknown_not_removed() -> None:
+    strategy = DensityBounceStrategy()
+    strategy.max_distance_pct = 0.05
+    rows = density_candles()
+
+    first = strategy.evaluate(
+        rows,
+        deep_density_book(wall_price=104.0),
+        Trend.DOWN,
+        symbol="COVERAGEUSDT",
+        trades=[],
+    )
+    assert first.details["wallPrice"] == 104.0
+
+    shallow = deep_density_book(levels=40, step=0.002)
+    second = strategy.evaluate(
+        rows,
+        shallow,
+        Trend.DOWN,
+        symbol="COVERAGEUSDT",
+        trades=[],
+    )
+
+    assert second.action == Action.WAIT
+    assert second.details["reason"] == "wall_outside_book_coverage"
+    assert second.details["positionInvalidated"] is False
+    assert strategy._states["COVERAGEUSDT"].stage.value != "exhausted"
