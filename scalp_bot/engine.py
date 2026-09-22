@@ -1089,7 +1089,16 @@ class TradingEngine:
             "closedTrades": self.broker.closed_trades[-30:],
             "portfolio": {
                 "totalExposure": self.broker.total_exposure,
+                "grossLeverage": (
+                    self.broker.total_exposure / self.broker.balance
+                    if self.broker.balance > 0
+                    else 0.0
+                ),
                 "availableNotional": self.broker.available_notional,
+                "openStructuralRiskUsd": (
+                    self.broker.open_structural_risk_usd
+                ),
+                "openCostReserveUsd": self.broker.open_cost_reserve_usd,
                 "openRiskUsd": self.broker.open_risk_usd,
                 "availableRiskUsd": self.broker.available_risk_usd,
             },
