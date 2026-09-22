@@ -271,3 +271,25 @@ The run label for this exact economics revision is:
 ```
 paper-v3-scalp-econ-4h
 ```
+
+
+## Trade Observatory
+
+The observability/debugging layer is documented in:
+
+```
+docs/trade-observatory.md
+```
+
+It provides:
+
+- normalized strategy Decision Trace;
+- interactive Trade Review Cards for closed trades;
+- chart timeframes 5s / 15s / 1m / 5m / 10m / 15m / 1h;
+- Active / HTF / All level filters;
+- DOM interpretation for density;
+- strategy/event filtering and per-strategy runtime analytics;
+- offline rejected-entry and early-exit review;
+- selection of any saved session, including legacy session files where the recorded payload is sufficient.
+
+The offline review layer never participates in live trading decisions.
