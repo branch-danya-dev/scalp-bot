@@ -450,7 +450,7 @@ def test_second_tight_stop_trade_is_scaled_by_remaining_all_in_risk() -> None:
 
     second = risk.build_plan(
         "BBBUSDT",
-        decision(100.20, stop=99.90),
+        decision(100.40, stop=99.90),
         broker.balance,
         market,
         broker.available_notional,
