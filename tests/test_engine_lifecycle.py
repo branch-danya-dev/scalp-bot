@@ -402,6 +402,7 @@ def test_density_only_invalidates_on_explicit_price_flow_failure(tmp_path) -> No
         assert "AAAUSDT" in engine.broker.positions
 
         pos.partial_taken = True
+        pos.unrealized_pnl = 0.1
         session.decisions["orderbook_density"].details["positionInvalidated"] = True
         engine._maybe_strategy_invalidation(session)
         assert "AAAUSDT" not in engine.broker.positions
@@ -409,6 +410,46 @@ def test_density_only_invalidates_on_explicit_price_flow_failure(tmp_path) -> No
     finally:
         close_rest(engine)
 
+
+
+def test_breakout_premise_invalidates_even_while_trade_is_positive(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=99.95,
+            trend=Trend.UP,
+        )
+        engine.sessions[session.symbol] = session
+        p = plan("AAAUSDT")
+        p.strategy = "level_breakout"
+        p.strategy_details = {
+            "zone": {"low": 99.80, "high": 100.00},
+            "tradeMode": "trend_following",
+            "allowRunner": True,
+        }
+        pos = engine.broker.open(p, book())
+        pos.opened_at -= 10
+        pos.unrealized_pnl = 0.1
+
+        session.decisions["level_breakout"] = StrategyDecision(
+            strategy="level_breakout",
+            action=Action.WAIT,
+            reasons=["back inside"],
+            details={"state": "break"},
+        )
+
+        engine._maybe_strategy_invalidation(session)
+
+        assert "AAAUSDT" not in engine.broker.positions
+        assert (
+            engine.broker.closed_trades[-1]["reason"]
+            == "breakout_failed_back_inside"
+        )
+    finally:
+        close_rest(engine)
 
 
 def test_activity_score_can_break_close_setup_quality_tie(tmp_path) -> None:

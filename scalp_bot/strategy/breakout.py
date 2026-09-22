@@ -166,11 +166,6 @@ class LevelBreakoutStrategy(Strategy):
         trend: Trend,
         last_price: float,
     ) -> str | None:
-        if unrealized_pnl >= 0:
-            return None
-        expected = Trend.UP if side == Side.LONG else Trend.DOWN
-        if trend != expected:
-            return "breakout_context_lost"
         zone = (
             strategy_details.get("zone")
             if isinstance(strategy_details, dict)
@@ -183,6 +178,11 @@ class LevelBreakoutStrategy(Strategy):
                 return "breakout_failed_back_inside"
             if side == Side.SHORT and low > 0 and last_price > low:
                 return "breakout_failed_back_inside"
+        if unrealized_pnl >= 0:
+            return None
+        expected = Trend.UP if side == Side.LONG else Trend.DOWN
+        if trend != expected:
+            return "breakout_context_lost"
         return None
 
     def evaluate(

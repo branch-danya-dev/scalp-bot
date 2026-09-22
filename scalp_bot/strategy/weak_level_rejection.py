@@ -435,12 +435,6 @@ class WeakLevelRejectionStrategy(Strategy):
         trend: Trend,
         last_price: float,
     ) -> str | None:
-        if unrealized_pnl >= 0:
-            return None
-        mode = str(strategy_details.get("tradeMode") or "")
-        expected = Trend.UP if side == Side.LONG else Trend.DOWN
-        if mode == "trend_following" and trend != expected:
-            return "weak_level_context_lost"
         zone = (
             strategy_details.get("zone")
             if isinstance(strategy_details, dict)
@@ -453,6 +447,12 @@ class WeakLevelRejectionStrategy(Strategy):
                 return "weak_level_invalidated"
             if side == Side.SHORT and high > 0 and last_price > high:
                 return "weak_level_invalidated"
+        if unrealized_pnl >= 0:
+            return None
+        mode = str(strategy_details.get("tradeMode") or "")
+        expected = Trend.UP if side == Side.LONG else Trend.DOWN
+        if mode == "trend_following" and trend != expected:
+            return "weak_level_context_lost"
         return None
 
     def evaluate(
