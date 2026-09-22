@@ -21,6 +21,7 @@ from .common import (
     typical_range_pct,
     zone_visual,
 )
+from .flow import flow_at_level
 from .liquidity import find_liquidity_target
 
 
@@ -252,7 +253,23 @@ class LevelBreakoutStrategy(Strategy):
         state.zone_key = generation
         visuals = zone_visual(zone, "breakout zone")
         flow = compute_trade_flow(trades)
-        pressure_score, pressure = self._pressure_score(candles, zone, flow, long_side=long_side)
+        level_tolerance = max(
+            zone.width_pct * 1.5,
+            book.spread_pct * 2.0,
+            0.0008,
+        )
+        level_flow = flow_at_level(
+            trades,
+            zone.center,
+            tolerance_pct=level_tolerance,
+            seconds=15,
+        )
+        pressure_score, pressure = self._pressure_score(
+            candles,
+            zone,
+            flow,
+            long_side=long_side,
+        )
 
         if generation in state.used_generations:
             state.stage = BreakoutStage.FOUND
@@ -292,6 +309,7 @@ class LevelBreakoutStrategy(Strategy):
                     "pressureScore": pressure_score,
                     "pressure": pressure,
                     "flow": flow,
+                    "levelFlow": level_flow.public(),
                 },
             )
 
@@ -333,9 +351,17 @@ class LevelBreakoutStrategy(Strategy):
 
         state.stage = BreakoutStage.BREAK
         aligned_after_break = (
-            flow["imbalance5s"] >= 0.05
-            if long_side
-            else flow["imbalance5s"] <= -0.05
+            level_flow.trade_count >= 3
+            and (
+                level_flow.imbalance >= 0.05
+                if long_side
+                else level_flow.imbalance <= -0.05
+            )
+            and (
+                level_flow.price_response_pct >= -0.0001
+                if long_side
+                else level_flow.price_response_pct <= 0.0001
+            )
         )
         if pressure_score < self.min_pressure_score or not aligned_after_break:
             return StrategyDecision(
@@ -403,7 +429,7 @@ class LevelBreakoutStrategy(Strategy):
             (zone.touches - self.min_zone_touches + 1) / 4.0
         )
         pressure_quality = clamp(pressure_score / 5.0)
-        flow_quality = clamp(abs(flow["imbalance5s"]) / 0.25)
+        flow_quality = clamp(abs(level_flow.imbalance) / 0.25)
         reaction_quality = clamp(
             zone.reaction_pct
             / max(typical_range_pct(candles), 1e-9)
@@ -453,7 +479,7 @@ class LevelBreakoutStrategy(Strategy):
             reasons=[
                 "Пробой зрелой наторгованной горизонтальной зоны",
                 f"Зона подтверждена {zone.touches} касаниями, реакциями и объёмом",
-                "Подход сформировал давление, поток подтверждает сторону пробоя",
+                "Подход сформировал давление, поток непосредственно у уровня подтверждает пробой",
                 "Одна генерация уровня торгуется только один раз",
             ],
             confidence=quality,
@@ -472,6 +498,7 @@ class LevelBreakoutStrategy(Strategy):
                     else None
                 ),
                 "flow": flow,
+                "levelFlow": level_flow.public(),
                 "pressure": pressure,
                 "pressureScore": pressure_score,
                 "stopDistancePct": stop_pct,
