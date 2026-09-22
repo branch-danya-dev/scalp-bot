@@ -36,9 +36,13 @@ class Settings(BaseSettings):
     enforce_net_reward_risk_gate: bool = False
     risk_fraction: float = 0.005
     max_total_risk_fraction: float = 0.02
-    max_leverage: float = 1.0
+    # max_leverage is the aggregate gross portfolio exposure cap.
+    max_leverage: float = 10.0
+    # A single tight-stop scalp may use materially more notional than equity,
+    # but it cannot consume the whole portfolio leverage budget.
+    max_position_leverage: float = 5.0
     max_open_positions: int = 4
-    max_position_exposure_fraction: float = 0.25
+    max_position_exposure_fraction: float = 1.0
     max_daily_loss_fraction: float = 0.03
     enforce_session_loss_limit: bool = False
     max_entry_drift_bps: float = 8.0
