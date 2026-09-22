@@ -493,6 +493,71 @@ function renderPosition(position) {
     <span>MAE ${Number(position.mae_r || 0).toFixed(2)}R</span><span>MFE ${Number(position.mfe_r || 0).toFixed(2)}R</span>`;
 }
 
+function reviewClassLabel(value) {
+  return ({
+    missed_target_first:"TARGET был раньше STOP",
+    correct_reject_candidate:"STOP был раньше TARGET",
+    ambiguous:"TARGET/STOP в одном кадре",
+    unresolved:"Не разрешилось",
+    early_exit_review:"После выхода дошло до target",
+    exit_supported_by_followup:"Target после выхода не достигнут",
+  })[value] || value || "—";
+}
+
+function renderOpportunityReview(report) {
+  const root = $("opportunityReview");
+  if (!root) return;
+  const summary = report.summary || {};
+  const candidateRows = (report.candidates || [])
+    .filter(row => ["missed_target_first", "correct_reject_candidate", "ambiguous"].includes(row.classification))
+    .slice(0, 30);
+  const exitRows = (report.earlyExits || [])
+    .filter(row => row.classification === "early_exit_review")
+    .slice(0, 20);
+
+  root.innerHTML = `
+    <div class="opportunity-summary">
+      <span><small>Rejected</small>${summary.rejectedCandidates || 0}</span>
+      <span class="warn"><small>Target-first</small>${summary.missedTargetFirst || 0}</span>
+      <span class="good"><small>Stop-first</small>${summary.correctRejectCandidates || 0}</span>
+      <span><small>Ambiguous</small>${summary.ambiguous || 0}</span>
+      <span class="warn"><small>Early-exit review</small>${summary.earlyExitReviews || 0}</span>
+    </div>
+    <div class="opportunity-columns">
+      <div>
+        <h3>Отклонённые входы</h3>
+        <div class="opportunity-list">
+          ${candidateRows.map(row => `<div class="opportunity-row ${row.classification}">
+            <div><strong>${row.symbol}</strong><span>${row.strategy || "—"} · ${row.sourceEvent}</span></div>
+            <div><span>${reviewClassLabel(row.classification)}</span><small>${row.reason || "—"}</small></div>
+            <div><span>MFE ${row.mfeR == null ? "—" : Number(row.mfeR).toFixed(2) + "R"}</span><small>MAE ${row.maeR == null ? "—" : Number(row.maeR).toFixed(2) + "R"}</small></div>
+          </div>`).join("") || '<div class="empty-row">Нет симулируемых отклонённых входов.</div>'}
+        </div>
+      </div>
+      <div>
+        <h3>Выходы для проверки</h3>
+        <div class="opportunity-list">
+          ${exitRows.map(row => `<div class="opportunity-row early_exit_review">
+            <div><strong>${row.symbol}</strong><span>${row.strategy || "—"} · ${row.reason}</span></div>
+            <div><span>${reviewClassLabel(row.classification)}</span><small>post-exit MFE ${row.postExitMfeR == null ? "—" : Number(row.postExitMfeR).toFixed(2) + "R"}</small></div>
+          </div>`).join("") || '<div class="empty-row">Нет ранних выходов, требующих проверки.</div>'}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function loadOpportunityReview() {
+  const root = $("opportunityReview");
+  if (root) root.innerHTML = '<div class="empty-row">Анализируем прошедший рынок…</div>';
+  try {
+    const report = await api("/api/reviews/opportunities?horizon=120");
+    renderOpportunityReview(report);
+  } catch (error) {
+    if (root) root.innerHTML = `<div class="review-error">${String(error.message || error)}</div>`;
+  }
+}
+
 function reviewSummaryFor(trade) {
   return tradeReviewSummaries.find(review =>
     review.symbol === trade.symbol
@@ -790,5 +855,7 @@ $("stopBtn").onclick = async () => { await api("/api/bot/stop", {method:"POST"})
 bindChartControls();
 bindDomControls();
 bindEventFilters();
+const opportunityButton = $("opportunityRefresh");
+if (opportunityButton) opportunityButton.onclick = loadOpportunityReview;
 refresh();
 setInterval(refresh, 900);

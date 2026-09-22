@@ -53,6 +53,22 @@ async def replay_sessions() -> dict:
     return {"sessions": engine.recorder.list_sessions()}
 
 
+@app.get("/api/reviews/opportunities")
+async def opportunity_analysis(
+    session: str | None = Query(default=None),
+    horizon: float = Query(default=120.0, ge=10.0, le=900.0),
+) -> dict:
+    try:
+        return engine.recorder.opportunity_analysis(
+            session,
+            horizon_seconds=horizon,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Session not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid session name") from exc
+
+
 @app.get("/api/reviews/trades")
 async def trade_review_summaries(
     session: str | None = Query(default=None),

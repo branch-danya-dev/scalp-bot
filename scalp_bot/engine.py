@@ -1228,6 +1228,7 @@ class TradingEngine:
                 "strategy": decision.strategy,
                 "setupId": decision.setup_id,
                 "reason": reason,
+                "decision": decision.public(),
             },
         )
 

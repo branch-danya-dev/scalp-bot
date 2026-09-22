@@ -321,6 +321,21 @@ class SessionRecorder:
         raise KeyError(review_id)
 
 
+    def opportunity_analysis(
+        self,
+        name: str | None = None,
+        *,
+        horizon_seconds: float = 120.0,
+    ) -> dict:
+        from .opportunity_review import analyze_session_rows
+
+        path = self._session_path(name)
+        return analyze_session_rows(
+            self._read_rows(path),
+            horizon_seconds=horizon_seconds,
+        )
+
+
     def research_rows(
         self,
         name: str,
