@@ -124,7 +124,8 @@ def test_touch_and_rejection_do_not_create_immediate_long_entry() -> None:
 
     assert decision.action == Action.WAIT
     assert decision.details["state"] == "test"
-    assert decision.details["reclaimLevel"] > 100.1
+    assert 100.0 < decision.details["reclaimLevel"] < 100.1
+    assert decision.details["reclaimDistanceBps"] <= 5.0
 
 
 def test_reclaim_without_trade_flow_is_still_wait() -> None:
@@ -329,3 +330,26 @@ def test_aggressive_countertrend_impulse_is_not_treated_as_pullback() -> None:
     assert decision.details["aggressiveCountertrend"] is True
     assert decision.details["pullbackCharacter"]["volumeRatio"] >= 1.35
     assert decision.details["pullbackCharacter"]["rangeRatio"] >= 1.35
+
+
+
+def test_micro_reclaim_is_local_to_support_not_recent_three_bar_high() -> None:
+    strategy = TrendStructureStrategy()
+    rows = long_pullback_candles()
+    rows[-3].high = 101.50
+    rows[-2].high = 101.20
+    rows[-1].high = 101.00
+
+    decision = strategy.evaluate(
+        rows,
+        book(100.09, 100.11),
+        Trend.UP,
+        symbol="MICROUSDT",
+        trades=buy_flow(),
+        structure=structure("support"),
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "test"
+    assert decision.details["reclaimLevel"] < 100.1
+    assert decision.details["reclaimDistanceBps"] <= 5.0
