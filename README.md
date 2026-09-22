@@ -1,6 +1,6 @@
-# Scalp Bot — Strategy Logic v3 · 4h Paper Run
+# Scalp Bot — Strategy Logic v3 · Scalp Economics 4h Paper Run
 
-This run branch is the prepared Strategy Logic v3 research state for a controlled four-hour paper run.
+This run branch is the prepared Strategy Logic v3 state for a controlled four-hour paper run with the revised scalp position-sizing and economic model.
 
 ## Strategies in this run
 
@@ -34,14 +34,17 @@ This run branch is the prepared Strategy Logic v3 research state for a controlle
 - sticky active symbols;
 - central opportunity arbiter;
 - stale-market protection;
-- expected net profit + net reward/risk gate;
-- 70% partial at about 1R when runner is allowed;
-- 30% runner -> estimated net breakeven;
+- equity-scaled economic gate after fees/slippage;
+- dynamic notional from structural stop distance;
+- partial requires both >=1R and an economically positive closed leg;
+- 30% runner -> true net breakeven after remaining costs;
 - runner target about 2.5R;
 - no-follow-through early cutting;
 - structural invalidation before emergency hard stop;
 - paper positions finalize on Stop, shutdown, or the 4h deadline;
-- one position may use at most 25% of portfolio exposure by default, so a tight scalp stop cannot monopolize all capital.
+- one position may use up to 5x equity when the structural stop is tight enough;
+- aggregate gross portfolio exposure is capped at 10x equity;
+- aggregate open all-in risk (structural risk + reserved costs) is capped at 2% equity.
 
 ## Research-run rules
 
@@ -54,8 +57,8 @@ SCALP_ENFORCE_SESSION_LOSS_LIMIT=false
 Per-trade and simultaneous portfolio risk controls remain enabled.
 
 Research cost gate:
-- a setup must remain net-positive after estimated fees, spread and slippage;
-- minimum expected net is $0.10 by default;
+- a setup must remain net-positive after estimated taker fees and slippage, with spread represented by executable bid/ask pricing rather than subtracted twice;
+- minimum expected net is max($1, 0.1% of current equity);
 - net reward/risk is recorded for analysis but the live-style RR>=1.15 gate is disabled during research, because it mathematically suppresses most tight-stop scalp setups.
 
 ## 4-hour harness
@@ -65,7 +68,7 @@ The timer starts after pressing Start.
 The launcher forces the run profile even if an older local `.env` is present:
 
 ```
-SCALP_RUN_LABEL=paper-v3-4h
+SCALP_RUN_LABEL=paper-v3-scalp-econ-4h
 SCALP_PAPER_RUN_DURATION_SECONDS=14400
 ```
 
@@ -203,3 +206,55 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
 ```
 
 The script runs the full preflight test suite before starting Uvicorn. Press **Start** in the UI only after the server is up; the four-hour auto-stop timer begins at that point.
+
+
+## Scalp economics in this run
+
+The paper account starts at $1,000.
+
+Position sizing is derived from structural invalidation distance:
+
+```
+risk budget per trade = 0.5% of equity
+theoretical notional = risk budget / stop distance
+```
+
+The result is then capped by:
+
+```
+max single-position leverage = 5x equity
+max aggregate portfolio leverage = 10x equity
+max aggregate all-in open risk = 2% equity
+```
+
+Example at $1,000 equity:
+
+```
+0.10% structural stop -> up to ~$5,000 notional
+0.20% structural stop -> up to ~$2,500 notional
+0.50% structural stop -> up to ~$1,000 notional
+```
+
+The economic gate requires:
+
+```
+net at configured target >= max($1, 0.1% current equity)
+```
+
+The deterministic cost estimate includes taker fees and configured slippage. Entry/exit use executable ask/bid, so spread is not subtracted a second time.
+
+For runner-enabled setups, the legacy "take 70% exactly at 1R" rule is replaced by:
+
+```
+MFE >= 1R
+AND
+estimated net of the 70% closing leg >= required net threshold
+```
+
+After the partial, the runner stop is calculated from remaining entry fee, exit fee, exit slippage and the breakeven buffer so the remaining leg is protected at actual net breakeven.
+
+The run label for this exact economics revision is:
+
+```
+paper-v3-scalp-econ-4h
+```

@@ -25,11 +25,14 @@ Get-Content $runProfile | ForEach-Object {
 }
 
 Write-Host ""
-Write-Host "Scalp Bot — paper-run-v3-4h"
+Write-Host "Scalp Bot — paper-v3-scalp-econ-4h"
 Write-Host "Run profile: .env.example (forced over stale local .env values)"
 Write-Host "Configured trading duration: 4 hours after pressing Start in the UI."
 Write-Host "Auto-stop will close remaining PAPER positions and write run_summary."
 Write-Host "Order book: depth 1000 with stale/desync protection."
+Write-Host "Scalp economics: risk 0.5%/trade, 5x max position, 10x max portfolio."
+Write-Host "Economic gate: max($1, 0.1% equity) net at configured target."
+Write-Host "Partial: >=1R AND economically net-positive; runner protected at net breakeven."
 Write-Host "Live:   http://127.0.0.1:8000/"
 Write-Host "Replay: http://127.0.0.1:8000/replay"
 Write-Host ""
