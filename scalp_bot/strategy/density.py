@@ -705,14 +705,16 @@ class DensityBounceStrategy(Strategy):
             action = Action.LONG
             reacted = mid >= wall_price * (1 + self.reaction_pct)
             flow_reversed = (
-                recent_level_flow.trade_count >= 3
+                flow["participationConfirmed"]
+                and recent_level_flow.trade_count >= 3
                 and recent_level_flow.imbalance >= 0.03
             )
         else:
             action = Action.SHORT
             reacted = mid <= wall_price * (1 - self.reaction_pct)
             flow_reversed = (
-                recent_level_flow.trade_count >= 3
+                flow["participationConfirmed"]
+                and recent_level_flow.trade_count >= 3
                 and recent_level_flow.imbalance <= -0.03
             )
 

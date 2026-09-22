@@ -155,7 +155,8 @@ class TrendStructureStrategy(Strategy):
 
         if long_side:
             recent_aligned = (
-                flow["tradeCount5s"] >= 3
+                flow["participationConfirmed"]
+                and flow["tradeCount5s"] >= 3
                 and flow["imbalance5s"] >= 0.03
                 and flow["cvd5s"] > 0
             )
@@ -176,7 +177,8 @@ class TrendStructureStrategy(Strategy):
             )
         else:
             recent_aligned = (
-                flow["tradeCount5s"] >= 3
+                flow["participationConfirmed"]
+                and flow["tradeCount5s"] >= 3
                 and flow["imbalance5s"] <= -0.03
                 and flow["cvd5s"] < 0
             )

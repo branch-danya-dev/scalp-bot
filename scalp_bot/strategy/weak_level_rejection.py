@@ -202,7 +202,8 @@ class WeakLevelRejectionStrategy(Strategy):
                 and level_flow.absorption_efficiency >= 0.30
             )
             flow_reversed = (
-                recent_level_flow.trade_count >= 3
+                flow["participationConfirmed"]
+                and recent_level_flow.trade_count >= 3
                 and recent_level_flow.imbalance <= -0.03
             )
             action = Action.SHORT
@@ -228,7 +229,8 @@ class WeakLevelRejectionStrategy(Strategy):
                 and level_flow.absorption_efficiency >= 0.30
             )
             flow_reversed = (
-                recent_level_flow.trade_count >= 3
+                flow["participationConfirmed"]
+                and recent_level_flow.trade_count >= 3
                 and recent_level_flow.imbalance >= 0.03
             )
             action = Action.LONG

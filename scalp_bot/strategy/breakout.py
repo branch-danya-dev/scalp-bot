@@ -117,7 +117,10 @@ class LevelBreakoutStrategy(Strategy):
                 for left, right in zip(recent[-4:-1], recent[-3:])
                 if right.low >= left.low
             )
-            flow_aligned = flow["imbalance5s"] >= 0.08
+            flow_aligned = (
+                flow["participationConfirmed"]
+                and flow["imbalance5s"] >= 0.08
+            )
         else:
             near_count = sum(1 for candle in recent if candle.close <= zone.high * 1.003)
             structure = sum(
@@ -125,7 +128,10 @@ class LevelBreakoutStrategy(Strategy):
                 for left, right in zip(recent[-4:-1], recent[-3:])
                 if right.high <= left.high
             )
-            flow_aligned = flow["imbalance5s"] <= -0.08
+            flow_aligned = (
+                flow["participationConfirmed"]
+                and flow["imbalance5s"] <= -0.08
+            )
 
         previous_volumes = [c.volume for c in candles[-25:-5] if c.volume > 0]
         baseline_volume = median(previous_volumes) if previous_volumes else 0.0
@@ -374,7 +380,8 @@ class LevelBreakoutStrategy(Strategy):
             now_ms=observed_at_ms,
         )
         aligned_after_break = (
-            acceptance_flow.trade_count >= 3
+            flow["participationConfirmed"]
+            and acceptance_flow.trade_count >= 3
             and (
                 acceptance_flow.imbalance >= 0.05
                 if long_side
