@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 from dataclasses import dataclass, field
 from enum import StrEnum
 from statistics import median
-from time import time
 
 from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .base import Strategy
@@ -397,10 +396,13 @@ class LevelBreakoutStrategy(Strategy):
                 },
             )
 
-        now = time()
+        market_now = trades[-1].ts_ms / 1000
         if state.break_started_at <= 0:
-            state.break_started_at = now
-        held_seconds = max(0.0, now - state.break_started_at)
+            state.break_started_at = market_now
+        held_seconds = max(
+            0.0,
+            market_now - state.break_started_at,
+        )
         if held_seconds < self.min_break_hold_seconds:
             return StrategyDecision(
                 self.key,
@@ -541,7 +543,10 @@ class LevelBreakoutStrategy(Strategy):
                 "levelFlow": level_flow.public(),
                 "pressure": pressure,
                 "pressureScore": pressure_score,
-                "breakHoldSeconds": max(0.0, time() - state.break_started_at),
+                "breakHoldSeconds": max(
+                    0.0,
+                    market_now - state.break_started_at,
+                ),
                 "requiredBreakHoldSeconds": self.min_break_hold_seconds,
                 "stopDistancePct": stop_pct,
                 "exitMode": "impulse_first",
