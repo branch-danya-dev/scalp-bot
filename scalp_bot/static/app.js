@@ -334,6 +334,7 @@ function renderStrategies(rows) {
         <span><small>W/L</small>${stats.wins || 0}/${stats.losses || 0}</span>
         <span class="${netClass}"><small>Net</small>${money(stats.netPnl || 0)}</span>
         <span><small>Rejects</small>${stats.riskRejects || 0}</span>
+        <span><small>Exp R</small>${row.expectancy?.sampleReady ? Number(row.expectancy.expectancyR || 0).toFixed(2) : "n/a"}</span>
       </div>
     </div>`;
   }).join("");
@@ -389,7 +390,13 @@ function eventText(event) {
   if (event.event === "trade_opened") return `${payload.plan?.side || ""} ${money(payload.plan?.notional)} · net@target ${money(payload.plan?.net_at_target ?? payload.plan?.expected_net_profit)} · quality ${Number(payload.opportunityQuality ?? 0).toFixed(2)}`;
   if (event.event === "partial_take") return `partial ${money(payload.netPnl)} · осталось ${money(payload.remainingNotional)} · stop→${price(payload.newStop)}`;
   if (event.event === "trade_closed") return `${payload.reason} · ${money(payload.netPnl)} · MAE ${money(payload.maeUsd)} · MFE ${money(payload.mfeUsd)}`;
-  if (event.event === "risk_reject") return payload.reason || "rejected";
+  if (event.event === "risk_reject") {
+    const d = payload.diagnostics || {};
+    const economics = d.netAtTargetUsd != null
+      ? ` · net ${money(d.netAtTargetUsd)} / loss ${money(d.allInNetLossUsd)} / RR ${Number(d.netRewardRisk || 0).toFixed(2)}`
+      : "";
+    return `${payload.reason || "rejected"}${economics}`;
+  }
   if (event.event === "economic_shadow") return `shadow: ${(payload.shadowRejectReasons || []).join(", ")}`;
   if (event.event === "setup_blocked") return `${payload.strategy}: ${payload.reason}`;
   if (event.event === "setup_consumed") return `${payload.strategy}: setup consumed`;
@@ -663,6 +670,7 @@ function renderTradeReviewDetail(reviewId, review) {
       <div><b>Strategy:</b> ${summary.strategy || "—"}</div>
       <div><b>Setup:</b> ${summary.setupId || "—"}</div>
       <div><b>Target source:</b> ${details.targetSource || "—"}</div>
+      <div><b>Execution:</b> ${details.economics?.executionProfile?.entry || "—"} → ${details.economics?.executionProfile?.target_exit || "—"}</div>
       <div><b>Exit:</b> ${summary.reason || "—"}</div>
     </div>`;
 
