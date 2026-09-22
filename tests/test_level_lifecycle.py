@@ -30,3 +30,86 @@ def test_structural_level_as_zone_preserves_last_touch_index() -> None:
         timeframe="5m", score=0.8, last_touch_index=17,
     )
     assert level.as_zone().last_touch_index == 17
+
+
+
+def test_initial_historical_counts_are_not_double_counted() -> None:
+    tracker = LevelLifecycleTracker()
+    level = StructuralLevel(
+        kind="support",
+        low=99.9,
+        high=100.1,
+        touches=3,
+        timeframe="5m",
+        score=0.8,
+        distinct_approaches=3,
+        dwell_bars=4,
+        acceptance_bars=2,
+    )
+    rows = [candle(i, 100.0) for i in range(20)]
+    structure = MarketStructure(levels=[level])
+
+    tracker.update(structure, rows, 100.0, 10_000)
+
+    assert level.distinct_approaches == 3
+    assert level.dwell_bars == 4
+    assert level.acceptance_bars == 2
+
+
+def test_failed_break_and_sweep_count_once_per_bar() -> None:
+    tracker = LevelLifecycleTracker()
+    level = StructuralLevel(
+        kind="resistance",
+        low=100.0,
+        high=100.1,
+        touches=2,
+        timeframe="5m",
+        score=0.8,
+    )
+    rows = [candle(i, 99.0) for i in range(19)]
+    rows.append(Candle(19 * 60_000, 99.9, 100.3, 99.8, 99.9, 100, 10_000))
+    structure = MarketStructure(levels=[level])
+
+    tracker.update(structure, rows, 99.9, 20_000)
+    first_failed = level.failed_breaks
+    first_sweeps = level.sweeps
+    tracker.update(structure, rows, 99.9, 20_500)
+
+    assert first_failed == 1
+    assert first_sweeps == 1
+    assert level.failed_breaks == 1
+    assert level.sweeps == 1
+
+
+def test_broken_level_gets_new_generation_after_disappearing() -> None:
+    tracker = LevelLifecycleTracker()
+    level = StructuralLevel(
+        kind="resistance",
+        low=100.0,
+        high=100.1,
+        touches=3,
+        timeframe="5m",
+        score=0.8,
+    )
+    rows = [candle(i, 99.0) for i in range(19)]
+    rows.append(Candle(19 * 60_000, 100.0, 100.4, 99.9, 100.3, 100, 10_000))
+    structure = MarketStructure(levels=[level])
+
+    tracker.update(structure, rows, 100.3, 1_000)
+    first_generation = level.generation_id
+    assert level.lifecycle == "broken"
+
+    # Same detector level reappears after being absent for more than a minute.
+    replacement = StructuralLevel(
+        kind="resistance",
+        low=100.0,
+        high=100.1,
+        touches=2,
+        timeframe="5m",
+        score=0.8,
+    )
+    replacement_structure = MarketStructure(levels=[replacement])
+    tracker.update(replacement_structure, rows[:-1], 99.0, 70_000)
+
+    assert replacement.generation_id != first_generation
+    assert replacement.lifecycle != "broken"
