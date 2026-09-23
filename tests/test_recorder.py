@@ -227,6 +227,11 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
         "AAAUSDT",
         {
             "reason": "promoted",
+            "semanticArbitration": {
+                "allowed": True,
+                "confluenceCount": 1,
+                "blockers": [],
+            },
             "market": {
                 "candles": [
                     {"time": 1, "open": 99, "high": 100, "low": 98, "close": 99.5},
@@ -260,6 +265,22 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
                 "entry": 100.0,
                 "stop": 99.0,
                 "target": 101.0,
+            },
+        },
+    )
+    recorder.record(
+        "arbiter_blocked",
+        "AAAUSDT",
+        {
+            "strategy": "level_breakout",
+            "setupId": "blocked-1",
+            "blockers": [
+                "mature_structural_obstacle_before_first_take"
+            ],
+            "conflictingStrategies": [],
+            "semanticArbitration": {
+                "allowed": False,
+                "confluenceCount": 0,
             },
         },
     )
@@ -304,6 +325,17 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
                         "htfBias": "bullish",
                         "localRegime": "bullish_trend",
                         "executionReady": True,
+                    },
+                    "semanticArbitration": {
+                        "allowed": True,
+                        "confluenceCount": 1,
+                        "blockers": [],
+                    },
+                    "selectionPriority": {
+                        "confluenceCount": 1,
+                        "flowPriority": 3,
+                        "liquidityPriority": 2,
+                        "freshnessPriority": 1,
                     },
                 },
             },
@@ -374,6 +406,9 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
     assert diagnostics["uniqueTradeableSetups"] == 1
     assert diagnostics["uniqueRiskRejectedSetups"] == 1
     assert diagnostics["tradesOpened"] == 1
+    assert diagnostics["arbiterBlockedUpdates"] == 1
+    assert diagnostics["arbiterBlockerCounts"]["mature_structural_obstacle_before_first_take"] == 1
+    assert diagnostics["selectedConfluenceCounts"]["1"] == 1
     assert diagnostics["entryFreshnessCounts"]["late"] == 1
     assert diagnostics["entryMoveSpentSamples"] == 1
     assert diagnostics["averageEntryMoveSpentRatio"] == 0.62

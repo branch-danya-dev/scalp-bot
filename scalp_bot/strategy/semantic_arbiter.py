@@ -1,0 +1,565 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, replace
+from typing import Any, Iterable
+
+from ..domain import Action, StrategyDecision, TradePlan
+from .market_context import MarketContext
+from .structure import StructuralLevel
+
+
+PLAYBOOK_KEYS = {
+    "trend_structure",
+    "weak_level_rejection",
+    "level_breakout",
+}
+
+FLOW_PRIORITY = {
+    "strongly_aligned": 4,
+    "aligned": 3,
+    "mixed": 2,
+    "insufficient_data": 1,
+    "short_term_reversal": 0,
+    "opposed": -1,
+}
+
+LIQUIDITY_PRIORITY = {
+    "supportive": 2,
+    "neutral": 1,
+    "unknown": 0,
+    "opposed": -1,
+}
+
+FRESHNESS_PRIORITY = {
+    "fresh": 4,
+    "acceptable": 3,
+    "unknown": 2,
+    "late": 1,
+    "exhausted": 0,
+}
+
+
+@dataclass(frozen=True, slots=True)
+class StructuralPathAssessment:
+    blocked: bool
+    side: str
+    first_take_price: float | None
+    first_take_distance_pct: float | None
+    obstacle: dict[str, Any] | None
+    obstacle_distance_pct: float | None
+    obstacle_before_first_take: bool
+    own_breakout_level_exempted: bool
+    reasons: tuple[str, ...]
+
+    def public(self) -> dict[str, Any]:
+        return {
+            "blocked": self.blocked,
+            "side": self.side,
+            "firstTakePrice": self.first_take_price,
+            "firstTakeDistancePct": self.first_take_distance_pct,
+            "obstacle": self.obstacle,
+            "obstacleDistancePct": self.obstacle_distance_pct,
+            "obstacleBeforeFirstTake": self.obstacle_before_first_take,
+            "ownBreakoutLevelExempted": self.own_breakout_level_exempted,
+            "reasons": list(self.reasons),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SemanticCandidateAssessment:
+    strategy: str
+    setup_id: str | None
+    action: str
+    allowed: bool
+    blockers: tuple[str, ...]
+    confluence_strategies: tuple[str, ...]
+    conflicting_strategies: tuple[str, ...]
+    structural_path: StructuralPathAssessment
+    flow_classification: str
+    liquidity_classification: str
+    freshness_classification: str
+    flow_priority: int
+    liquidity_priority: int
+    freshness_priority: int
+    reasons: tuple[str, ...]
+
+    @property
+    def confluence_count(self) -> int:
+        return len(self.confluence_strategies)
+
+    def public(self) -> dict[str, Any]:
+        return {
+            "strategy": self.strategy,
+            "setupId": self.setup_id,
+            "action": self.action,
+            "allowed": self.allowed,
+            "blockers": list(self.blockers),
+            "confluenceStrategies": list(self.confluence_strategies),
+            "conflictingStrategies": list(self.conflicting_strategies),
+            "confluenceCount": self.confluence_count,
+            "structuralPath": self.structural_path.public(),
+            "flowClassification": self.flow_classification,
+            "liquidityClassification": self.liquidity_classification,
+            "freshnessClassification": self.freshness_classification,
+            "flowPriority": self.flow_priority,
+            "liquidityPriority": self.liquidity_priority,
+            "freshnessPriority": self.freshness_priority,
+            "reasons": list(self.reasons),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SelectionPriority:
+    confluence_count: int
+    flow_priority: int
+    liquidity_priority: int
+    freshness_priority: int
+    net_reward_risk: float
+    entry_drift_quality: float
+    market_attention: float
+    activity_rank_quality: int
+    deterministic_key: str
+
+    def key(self) -> tuple:
+        return (
+            self.confluence_count,
+            self.flow_priority,
+            self.liquidity_priority,
+            self.freshness_priority,
+            self.net_reward_risk,
+            self.entry_drift_quality,
+            self.market_attention,
+            self.activity_rank_quality,
+            self.deterministic_key,
+        )
+
+    def public(self) -> dict[str, Any]:
+        return {
+            "confluenceCount": self.confluence_count,
+            "flowPriority": self.flow_priority,
+            "liquidityPriority": self.liquidity_priority,
+            "freshnessPriority": self.freshness_priority,
+            "netRewardRisk": self.net_reward_risk,
+            "entryDriftQuality": self.entry_drift_quality,
+            "marketAttention": self.market_attention,
+            "activityRankQuality": self.activity_rank_quality,
+            "deterministicKey": self.deterministic_key,
+            "selectionOrder": [
+                "confluence",
+                "flow",
+                "liquidity",
+                "freshness",
+                "net_reward_risk",
+                "entry_drift",
+                "market_attention",
+                "activity_rank",
+                "deterministic_key",
+            ],
+        }
+
+
+def _details_mapping(
+    decision: StrategyDecision,
+    key: str,
+) -> dict[str, Any]:
+    value = (decision.details or {}).get(key)
+    return value if isinstance(value, dict) else {}
+
+
+def _mature_obstacle(level: StructuralLevel | None) -> bool:
+    if level is None or level.lifecycle == "broken":
+        return False
+    return (
+        level.lifecycle == "worked"
+        or level.distinct_approaches >= 3
+        or level.touches >= 3
+    )
+
+
+def _zone_overlaps_level(
+    decision: StrategyDecision,
+    level: StructuralLevel,
+) -> bool:
+    zone = (decision.details or {}).get("zone")
+    if not isinstance(zone, dict):
+        return False
+    low = zone.get("low")
+    high = zone.get("high")
+    if not isinstance(low, (int, float)) or not isinstance(
+        high,
+        (int, float),
+    ):
+        return False
+    return (
+        float(high) >= level.low
+        and float(low) <= level.high
+    )
+
+
+def assess_structural_path(
+    decision: StrategyDecision,
+    context: MarketContext | None,
+    *,
+    partial_take_at_r: float = 1.0,
+    partial_take_enabled: bool = True,
+) -> StructuralPathAssessment:
+    side = decision.action.value
+    if (
+        not decision.tradeable
+        or decision.entry is None
+        or decision.stop is None
+        or context is None
+        or context.structure is None
+    ):
+        return StructuralPathAssessment(
+            blocked=False,
+            side=side,
+            first_take_price=None,
+            first_take_distance_pct=None,
+            obstacle=None,
+            obstacle_distance_pct=None,
+            obstacle_before_first_take=False,
+            own_breakout_level_exempted=False,
+            reasons=("structural path unavailable or decision not tradeable",),
+        )
+
+    entry = float(decision.entry)
+    stop = float(decision.stop)
+    target = float(decision.target) if decision.target is not None else entry
+    risk = abs(entry - stop)
+    if entry <= 0 or risk <= 0:
+        return StructuralPathAssessment(
+            blocked=False,
+            side=side,
+            first_take_price=None,
+            first_take_distance_pct=None,
+            obstacle=None,
+            obstacle_distance_pct=None,
+            obstacle_before_first_take=False,
+            own_breakout_level_exempted=False,
+            reasons=("invalid entry/stop geometry for structural path",),
+        )
+
+    first_take_distance = (
+        risk * max(0.0, partial_take_at_r)
+        if partial_take_enabled and partial_take_at_r > 0
+        else abs(target - entry)
+    )
+    if decision.action == Action.LONG:
+        first_take = entry + first_take_distance
+        obstacle = context.structure.nearest_resistance
+    else:
+        first_take = entry - first_take_distance
+        obstacle = context.structure.nearest_support
+
+    if obstacle is None or not _mature_obstacle(obstacle):
+        return StructuralPathAssessment(
+            blocked=False,
+            side=side,
+            first_take_price=first_take,
+            first_take_distance_pct=(
+                first_take_distance / entry
+                if entry > 0
+                else None
+            ),
+            obstacle=(
+                obstacle.public()
+                if obstacle is not None
+                else None
+            ),
+            obstacle_distance_pct=None,
+            obstacle_before_first_take=False,
+            own_breakout_level_exempted=False,
+            reasons=("no mature opposing structural obstacle before entry path",),
+        )
+
+    if decision.action == Action.LONG:
+        intersects_path = (
+            obstacle.high >= entry
+            and obstacle.low <= first_take
+        )
+        obstacle_distance = max(
+            0.0,
+            obstacle.low - entry,
+        ) / entry
+    else:
+        intersects_path = (
+            obstacle.low <= entry
+            and obstacle.high >= first_take
+        )
+        obstacle_distance = max(
+            0.0,
+            entry - obstacle.high,
+        ) / entry
+
+    own_breakout = (
+        decision.strategy == "level_breakout"
+        and str((decision.details or {}).get("state") or "")
+        in {"break", "impulse"}
+        and _zone_overlaps_level(decision, obstacle)
+    )
+
+    blocked = intersects_path and not own_breakout
+    reasons: list[str] = []
+    if own_breakout:
+        reasons.append(
+            "nearest mature obstacle is the breakout's own accepted level"
+        )
+    elif blocked:
+        reasons.append(
+            "mature opposing structural level intersects path to first take"
+        )
+    else:
+        reasons.append(
+            "mature opposing structural level lies outside path to first take"
+        )
+
+    return StructuralPathAssessment(
+        blocked=blocked,
+        side=side,
+        first_take_price=first_take,
+        first_take_distance_pct=(
+            first_take_distance / entry
+            if entry > 0
+            else None
+        ),
+        obstacle=obstacle.public(),
+        obstacle_distance_pct=obstacle_distance,
+        obstacle_before_first_take=intersects_path,
+        own_breakout_level_exempted=own_breakout,
+        reasons=tuple(reasons),
+    )
+
+
+def _same_location(
+    left: StrategyDecision,
+    right: StrategyDecision,
+    *,
+    max_distance_pct: float = 0.006,
+) -> bool:
+    left_level = left.watched_level
+    right_level = right.watched_level
+    if not isinstance(left_level, (int, float)) or not isinstance(
+        right_level,
+        (int, float),
+    ):
+        return True
+    base = max(
+        abs(float(left_level)),
+        abs(float(right_level)),
+        1e-9,
+    )
+    return (
+        abs(float(left_level) - float(right_level)) / base
+        <= max_distance_pct
+    )
+
+
+def _raw_assessment(
+    decision: StrategyDecision,
+    context: MarketContext | None,
+    *,
+    partial_take_at_r: float,
+    partial_take_enabled: bool,
+) -> SemanticCandidateAssessment:
+    blockers: list[str] = []
+    reasons: list[str] = []
+
+    structural_path = assess_structural_path(
+        decision,
+        context,
+        partial_take_at_r=partial_take_at_r,
+        partial_take_enabled=partial_take_enabled,
+    )
+    if structural_path.blocked:
+        blockers.append("mature_structural_obstacle_before_first_take")
+
+    entry_context = _details_mapping(
+        decision,
+        "entryContextAssessment",
+    )
+    if entry_context.get("allowed") is False:
+        blockers.extend(
+            str(value)
+            for value in (
+                entry_context.get("blockers") or []
+            )
+        )
+
+    if context is not None and not context.execution.ready:
+        blockers.append("execution_context_not_ready")
+
+    flow = _details_mapping(decision, "flowAlignment")
+    liquidity = _details_mapping(
+        decision,
+        "liquidityAlignment",
+    )
+    freshness = _details_mapping(
+        decision,
+        "entryFreshness",
+    )
+    flow_class = str(
+        flow.get("classification") or "insufficient_data"
+    )
+    liquidity_class = str(
+        liquidity.get("classification") or "unknown"
+    )
+    freshness_class = str(
+        freshness.get("classification") or "unknown"
+    )
+
+    reasons.extend(structural_path.reasons)
+    if flow_class:
+        reasons.append(f"flow={flow_class}")
+    if liquidity_class:
+        reasons.append(f"liquidity={liquidity_class}")
+    if freshness_class:
+        reasons.append(f"freshness={freshness_class}")
+
+    return SemanticCandidateAssessment(
+        strategy=decision.strategy,
+        setup_id=decision.setup_id,
+        action=decision.action.value,
+        allowed=not blockers,
+        blockers=tuple(dict.fromkeys(blockers)),
+        confluence_strategies=(),
+        conflicting_strategies=(),
+        structural_path=structural_path,
+        flow_classification=flow_class,
+        liquidity_classification=liquidity_class,
+        freshness_classification=freshness_class,
+        flow_priority=FLOW_PRIORITY.get(flow_class, 0),
+        liquidity_priority=LIQUIDITY_PRIORITY.get(
+            liquidity_class,
+            0,
+        ),
+        freshness_priority=FRESHNESS_PRIORITY.get(
+            freshness_class,
+            2,
+        ),
+        reasons=tuple(reasons),
+    )
+
+
+def assess_candidate(
+    decision: StrategyDecision,
+    context: MarketContext | None,
+    *,
+    partial_take_at_r: float = 1.0,
+    partial_take_enabled: bool = True,
+) -> SemanticCandidateAssessment:
+    return _raw_assessment(
+        decision,
+        context,
+        partial_take_at_r=partial_take_at_r,
+        partial_take_enabled=partial_take_enabled,
+    )
+
+
+def assess_session_candidates(
+    decisions: Iterable[StrategyDecision],
+    context: MarketContext | None,
+    *,
+    partial_take_at_r: float = 1.0,
+    partial_take_enabled: bool = True,
+) -> dict[str, SemanticCandidateAssessment]:
+    rows = [
+        decision
+        for decision in decisions
+        if (
+            decision.tradeable
+            and decision.strategy in PLAYBOOK_KEYS
+        )
+    ]
+    raw = {
+        decision.strategy: _raw_assessment(
+            decision,
+            context,
+            partial_take_at_r=partial_take_at_r,
+            partial_take_enabled=partial_take_enabled,
+        )
+        for decision in rows
+    }
+    viable = {
+        strategy
+        for strategy, assessment in raw.items()
+        if assessment.allowed
+    }
+
+    result: dict[str, SemanticCandidateAssessment] = {}
+    for decision in rows:
+        assessment = raw[decision.strategy]
+        if decision.strategy not in viable:
+            result[decision.strategy] = assessment
+            continue
+
+        same_side: list[str] = []
+        opposite: list[str] = []
+        for peer in rows:
+            if (
+                peer.strategy == decision.strategy
+                or peer.strategy not in viable
+            ):
+                continue
+            if not _same_location(decision, peer):
+                continue
+            if peer.action == decision.action:
+                same_side.append(peer.strategy)
+            elif (
+                peer.action in {Action.LONG, Action.SHORT}
+                and decision.action in {Action.LONG, Action.SHORT}
+            ):
+                opposite.append(peer.strategy)
+
+        blockers = list(assessment.blockers)
+        reasons = list(assessment.reasons)
+        if opposite:
+            blockers.append("opposing_playbook_conflict")
+            reasons.append(
+                "opposite tradeable playbook exists at the same market location"
+            )
+        if same_side:
+            reasons.append(
+                "same-direction playbook confluence: "
+                + ", ".join(sorted(same_side))
+            )
+
+        result[decision.strategy] = replace(
+            assessment,
+            allowed=not blockers,
+            blockers=tuple(dict.fromkeys(blockers)),
+            confluence_strategies=tuple(sorted(same_side)),
+            conflicting_strategies=tuple(sorted(opposite)),
+            reasons=tuple(reasons),
+        )
+
+    return result
+
+
+def build_selection_priority(
+    assessment: SemanticCandidateAssessment,
+    plan: TradePlan,
+    *,
+    activity_rank: int,
+    activity_score: float,
+) -> SelectionPriority:
+    return SelectionPriority(
+        confluence_count=assessment.confluence_count,
+        flow_priority=assessment.flow_priority,
+        liquidity_priority=assessment.liquidity_priority,
+        freshness_priority=assessment.freshness_priority,
+        net_reward_risk=max(0.0, float(plan.net_reward_risk)),
+        entry_drift_quality=-abs(float(plan.entry_drift_pct)),
+        market_attention=max(
+            0.0,
+            min(float(activity_score), 100.0),
+        ),
+        activity_rank_quality=-max(
+            1,
+            min(int(activity_rank), 999),
+        ),
+        deterministic_key=(
+            f"{plan.symbol}:{plan.strategy}:{plan.side.value}:"
+            f"{plan.setup_id}"
+        ),
+    )

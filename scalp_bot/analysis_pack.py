@@ -20,6 +20,7 @@ FOCUS_WINDOWS = {
     "trade_closed": (30.0, 60.0),
     "risk_reject": (5.0, 15.0),
     "setup_blocked": (5.0, 15.0),
+    "arbiter_blocked": (5.0, 15.0),
     "economic_shadow": (5.0, 10.0),
     "entry_freshness_changed": (5.0, 10.0),
     "strategy_error": (5.0, 10.0),
