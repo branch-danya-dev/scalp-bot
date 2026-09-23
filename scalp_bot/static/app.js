@@ -63,7 +63,7 @@ const STATE_LABELS = {
   defended: "защищена", exhausted: "исчерпана", reaction: "реакция",
   reject: "отбой", break: "пробой", impulse: "импульс",
   pullback: "откат", reclaim: "возврат", continuation: "продолжение",
-  stale_book: "стакан устарел", watch: "наблюдение", unknown: "неизвестно",
+  stale_book: "стакан устарел", stale_candle: "1m история устарела", watch: "наблюдение", unknown: "неизвестно",
 };
 const ACTION_LABELS = {wait:"ЖДЁМ", long:"ЛОНГ", short:"ШОРТ"};
 const TREND_LABELS = {up:"ВВЕРХ", down:"ВНИЗ", flat:"БОКОВИК"};
