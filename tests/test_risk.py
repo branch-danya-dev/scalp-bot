@@ -211,6 +211,7 @@ def scalp_settings(**overrides) -> Settings:
         min_net_profit_equity_fraction=0.0,
         min_net_reward_risk=0,
         enforce_net_reward_risk_gate=False,
+        absolute_min_net_reward_risk=0.0,
         taker_fee_rate=0,
         slippage_bps=0,
     )
@@ -334,6 +335,7 @@ def test_remaining_portfolio_notional_still_caps_tight_stop_trade() -> None:
 
 def economic_settings(**overrides) -> Settings:
     values = dict(
+        absolute_min_net_reward_risk=0.0,
         start_balance=1000,
         risk_fraction=0.005,
         max_total_risk_fraction=0.02,
