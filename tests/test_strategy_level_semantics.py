@@ -124,6 +124,7 @@ def test_breakout_shared_level_requires_mature_lifecycle() -> None:
 
 def test_breakout_shared_generation_is_used_only_once() -> None:
     strategy = LevelBreakoutStrategy()
+    strategy.staged_entries_enabled = False
     rows = mature_breakout_candles()
     book = OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)])
     structure = mature_structure()
@@ -394,6 +395,7 @@ def test_breakout_global_flow_away_from_level_does_not_confirm() -> None:
 
 def test_breakout_records_level_flow_on_entry() -> None:
     strategy = LevelBreakoutStrategy()
+    strategy.staged_entries_enabled = False
     book = OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)])
     first = strategy.evaluate(
         mature_breakout_candles(),
