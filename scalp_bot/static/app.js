@@ -1009,12 +1009,7 @@ async function openTradeReview(reviewId) {
   selectedTradeReviewId = reviewId;
   const inspector = $("tradeReviewInspector");
   if (inspector) inspector.classList.remove("hidden");
-  const rows = selectedReviewSession === "current"
-    ? lastLiveClosedTrades
-    : tradeReviewSummaries;
-  renderTrades(rows);
   await loadTradeReviewDetail(reviewId);
-  inspector?.scrollIntoView({behavior:"smooth", block:"start"});
 }
 
 function renderTrades(rows) {
@@ -1124,11 +1119,15 @@ function render(data) {
   lastLiveClosedTrades = data.closedTrades;
   if (selectedReviewSession === "current" && data.closedTrades.length !== lastClosedTradeCount) {
     lastClosedTradeCount = data.closedTrades.length;
-    renderTrades(data.closedTrades);
+    if (!selectedTradeReviewId) {
+      renderTrades(data.closedTrades);
+    }
     api("/api/reviews/trades")
       .then(payload => {
         tradeReviewSummaries = payload.reviews || [];
-        renderTrades(data.closedTrades);
+        if (!selectedTradeReviewId) {
+          renderTrades(data.closedTrades);
+        }
       })
       .catch(() => {});
   }
@@ -1197,5 +1196,8 @@ const opportunityButton = $("opportunityRefresh");
 if (opportunityButton) opportunityButton.onclick = loadOpportunityReview;
 const tradeReviewClose = $("tradeReviewClose");
 if (tradeReviewClose) tradeReviewClose.onclick = closeTradeReview;
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && selectedTradeReviewId) closeTradeReview();
+});
 refresh();
 setInterval(refresh, 900);
