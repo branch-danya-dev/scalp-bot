@@ -260,6 +260,15 @@ def test_breakout_next_mature_level_reduces_risk_instead_of_binary_veto() -> Non
                 "low": 99.70,
                 "high": 99.90,
             },
+            "opportunityFreshness": {
+                "classification": "fresh",
+            },
+            "flowAlignment": {
+                "classification": "strongly_aligned",
+            },
+            "liquidityAlignment": {
+                "classification": "supportive",
+            },
         },
     )
 
@@ -270,6 +279,49 @@ def test_breakout_next_mature_level_reduces_risk_instead_of_binary_veto() -> Non
     assert assessment.structural_path.obstacle_before_first_take is True
     assert assessment.structural_path.risk_scale == 0.65
     assert assessment.risk_scale == 0.65
+
+
+def test_breakout_obstacle_stays_blocked_without_consumption_strength() -> None:
+    resistance = mature_level(
+        "resistance",
+        100.20,
+        100.30,
+        generation="R:next",
+    )
+    ctx = context(resistance=resistance)
+    trade = decision(
+        "level_breakout",
+        Action.LONG,
+        entry=100.0,
+        stop=99.50,
+        target=101.0,
+        watched_level=99.80,
+        details={
+            "state": "impulse",
+            "zone": {
+                "kind": "resistance",
+                "low": 99.70,
+                "high": 99.90,
+            },
+            "opportunityFreshness": {
+                "classification": "late",
+            },
+            "flowAlignment": {
+                "classification": "mixed",
+            },
+            "liquidityAlignment": {
+                "classification": "neutral",
+            },
+        },
+    )
+
+    assessment = assess_candidate(trade, ctx)
+
+    assert assessment.allowed is False
+    assert (
+        "managed_structural_obstacle_requires_breakout_strength"
+        in assessment.blockers
+    )
 
 
 def test_exhausted_opportunity_is_blocked_even_when_other_semantics_are_good() -> None:
