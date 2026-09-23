@@ -6,6 +6,12 @@ from time import time
 from scalp_bot.config import Settings
 from scalp_bot.domain import Action, Candidate, Candle, OrderBook, Side, StrategyDecision, TradePlan, TradeTick, Trend
 from scalp_bot.engine import ActiveSymbolSession, TradingEngine
+from scalp_bot.strategy.market_context import (
+    ExecutionContext,
+    MarketContext,
+    StructureContext,
+)
+from scalp_bot.strategy.structure import StructuralLevel
 
 
 def candle() -> Candle:
@@ -159,6 +165,166 @@ def test_central_arbiter_uses_shared_priority_not_playbook_confidence(tmp_path) 
         # Semantic/economic dimensions are equal, so the later shared
         # activity-rank tie-break chooses BBB despite its lower setupQuality.
         assert set(engine.broker.positions) == {"BBBUSDT"}
+    finally:
+        close_rest(engine)
+
+
+def test_arbiter_blocks_trend_long_into_mature_resistance(tmp_path) -> None:
+    engine = make_engine(tmp_path, max_leverage=1, risk_fraction=0.01)
+    try:
+        now = time()
+        resistance = StructuralLevel(
+            kind="resistance",
+            low=100.20,
+            high=100.30,
+            touches=4,
+            timeframe="5m",
+            score=0.9,
+            distinct_approaches=4,
+            lifecycle="worked",
+            generation_id="R:test:g1",
+        )
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100,
+            last_market_at=now,
+            last_book_at=now,
+        )
+        session.market_context = MarketContext(
+            symbol="AAAUSDT",
+            observed_at_ms=int(now * 1000),
+            last_price=100.0,
+            legacy_trend=Trend.UP,
+            htf_bias=None,
+            local_regime=None,
+            flow=None,
+            liquidity=None,
+            structure=StructureContext(
+                reference_price=100.0,
+                level_count=1,
+                trendline_count=0,
+                nearest_support=None,
+                nearest_resistance=resistance,
+                support_distance_pct=None,
+                resistance_distance_pct=0.0025,
+                support_trendline=None,
+                resistance_trendline=None,
+            ),
+            execution=ExecutionContext(
+                book_fresh=True,
+                book_synced=True,
+                book_age_seconds=0.1,
+                candle_fresh=True,
+                candle_age_seconds=1.0,
+                spread_pct=0.0002,
+                best_bid=99.99,
+                best_ask=100.01,
+                top5_bid_notional_usd=9999.0,
+                top5_ask_notional_usd=10001.0,
+                top5_depth_usd=20000.0,
+                trade_buffer_seconds=60.0,
+            ),
+        )
+        session.decisions["trend_structure"] = StrategyDecision(
+            strategy="trend_structure",
+            action=Action.LONG,
+            reasons=["continuation"],
+            confidence=0.99,
+            entry=100.0,
+            stop=99.5,
+            target=101.0,
+            watched_level=99.8,
+            setup_id="blocked-by-resistance",
+        )
+        engine.sessions = {"AAAUSDT": session}
+        engine.candidates = [
+            Candidate(
+                "AAAUSDT",
+                200_000_000,
+                0,
+                100,
+                activity_rank=1,
+            )
+        ]
+
+        engine._arbitrate_once()
+
+        assert not engine.broker.positions
+        blocked = [
+            event
+            for event in engine.events
+            if event["event"] == "arbiter_blocked"
+        ]
+        assert blocked
+        assert (
+            "mature_structural_obstacle_before_first_take"
+            in blocked[0]["payload"]["blockers"]
+        )
+    finally:
+        close_rest(engine)
+
+
+def test_arbiter_waits_when_viable_playbooks_conflict_on_direction(tmp_path) -> None:
+    engine = make_engine(tmp_path, max_leverage=1, risk_fraction=0.01)
+    try:
+        now = time()
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100,
+            last_market_at=now,
+            last_book_at=now,
+        )
+        session.decisions["trend_structure"] = StrategyDecision(
+            strategy="trend_structure",
+            action=Action.LONG,
+            reasons=["continuation"],
+            confidence=0.9,
+            entry=100.0,
+            stop=99.5,
+            target=101.0,
+            watched_level=100.0,
+            setup_id="trend-long",
+        )
+        session.decisions["weak_level_rejection"] = StrategyDecision(
+            strategy="weak_level_rejection",
+            action=Action.SHORT,
+            reasons=["rejection"],
+            confidence=0.9,
+            entry=100.0,
+            stop=100.5,
+            target=99.0,
+            watched_level=100.1,
+            setup_id="rejection-short",
+        )
+        engine.sessions = {"AAAUSDT": session}
+        engine.candidates = [
+            Candidate(
+                "AAAUSDT",
+                200_000_000,
+                0,
+                100,
+                activity_rank=1,
+            )
+        ]
+
+        engine._arbitrate_once()
+
+        assert not engine.broker.positions
+        blocked = [
+            event
+            for event in engine.events
+            if event["event"] == "arbiter_blocked"
+        ]
+        assert len(blocked) >= 2
+        assert all(
+            "opposing_playbook_conflict"
+            in event["payload"]["blockers"]
+            for event in blocked[-2:]
+        )
     finally:
         close_rest(engine)
 
