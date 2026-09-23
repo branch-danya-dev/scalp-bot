@@ -411,6 +411,7 @@ def test_decision_context_binds_entry_freshness_to_same_market_snapshot(tmp_path
             session.market_context.fingerprint()
         )
         assert overlay["entryFreshness"]["classification"] == "late"
+        assert overlay["analysisRuntime"]["mode"] == "uninitialized"
         assert overlay["executionReady"] is True
     finally:
         close_engine(engine)
