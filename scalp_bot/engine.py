@@ -575,6 +575,8 @@ class TradingEngine:
                 "wins": 0,
                 "losses": 0,
                 "netPnl": 0.0,
+                "researchPolicyShadowMatches": 0,
+                "researchPolicyBlockedMatches": 0,
                 "stateCounts": {},
                 "sideRegime": {
                     "long": {},
@@ -2747,6 +2749,18 @@ class TradingEngine:
                 if assessment.blocked
                 else "research_policy_shadow"
             )
+            stats = self.strategy_stats.get(
+                decision.strategy
+            )
+            if isinstance(stats, dict):
+                counter = (
+                    "researchPolicyBlockedMatches"
+                    if assessment.blocked
+                    else "researchPolicyShadowMatches"
+                )
+                stats[counter] = int(
+                    stats.get(counter) or 0
+                ) + 1
             self._emit(
                 event,
                 session.symbol,
