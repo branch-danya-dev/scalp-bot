@@ -93,6 +93,54 @@ class ActiveSymbolSession:
             "askLevels": len(self.orderbook.asks),
         }
 
+    def confirmed_candle_age_seconds(
+        self,
+        now: float | None = None,
+    ) -> float | None:
+        confirmed = [c for c in self.candles if c.confirmed]
+        if not confirmed:
+            return None
+        latest = max(confirmed, key=lambda candle: candle.start_ms)
+        resolved_now = time() if now is None else now
+        close_at = latest.start_ms / 1000 + 60.0
+        return max(0.0, resolved_now - close_at)
+
+    def confirmed_candle_is_fresh(
+        self,
+        stale_after_seconds: float,
+        now: float | None = None,
+    ) -> bool:
+        if stale_after_seconds <= 0:
+            return True
+        age = self.confirmed_candle_age_seconds(now)
+        return age is not None and age <= stale_after_seconds
+
+    def candle_health(
+        self,
+        stale_after_seconds: float,
+        now: float | None = None,
+    ) -> dict:
+        confirmed = [c for c in self.candles if c.confirmed]
+        latest = (
+            max(confirmed, key=lambda candle: candle.start_ms)
+            if confirmed
+            else None
+        )
+        age = self.confirmed_candle_age_seconds(now)
+        return {
+            "fresh": self.confirmed_candle_is_fresh(
+                stale_after_seconds,
+                now,
+            ),
+            "ageSeconds": age,
+            "staleAfterSeconds": stale_after_seconds,
+            "lastConfirmedStartMs": (
+                latest.start_ms if latest is not None else None
+            ),
+            "confirmedCount": len(confirmed),
+            "totalCount": len(self.candles),
+        }
+
     def record_book_flow(self, ts_ms: int, value: float) -> None:
         if ts_ms <= 0:
             return
@@ -328,6 +376,7 @@ class ActiveSymbolSession:
             "orderbook": self.orderbook.public(50),
             "densityContext": self.density_context(now_ms),
             "bookHealth": self.book_health(),
+            "candleHealth": self.candle_health(150.0),
             "tradeFlow": compute_trade_flow(list(self.trades), now_ms),
             "bookFlow": self.book_flow_snapshot(now_ms),
             "tradeBufferSeconds": (
@@ -362,6 +411,7 @@ class ActiveSymbolSession:
             "candle": self.candles[-1].public() if self.candles else None,
             "orderbook": self.orderbook.public(book_depth),
             "bookHealth": self.book_health(),
+            "candleHealth": self.candle_health(150.0),
             "tradeFlow": compute_trade_flow(list(self.trades), now_ms),
             "bookFlow": self.book_flow_snapshot(now_ms),
             "position": position,
@@ -638,6 +688,10 @@ class TradingEngine:
             if session.last_market_at > 0
             and now - session.last_market_at <= self.config.market_stale_seconds
             and session.book_is_fresh(now)
+            and session.confirmed_candle_is_fresh(
+                self.config.confirmed_candle_stale_seconds,
+                now,
+            )
         ]
         ready = bool(self.candidates) and bool(live_sessions)
         if self._scanner_error:
@@ -647,7 +701,20 @@ class TradingEngine:
         elif not self.sessions:
             reason = "no active symbol sessions were bootstrapped"
         elif not live_sessions:
-            reason = "waiting for fresh synchronized websocket market data"
+            stale_candles = [
+                session.symbol
+                for session in self.sessions.values()
+                if not session.confirmed_candle_is_fresh(
+                    self.config.confirmed_candle_stale_seconds,
+                    now,
+                )
+            ]
+            reason = (
+                "confirmed 1m candle history is stale: "
+                + ", ".join(stale_candles[:6])
+                if stale_candles
+                else "waiting for fresh synchronized websocket market data"
+            )
         else:
             reason = None
         return {
@@ -1021,23 +1088,53 @@ class TradingEngine:
         rows = message.get("data") or []
         if not rows:
             return
-        row = rows[-1]
-        candle = Candle(
-            start_ms=int(row["start"]),
-            open=float(row["open"]),
-            high=float(row["high"]),
-            low=float(row["low"]),
-            close=float(row["close"]),
-            volume=float(row["volume"]),
-            turnover=float(row["turnover"]),
-            confirmed=bool(row.get("confirm")),
-        )
-        session.last_price = candle.close
-        if session.candles and session.candles[-1].start_ms == candle.start_ms:
-            session.candles[-1] = candle
-        else:
-            session.candles.append(candle)
-            session.candles = session.candles[-self.config.bootstrap_1m_candles:]
+
+        incoming: list[Candle] = []
+        for row in rows:
+            raw_confirm = row.get("confirm")
+            confirmed = (
+                raw_confirm is True
+                or str(raw_confirm).lower() == "true"
+            )
+            incoming.append(
+                Candle(
+                    start_ms=int(row["start"]),
+                    open=float(row["open"]),
+                    high=float(row["high"]),
+                    low=float(row["low"]),
+                    close=float(row["close"]),
+                    volume=float(row["volume"]),
+                    turnover=float(row["turnover"]),
+                    confirmed=confirmed,
+                )
+            )
+
+        incoming.sort(key=lambda candle: candle.start_ms)
+        by_start = {
+            candle.start_ms: candle
+            for candle in session.candles
+        }
+        for candle in incoming:
+            previous = by_start.get(candle.start_ms)
+            if previous is not None and previous.confirmed:
+                candle.confirmed = True
+            by_start[candle.start_ms] = candle
+
+        # Bybit can send the just-closed candle and the new forming candle in
+        # one boundary update. It can also send only the new bucket. Either
+        # way, once a newer minute exists, every older forming 1m bucket is
+        # definitively closed and must never remain unconfirmed forever.
+        newest_start = max(candle.start_ms for candle in incoming)
+        for candle in by_start.values():
+            if candle.start_ms < newest_start and not candle.confirmed:
+                candle.confirmed = True
+
+        session.candles = sorted(
+            by_start.values(),
+            key=lambda candle: candle.start_ms,
+        )[-self.config.bootstrap_1m_candles:]
+        latest = max(incoming, key=lambda candle: candle.start_ms)
+        session.last_price = latest.close
 
     async def _evaluate(self, session: ActiveSymbolSession) -> None:
         if not session.candles:
@@ -1048,6 +1145,30 @@ class TradingEngine:
         closed_15m = [x for x in session.context_15m if x.confirmed]
         closed_1h = [x for x in session.context_1h if x.confirmed]
         if not closed_1m:
+            return
+        if not session.confirmed_candle_is_fresh(
+            self.config.confirmed_candle_stale_seconds,
+        ):
+            age = session.confirmed_candle_age_seconds()
+            for key in self.strategies:
+                if not self.strategy_enabled.get(key, False):
+                    continue
+                decision = StrategyDecision(
+                    strategy=key,
+                    action=Action.WAIT,
+                    reasons=[
+                        "Подтверждённая 1m история устарела; торговля запрещена до восстановления свечного потока"
+                    ],
+                    details={
+                        "state": "stale_candle",
+                        "confirmedCandleAgeSeconds": age,
+                        "staleAfterSeconds": (
+                            self.config.confirmed_candle_stale_seconds
+                        ),
+                    },
+                )
+                session.decisions[key] = decision
+                self._record_decision_if_changed(session, decision)
             return
         session.trend = classify_context_trend(
             closed_15m,
@@ -1194,6 +1315,11 @@ class TradingEngine:
             ):
                 continue
             if not session.book_is_fresh(now):
+                continue
+            if not session.confirmed_candle_is_fresh(
+                self.config.confirmed_candle_stale_seconds,
+                now,
+            ):
                 continue
 
             for decision in session.decisions.values():
@@ -1823,6 +1949,7 @@ class TradingEngine:
                 "maxPositionLeverage": self.config.max_position_leverage,
                 "maxPositionExposureFraction": self.config.max_position_exposure_fraction,
                 "maxEntryDriftBps": self.config.max_entry_drift_bps,
+                "confirmedCandleStaleSeconds": self.config.confirmed_candle_stale_seconds,
                 "takerFeeRate": self.config.taker_fee_rate,
                 "slippageBps": self.config.slippage_bps,
                 "makerFillConfirmationBps": self.config.maker_fill_confirmation_bps,
