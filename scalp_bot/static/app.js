@@ -947,6 +947,16 @@ function renderOpportunityReview(report) {
   const hindsight = report.hindsight || {};
   const hindsightSummary = hindsight.summary || {};
   const performance = report.strategySideRegimePerformance || {};
+  const calibration = report.conditionalEconomicCalibration || {};
+  const calibrationSummary = calibration.summary || {};
+  const calibrationPolicy = calibration.policy || {};
+  const calibrationRows = (calibration.groups || [])
+    .slice()
+    .sort((left, right) => {
+      if (left.strategy !== right.strategy) return String(left.strategy).localeCompare(String(right.strategy));
+      if (left.side !== right.side) return String(left.side).localeCompare(String(right.side));
+      return String(left.regime).localeCompare(String(right.regime));
+    });
   const performanceRows = (performance.byStrategySideRegime || [])
     .slice()
     .sort((left, right) => {
@@ -1030,6 +1040,61 @@ function renderOpportunityReview(report) {
             </div>
           </div>`;
         }).join("") || '<div class="empty-row">Для выбранной сессии пока нет strategy × side × regime выборки.</div>'}
+      </div>
+    </div>
+
+    <div class="economic-calibration">
+      <div class="opportunity-oracle-head">
+        <div>
+          <h3>Conditional economic calibration</h3>
+          <small>Калибровка по strategy × side × LocalRegime. Порог не применяется к торговле автоматически: observed-best рассчитан на той же выборке и требует подтверждения на следующих сессиях.</small>
+        </div>
+        <small>${calibrationSummary.economicTrades || 0} экономически размеченных сделок · ready groups ${calibrationSummary.sampleReadyExactGroups || 0}/${calibrationSummary.exactGroups || 0}</small>
+      </div>
+      <div class="calibration-summary">
+        <span><small>Readiness</small>группа ≥ ${calibrationPolicy.minimumGroupSamples ?? "—"} · сегмент ≥ ${calibrationPolicy.minimumSegmentSamples ?? "—"}</span>
+        <span><small>1.15R улучшил observed expectancy</small>${calibrationSummary.legacy115ImprovesObservedExpectancy || 0} групп</span>
+        <span><small>1.15R ухудшил observed expectancy</small>${calibrationSummary.legacy115ReducesObservedExpectancy || 0} групп</span>
+        <span><small>Enforcement</small>${calibrationPolicy.enforcement || "disabled"}</span>
+      </div>
+      <div class="calibration-table">
+        ${calibrationRows.map(row => {
+          const baseline = row.baseline || {};
+          const legacy = row.legacyUniversal115 || {};
+          const cf = legacy.counterfactual || {};
+          const best = row.bestObservedRrThreshold;
+          const bands = (row.netRewardRiskBands || [])
+            .map(item => `${item.band}: n=${item.samples}, E=${item.expectancyAllInR == null ? "—" : Number(item.expectancyAllInR).toFixed(2)}R`)
+            .join(" · ");
+          const verdict = ({
+            improves_observed_expectancy:"1.15R ↑ expectancy",
+            reduces_observed_expectancy:"1.15R ↓ expectancy",
+            roughly_neutral:"1.15R ≈ neutral",
+            insufficient:"1.15R: мало данных",
+          })[legacy.verdict] || legacy.verdict || "—";
+          return `<div class="calibration-row ${row.sampleReady ? "ready" : "not-ready"}">
+            <div>
+              <strong>${strategyLabel(row.strategy)} · ${String(row.side || "").toUpperCase()}</strong>
+              <span>${localRegimeLabel(row.regime)}</span>
+              <small>${row.sampleReady ? "research-ready" : "insufficient samples"}</small>
+            </div>
+            <div>
+              <span>baseline n=${baseline.samples || 0} · E ${baseline.expectancyAllInR == null ? "—" : Number(baseline.expectancyAllInR).toFixed(2) + "R"}</span>
+              <small>W ${pct(baseline.winRate)} · net ${money(baseline.netPnl)} · planned RR ${baseline.averagePlannedNetRewardRisk == null ? "—" : Number(baseline.averagePlannedNetRewardRisk).toFixed(2)}</small>
+            </div>
+            <div>
+              <span>${verdict}</span>
+              <small>retained ${cf.retainedSamples ?? 0} · coverage ${pct(cf.coverageRate)} · E ${cf.expectancyAllInR == null ? "—" : Number(cf.expectancyAllInR).toFixed(2) + "R"}</small>
+            </div>
+            <div>
+              <span>${best ? "observed best ≥ " + Number(best.threshold).toFixed(2) + "R" : "observed best: —"}</span>
+              <small>${best ? "E " + Number(best.expectancyAllInR).toFixed(2) + "R · coverage " + pct(best.coverageRate) + " · in-sample only" : "нужна большая выборка"}</small>
+            </div>
+            <div class="calibration-bands">
+              <small>${bands || "RR bands: нет данных"}</small>
+            </div>
+          </div>`;
+        }).join("") || '<div class="empty-row">Недостаточно новых сделок с planning-time economics для conditional calibration.</div>'}
       </div>
     </div>
 
