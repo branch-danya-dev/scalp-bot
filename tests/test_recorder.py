@@ -295,6 +295,10 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
                         "classification": "short_term_reversal",
                         "score": -0.21,
                     },
+                    "liquidityAlignment": {
+                        "classification": "supportive",
+                        "score": 0.88,
+                    },
                 },
             },
             "market": {
@@ -371,6 +375,10 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
     assert diagnostics["entryFlowAlignmentBySide"]["long"]["short_term_reversal"] == 1
     assert diagnostics["entryFlowScoreSamples"] == 1
     assert diagnostics["averageEntryFlowAlignmentScore"] == -0.21
+    assert diagnostics["entryLiquidityAlignmentCounts"]["supportive"] == 1
+    assert diagnostics["entryLiquidityAlignmentBySide"]["long"]["supportive"] == 1
+    assert diagnostics["entryLiquidityScoreSamples"] == 1
+    assert diagnostics["averageEntryLiquidityAlignmentScore"] == 0.88
     assert diagnostics["tradesClosed"] == 1
     assert diagnostics["grossPnl"] == 10.0
     assert diagnostics["fees"] == 1.5
