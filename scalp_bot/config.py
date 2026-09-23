@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     enforce_min_net_profit_gate: bool = True
     min_net_reward_risk: float = 1.15
     enforce_net_reward_risk_gate: bool = True
+    # Hard safety floor: research profiles may shadow/tune the stricter
+    # payoff gate, but the bot must never knowingly enter negative payoff
+    # geometry where the planned net winner is smaller than the planned loss.
+    absolute_min_net_reward_risk: float = 1.0
     # Structural price risk to the strategy invalidation point.
     risk_fraction: float = 0.005
     # Maximum planned stop loss including fees/slippage for one position.
@@ -64,7 +68,7 @@ class Settings(BaseSettings):
     max_daily_loss_fraction: float = 0.03
     enforce_session_loss_limit: bool = False
 
-    trend_structure_enabled: bool = True
+    trend_structure_enabled: bool = False
     weak_level_rejection_enabled: bool = True
     # Stage 4: retained name for env compatibility; enables the liquidity
     # evidence provider, not standalone density entries.
@@ -74,8 +78,15 @@ class Settings(BaseSettings):
     # Stage 15: staged entries let fast, high-quality market evidence open a
     # bounded probe and reserve the remaining setup risk for confirmation.
     staged_entries_enabled: bool = True
+    # Breakout scale-in is disabled after the Stage 17 smoke: the add leg
+    # amplified false breakdowns. Rejection keeps staged entry support.
+    breakout_staged_entries_enabled: bool = False
     breakout_probe_risk_fraction: float = 0.35
     weak_level_rejection_probe_risk_fraction: float = 0.30
+    breakout_retest_tolerance_bps: float = 3.0
+    breakout_hold_without_retest_seconds: float = 8.0
+    breakout_absorption_efficiency_threshold: float = 0.35
+    breakout_min_directional_response_bps: float = 5.0
 
     strategy_expectancy_min_samples: int = 30
     enforce_strategy_expectancy_gate: bool = False
