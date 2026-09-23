@@ -28,12 +28,14 @@ from .strategy import (
     LocalRegimeSnapshot,
     MultiHorizonFlowContext,
     LiquidityEvidence,
+    FormingCandleContext,
     MarketContext,
     MarketStructure,
     SelectionPriority,
     SemanticCandidateAssessment,
     Strategy,
     build_execution_context,
+    build_forming_candle_context,
     build_liquidity_evidence,
     build_market_structure,
     build_structure_context,
@@ -80,6 +82,7 @@ class ActiveSymbolSession:
     local_regime: LocalRegimeSnapshot | None = None
     flow_context: MultiHorizonFlowContext | None = None
     liquidity_evidence: LiquidityEvidence | None = None
+    forming_candle_context: FormingCandleContext | None = None
     market_context: MarketContext | None = None
     market_context_fingerprint: tuple | None = None
     entry_freshness_anchors: dict[str, dict] = field(default_factory=dict)
@@ -1391,6 +1394,16 @@ class TradingEngine:
 
         now = time()
         now_ms = int(now * 1000)
+        forming_1m = max(
+            (candle for candle in session.candles if not candle.confirmed),
+            key=lambda candle: candle.start_ms,
+            default=None,
+        )
+        session.forming_candle_context = build_forming_candle_context(
+            forming_1m,
+            closed_1m,
+            observed_at_ms=now_ms,
+        )
         self._refresh_market_context(
             session,
             closed_1m=closed_1m,
@@ -1684,6 +1697,7 @@ class TradingEngine:
                 float(reference_price),
             ),
             execution=execution,
+            forming_candle=session.forming_candle_context,
         )
 
     def _commit_market_context(
