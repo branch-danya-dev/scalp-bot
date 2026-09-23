@@ -646,6 +646,11 @@ class TradingEngine:
                         staged_enabled
                         and config.breakout_staged_entries_enabled
                     )
+                elif key == "weak_level_rejection":
+                    staged_enabled = (
+                        staged_enabled
+                        and config.weak_level_rejection_staged_entries_enabled
+                    )
                 setattr(
                     staged_strategy,
                     "staged_entries_enabled",
