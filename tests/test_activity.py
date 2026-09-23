@@ -2,7 +2,11 @@ import pytest
 
 from scalp_bot.bybit import BybitRestClient
 from scalp_bot.config import Settings
-from scalp_bot.activity import activity_score, correlation_1h
+from scalp_bot.activity import (
+    activity_score,
+    correlation_1h,
+    opportunity_readiness,
+)
 from scalp_bot.domain import Candidate, Candle
 
 
@@ -197,3 +201,122 @@ async def test_rest_client_reports_all_global_403_endpoints() -> None:
         assert "HTTP 403" in message
     finally:
         await client.close()
+
+
+
+def readiness_candles(
+    *,
+    compressed: bool,
+    spent_move: bool,
+) -> list[Candle]:
+    rows: list[Candle] = []
+    for i in range(33):
+        center = 100.0 + (i % 3) * 0.005
+        rows.append(
+            Candle(
+                i * 60_000,
+                center,
+                center + 0.10,
+                center - 0.10,
+                center + 0.002,
+                100,
+                10_000,
+            )
+        )
+
+    for i in range(33, 38):
+        center = 100.0
+        half_range = 0.025 if compressed else 0.10
+        rows.append(
+            Candle(
+                i * 60_000,
+                center,
+                center + half_range,
+                center - half_range,
+                center + 0.002,
+                100,
+                10_000,
+            )
+        )
+
+    expansion_start = 100.0
+    for i in range(38, 40):
+        close = (
+            expansion_start + (i - 37) * 0.06
+            if not spent_move
+            else expansion_start + (i - 37) * 0.40
+        )
+        rows.append(
+            Candle(
+                i * 60_000,
+                expansion_start,
+                max(expansion_start, close) + 0.12,
+                min(expansion_start, close) - 0.12,
+                close,
+                200,
+                20_000,
+            )
+        )
+        expansion_start = close
+    return rows
+
+
+def test_opportunity_readiness_rewards_compression_into_fresh_expansion() -> None:
+    readiness, compression, expansion, spent = (
+        opportunity_readiness(
+            readiness_candles(
+                compressed=True,
+                spent_move=False,
+            )
+        )
+    )
+
+    assert readiness > 55
+    assert compression < 0.5
+    assert expansion > 1.0
+    assert spent < 1.0
+
+
+def test_opportunity_readiness_penalizes_already_spent_impulse() -> None:
+    fresh = opportunity_readiness(
+        readiness_candles(
+            compressed=True,
+            spent_move=False,
+        )
+    )[0]
+    chased = opportunity_readiness(
+        readiness_candles(
+            compressed=True,
+            spent_move=True,
+        )
+    )[0]
+
+    assert fresh > chased
+
+
+def test_activity_score_can_prefer_ready_market_over_bigger_past_move() -> None:
+    chased = Candidate(
+        "CHASEDUSDT",
+        turnover_24h=500_000_000,
+        change_24h=0.20,
+        last_price=1,
+        activity_change=0.020,
+        activity_turnover=5_000_000,
+        activity_burst_ratio=2.0,
+        opportunity_readiness=0.0,
+    )
+    ready = Candidate(
+        "READYUSDT",
+        turnover_24h=500_000_000,
+        change_24h=0.05,
+        last_price=1,
+        activity_change=0.004,
+        activity_turnover=5_000_000,
+        activity_burst_ratio=2.0,
+        opportunity_readiness=90.0,
+    )
+
+    assert activity_score(ready, 5) > activity_score(
+        chased,
+        5,
+    )
