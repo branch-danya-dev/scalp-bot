@@ -129,8 +129,11 @@ def pair_closed_trades(rows: list[dict]) -> list[dict]:
                 ),
                 "setupId": setup_id,
                 "plannedNetRewardRisk": _safe_float(
-                    plan.get("net_reward_risk")
-                    or plan.get("netRewardRisk")
+                    (
+                        plan.get("net_reward_risk")
+                        if plan.get("net_reward_risk") is not None
+                        else plan.get("netRewardRisk")
+                    )
                 ),
                 "entry": _safe_float(
                     position.get("entry")
