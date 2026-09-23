@@ -65,7 +65,7 @@ class WeakLevelRejectionStrategy(Strategy):
     max_stop_pct = 0.006
     test_pin_seconds = 150.0
     test_pin_max_distance_pct = 0.008
-    staged_entries_enabled = True
+    staged_entries_enabled = False
     probe_risk_fraction = 0.30
 
     def __init__(self) -> None:
