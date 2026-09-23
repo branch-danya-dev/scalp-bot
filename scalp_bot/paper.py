@@ -971,9 +971,21 @@ class PaperBroker:
                 else None
             ),
         )
+        economics = (
+            pos.strategy_details.get("economics")
+            if isinstance(pos.strategy_details, dict)
+            else None
+        )
+        partial_planned = (
+            bool(economics.get("partialPlanned"))
+            if isinstance(economics, dict)
+            and "partialPlanned" in economics
+            else True
+        )
         if (
             self.config.partial_take_enabled
             and allow_runner
+            and partial_planned
             and not pos.partial_taken
             and partial_triggered
         ):
@@ -1179,6 +1191,11 @@ class PaperBroker:
         )
         if not isinstance(economics, dict):
             return 0.0
+        planned_required = economics.get(
+            "partialRequiredNetUsd"
+        )
+        if isinstance(planned_required, (int, float)):
+            return max(0.0, float(planned_required))
         if not bool(
             economics.get("minimumNetProfitGateEnabled", True)
         ):
