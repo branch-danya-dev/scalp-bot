@@ -451,7 +451,11 @@ class DensityBounceStrategy(Strategy):
         state = self._states.setdefault(symbol, DensityWallState())
 
         if state.stage == DensityStage.EXHAUSTED and now < state.exhausted_until:
-            return self._wait(state, "Плотность помечена как съедаемая; ждём новую структуру")
+            return self._wait(
+                state,
+                "Плотность исчерпана; ждём новую структуру",
+                details={"reason": "wall_exhausted_cooldown"},
+            )
         if state.stage == DensityStage.EXHAUSTED and now >= state.exhausted_until:
             state = DensityWallState()
             self._states[symbol] = state
@@ -726,7 +730,10 @@ class DensityBounceStrategy(Strategy):
             return self._wait(
                 state,
                 "К плотности уже слишком много раз подходили — свежесть потеряна",
-                details=shared,
+                details={
+                    **shared,
+                    "reason": "wall_freshness_exhausted",
+                },
             )
 
         if not near and state.defended_at <= 0:
