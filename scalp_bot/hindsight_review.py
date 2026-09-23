@@ -400,18 +400,34 @@ def _decision_side(payload: dict) -> str | None:
 
 def _decision_index(rows: list[dict]) -> dict[str, list[dict]]:
     result: dict[str, list[dict]] = defaultdict(list)
+    segment_counter: dict[str, int] = defaultdict(int)
+    active_segment: dict[str, int] = {}
+
     for row in rows:
-        if row.get("event") != "decision":
-            continue
         symbol = str(row.get("symbol") or "")
         if not symbol:
             continue
+        event = str(row.get("event") or "")
+        if event == "symbol_activated":
+            segment_counter[symbol] += 1
+            active_segment[symbol] = segment_counter[symbol]
+            continue
+        if event == "symbol_deactivated":
+            active_segment.pop(symbol, None)
+            continue
+        if event != "decision":
+            continue
+
         payload = row.get("payload") or {}
         strategy = str(payload.get("strategy") or "")
         if not strategy:
             continue
+        segment = active_segment.get(symbol)
+        if segment is None:
+            segment = max(1, segment_counter.get(symbol, 0))
         result[symbol].append({
             "ts": _row_ts(row),
+            "segment": segment,
             "strategy": strategy,
             "state": _decision_state(payload),
             "action": str(payload.get("action") or ""),
@@ -430,16 +446,32 @@ def _state_rank(strategy: str, state: str) -> int:
 def _strategy_fit(
     decision_rows: list[dict],
     *,
+    segment: int,
     side: str,
     start_ts: float,
     entry_window_end_ts: float,
 ) -> dict:
     by_strategy: dict[str, dict] = {}
-    relevant = [
+    segment_rows = [
         row
         for row in decision_rows
-        if start_ts - 30.0 <= row["ts"] <= entry_window_end_ts
+        if int(row.get("segment") or 1) == segment
+        and row["ts"] <= entry_window_end_ts
     ]
+
+    latest_before_start: dict[str, dict] = {}
+    window_rows: list[dict] = []
+    for row in segment_rows:
+        if row["ts"] <= start_ts:
+            latest_before_start[row["strategy"]] = row
+        elif row["ts"] <= entry_window_end_ts:
+            window_rows.append(row)
+
+    relevant = [
+        *latest_before_start.values(),
+        *window_rows,
+    ]
+    relevant.sort(key=lambda row: row["ts"])
 
     for row in relevant:
         strategy = row["strategy"]
@@ -616,6 +648,8 @@ def _bot_comparison(
     *,
     side: str,
     start_ts: float,
+    entry_window_end_ts: float,
+    exit_window_start_ts: float,
     end_ts: float,
     entry_price: float,
     exit_price: float,
@@ -673,16 +707,21 @@ def _bot_comparison(
             captured = entry_price - float(trade_exit)
         exit_capture = max(-1.0, min(1.5, captured / total_move))
 
-    classification = "traded"
-    if spent is not None and spent > DEFAULT_ENTRY_WINDOW_FRACTION:
-        classification = "late_entry"
+    classification = (
+        "late_entry"
+        if trade["openTs"] > entry_window_end_ts
+        else "traded"
+    )
     if (
         trade.get("closeTs") is not None
-        and trade["closeTs"] < end_ts
+        and trade["closeTs"] < exit_window_start_ts
         and exit_capture is not None
-        and exit_capture < DEFAULT_EXIT_WINDOW_FRACTION
     ):
-        classification = "early_exit" if classification == "traded" else f"{classification}_early_exit"
+        classification = (
+            "early_exit"
+            if classification == "traded"
+            else f"{classification}_early_exit"
+        )
 
     return {
         "classification": classification,
@@ -727,6 +766,7 @@ def analyze_hindsight_opportunities(
                 sequence += 1
                 fit = _strategy_fit(
                     decisions.get(symbol, []),
+                    segment=segment_index,
                     side=swing["side"],
                     start_ts=swing["oracleEntryTs"],
                     entry_window_end_ts=swing["entryWindowEndTs"],
@@ -735,6 +775,8 @@ def analyze_hindsight_opportunities(
                     trades.get(symbol, []),
                     side=swing["side"],
                     start_ts=swing["oracleEntryTs"],
+                    entry_window_end_ts=swing["entryWindowEndTs"],
+                    exit_window_start_ts=swing["exitWindowStartTs"],
                     end_ts=swing["oracleExitTs"],
                     entry_price=swing["oracleEntryPrice"],
                     exit_price=swing["oracleExitPrice"],
