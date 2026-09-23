@@ -14,7 +14,7 @@ The dataset builder accepts:
 - standalone `*-report.json` session reports;
 - `*-analysis-pack.zip` archives.
 
-When the same session is supplied more than once, it is deduplicated by a canonical session identity derived from source session filename, run label, run window and event count.
+When the same session is supplied more than once, it is deduplicated by a canonical session identity derived from source session filename, run label and run window. Event count is used only as a fallback when the run window is unavailable, because compact analysis packs legitimately contain fewer rows than the raw session.
 
 If multiple representations of the same session exist, the richest source wins:
 

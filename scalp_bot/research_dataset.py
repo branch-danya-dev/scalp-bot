@@ -15,6 +15,9 @@ from .economic_calibration import (
 )
 from .performance_matrix import pair_closed_trades
 from .recorder import SessionRecorder
+from .stability_validation import (
+    build_stability_validation,
+)
 
 
 TRADEABLE_PLAYBOOKS = {
@@ -798,6 +801,15 @@ def aggregate_research_sources(
     horizon_seconds: float = 120.0,
     minimum_group_samples: int = 20,
     minimum_segment_samples: int = 8,
+    minimum_validation_sessions: int = 4,
+    minimum_validation_session_samples: int = 2,
+    minimum_validation_train_samples: int = 6,
+    minimum_interaction_resolved_per_session: int = 2,
+    minimum_hindsight_opportunities_per_session: int = 2,
+    validation_neutral_epsilon_r: float = 0.05,
+    validation_minimum_effect_r: float = 0.10,
+    validation_sign_agreement_rate: float = 0.75,
+    validation_threshold_consistency_rate: float = 0.50,
 ) -> dict[str, Any]:
     loaded: dict[str, dict[str, Any]] = {}
     duplicate_sources: list[dict] = []
@@ -890,6 +902,26 @@ def aggregate_research_sources(
             ),
         )
     )
+    stability = build_stability_validation(
+        trades=trades,
+        hindsight=hindsight,
+        interactions=interactions,
+        minimum_sessions=minimum_validation_sessions,
+        minimum_session_samples=minimum_validation_session_samples,
+        minimum_train_samples=minimum_validation_train_samples,
+        minimum_interaction_resolved_per_session=(
+            minimum_interaction_resolved_per_session
+        ),
+        minimum_hindsight_opportunities_per_session=(
+            minimum_hindsight_opportunities_per_session
+        ),
+        neutral_epsilon_r=validation_neutral_epsilon_r,
+        minimum_effect_r=validation_minimum_effect_r,
+        sign_agreement_rate=validation_sign_agreement_rate,
+        threshold_consistency_rate=(
+            validation_threshold_consistency_rate
+        ),
+    )
 
     return {
         "schemaVersion": 1,
@@ -905,6 +937,33 @@ def aggregate_research_sources(
             ),
             "minimumEconomicSegmentSamples": (
                 minimum_segment_samples
+            ),
+            "minimumValidationSessions": (
+                minimum_validation_sessions
+            ),
+            "minimumValidationSessionSamples": (
+                minimum_validation_session_samples
+            ),
+            "minimumValidationTrainSamples": (
+                minimum_validation_train_samples
+            ),
+            "minimumInteractionResolvedPerSession": (
+                minimum_interaction_resolved_per_session
+            ),
+            "minimumHindsightOpportunitiesPerSession": (
+                minimum_hindsight_opportunities_per_session
+            ),
+            "validationNeutralEpsilonR": (
+                validation_neutral_epsilon_r
+            ),
+            "validationMinimumEffectR": (
+                validation_minimum_effect_r
+            ),
+            "validationSignAgreementRate": (
+                validation_sign_agreement_rate
+            ),
+            "validationThresholdConsistencyRate": (
+                validation_threshold_consistency_rate
             ),
             "sourceIsolation": (
                 "Each session is analyzed independently first. "
@@ -969,6 +1028,7 @@ def aggregate_research_sources(
         "conditionalEconomicCalibration": (
             calibration
         ),
+        "stabilityValidation": stability,
         "tables": {
             "trades": trades,
             "hindsight": hindsight,
@@ -985,6 +1045,15 @@ def write_research_dataset_pack(
     horizon_seconds: float = 120.0,
     minimum_group_samples: int = 20,
     minimum_segment_samples: int = 8,
+    minimum_validation_sessions: int = 4,
+    minimum_validation_session_samples: int = 2,
+    minimum_validation_train_samples: int = 6,
+    minimum_interaction_resolved_per_session: int = 2,
+    minimum_hindsight_opportunities_per_session: int = 2,
+    validation_neutral_epsilon_r: float = 0.05,
+    validation_minimum_effect_r: float = 0.10,
+    validation_sign_agreement_rate: float = 0.75,
+    validation_threshold_consistency_rate: float = 0.50,
 ) -> Path:
     output = Path(output_path)
     output.parent.mkdir(
@@ -1000,6 +1069,33 @@ def write_research_dataset_pack(
         minimum_segment_samples=(
             minimum_segment_samples
         ),
+        minimum_validation_sessions=(
+            minimum_validation_sessions
+        ),
+        minimum_validation_session_samples=(
+            minimum_validation_session_samples
+        ),
+        minimum_validation_train_samples=(
+            minimum_validation_train_samples
+        ),
+        minimum_interaction_resolved_per_session=(
+            minimum_interaction_resolved_per_session
+        ),
+        minimum_hindsight_opportunities_per_session=(
+            minimum_hindsight_opportunities_per_session
+        ),
+        validation_neutral_epsilon_r=(
+            validation_neutral_epsilon_r
+        ),
+        validation_minimum_effect_r=(
+            validation_minimum_effect_r
+        ),
+        validation_sign_agreement_rate=(
+            validation_sign_agreement_rate
+        ),
+        validation_threshold_consistency_rate=(
+            validation_threshold_consistency_rate
+        ),
     )
     tables = dataset.pop("tables")
     manifest = {
@@ -1008,6 +1104,7 @@ def write_research_dataset_pack(
         "summary": dataset["summary"],
         "files": {
             "report": "cross-session-report.json",
+            "stabilityValidation": "stability-validation.json",
             **TABLE_FILES,
         },
     }
@@ -1027,6 +1124,14 @@ def write_research_dataset_pack(
         (tmp / "manifest.json").write_text(
             json.dumps(
                 manifest,
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        (tmp / "stability-validation.json").write_text(
+            json.dumps(
+                dataset.get("stabilityValidation") or {},
                 ensure_ascii=False,
                 indent=2,
             ),
@@ -1070,6 +1175,7 @@ def write_research_dataset_pack(
         readme = (
             "Cross-session research dataset for scalp-bot.\n\n"
             "cross-session-report.json: aggregate metrics and hypotheses.\n"
+            "stability-validation.json: session holdout / leave-one-session-out validation.\n"
             "sessions.jsonl: session provenance.\n"
             "trades.jsonl: normalized actual closed trades.\n"
             "hindsight-opportunities.jsonl: independent hindsight labels.\n"
