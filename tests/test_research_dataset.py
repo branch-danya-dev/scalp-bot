@@ -514,6 +514,7 @@ def test_research_pack_contains_normalized_tables_and_report(tmp_path):
             "manifest.json",
             "market-interactions.jsonl",
             "sessions.jsonl",
+            "stability-validation.json",
             "trades.jsonl",
         }
         cross = json.loads(
@@ -534,4 +535,10 @@ def test_research_pack_contains_normalized_tables_and_report(tmp_path):
 
     assert cross["summary"]["sessions"] == 1
     assert manifest["summary"]["closedTrades"] == 1
+    assert "stabilityValidation" in cross
+    stability = json.loads(
+        archive.read("stability-validation.json")
+    )
+    assert stability["policy"]["livePolicyEnforcement"] == "disabled"
+    assert manifest["files"]["stabilityValidation"] == "stability-validation.json"
     assert trades[0]["sessionId"] == cross["sessions"][0]["sessionId"]
