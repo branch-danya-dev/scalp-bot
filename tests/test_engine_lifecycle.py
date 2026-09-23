@@ -714,7 +714,16 @@ async def test_duration_timer_auto_stops_and_finalizes_position(tmp_path) -> Non
 def test_new_rejection_and_density_states_keep_symbol_engaged(tmp_path) -> None:
     engine = make_engine(tmp_path)
     try:
-        for state in ("persisting", "test", "defended", "reject", "reaction"):
+        for state in (
+            "persisting",
+            "pullback",
+            "armed",
+            "test",
+            "reclaim",
+            "defended",
+            "reject",
+            "reaction",
+        ):
             session = ActiveSymbolSession(symbol="AAAUSDT", candles=[candle()])
             session.decisions["stateful"] = StrategyDecision(
                 strategy="stateful",

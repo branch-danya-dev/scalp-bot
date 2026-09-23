@@ -51,7 +51,21 @@ from .strategy import (
 )
 
 
-ACTIVE_SETUP_STATES = {"found", "persisting", "approach", "pressure", "armed", "test", "defended", "reject", "reaction", "break", "impulse"}
+ACTIVE_SETUP_STATES = {
+    "found",
+    "persisting",
+    "approach",
+    "pullback",
+    "pressure",
+    "armed",
+    "test",
+    "reclaim",
+    "defended",
+    "reject",
+    "reaction",
+    "break",
+    "impulse",
+}
 
 ENTRY_FRESHNESS_TRIGGER_STATES = {
     "trend_structure": {"pullback", "armed", "test", "reclaim"},
