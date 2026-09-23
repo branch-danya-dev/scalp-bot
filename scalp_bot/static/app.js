@@ -787,7 +787,10 @@ function hindsightStrategyFitText(row) {
   const useful = strategies
     .filter(item => item.fit !== "unaware")
     .map(item => {
-      const states = (item.alignedStatesSeen || item.opposedStatesSeen || [])
+      const statesSource = (item.alignedStatesSeen || []).length
+        ? item.alignedStatesSeen
+        : (item.opposedStatesSeen || []);
+      const states = statesSource
         .map(stateLabel)
         .join("→");
       return `${strategyLabel(item.strategy)}: ${states || item.fit}`;
