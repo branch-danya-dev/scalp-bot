@@ -14,8 +14,10 @@ from .recorder import SessionRecorder
 FRAME_EVENTS = {"research_frame", "market_frame"}
 FOCUS_WINDOWS = {
     "entry_pending": (10.0, 30.0),
+    "entry_add_pending": (10.0, 30.0),
     "entry_cancelled": (15.0, 15.0),
     "trade_opened": (30.0, 60.0),
+    "position_added": (20.0, 45.0),
     "partial_take": (20.0, 40.0),
     "trade_closed": (30.0, 60.0),
     "risk_reject": (5.0, 15.0),
@@ -25,6 +27,7 @@ FOCUS_WINDOWS = {
     "research_policy_blocked": (5.0, 15.0),
     "economic_shadow": (5.0, 10.0),
     "entry_freshness_changed": (5.0, 10.0),
+    "strategy_state_transition": (5.0, 10.0),
     "strategy_error": (5.0, 10.0),
 }
 
@@ -94,6 +97,7 @@ def _compact_frame_payload(payload: dict, book_depth: int) -> dict:
         "lastPrice": payload.get("lastPrice"),
         "trend": payload.get("trend"),
         "marketContext": payload.get("marketContext"),
+        "analysisRuntime": payload.get("analysisRuntime"),
         "candle": payload.get("candle"),
         "orderbook": _trim_book(payload.get("orderbook"), book_depth),
         "bookHealth": payload.get("bookHealth"),
