@@ -49,6 +49,7 @@ class StructuralPathAssessment:
     obstacle_distance_pct: float | None
     obstacle_before_first_take: bool
     own_breakout_level_exempted: bool
+    risk_scale: float
     reasons: tuple[str, ...]
 
     def public(self) -> dict[str, Any]:
@@ -61,6 +62,7 @@ class StructuralPathAssessment:
             "obstacleDistancePct": self.obstacle_distance_pct,
             "obstacleBeforeFirstTake": self.obstacle_before_first_take,
             "ownBreakoutLevelExempted": self.own_breakout_level_exempted,
+            "riskScale": self.risk_scale,
             "reasons": list(self.reasons),
         }
 
@@ -81,6 +83,7 @@ class SemanticCandidateAssessment:
     flow_priority: int
     liquidity_priority: int
     freshness_priority: int
+    risk_scale: float
     reasons: tuple[str, ...]
 
     @property
@@ -104,6 +107,7 @@ class SemanticCandidateAssessment:
             "flowPriority": self.flow_priority,
             "liquidityPriority": self.liquidity_priority,
             "freshnessPriority": self.freshness_priority,
+            "riskScale": self.risk_scale,
             "reasons": list(self.reasons),
         }
 
@@ -220,6 +224,7 @@ def assess_structural_path(
             obstacle_distance_pct=None,
             obstacle_before_first_take=False,
             own_breakout_level_exempted=False,
+            risk_scale=1.0,
             reasons=("structural path unavailable or decision not tradeable",),
         )
 
@@ -237,6 +242,7 @@ def assess_structural_path(
             obstacle_distance_pct=None,
             obstacle_before_first_take=False,
             own_breakout_level_exempted=False,
+            risk_scale=1.0,
             reasons=("invalid entry/stop geometry for structural path",),
         )
 
@@ -270,6 +276,7 @@ def assess_structural_path(
             obstacle_distance_pct=None,
             obstacle_before_first_take=False,
             own_breakout_level_exempted=False,
+            risk_scale=1.0,
             reasons=("no mature opposing structural obstacle before entry path",),
         )
 
@@ -299,11 +306,25 @@ def assess_structural_path(
         and _zone_overlaps_level(decision, obstacle)
     )
 
-    blocked = intersects_path and not own_breakout
+    managed_breakout_obstacle = (
+        intersects_path
+        and not own_breakout
+        and decision.strategy == "level_breakout"
+    )
+    blocked = (
+        intersects_path
+        and not own_breakout
+        and not managed_breakout_obstacle
+    )
+    risk_scale = 0.65 if managed_breakout_obstacle else 1.0
     reasons: list[str] = []
     if own_breakout:
         reasons.append(
             "nearest mature obstacle is the breakout's own accepted level"
+        )
+    elif managed_breakout_obstacle:
+        reasons.append(
+            "next mature obstacle is managed for breakout by reduced risk instead of binary veto"
         )
     elif blocked:
         reasons.append(
@@ -327,6 +348,7 @@ def assess_structural_path(
         obstacle_distance_pct=obstacle_distance,
         obstacle_before_first_take=intersects_path,
         own_breakout_level_exempted=own_breakout,
+        risk_scale=risk_scale,
         reasons=tuple(reasons),
     )
 
@@ -396,8 +418,13 @@ def _raw_assessment(
     )
     freshness = _details_mapping(
         decision,
-        "entryFreshness",
+        "opportunityFreshness",
     )
+    if not freshness:
+        freshness = _details_mapping(
+            decision,
+            "entryFreshness",
+        )
     flow_class = str(
         flow.get("classification") or "insufficient_data"
     )
@@ -407,6 +434,33 @@ def _raw_assessment(
     freshness_class = str(
         freshness.get("classification") or "unknown"
     )
+
+    if freshness_class == "exhausted":
+        blockers.append("opportunity_exhausted")
+
+    risk_scale = structural_path.risk_scale
+    if freshness_class == "late":
+        risk_scale = min(risk_scale, 0.65)
+    elif freshness_class == "acceptable":
+        risk_scale = min(risk_scale, 0.85)
+    elif freshness_class == "unknown":
+        risk_scale = min(risk_scale, 0.80)
+    elif (
+        freshness_class == "fresh"
+        and structural_path.risk_scale >= 1.0
+        and flow_class in {"strongly_aligned", "aligned"}
+        and liquidity_class != "opposed"
+    ):
+        if decision.strategy == "level_breakout":
+            risk_scale = 1.20
+        elif decision.strategy == "weak_level_rejection":
+            risk_scale = 1.10
+
+    # The failed 0/8 trend sample must prove itself before it can receive
+    # increased structural risk.
+    if decision.strategy == "trend_structure":
+        risk_scale = min(risk_scale, 1.0)
+    risk_scale = max(0.0, min(risk_scale, 1.25))
 
     reasons.extend(structural_path.reasons)
     if flow_class:
@@ -437,6 +491,7 @@ def _raw_assessment(
             freshness_class,
             2,
         ),
+        risk_scale=risk_scale,
         reasons=tuple(reasons),
     )
 
