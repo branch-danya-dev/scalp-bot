@@ -877,3 +877,74 @@ def test_passive_eligible_strategy_prices_maker_entry_when_enabled() -> None:
     assert economics["entryMode"] == "maker_limit"
     assert economics["entryFeeRate"] == pytest.approx(cfg.maker_fee_rate)
     assert economics["entrySlippageRate"] == 0
+
+
+
+def test_first_take_movement_gate_rejects_sub_30bps_scalp() -> None:
+    cfg = economic_settings(
+        enforce_min_net_profit_gate=False,
+        enforce_net_reward_risk_gate=False,
+        enforce_winner_cost_share_gate=False,
+        enforce_min_first_take_move_gate=True,
+        min_first_take_move_pct=0.003,
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        StrategyDecision(
+            strategy="level_breakout",
+            action=Action.LONG,
+            reasons=["confirmed"],
+            entry=100.0,
+            stop=99.90,
+            target=100.80,
+            details={"allowRunner": True},
+        ),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+
+    assert not result.allowed
+    assert "movement_gate: first_take_move" in result.reason
+    assert result.diagnostics is not None
+    assert result.diagnostics["firstTakeMovePct"] < 0.003
+    assert result.diagnostics["minimumFirstTakeMovePct"] == pytest.approx(0.003)
+
+
+def test_first_take_movement_gate_accepts_30bps_plus_scalp() -> None:
+    cfg = economic_settings(
+        enforce_min_net_profit_gate=False,
+        enforce_net_reward_risk_gate=False,
+        enforce_winner_cost_share_gate=False,
+        enforce_min_first_take_move_gate=True,
+        min_first_take_move_pct=0.003,
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        StrategyDecision(
+            strategy="level_breakout",
+            action=Action.LONG,
+            reasons=["confirmed"],
+            entry=100.0,
+            stop=99.60,
+            target=101.20,
+            details={"allowRunner": True},
+        ),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    economics = result.plan.strategy_details["economics"]
+    assert economics["firstTakeMovePct"] >= 0.003
+    assert economics["firstTakeMoveGateEnabled"] is True
