@@ -24,6 +24,13 @@ FOCUS_WINDOWS = {
     "strategy_error": (5.0, 10.0),
 }
 
+INTERACTION_FOCUS_STATES = {
+    "trend_structure": {"test", "reclaim", "continuation"},
+    "weak_level_rejection": {"test", "reject", "reaction"},
+    "orderbook_density": {"test", "defended", "reaction"},
+    "level_breakout": {"break", "impulse"},
+}
+
 
 def _row_ts(row: dict) -> float:
     raw = row.get("ts")
@@ -124,6 +131,20 @@ def build_analysis_pack(
             ts = _row_ts(row)
             before, after = window
             focus[symbol].append((ts - before, ts + after))
+
+        if event == "decision" and symbol:
+            payload = row.get("payload") or {}
+            strategy = str(payload.get("strategy") or "")
+            details = payload.get("details") or {}
+            trace = payload.get("trace") or {}
+            state = str(
+                details.get("state")
+                or trace.get("state")
+                or ""
+            )
+            if state in INTERACTION_FOCUS_STATES.get(strategy, set()):
+                ts = _row_ts(row)
+                focus[symbol].append((ts - 3.0, ts + 12.0))
 
     focus = {
         symbol: _merge_windows(windows)
@@ -241,11 +262,15 @@ def build_analysis_pack(
                 "orderbookRows": orderbook_rows,
                 "focusOrderbookRows": full_focus_orderbook_rows,
                 "focusEvents": sorted(FOCUS_WINDOWS),
+                "interactionDecisionFocusStates": {
+                    key: sorted(values)
+                    for key, values in INTERACTION_FOCUS_STATES.items()
+                },
             },
             "contents": {
-                "session-analysis.jsonl": "All non-frame events plus 1s compact market frames; sufficient for Opportunity Review and trade reconstruction.",
-                "session-report.json": "Derived post-run report: opportunity review, closed trades, trade reviews, coins and chart coverage.",
-                "orderbook-samples.jsonl": "Sampled order books globally, with denser/deeper snapshots around important events.",
+                "session-analysis.jsonl": "All non-frame events plus 1s compact market frames; sufficient for Opportunity Review, Market Interaction Research and trade reconstruction.",
+                "session-report.json": "Derived post-run report: opportunity review, market interaction research, closed trades, trade reviews, coins and chart coverage.",
+                "orderbook-samples.jsonl": "Sampled order books globally, with denser/deeper snapshots around trades and advanced interaction-state transitions.",
             },
             "rawSourceRequiredFor": [
                 "tick-perfect reconstruction outside sampled windows",
@@ -259,8 +284,8 @@ def build_analysis_pack(
         )
         (tmp / "README.txt").write_text(
             "This is a compact analysis pack. Keep the original session JSONL locally as the lossless source of truth.\n"
-            "Use session-report.json for the derived summary, session-analysis.jsonl for decisions/candles/reconstruction,\n"
-            "and orderbook-samples.jsonl for DOM analysis around important events and periodic market samples.\n",
+            "Use session-report.json for the derived summary and market-interaction research, session-analysis.jsonl for decisions/candles/reconstruction,\n"
+            "and orderbook-samples.jsonl for DOM analysis around important events, advanced interaction states and periodic market samples.\n",
             encoding="utf-8",
         )
 

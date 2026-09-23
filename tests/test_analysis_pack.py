@@ -35,6 +35,25 @@ def test_analysis_pack_keeps_events_candles_reports_and_sampled_books(tmp_path):
             "stop": 99.0,
             "target": 101.0,
             "reasons": ["confirmed"],
+            "details": {
+                "state": "break",
+                "zone": {
+                    "kind": "resistance",
+                    "low": 99.9,
+                    "high": 100.1,
+                    "touches": 5,
+                },
+            },
+            "trace": {
+                "state": "break",
+                "trend": "up",
+                "object": {
+                    "type": "horizontal_zone",
+                    "label": "resistance",
+                    "low": 99.9,
+                    "high": 100.1,
+                },
+            },
         })
         write_row(fh, 3.0, "risk_reject", "AAAUSDT", {
             "strategy": "level_breakout",
@@ -97,6 +116,11 @@ def test_analysis_pack_keeps_events_candles_reports_and_sampled_books(tmp_path):
 
     assert manifest["source"]["sizeBytes"] > output.stat().st_size
     assert report["postRunOpportunity"]["summary"]["rejectedCandidates"] == 1
+    assert report["marketInteractionResearch"]["summary"]["checkpoints"] == 1
+    assert manifest["compaction"]["interactionDecisionFocusStates"]["level_breakout"] == [
+        "break",
+        "impulse",
+    ]
     assert '"risk_reject"' in compact
     assert books
     assert max(len(row["payload"]["orderbook"]["bids"]) for row in books) == 8

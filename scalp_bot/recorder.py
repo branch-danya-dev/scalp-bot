@@ -520,6 +520,7 @@ class SessionRecorder:
         *,
         horizon_seconds: float = 120.0,
     ) -> dict:
+        from .market_interaction_review import analyze_market_interactions
         from .opportunity_review import analyze_session_rows
 
         event_counts: dict[str, int] = {}
@@ -762,6 +763,7 @@ class SessionRecorder:
             rows,
             horizon_seconds=horizon_seconds,
         )
+        market_interactions = analyze_market_interactions(rows)
         latest_scanner = scanner_history[-1] if scanner_history else {}
 
         market_symbols = {}
@@ -795,6 +797,7 @@ class SessionRecorder:
             },
             "runSummary": run_summary,
             "postRunOpportunity": opportunity,
+            "marketInteractionResearch": market_interactions,
             "strategyDiagnostics": strategy_report,
             "closedTrades": closed_trades,
             "tradeReviews": compact_reviews,
