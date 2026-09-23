@@ -354,6 +354,15 @@ class RiskEngine:
             )
 
         lifecycle_cost_pct = lifecycle_fee_pct + lifecycle_slippage_pct
+        first_take_move_pct = (
+            partial_move_pct
+            if partial_enabled
+            else target_pct
+        )
+        minimum_first_take_move_failed = (
+            first_take_move_pct
+            < max(0.0, self.config.min_first_take_move_pct)
+        )
         lifecycle_fee_cost = notional * lifecycle_fee_pct
         lifecycle_slippage_cost = notional * lifecycle_slippage_pct
         estimated_costs = lifecycle_fee_cost + lifecycle_slippage_cost
@@ -419,6 +428,10 @@ class RiskEngine:
             "stopCostShareGateEnabled": self.config.enforce_stop_cost_share_gate,
             "partialFraction": partial_fraction if partial_enabled else 0.0,
             "partialMovePct": partial_move_pct if partial_enabled else None,
+            "firstTakeMovePct": first_take_move_pct,
+            "minimumFirstTakeMovePct": self.config.min_first_take_move_pct,
+            "firstTakeMoveGateEnabled": self.config.enforce_min_first_take_move_gate,
+            "wouldFailFirstTakeMove": minimum_first_take_move_failed,
             "runnerFraction": runner_fraction if partial_enabled else 1.0,
             "runnerTargetPct": runner_target_pct,
             "lifecycleGrossPct": lifecycle_gross_pct,
@@ -461,6 +474,20 @@ class RiskEngine:
             "wouldFailMinimumNetProfit": minimum_net_profit_failed,
             "wouldFailNetRewardRisk": net_reward_risk_failed,
         }
+
+        if (
+            self.config.enforce_min_first_take_move_gate
+            and minimum_first_take_move_failed
+        ):
+            return RiskResult(
+                False,
+                (
+                    "movement_gate: first_take_move "
+                    f"{first_take_move_pct * 100:.3f}% < minimum "
+                    f"{self.config.min_first_take_move_pct * 100:.3f}%"
+                ),
+                diagnostics=dict(economic_diagnostics),
+            )
 
         if (
             self.config.enforce_winner_cost_share_gate
@@ -516,6 +543,8 @@ class RiskEngine:
             )
 
         shadow_reject_reasons: list[str] = []
+        if minimum_first_take_move_failed:
+            shadow_reject_reasons.append("minimum_first_take_move")
         if minimum_net_profit_failed:
             shadow_reject_reasons.append("minimum_net_profit")
         if net_reward_risk_failed:
@@ -525,6 +554,8 @@ class RiskEngine:
             **economic_diagnostics,
             "roundTripCostPct": stop_cost_pct,
             "lifecycleCostPct": lifecycle_cost_pct,
+            "firstTakeMovePct": first_take_move_pct,
+            "minimumFirstTakeMovePct": self.config.min_first_take_move_pct,
             "winnerCostShare": winner_cost_share,
             "stopCostShare": stop_cost_share,
             "takerFeeCostUsd": fee_cost,
