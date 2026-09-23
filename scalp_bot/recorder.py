@@ -537,6 +537,9 @@ class SessionRecorder:
             "legacyTrend": {},
             "htfBias": {},
             "localRegime": {},
+            "flowDirection": {},
+            "longFlowAlignment": {},
+            "shortFlowAlignment": {},
         }
 
         def strategy_diag(strategy: str) -> dict:
@@ -805,6 +808,7 @@ class SessionRecorder:
                     )
                     htf = market_context.get("htfBias") or {}
                     local = market_context.get("localRegime") or {}
+                    flow_context = market_context.get("flowContext") or {}
                     htf_key = (
                         str(htf.get("bias") or "unknown")
                         if isinstance(htf, dict)
@@ -815,10 +819,38 @@ class SessionRecorder:
                         if isinstance(local, dict)
                         else "unknown"
                     )
+                    flow_direction = (
+                        str(flow_context.get("dominantDirection") or "unknown")
+                        if isinstance(flow_context, dict)
+                        else "unknown"
+                    )
+                    long_alignment = (
+                        flow_context.get("longAlignment") or {}
+                        if isinstance(flow_context, dict)
+                        else {}
+                    )
+                    short_alignment = (
+                        flow_context.get("shortAlignment") or {}
+                        if isinstance(flow_context, dict)
+                        else {}
+                    )
+                    long_alignment_key = (
+                        str(long_alignment.get("classification") or "unknown")
+                        if isinstance(long_alignment, dict)
+                        else "unknown"
+                    )
+                    short_alignment_key = (
+                        str(short_alignment.get("classification") or "unknown")
+                        if isinstance(short_alignment, dict)
+                        else "unknown"
+                    )
                     for bucket_name, value in (
                         ("legacyTrend", legacy),
                         ("htfBias", htf_key),
                         ("localRegime", local_key),
+                        ("flowDirection", flow_direction),
+                        ("longFlowAlignment", long_alignment_key),
+                        ("shortFlowAlignment", short_alignment_key),
                     ):
                         bucket = market_context_counts[bucket_name]
                         bucket[value] = bucket.get(value, 0) + 1
