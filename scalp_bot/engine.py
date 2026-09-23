@@ -443,7 +443,16 @@ class TradingEngine:
         self.broker = PaperBroker(config)
         self.recorder = SessionRecorder(config.session_dir)
         self.strategies: dict[str, Strategy] = {x.key: x for x in DEFAULT_STRATEGIES}
-        self.strategy_enabled: dict[str, bool] = {x.key: True for x in DEFAULT_STRATEGIES}
+        configured_strategy_state = {
+            "trend_structure": config.trend_structure_enabled,
+            "weak_level_rejection": config.weak_level_rejection_enabled,
+            "orderbook_density": config.density_enabled,
+            "level_breakout": config.breakout_enabled,
+        }
+        self.strategy_enabled: dict[str, bool] = {
+            key: bool(configured_strategy_state.get(key, True))
+            for key in self.strategies
+        }
         self.expectancy = StrategyExpectancyBook(
             list(self.strategies)
         )
