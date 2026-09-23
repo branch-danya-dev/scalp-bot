@@ -513,6 +513,7 @@ def test_research_pack_contains_normalized_tables_and_report(tmp_path):
             "hindsight-opportunities.jsonl",
             "manifest.json",
             "market-interactions.jsonl",
+            "policy-candidates.json",
             "sessions.jsonl",
             "stability-validation.json",
             "trades.jsonl",
@@ -539,8 +540,10 @@ def test_research_pack_contains_normalized_tables_and_report(tmp_path):
     assert cross["summary"]["sessions"] == 1
     assert manifest["summary"]["closedTrades"] == 1
     assert "stabilityValidation" in cross
+    assert "policyPromotionCandidates" in cross
     assert stability["policy"]["livePolicyEnforcement"] == "disabled"
     assert manifest["files"]["stabilityValidation"] == "stability-validation.json"
+    assert manifest["files"]["policyCandidates"] == "policy-candidates.json"
     assert trades[0]["sessionId"] == cross["sessions"][0]["sessionId"]
 
 
