@@ -56,10 +56,12 @@ def _policy_fingerprint_payload(
     return {
         "policyId": manifest.get("policyId"),
         "version": manifest.get("version"),
+        "status": manifest.get("status"),
         "allowEnforce": bool(
             manifest.get("allowEnforce")
         ),
         "source": manifest.get("source") or {},
+        "audit": manifest.get("audit") or {},
         "rollback": manifest.get("rollback") or {},
         "rules": manifest.get("rules") or [],
     }
