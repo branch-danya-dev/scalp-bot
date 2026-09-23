@@ -464,9 +464,12 @@ class TradingEngine:
         self.strategy_stats: dict[str, dict[str, float | int]] = {
             x.key: {
                 "decisions": 0,
+                "decisionUpdates": 0,
                 "tradeableSignals": 0,
+                "uniqueTradeableSetups": 0,
                 "waitDecisions": 0,
                 "riskRejects": 0,
+                "uniqueRiskRejectedSetups": 0,
                 "tradesOpened": 0,
                 "tradesClosed": 0,
                 "wins": 0,
@@ -502,6 +505,17 @@ class TradingEngine:
                 "max_distance_pct",
                 config.density_max_distance_pct,
             )
+        self._seen_tradeable_setups: dict[str, set[tuple[str, str]]] = {
+            key: set()
+            for key in self.strategies
+        }
+        self._seen_risk_rejected_setups: dict[
+            str,
+            set[tuple[str, str]],
+        ] = {
+            key: set()
+            for key in self.strategies
+        }
         self.running = False
         self.candidates: list[Candidate] = []
         self.sessions: dict[str, ActiveSymbolSession] = {}
@@ -1786,6 +1800,21 @@ class TradingEngine:
             stats = self.strategy_stats.get(decision.strategy)
             if stats is not None:
                 stats["riskRejects"] += 1
+                resolved_setup_id = (
+                    decision.setup_id
+                    or self._resolve_setup_id(session, decision)
+                )
+                seen = self._seen_risk_rejected_setups.setdefault(
+                    decision.strategy,
+                    set(),
+                )
+                setup_key = (
+                    session.symbol,
+                    str(resolved_setup_id),
+                )
+                if setup_key not in seen:
+                    seen.add(setup_key)
+                    stats["uniqueRiskRejectedSetups"] += 1
         self._emit(
             "risk_reject",
             session.symbol,
@@ -1826,8 +1855,24 @@ class TradingEngine:
         stats = self.strategy_stats.get(decision.strategy)
         if stats is not None:
             stats["decisions"] += 1
+            stats["decisionUpdates"] += 1
             if decision.tradeable:
                 stats["tradeableSignals"] += 1
+                resolved_setup_id = (
+                    decision.setup_id
+                    or self._resolve_setup_id(session, decision)
+                )
+                seen = self._seen_tradeable_setups.setdefault(
+                    decision.strategy,
+                    set(),
+                )
+                setup_key = (
+                    session.symbol,
+                    str(resolved_setup_id),
+                )
+                if setup_key not in seen:
+                    seen.add(setup_key)
+                    stats["uniqueTradeableSetups"] += 1
             else:
                 stats["waitDecisions"] += 1
         observed_at_ms = int(time() * 1000)
