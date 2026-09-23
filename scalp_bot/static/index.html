@@ -91,7 +91,7 @@
       <div class="heading"><h2>Стратегии</h2><span>только по направлению тренда</span></div>
       <div id="strategyList"></div>
     </article>
-    <article class="card panel">
+    <article class="card panel decision-panel">
       <div class="heading"><h2>Лента решений</h2><span id="sessionFile">session</span></div>
       <div class="event-filters">
         <div>
@@ -138,6 +138,17 @@
   <section class="card trades-panel">
     <div class="heading"><h2>Закрытые сделки</h2><span>разбор · график · решения · MAE/MFE · net</span></div>
     <div id="closedTrades" class="closed-trades review-cards"></div>
+  </section>
+
+  <section id="tradeReviewInspector" class="card trade-review-inspector hidden">
+    <div class="heading">
+      <div>
+        <h2>Разбор выбранной сделки</h2>
+        <span id="tradeReviewInspectorMeta">график · решения · экономика · стакан</span>
+      </div>
+      <button id="tradeReviewClose" class="button secondary">Закрыть разбор</button>
+    </div>
+    <div id="tradeReviewInspectorContent"></div>
   </section>
 </main>
 <script src="/static/app.js"></script>
