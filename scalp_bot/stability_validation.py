@@ -117,6 +117,7 @@ def validate_feature_stability(
     neutral_epsilon_r: float = 0.05,
     minimum_effect_r: float = 0.10,
     sign_agreement_rate: float = 0.75,
+    threshold_consistency_rate: float = 0.50,
 ) -> list[dict]:
     exact_groups: dict[tuple[str, str, str], list[dict]] = defaultdict(list)
     for row in trades:
@@ -639,6 +640,11 @@ def validate_threshold_selection_holdout(
             f"{float(row['selectedThreshold']):.2f}"
             for row in folds
         ))
+        threshold_mode_rate = (
+            max(threshold_counts.values()) / len(folds)
+            if folds and threshold_counts
+            else None
+        )
         median_delta = _median(deltas)
         if len(folds) < minimum_sessions:
             status = "insufficient_sessions"
@@ -647,6 +653,8 @@ def validate_threshold_selection_holdout(
             and positive_rate >= sign_agreement_rate
             and median_delta is not None
             and median_delta >= minimum_effect_r
+            and threshold_mode_rate is not None
+            and threshold_mode_rate >= threshold_consistency_rate
         ):
             status = "stable_positive_holdout"
         elif (
@@ -666,6 +674,8 @@ def validate_threshold_selection_holdout(
             "sessions": len(session_ids),
             "folds": len(folds),
             "selectedThresholdCounts": threshold_counts,
+            "selectedThresholdModeRate": threshold_mode_rate,
+            "minimumThresholdConsistencyRate": threshold_consistency_rate,
             "holdoutPositiveRate": positive_rate,
             "meanHoldoutPassMinusFailAllInR": _mean(deltas),
             "medianHoldoutPassMinusFailAllInR": median_delta,
@@ -887,6 +897,7 @@ def build_stability_validation(
     neutral_epsilon_r: float = 0.05,
     minimum_effect_r: float = 0.10,
     sign_agreement_rate: float = 0.75,
+    threshold_consistency_rate: float = 0.50,
 ) -> dict[str, Any]:
     feature = validate_feature_stability(
         trades,
@@ -914,6 +925,7 @@ def build_stability_validation(
         neutral_epsilon_r=neutral_epsilon_r,
         minimum_effect_r=minimum_effect_r,
         sign_agreement_rate=sign_agreement_rate,
+        threshold_consistency_rate=threshold_consistency_rate,
     )
     interactions_validation = validate_interaction_stability(
         interactions,
@@ -937,6 +949,7 @@ def build_stability_validation(
             "neutralEpsilonR": neutral_epsilon_r,
             "minimumEffectR": minimum_effect_r,
             "signAgreementRate": sign_agreement_rate,
+            "thresholdConsistencyRate": threshold_consistency_rate,
             "livePolicyEnforcement": "disabled",
             "validationMethod": (
                 "Session-level comparisons plus leave-one-session-out. "
