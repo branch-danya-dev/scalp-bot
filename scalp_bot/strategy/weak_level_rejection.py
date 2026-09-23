@@ -357,6 +357,20 @@ class WeakLevelRejectionStrategy(Strategy):
             if state.armed_at > 0
             else None
         )
+        prepared_opportunity = (
+            {
+                "preparedAtMs": int(state.armed_at * 1000),
+                "source": "rejection_live_test_armed",
+                "action": action.value,
+                "generation": str(generation_id),
+                "watchedLevel": zone.center,
+                "armPrice": state.armed_price,
+                "zone": zone.public(),
+                "pinned": True,
+            }
+            if state.armed_at > 0
+            else None
+        )
 
         if not (tested and failed_break):
             return StrategyDecision(
@@ -384,6 +398,7 @@ class WeakLevelRejectionStrategy(Strategy):
                         else None
                     ),
                     "opportunityArm": opportunity_arm,
+                    "preparedOpportunity": prepared_opportunity,
                 },
             )
 
@@ -426,6 +441,7 @@ class WeakLevelRejectionStrategy(Strategy):
                         else None
                     ),
                     "opportunityArm": opportunity_arm,
+                    "preparedOpportunity": prepared_opportunity,
                     "attackAbsorbed": attack_absorbed,
                     "probeOpened": state.probe_opened,
                 },
@@ -621,6 +637,24 @@ class WeakLevelRejectionStrategy(Strategy):
                     else None
                 ),
                 "opportunityArm": opportunity_arm,
+                    "preparedOpportunity": prepared_opportunity,
+                "fireTrigger": {
+                    "observedAtMs": (
+                        observed_at_ms
+                        if observed_at_ms is not None
+                        else int(now * 1000)
+                    ),
+                    "source": (
+                        "rejection_absorption_probe"
+                        if staged_phase == "probe"
+                        else "rejection_flow_reversal"
+                    ),
+                    "preparedAtMs": (
+                        int(state.armed_at * 1000)
+                        if state.armed_at > 0
+                        else None
+                    ),
+                },
                 "attackAbsorbed": attack_absorbed,
                 "flowReversed": flow_reversed,
                 "stagedEntry": {
