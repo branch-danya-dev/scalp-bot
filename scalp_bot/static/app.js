@@ -69,6 +69,17 @@ const STATE_LABELS = {
 };
 const ACTION_LABELS = {wait:"ЖДЁМ", long:"ЛОНГ", short:"ШОРТ"};
 const TREND_LABELS = {up:"ВВЕРХ", down:"ВНИЗ", flat:"БОКОВИК"};
+const HTF_BIAS_LABELS = {bullish:"бычий", bearish:"медвежий", neutral:"нейтральный"};
+const LOCAL_REGIME_LABELS = {
+  bullish_impulse:"бычий импульс",
+  bearish_impulse:"медвежий импульс",
+  bullish_trend:"локальный рост",
+  bearish_trend:"локальное снижение",
+  pullback:"откат",
+  transition:"переход",
+  range:"диапазон",
+  unclear:"неясно",
+};
 const SIDE_LABELS = {long:"ЛОНГ", short:"ШОРТ", buy:"ПОКУПКА", sell:"ПРОДАЖА", bid:"BID", ask:"ASK"};
 const EVENT_LABELS = {
   decision:"Решение", entry_pending:"Лимитный вход ожидает", entry_cancelled:"Лимитный вход отменён",
@@ -81,6 +92,7 @@ const EVENT_LABELS = {
   startup_scan_error:"Ошибка стартового сканера", scanner_error:"Ошибка сканера",
   symbol_bootstrap_error:"Ошибка загрузки рынка", context_error:"Ошибка контекста",
   strategy_error:"Ошибка стратегии", candle_resync:"1m история восстановлена",
+  market_context_changed:"Рыночный режим изменился",
 };
 const TRACE_PHRASES = {
   "confirmed trend structure and a valid trendline":"подтверждённая структура тренда и валидная трендовая линия",
@@ -117,6 +129,8 @@ const TRACE_PHRASES = {
 function strategyLabel(value) { return STRATEGY_LABELS[value] || String(value || "—").replaceAll("_", " "); }
 function stateLabel(value) { return STATE_LABELS[String(value || "unknown")] || String(value || "—").replaceAll("_", " "); }
 function trendLabel(value) { return TREND_LABELS[String(value || "flat")] || String(value || "—").toUpperCase(); }
+function htfBiasLabel(value) { return HTF_BIAS_LABELS[String(value || "neutral")] || String(value || "—").replaceAll("_", " "); }
+function localRegimeLabel(value) { return LOCAL_REGIME_LABELS[String(value || "unclear")] || String(value || "—").replaceAll("_", " "); }
 function sideLabel(value) { return SIDE_LABELS[String(value || "").toLowerCase()] || String(value || "—").toUpperCase(); }
 function actionLabel(value) { return ACTION_LABELS[String(value || "wait")] || String(value || "—").toUpperCase(); }
 function eventLabel(value) { return EVENT_LABELS[value] || String(value || "").replaceAll("_", " "); }
@@ -355,7 +369,11 @@ function renderSymbolMeta(market) {
   const timeframeRows = market.chartSeries?.[selectedChartTimeframe] || [];
   const latestBar = timeframeRows.length ? timeframeRows[timeframeRows.length - 1] : null;
   const barState = latestBar?.confirmed === false ? "формируется" : latestBar ? "закрыта" : "нет данных";
-  $("symbolMeta").textContent = `${selectedChartTimeframe} · ${barState} · цена ${price(market.lastPrice)}${gapText} · 24ч ${pct(profile.change_24h)} · оборот ${compact(profile.turnover_24h)} · ${corr} · ${trades24h} · активность ${Number(profile.activity_score || 0).toFixed(0)}${flowText}`;
+  const context = market.marketContext || {};
+  const htf = context.htfBias || {};
+  const local = context.localRegime || {};
+  const contextText = ` · HTF ${htfBiasLabel(htf.bias)} · локально: ${localRegimeLabel(local.regime)}`;
+  $("symbolMeta").textContent = `${selectedChartTimeframe} · ${barState} · цена ${price(market.lastPrice)}${gapText} · 24ч ${pct(profile.change_24h)} · оборот ${compact(profile.turnover_24h)} · ${corr} · ${trades24h} · активность ${Number(profile.activity_score || 0).toFixed(0)}${contextText}${flowText}`;
 }
 
 function bindChartControls() {
@@ -396,7 +414,9 @@ function renderWorking(rows) {
   $("workingList").innerHTML = rows.map(row => {
     const active = row.symbol === selectedSymbol ? "active" : "";
     const moveClass = (row.activityChange || 0) >= 0 ? "up" : "down";
-    const position = row.position ? `<span class="pill">${sideLabel(row.position.side)}</span>` : `<span>${trendLabel(row.trend)}</span>`;
+    const position = row.position
+      ? `<span class="pill">${sideLabel(row.position.side)}</span>`
+      : `<span title="HTF ${htfBiasLabel(row.htfBias)} · legacy ${trendLabel(row.trend)}">${localRegimeLabel(row.localRegime)}</span>`;
     return `<button class="symbol-row ${active}" data-symbol="${row.symbol}">
       <strong>#${row.activityRank || "—"} ${row.symbol.replace("USDT", "")}</strong><span>${price(row.lastPrice)}</span>
       ${position}<span class="${moveClass}">${pct(row.activityChange)}</span>
