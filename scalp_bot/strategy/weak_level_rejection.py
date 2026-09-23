@@ -725,18 +725,23 @@ class WeakLevelRejectionStrategy(Strategy):
             allowed_kinds.add("support")
         if Trend.DOWN in context_plan.allowed_directions:
             allowed_kinds.add("resistance")
-        choices = [
+        all_choices = [
             zone
             for zone in (resistance, support)
-            if zone is not None and zone.kind in allowed_kinds
+            if zone is not None
         ]
-        if not choices:
+        allowed_choices = [
+            zone
+            for zone in all_choices
+            if zone.kind in allowed_kinds
+        ]
+        if not all_choices:
             state.stage = RejectionStage.SEARCH
             state.zone_key = None
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
-                ["Рядом нет молодого слабонаторгованного уровня в направлении разрешённого rejection playbook"],
+                ["Рядом нет молодого слабонаторгованного уровня"],
                 details={
                     "state": RejectionStage.SEARCH.value,
                     "playbookContext": context_plan.public(),
@@ -744,6 +749,10 @@ class WeakLevelRejectionStrategy(Strategy):
                 },
             )
 
+        # Prefer a context-allowed level, but keep observing a nearby
+        # counter-context rejection when no allowed alternative exists.
+        # This preserves research visibility without making it tradeable.
+        choices = allowed_choices or all_choices
         zone = min(choices, key=lambda item: abs(item.center - price))
         structural_level = None
         if structure is not None:
