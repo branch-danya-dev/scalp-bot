@@ -845,3 +845,139 @@ def test_closed_trade_persists_move_extremes_timestamps_and_fees() -> None:
     assert trade["entryFeeUsd"] == pytest.approx(0.5)
     assert trade["plannedFirstTakeMovePct"] == pytest.approx(0.003)
     assert trade["movementFloorBands"]["0.30%"] is True
+
+
+
+def test_staged_add_aggregates_position_without_widening_stop() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.10,
+        taker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+    )
+    broker = PaperBroker(cfg)
+    market = book(99.99, 100.00)
+
+    probe = plan("STAGEDUSDT", Side.LONG, 300)
+    probe.strategy = "level_breakout"
+    probe.setup_id = "level_breakout:long:g1"
+    probe.stop = 99.5
+    probe.expected_net_loss = 2.0
+    probe.strategy_details = {
+        "stagedEntry": {
+            "phase": "probe",
+            "riskFraction": 0.35,
+        }
+    }
+    first = broker.open(probe, market)
+    first_entry = first.entry
+    first_risk = first.initial_risk_usd
+
+    add = plan("STAGEDUSDT", Side.LONG, 400)
+    add.strategy = "level_breakout"
+    add.setup_id = probe.setup_id
+    add.stop = 99.6
+    add.expected_net_loss = 2.0
+    add.strategy_details = {
+        "stagedEntry": {
+            "phase": "add",
+            "riskFraction": 0.65,
+        }
+    }
+    position = broker.add(
+        add,
+        book(100.19, 100.20),
+    )
+
+    assert position.notional == pytest.approx(700)
+    assert position.original_notional == pytest.approx(700)
+    assert position.entry > first_entry
+    assert position.stop == pytest.approx(99.6)
+    assert len(position.entry_legs) == 2
+    assert position.entry_legs[0]["phase"] == "probe"
+    assert position.entry_legs[1]["phase"] == "add"
+    assert position.initial_risk_usd > first_risk
+    assert broker.total_exposure == pytest.approx(700)
+
+    closed = broker.close(
+        "STAGEDUSDT",
+        book(100.40, 100.41),
+        "test",
+    )
+    assert closed["scaleInCount"] == 1
+    assert len(closed["entryLegs"]) == 2
+
+
+def test_staged_add_rejects_wrong_setup_and_side() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.10,
+        taker_fee_rate=0,
+        slippage_bps=0,
+    )
+    broker = PaperBroker(cfg)
+    probe = plan("STAGEDUSDT", Side.LONG, 300)
+    probe.strategy = "weak_level_rejection"
+    probe.setup_id = "weak:one"
+    broker.open(probe, book(99.99, 100.00))
+
+    wrong_setup = plan("STAGEDUSDT", Side.LONG, 100)
+    wrong_setup.strategy = probe.strategy
+    wrong_setup.setup_id = "weak:two"
+    allowed, reason = broker.can_add(wrong_setup)
+    assert not allowed
+    assert "setup" in reason
+
+    wrong_side = plan("STAGEDUSDT", Side.SHORT, 100)
+    wrong_side.strategy = probe.strategy
+    wrong_side.setup_id = probe.setup_id
+    allowed, reason = broker.can_add(wrong_side)
+    assert not allowed
+    assert "side" in reason
+
+
+def test_pending_maker_add_fills_into_existing_position() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.10,
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        passive_entry_enabled=True,
+        maker_fill_confirmation_bps=0,
+    )
+    broker = PaperBroker(cfg)
+
+    probe = plan("STAGEDUSDT", Side.LONG, 300)
+    probe.strategy = "weak_level_rejection"
+    probe.setup_id = "weak:maker"
+    probe.strategy_details = {
+        "stagedEntry": {"phase": "probe", "riskFraction": 0.30}
+    }
+    broker.open(probe, book(99.99, 100.00))
+
+    add = plan("STAGEDUSDT", Side.LONG, 200)
+    add.strategy = "weak_level_rejection"
+    add.setup_id = probe.setup_id
+    add.entry_mode = "maker_limit"
+    add.market_entry = 99.99
+    add.strategy_details = {
+        "stagedEntry": {"phase": "add", "riskFraction": 0.70}
+    }
+
+    pending = broker.place_pending_add(add)
+    assert pending.position_action == "add"
+    events = broker.mark_pending(
+        "STAGEDUSDT",
+        99.98,
+        trade_ts_ms=int(pending.created_at * 1000) + 1,
+    )
+    assert events
+    assert events[0]["event"] == "entry_added"
+    assert broker.positions["STAGEDUSDT"].notional == pytest.approx(500)
+    assert len(broker.positions["STAGEDUSDT"].entry_legs) == 2
