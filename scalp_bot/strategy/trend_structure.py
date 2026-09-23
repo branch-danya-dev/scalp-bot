@@ -335,6 +335,12 @@ class TrendStructureStrategy(Strategy):
             "allowRunner": True,
             "trendline": line.public(),
             "trendlineAnchor": anchor,
+            "currentPrice": price,
+            "projectedTrendlinePrice": projected,
+            "distancePct": distance,
+            "approachPct": self.approach_pct,
+            "testTolerancePct": self.test_tolerance_pct,
+            "deepBreakPct": self.deep_break_pct,
             "pullbackDirectional": directional,
             "pullbackCharacter": pullback_character,
         }
@@ -392,11 +398,16 @@ class TrendStructureStrategy(Strategy):
             if price > 0
             else 999.0
         )
-        deeply_broken = (
-            test_price < projected * (1 - self.deep_break_pct)
-            if long_side
-            else test_price > projected * (1 + self.deep_break_pct)
+        deep_penetration_pct = (
+            max(0.0, (projected - test_price) / projected)
+            if long_side and projected > 0
+            else (
+                max(0.0, (test_price - projected) / projected)
+                if projected > 0
+                else 0.0
+            )
         )
+        deeply_broken = deep_penetration_pct > self.deep_break_pct
 
         if deeply_broken:
             state.stage = TrendPullbackStage.SEARCH
@@ -407,7 +418,14 @@ class TrendStructureStrategy(Strategy):
                 0.30,
                 projected,
                 visuals=visuals,
-                details={**common_details, "deepBreak": True},
+                details={
+                    **common_details,
+                    "deepBreak": True,
+                    "testPrice": test_price,
+                    "testDistancePct": test_distance,
+                    "deepPenetrationPct": deep_penetration_pct,
+                    "lastClosedPrice": last.close,
+                },
             )
 
         if state.stage == TrendPullbackStage.PULLBACK:
