@@ -623,6 +623,24 @@ class PaperBroker:
         self.pending_entries[plan.symbol] = pending
         return pending
 
+    def cancel_pending(
+        self,
+        symbol: str,
+        reason: str,
+    ) -> dict | None:
+        pending = self.pending_entries.pop(symbol, None)
+        if pending is None:
+            return None
+        return {
+            "event": "entry_cancelled",
+            "symbol": symbol,
+            "strategy": pending.plan.strategy,
+            "setupId": pending.plan.setup_id,
+            "reason": reason,
+            "limitPrice": pending.limit_price,
+            "positionAction": pending.position_action,
+        }
+
     def expire_pending(
         self,
         now: float | None = None,
