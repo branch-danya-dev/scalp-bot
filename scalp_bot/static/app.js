@@ -144,6 +144,7 @@ function reasonText(value) {
   if (text.startsWith("setup expired after depth: entry drift")) return text.replace("setup expired after depth: entry drift", "Сетап устарел после проверки глубины: дрейф входа");
   if (text.startsWith("setup expired: entry drift")) return text.replace("setup expired: entry drift", "Сетап устарел: дрейф входа");
   if (text.startsWith("net at target")) return text.replace("net at target", "Net на цели").replace("after estimated trading costs", "после расчётных торговых издержек").replace("required", "требуется");
+  if (text.startsWith("movement_gate: first_take_move")) return text.replace("movement_gate: first_take_move", "Минимальное движение до первого тейка");
   if (text.startsWith("economic_gate: winner_cost_share")) return text.replace("economic_gate: winner_cost_share", "Экономика: доля издержек winner");
   if (text.startsWith("economic_gate: stop_cost_share")) return text.replace("economic_gate: stop_cost_share", "Экономика: доля издержек stop");
   if (text === "passive_entry_timeout") return "PostOnly вход не исполнился до таймаута";
@@ -1123,10 +1124,13 @@ function render(data) {
   const rrGate = data.risk.enforceNetRewardRiskGate
     ? `R:R≥${Number(data.risk.minNetRewardRisk || 0).toFixed(2)}`
     : `R:R ${Number(data.risk.minNetRewardRisk || 0).toFixed(2)} · наблюдение`;
+  const moveGate = data.risk.firstTakeMoveGateEnabled
+    ? `первый тейк ≥ ${(Number(data.risk.minFirstTakeMovePct || 0) * 100).toFixed(2)}%`
+    : `движение · наблюдение`;
   const winnerCostGate = data.risk.winnerCostShareGateEnabled
     ? `издержки winner ≤ ${(Number(data.risk.maxWinnerCostShare || 0) * 100).toFixed(0)}%`
     : `доля издержек · наблюдение`;
-  $("costGate").textContent = `${winnerCostGate} · ${minNetGate} · ${rrGate}`;
+  $("costGate").textContent = `${moveGate} · ${winnerCostGate} · ${minNetGate} · ${rrGate}`;
   $("runTimer").textContent = data.botRunning
     ? duration(data.run?.remainingSeconds)
     : duration(data.run?.configuredDurationSeconds);
