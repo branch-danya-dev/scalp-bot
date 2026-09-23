@@ -39,6 +39,40 @@ def _safe_float(value: Any) -> float | None:
     return None
 
 
+def _combined_leg_economics(
+    entry_legs: list[dict],
+) -> tuple[float | None, float | None, float | None]:
+    planned_loss = 0.0
+    planned_profit = 0.0
+    samples = 0
+    for leg in entry_legs:
+        if not isinstance(leg, dict):
+            continue
+        plan = leg.get("plan") or {}
+        if not isinstance(plan, dict):
+            continue
+        loss = _safe_float(
+            plan.get("expected_net_loss")
+            if plan.get("expected_net_loss") is not None
+            else plan.get("expectedNetLoss")
+        )
+        profit = _safe_float(
+            plan.get("expected_net_profit")
+            if plan.get("expected_net_profit") is not None
+            else plan.get("expectedNetProfit")
+        )
+        if loss is None or loss <= 0:
+            continue
+        planned_loss += loss
+        if profit is not None:
+            planned_profit += profit
+        samples += 1
+    if samples <= 0 or planned_loss <= 0:
+        return None, None, None
+    planned_rr = planned_profit / planned_loss
+    return planned_loss, planned_profit, planned_rr
+
+
 def _extract_regime(strategy_details: dict) -> str:
     decision_context = (
         strategy_details.get("decisionContext")
@@ -86,6 +120,36 @@ def _extract_entry_features(strategy_details: dict) -> dict[str, Any]:
             row.get("matchedRuleIds") or []
         )
     })
+    staged_entry = details.get("stagedEntry")
+    staged_entry = (
+        staged_entry if isinstance(staged_entry, dict) else {}
+    )
+    prepared = details.get("preparedOpportunity")
+    prepared = prepared if isinstance(prepared, dict) else {}
+    fire_trigger = details.get("fireTrigger")
+    fire_trigger = (
+        fire_trigger if isinstance(fire_trigger, dict) else {}
+    )
+    prepared_at_ms = _safe_float(
+        prepared.get("preparedAtMs")
+    )
+    fire_at_ms = _safe_float(
+        fire_trigger.get("observedAtMs")
+    )
+    prepared_to_fire_seconds = (
+        max(0.0, (fire_at_ms - prepared_at_ms) / 1000)
+        if (
+            prepared_at_ms is not None
+            and fire_at_ms is not None
+        )
+        else None
+    )
+    analysis_runtime = decision_context.get("analysisRuntime")
+    analysis_runtime = (
+        analysis_runtime
+        if isinstance(analysis_runtime, dict)
+        else {}
+    )
     return {
         "regime": str(decision_context.get("localRegime") or "unknown"),
         "htfBias": str(decision_context.get("htfBias") or "unknown"),
@@ -107,6 +171,18 @@ def _extract_entry_features(strategy_details: dict) -> dict[str, Any]:
         ),
         "confluenceCount": int(
             arbitration.get("confluenceCount") or 0
+        ),
+        "stagedEntryPhase": str(
+            staged_entry.get("phase") or "full"
+        ),
+        "entryRiskFraction": _safe_float(
+            staged_entry.get("riskFraction")
+        ),
+        "preparedAtMs": prepared_at_ms,
+        "fireAtMs": fire_at_ms,
+        "preparedToFireSeconds": prepared_to_fire_seconds,
+        "analysisModeAtEntry": str(
+            analysis_runtime.get("mode") or "unknown"
         ),
         "plannedNetAtTargetUsd": _safe_float(
             economics.get("netAtTargetUsd")
@@ -188,6 +264,21 @@ def pair_closed_trades(rows: list[dict]) -> list[dict]:
                 else {}
             ) or {}
             features = _extract_entry_features(strategy_details)
+            initial_entry = _safe_float(
+                position.get("entry")
+                or plan.get("market_entry")
+                or plan.get("marketEntry")
+            )
+            entry_legs = (
+                position.get("entry_legs")
+                or position.get("entryLegs")
+                or []
+            )
+            entry_legs = (
+                [dict(leg) for leg in entry_legs if isinstance(leg, dict)]
+                if isinstance(entry_legs, list)
+                else []
+            )
             pending[
                 (
                     symbol,
@@ -216,14 +307,70 @@ def pair_closed_trades(rows: list[dict]) -> list[dict]:
                         else plan.get("netRewardRisk")
                     )
                 ),
-                "entry": _safe_float(
-                    position.get("entry")
-                    or plan.get("market_entry")
-                    or plan.get("marketEntry")
-                ),
+                "entry": initial_entry,
+                "initialEntry": initial_entry,
+                "finalEntry": initial_entry,
+                "entryLegs": entry_legs,
+                "scaleInCount": max(0, len(entry_legs) - 1),
+                "addTs": [],
                 "strategyDetails": strategy_details,
                 **features,
             })
+            continue
+
+        if event == "position_added":
+            setup_id = _setup_id_from_open(payload)
+            key = (
+                symbol,
+                str(setup_id)
+                if setup_id is not None
+                else None,
+            )
+            queue = pending.get(key)
+            if not queue:
+                fallback = next(
+                    (
+                        candidate
+                        for candidate, values in pending.items()
+                        if candidate[0] == symbol and values
+                    ),
+                    None,
+                )
+                queue = pending.get(fallback) if fallback else None
+            if queue:
+                trade = queue[-1]
+                position = payload.get("position") or {}
+                add_plan = payload.get("plan") or {}
+                entry_legs = (
+                    position.get("entry_legs")
+                    or position.get("entryLegs")
+                    or []
+                )
+                if isinstance(entry_legs, list):
+                    trade["entryLegs"] = [
+                        dict(leg)
+                        for leg in entry_legs
+                        if isinstance(leg, dict)
+                    ]
+                    trade["scaleInCount"] = max(
+                        0,
+                        len(trade["entryLegs"]) - 1,
+                    )
+                final_entry = _safe_float(
+                    position.get("entry")
+                )
+                if final_entry is not None:
+                    trade["finalEntry"] = final_entry
+                trade.setdefault("addTs", []).append(
+                    _row_ts(row)
+                )
+                add_details = (
+                    add_plan.get("strategy_details")
+                    if isinstance(add_plan, dict)
+                    else None
+                )
+                if isinstance(add_details, dict):
+                    trade["finalStrategyDetails"] = add_details
             continue
 
         if event != "trade_closed":
@@ -259,8 +406,23 @@ def pair_closed_trades(rows: list[dict]) -> list[dict]:
             if initial_risk is not None and initial_risk > 0
             else None
         )
-        planned_all_in_loss = _safe_float(
-            trade.get("plannedAllInLossUsd")
+        entry_legs = payload.get("entryLegs")
+        if not isinstance(entry_legs, list):
+            entry_legs = trade.get("entryLegs") or []
+        entry_legs = [
+            dict(leg)
+            for leg in entry_legs
+            if isinstance(leg, dict)
+        ]
+        (
+            combined_planned_loss,
+            combined_planned_profit,
+            combined_planned_rr,
+        ) = _combined_leg_economics(entry_legs)
+        planned_all_in_loss = (
+            combined_planned_loss
+            if combined_planned_loss is not None
+            else _safe_float(trade.get("plannedAllInLossUsd"))
         )
         realized_all_in_r = (
             net / planned_all_in_loss
@@ -270,11 +432,47 @@ def pair_closed_trades(rows: list[dict]) -> list[dict]:
             )
             else None
         )
+        final_entry = _safe_float(payload.get("entry"))
+        close_strategy_details = payload.get("strategyDetails")
         trade.update({
             "closeTs": close_ts,
             "durationSeconds": max(
                 0.0,
                 close_ts - float(trade["openTs"]),
+            ),
+            "entry": (
+                final_entry
+                if final_entry is not None
+                else trade.get("finalEntry")
+            ),
+            "finalEntry": (
+                final_entry
+                if final_entry is not None
+                else trade.get("finalEntry")
+            ),
+            "entryLegs": entry_legs,
+            "scaleInCount": int(
+                payload.get("scaleInCount")
+                if payload.get("scaleInCount") is not None
+                else max(0, len(entry_legs) - 1)
+            ),
+            "plannedAllInLossUsd": planned_all_in_loss,
+            "plannedNetAtTargetUsd": (
+                combined_planned_profit
+                if combined_planned_profit is not None
+                else trade.get("plannedNetAtTargetUsd")
+            ),
+            "plannedNetRewardRisk": (
+                combined_planned_rr
+                if combined_planned_rr is not None
+                else trade.get("plannedNetRewardRisk")
+            ),
+            "strategyDetails": (
+                close_strategy_details
+                if isinstance(close_strategy_details, dict)
+                else trade.get("finalStrategyDetails")
+                or trade.get("strategyDetails")
+                or {}
             ),
             "exit": _safe_float(payload.get("exit")),
             "grossPnl": float(payload.get("grossPnl") or 0.0),
