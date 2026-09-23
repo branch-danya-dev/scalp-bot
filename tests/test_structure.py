@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from scalp_bot.domain import Candle
 from scalp_bot.strategy.structure import (
     aggregate_candles,
+    MarketStructure,
+    StructuralLevel,
     build_market_structure,
     detect_trendline,
 )
@@ -100,3 +102,50 @@ def test_market_structure_separates_current_and_previous_utc_day() -> None:
     assert "previous_day_low" in kinds
     assert "day_high" in kinds
     assert "day_low" in kinds
+
+
+
+def test_nearest_directional_includes_day_and_previous_day_levels() -> None:
+    ordinary = StructuralLevel(
+        kind="resistance",
+        low=101.0,
+        high=101.1,
+        touches=4,
+        timeframe="5m",
+        score=0.8,
+    )
+    previous_day = StructuralLevel(
+        kind="previous_day_high",
+        low=100.5,
+        high=100.5,
+        touches=1,
+        timeframe="1D",
+        score=0.88,
+    )
+    current_day_low = StructuralLevel(
+        kind="day_low",
+        low=99.4,
+        high=99.4,
+        touches=1,
+        timeframe="1D",
+        score=0.92,
+    )
+    structure = MarketStructure(
+        levels=[
+            ordinary,
+            previous_day,
+            current_day_low,
+        ]
+    )
+
+    resistance = structure.nearest_directional(
+        100.0,
+        "resistance",
+    )
+    support = structure.nearest_directional(
+        100.0,
+        "support",
+    )
+
+    assert resistance is previous_day
+    assert support is current_day_low
