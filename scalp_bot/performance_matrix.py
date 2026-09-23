@@ -226,6 +226,17 @@ def pair_closed_trades(rows: list[dict]) -> list[dict]:
             if initial_risk is not None and initial_risk > 0
             else None
         )
+        planned_all_in_loss = _safe_float(
+            trade.get("plannedAllInLossUsd")
+        )
+        realized_all_in_r = (
+            net / planned_all_in_loss
+            if (
+                planned_all_in_loss is not None
+                and planned_all_in_loss > 0
+            )
+            else None
+        )
         trade.update({
             "closeTs": close_ts,
             "durationSeconds": max(
@@ -237,6 +248,7 @@ def pair_closed_trades(rows: list[dict]) -> list[dict]:
             "fees": float(payload.get("fees") or 0.0),
             "netPnl": net,
             "realizedR": realized_r,
+            "realizedAllInR": realized_all_in_r,
             "mfeR": _safe_float(payload.get("mfeR")),
             "maeR": _safe_float(payload.get("maeR")),
             "mfeBps": _safe_float(
