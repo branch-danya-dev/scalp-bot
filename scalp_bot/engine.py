@@ -553,6 +553,7 @@ class Opportunity:
     session: ActiveSymbolSession
     decision: StrategyDecision
     plan: object
+    position_action: str = "open"
 
 
 class TradingEngine:
@@ -590,6 +591,7 @@ class TradingEngine:
                 "riskRejects": 0,
                 "uniqueRiskRejectedSetups": 0,
                 "tradesOpened": 0,
+                "positionAdds": 0,
                 "tradesClosed": 0,
                 "wins": 0,
                 "losses": 0,
@@ -604,6 +606,29 @@ class TradingEngine:
             }
             for x in DEFAULT_STRATEGIES
         }
+        for key, probe_fraction in (
+            (
+                "level_breakout",
+                config.breakout_probe_risk_fraction,
+            ),
+            (
+                "weak_level_rejection",
+                config.weak_level_rejection_probe_risk_fraction,
+            ),
+        ):
+            staged_strategy = self.strategies.get(key)
+            if staged_strategy is not None:
+                setattr(
+                    staged_strategy,
+                    "staged_entries_enabled",
+                    config.staged_entries_enabled,
+                )
+                setattr(
+                    staged_strategy,
+                    "probe_risk_fraction",
+                    probe_fraction,
+                )
+
         density_strategy = self.strategies.get("orderbook_density")
         if density_strategy is not None:
             setattr(
@@ -2223,11 +2248,11 @@ class TradingEngine:
         }
 
         for session in self.sessions.values():
-            if (
-                session.symbol in self.broker.positions
-                or session.symbol in self.broker.pending_entries
-            ):
+            if session.symbol in self.broker.pending_entries:
                 continue
+            existing_position = self.broker.positions.get(
+                session.symbol
+            )
             if (
                 session.last_market_at <= 0
                 or now - session.last_market_at
@@ -2248,6 +2273,7 @@ class TradingEngine:
                 SemanticCandidateAssessment,
                 int,
                 float,
+                str,
             ]] = []
 
             for decision in session.decisions.values():
@@ -2267,6 +2293,38 @@ class TradingEngine:
                     decision,
                 )
                 decision.setup_id = setup_id
+                staged_entry = (
+                    decision.details.get("stagedEntry")
+                    if isinstance(
+                        decision.details.get("stagedEntry"),
+                        dict,
+                    )
+                    else {}
+                )
+                staged_phase = str(
+                    staged_entry.get("phase") or "full"
+                )
+                position_action = (
+                    "add"
+                    if existing_position is not None
+                    else "open"
+                )
+                if existing_position is not None:
+                    if staged_phase != "add":
+                        continue
+                    if (
+                        existing_position.strategy
+                        != decision.strategy
+                        or existing_position.side
+                        != decision.side
+                        or existing_position.setup_id
+                        != setup_id
+                    ):
+                        continue
+                elif staged_phase == "add":
+                    # The probe may have been rejected or timed out. Never
+                    # execute an orphaned add as if a position existed.
+                    continue
 
                 base_assessment = assess_candidate(
                     decision,
@@ -2350,9 +2408,22 @@ class TradingEngine:
                     )
                     continue
 
-                allowed, portfolio_reason = (
-                    self.broker.can_open(session.symbol)
-                )
+                if position_action == "add":
+                    allowed = (
+                        existing_position is not None
+                        and not existing_position.partial_taken
+                        and self.broker.available_notional > 0
+                        and self.broker.available_risk_usd > 0
+                    )
+                    portfolio_reason = (
+                        "allowed"
+                        if allowed
+                        else "staged add portfolio budget exhausted"
+                    )
+                else:
+                    allowed, portfolio_reason = (
+                        self.broker.can_open(session.symbol)
+                    )
                 if not allowed:
                     self._risk_reject_if_changed(
                         session,
@@ -2374,6 +2445,20 @@ class TradingEngine:
                     self.broker.available_notional,
                     self.broker.available_risk_usd,
                     setup_id=setup_id,
+                    existing_position_notional=(
+                        existing_position.notional
+                        if position_action == "add"
+                        and existing_position is not None
+                        else 0.0
+                    ),
+                    existing_position_all_in_risk_usd=(
+                        existing_position.all_in_risk_usd(
+                            self.config
+                        )
+                        if position_action == "add"
+                        and existing_position is not None
+                        else 0.0
+                    ),
                 )
                 if not result.allowed or result.plan is None:
                     diagnostics = dict(
@@ -2389,6 +2474,23 @@ class TradingEngine:
                         diagnostics=diagnostics,
                     )
                     continue
+
+                if position_action == "add":
+                    allowed, add_reason = self.broker.can_add(
+                        result.plan
+                    )
+                    if not allowed:
+                        self._risk_reject_if_changed(
+                            session,
+                            decision,
+                            add_reason,
+                            diagnostics={
+                                "semanticArbitration": (
+                                    base_assessment.public()
+                                ),
+                            },
+                        )
+                        continue
 
                 economics = (
                     result.plan.strategy_details.get(
@@ -2478,6 +2580,7 @@ class TradingEngine:
                         base_assessment,
                         int(activity_rank),
                         float(activity_score),
+                        position_action,
                     )
                 )
 
@@ -2500,6 +2603,7 @@ class TradingEngine:
                 base_assessment,
                 activity_rank,
                 activity_score,
+                position_action,
             ) in planned:
                 assessment = final_assessments.get(
                     decision.strategy,
@@ -2549,6 +2653,7 @@ class TradingEngine:
                         session=session,
                         decision=decision,
                         plan=plan,
+                        position_action=position_action,
                     )
                 )
 
@@ -2559,9 +2664,14 @@ class TradingEngine:
             opportunities,
             key=lambda item: item.priority.key(),
         )
-        allowed, reason = self.broker.can_open(
-            best.session.symbol
-        )
+        if best.position_action == "add":
+            allowed, reason = self.broker.can_add(
+                best.plan
+            )
+        else:
+            allowed, reason = self.broker.can_open(
+                best.session.symbol
+            )
         if not allowed:
             self._risk_reject_if_changed(
                 best.session,
@@ -2595,16 +2705,28 @@ class TradingEngine:
         }
 
         if best.plan.entry_mode == "maker_limit":
-            pending = self.broker.place_pending(
-                best.plan,
-                min_trade_ts_ms=(
-                    best.session.trades[-1].ts_ms
-                    if best.session.trades
-                    else None
-                ),
-            )
+            if best.position_action == "add":
+                pending = self.broker.place_pending_add(
+                    best.plan,
+                    min_trade_ts_ms=(
+                        best.session.trades[-1].ts_ms
+                        if best.session.trades
+                        else None
+                    ),
+                )
+                pending_event = "entry_add_pending"
+            else:
+                pending = self.broker.place_pending(
+                    best.plan,
+                    min_trade_ts_ms=(
+                        best.session.trades[-1].ts_ms
+                        if best.session.trades
+                        else None
+                    ),
+                )
+                pending_event = "entry_pending"
             self._emit(
-                "entry_pending",
+                pending_event,
                 best.session.symbol,
                 {
                     "plan": best.plan.public(),
@@ -2618,20 +2740,36 @@ class TradingEngine:
             return
 
         best.session.last_trade_at = now
-        position = self.broker.open(
-            best.plan,
-            best.session.orderbook,
-        )
-        self._record_opened_position(
-            best.session,
-            best.decision,
-            best.plan.public(),
-            position.public(),
-            semantic_arbitration=(
-                best.arbitration.public()
-            ),
-            selection_priority=best.priority.public(),
-        )
+        if best.position_action == "add":
+            position = self.broker.add(
+                best.plan,
+                best.session.orderbook,
+            )
+            self._record_added_position(
+                best.session,
+                best.decision,
+                best.plan.public(),
+                position.public(),
+                semantic_arbitration=(
+                    best.arbitration.public()
+                ),
+                selection_priority=best.priority.public(),
+            )
+        else:
+            position = self.broker.open(
+                best.plan,
+                best.session.orderbook,
+            )
+            self._record_opened_position(
+                best.session,
+                best.decision,
+                best.plan.public(),
+                position.public(),
+                semantic_arbitration=(
+                    best.arbitration.public()
+                ),
+                selection_priority=best.priority.public(),
+            )
 
     def _record_opened_position(
         self,
@@ -2692,6 +2830,65 @@ class TradingEngine:
                 "holdingRule": (
                     "resting maker partial near 1R; runner moves to net "
                     "breakeven; no-follow-through is strategy-specific"
+                ),
+            },
+            snapshot=True,
+        )
+
+    def _record_added_position(
+        self,
+        session: ActiveSymbolSession,
+        decision: StrategyDecision,
+        plan: dict,
+        position: dict,
+        *,
+        semantic_arbitration: dict | None = None,
+        selection_priority: dict | None = None,
+    ) -> None:
+        strategy_key = str(plan.get("strategy") or "")
+        stats = self.strategy_stats.get(strategy_key)
+        if stats is not None:
+            stats["positionAdds"] = int(
+                stats.get("positionAdds") or 0
+            ) + 1
+        strategy = self.strategies.get(strategy_key)
+        if strategy is not None:
+            strategy.mark_opened(session.symbol, decision)
+        session.last_trade_at = time()
+        self._emit(
+            "position_added",
+            session.symbol,
+            {
+                "plan": plan,
+                "position": position,
+                "reasons": decision.reasons,
+                "visuals": decision.visuals,
+                "semanticArbitration": (
+                    semantic_arbitration
+                    or (
+                        plan.get("strategy_details", {})
+                        .get("semanticArbitration")
+                        if isinstance(
+                            plan.get("strategy_details"),
+                            dict,
+                        )
+                        else None
+                    )
+                ),
+                "selectionPriority": (
+                    selection_priority
+                    or (
+                        plan.get("strategy_details", {})
+                        .get("selectionPriority")
+                        if isinstance(
+                            plan.get("strategy_details"),
+                            dict,
+                        )
+                        else None
+                    )
+                ),
+                "stagedEntry": decision.details.get(
+                    "stagedEntry"
                 ),
             },
             snapshot=True,
@@ -2965,7 +3162,11 @@ class TradingEngine:
             trade_ts_ms=trade_ts_ms,
         )
         for event in pending_events:
-            if event.get("event") == "entry_filled":
+            if event.get("event") in {
+                "entry_filled",
+                "entry_added",
+            }:
+                is_add = event.get("event") == "entry_added"
                 strategy_key = str(event.get("strategy") or "")
                 plan = dict(event.get("plan") or {})
                 decision = session.decisions.get(strategy_key)
@@ -2989,12 +3190,20 @@ class TradingEngine:
                         setup_id=plan_setup_id or None,
                         details=dict(plan.get("strategy_details") or {}),
                     )
-                self._record_opened_position(
-                    session,
-                    decision,
-                    plan,
-                    dict(event.get("position") or {}),
-                )
+                if is_add:
+                    self._record_added_position(
+                        session,
+                        decision,
+                        plan,
+                        dict(event.get("position") or {}),
+                    )
+                else:
+                    self._record_opened_position(
+                        session,
+                        decision,
+                        plan,
+                        dict(event.get("position") or {}),
+                    )
             elif event.get("event") == "entry_cancelled":
                 self._emit(
                     "entry_cancelled",
