@@ -669,6 +669,11 @@ class LevelBreakoutStrategy(Strategy):
                     market_now - state.break_started_at,
                 ),
                 "requiredBreakHoldSeconds": self.min_break_hold_seconds,
+                "expectedImpulsePct": (
+                    expected_impulse / entry
+                    if entry > 0
+                    else None
+                ),
                 "stopDistancePct": stop_pct,
                 "stopSource": "breakout_reacceptance_buffer",
                 "invalidationBuffer": invalidation_buffer,
