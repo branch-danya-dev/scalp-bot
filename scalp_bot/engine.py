@@ -57,6 +57,7 @@ class ActiveSymbolSession:
     last_market_at: float = 0.0
     last_book_at: float = 0.0
     book_stale_after_seconds: float = 1.5
+    confirmed_candle_stale_after_seconds: float = 150.0
     book_synced: bool | None = None
     last_trade_stream_at: float = 0.0
     last_kline_at: float = 0.0
@@ -376,7 +377,9 @@ class ActiveSymbolSession:
             "orderbook": self.orderbook.public(50),
             "densityContext": self.density_context(now_ms),
             "bookHealth": self.book_health(),
-            "candleHealth": self.candle_health(150.0),
+            "candleHealth": self.candle_health(
+                self.confirmed_candle_stale_after_seconds
+            ),
             "tradeFlow": compute_trade_flow(list(self.trades), now_ms),
             "bookFlow": self.book_flow_snapshot(now_ms),
             "tradeBufferSeconds": (
@@ -411,7 +414,9 @@ class ActiveSymbolSession:
             "candle": self.candles[-1].public() if self.candles else None,
             "orderbook": self.orderbook.public(book_depth),
             "bookHealth": self.book_health(),
-            "candleHealth": self.candle_health(150.0),
+            "candleHealth": self.candle_health(
+                self.confirmed_candle_stale_after_seconds
+            ),
             "tradeFlow": compute_trade_flow(list(self.trades), now_ms),
             "bookFlow": self.book_flow_snapshot(now_ms),
             "position": position,
@@ -900,6 +905,9 @@ class TradingEngine:
             context_15m=[x for x in context_15m if x.confirmed],
             context_1h=[x for x in context_1h if x.confirmed],
             book_stale_after_seconds=self.config.book_stale_seconds,
+            confirmed_candle_stale_after_seconds=(
+                self.config.confirmed_candle_stale_seconds
+            ),
             activated_at=now,
             last_ranked_at=now,
         )
