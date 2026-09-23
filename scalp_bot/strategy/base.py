@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from ..domain import Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
 
 if TYPE_CHECKING:
+    from .market_context import MarketContext
     from .structure import MarketStructure
 
 
@@ -21,6 +22,7 @@ class Strategy:
         symbol: str = "",
         trades: list[TradeTick] | None = None,
         structure: "MarketStructure | None" = None,
+        market_context: "MarketContext | None" = None,
         observed_at_ms: int | None = None,
     ) -> StrategyDecision:
         raise NotImplementedError
