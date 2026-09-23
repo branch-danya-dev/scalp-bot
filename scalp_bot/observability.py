@@ -137,6 +137,7 @@ def _evidence(details: dict[str, Any]) -> dict[str, Any]:
         "flowAlignment",
         "liquidityEvidence",
         "liquidityAlignment",
+        "decisionContext",
     )
     return {
         key: details[key]
