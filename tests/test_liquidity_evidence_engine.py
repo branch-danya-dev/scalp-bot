@@ -155,11 +155,9 @@ def test_disabled_density_provider_cannot_leave_stale_liquidity_evidence(tmp_pat
         session.liquidity_evidence = build_liquidity_evidence(
             raw_density_signal()
         )
-        engine.strategy_enabled["orderbook_density"] = False
+        engine.sessions[session.symbol] = session
 
-        # This is the exact reset used by _evaluate when the provider is off.
-        if not engine.strategy_enabled.get("orderbook_density", False):
-            session.liquidity_evidence = None
+        engine.toggle_strategy("orderbook_density", False)
 
         assert session.liquidity_evidence is None
     finally:
