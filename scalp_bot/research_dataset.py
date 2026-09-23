@@ -809,6 +809,7 @@ def aggregate_research_sources(
     validation_neutral_epsilon_r: float = 0.05,
     validation_minimum_effect_r: float = 0.10,
     validation_sign_agreement_rate: float = 0.75,
+    validation_threshold_consistency_rate: float = 0.50,
 ) -> dict[str, Any]:
     loaded: dict[str, dict[str, Any]] = {}
     duplicate_sources: list[dict] = []
@@ -917,6 +918,9 @@ def aggregate_research_sources(
         neutral_epsilon_r=validation_neutral_epsilon_r,
         minimum_effect_r=validation_minimum_effect_r,
         sign_agreement_rate=validation_sign_agreement_rate,
+        threshold_consistency_rate=(
+            validation_threshold_consistency_rate
+        ),
     )
 
     return {
@@ -957,6 +961,9 @@ def aggregate_research_sources(
             ),
             "validationSignAgreementRate": (
                 validation_sign_agreement_rate
+            ),
+            "validationThresholdConsistencyRate": (
+                validation_threshold_consistency_rate
             ),
             "sourceIsolation": (
                 "Each session is analyzed independently first. "
@@ -1046,6 +1053,7 @@ def write_research_dataset_pack(
     validation_neutral_epsilon_r: float = 0.05,
     validation_minimum_effect_r: float = 0.10,
     validation_sign_agreement_rate: float = 0.75,
+    validation_threshold_consistency_rate: float = 0.50,
 ) -> Path:
     output = Path(output_path)
     output.parent.mkdir(
@@ -1084,6 +1092,9 @@ def write_research_dataset_pack(
         ),
         validation_sign_agreement_rate=(
             validation_sign_agreement_rate
+        ),
+        validation_threshold_consistency_rate=(
+            validation_threshold_consistency_rate
         ),
     )
     tables = dataset.pop("tables")
