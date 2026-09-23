@@ -53,6 +53,9 @@ class BreakoutWatchState:
     armed_zone: LevelZone | None = None
     armed_trend: Trend = Trend.FLAT
     break_started_at: float = 0.0
+    break_extreme: float = 0.0
+    retest_seen: bool = False
+    retest_at: float = 0.0
     probe_opened: bool = False
 
 
@@ -70,8 +73,14 @@ class LevelBreakoutStrategy(Strategy):
     pressure_hysteresis_score_margin = 1
     min_break_hold_seconds = 3.0
     minimum_target_r = 1.25
-    staged_entries_enabled = True
+    # Stage 18: raw breakouts are observation states, not entries. Production
+    # keeps breakout scale-in off until retest/hold shows positive edge.
+    staged_entries_enabled = False
     probe_risk_fraction = 0.35
+    retest_tolerance_bps = 3.0
+    hold_without_retest_seconds = 8.0
+    absorption_efficiency_threshold = 0.35
+    min_directional_response_bps = 5.0
 
     def __init__(self) -> None:
         self._states: dict[str, BreakoutWatchState] = {}
@@ -503,6 +512,9 @@ class LevelBreakoutStrategy(Strategy):
             state.armed_zone = None
             state.armed_trend = Trend.FLAT
             state.break_started_at = 0.0
+            state.break_extreme = 0.0
+            state.retest_seen = False
+            state.retest_at = 0.0
             state.probe_opened = False
         visuals = zone_visual(zone, "breakout zone")
         flow = compute_trade_flow(trades, observed_at_ms)
@@ -691,6 +703,9 @@ class LevelBreakoutStrategy(Strategy):
 
         if not broke:
             state.break_started_at = 0.0
+            state.break_extreme = 0.0
+            state.retest_seen = False
+            state.retest_at = 0.0
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
@@ -757,8 +772,25 @@ class LevelBreakoutStrategy(Strategy):
                 else level_flow.imbalance <= -0.02
             )
         )
+        directional_response_bps = (
+            (
+                level_flow.price_response_pct
+                if long_side
+                else -level_flow.price_response_pct
+            )
+            * 10_000
+        )
+        breakout_absorbed = (
+            level_flow.trade_count >= 3
+            and abs(level_flow.imbalance) >= 0.20
+            and level_flow.absorption_efficiency
+            >= self.absorption_efficiency_threshold
+            and directional_response_bps
+            < self.min_directional_response_bps
+        )
         probe_flow_supported = (
             local_break_flow
+            and not breakout_absorbed
             and (
                 aligned_after_break
                 or (
@@ -778,8 +810,13 @@ class LevelBreakoutStrategy(Strategy):
                         "Breakout probe уже открыт; ждём подтверждение "
                         "acceptance/hold для add"
                         if state.probe_opened
-                        else "Зона проколота, но давление/pre-state/flow "
-                        "недостаточны даже для probe"
+                        else (
+                            "Агрессивный поток поглощается без достаточного "
+                            "движения цены; breakout вход запрещён"
+                            if breakout_absorbed
+                            else "Зона проколота, но давление/pre-state/flow "
+                            "недостаточны для подтверждения breakout"
+                        )
                     )
                 ],
                 0.55,
@@ -801,18 +838,91 @@ class LevelBreakoutStrategy(Strategy):
                     "preparedOpportunity": prepared_opportunity,
                     "probeOpened": state.probe_opened,
                     "localBreakFlowConfirmed": local_break_flow,
+                    "breakoutAbsorbed": breakout_absorbed,
+                    "directionalResponseBps": directional_response_bps,
+                    "absorptionEfficiency": (
+                        level_flow.absorption_efficiency
+                    ),
                 },
             )
 
         if state.break_started_at <= 0:
             state.break_started_at = market_now
+            state.break_extreme = price
+            state.retest_seen = False
+            state.retest_at = 0.0
+        if long_side:
+            state.break_extreme = max(
+                state.break_extreme or price,
+                price,
+            )
+            excursion_bps = max(
+                0.0,
+                (state.break_extreme - zone.high)
+                / max(zone.high, 1e-9)
+                * 10_000,
+            )
+            near_boundary = (
+                price
+                <= zone.high
+                * (1 + self.retest_tolerance_bps / 10_000)
+            )
+        else:
+            if state.break_extreme <= 0:
+                state.break_extreme = price
+            state.break_extreme = min(
+                state.break_extreme,
+                price,
+            )
+            excursion_bps = max(
+                0.0,
+                (zone.low - state.break_extreme)
+                / max(zone.low, 1e-9)
+                * 10_000,
+            )
+            near_boundary = (
+                price
+                >= zone.low
+                * (1 - self.retest_tolerance_bps / 10_000)
+            )
+
+        meaningful_excursion = (
+            excursion_bps
+            >= self.retest_tolerance_bps * 2.0
+        )
+        if (
+            meaningful_excursion
+            and near_boundary
+            and not state.retest_seen
+        ):
+            state.retest_seen = True
+            state.retest_at = market_now
+
         held_seconds = max(
             0.0,
             market_now - state.break_started_at,
         )
+        retest_hold_seconds = (
+            max(0.0, market_now - state.retest_at)
+            if state.retest_seen and state.retest_at > 0
+            else 0.0
+        )
+        retest_hold_ready = (
+            state.retest_seen
+            and retest_hold_seconds
+            >= self.min_break_hold_seconds
+        )
+        sustained_hold_ready = (
+            held_seconds
+            >= self.hold_without_retest_seconds
+        )
         confirmation_ready = (
             aligned_after_break
-            and held_seconds >= self.min_break_hold_seconds
+            and not breakout_absorbed
+            and (
+                retest_hold_ready
+                or sustained_hold_ready
+            )
         )
 
         if self.staged_entries_enabled:
@@ -866,8 +976,8 @@ class LevelBreakoutStrategy(Strategy):
                     self.key,
                     Action.WAIT,
                     [
-                        "Пробой подтверждён потоком; ждём удержание цены "
-                        "за уровнем перед входом"
+                        "BREAK наблюдается; ждём retest+hold либо устойчивое "
+                        "acceptance за уровнем перед FIRE"
                     ],
                     0.64,
                     zone.center,
@@ -887,6 +997,15 @@ class LevelBreakoutStrategy(Strategy):
                         "requiredBreakHoldSeconds": (
                             self.min_break_hold_seconds
                         ),
+                        "retestSeen": state.retest_seen,
+                        "retestHoldSeconds": retest_hold_seconds,
+                        "sustainedHoldSecondsRequired": (
+                            self.hold_without_retest_seconds
+                        ),
+                        "breakoutAbsorbed": breakout_absorbed,
+                        "directionalResponseBps": (
+                            directional_response_bps
+                        ),
                     },
                 )
             staged_phase = "full"
@@ -900,11 +1019,14 @@ class LevelBreakoutStrategy(Strategy):
             entry * max(book.spread_pct * 2.0, 0.00025),
         )
         if long_side:
-            stop = zone.high - invalidation_buffer
+            # Soft reacceptance inside the zone is managed separately by
+            # manage_position(). The hard stop belongs beyond the opposite
+            # edge of the complete breakout zone.
+            stop = zone.low - invalidation_buffer
             stop_pct = (entry - stop) / entry
             action = Action.LONG
         else:
-            stop = zone.low + invalidation_buffer
+            stop = zone.high + invalidation_buffer
             stop_pct = (stop - entry) / entry
             action = Action.SHORT
 
@@ -1120,13 +1242,21 @@ class LevelBreakoutStrategy(Strategy):
                     market_now - state.break_started_at,
                 ),
                 "requiredBreakHoldSeconds": self.min_break_hold_seconds,
+                "retestSeen": state.retest_seen,
+                "retestHoldSeconds": retest_hold_seconds,
+                "sustainedHoldSecondsRequired": (
+                    self.hold_without_retest_seconds
+                ),
+                "breakoutAbsorbed": breakout_absorbed,
+                "directionalResponseBps": directional_response_bps,
                 "expectedImpulsePct": (
                     expected_impulse / entry
                     if entry > 0
                     else None
                 ),
                 "stopDistancePct": stop_pct,
-                "stopSource": "breakout_reacceptance_buffer",
+                "stopSource": "hard_beyond_breakout_zone",
+                "softInvalidation": "sustained_reacceptance_inside_zone",
                 "invalidationBuffer": invalidation_buffer,
                 "exitMode": "impulse_first",
                 "nearestObstacle": (
