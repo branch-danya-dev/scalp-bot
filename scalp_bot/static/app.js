@@ -78,7 +78,7 @@ const EVENT_LABELS = {
   bot_started:"Прогон запущен", bot_stopped:"Прогон остановлен",
   startup_scan_error:"Ошибка стартового сканера", scanner_error:"Ошибка сканера",
   symbol_bootstrap_error:"Ошибка загрузки рынка", context_error:"Ошибка контекста",
-  strategy_error:"Ошибка стратегии",
+  strategy_error:"Ошибка стратегии", candle_resync:"1m история восстановлена",
 };
 const TRACE_PHRASES = {
   "confirmed trend structure and a valid trendline":"подтверждённая структура тренда и валидная трендовая линия",
