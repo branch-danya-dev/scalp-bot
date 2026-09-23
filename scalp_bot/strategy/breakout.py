@@ -448,6 +448,60 @@ class LevelBreakoutStrategy(Strategy):
             flow,
             long_side=long_side,
         )
+        forming = (
+            market_context.forming_candle
+            if market_context is not None
+            else None
+        )
+        forming_pressure = False
+        if forming is not None and forming.age_seconds >= 0.5:
+            directional_body = (
+                forming.body_pct > 0
+                if long_side
+                else forming.body_pct < 0
+            )
+            terminal_close = (
+                forming.close_position >= 0.65
+                if long_side
+                else forming.close_position <= 0.35
+            )
+            directional_velocity = (
+                forming.velocity_bps_per_second > 0
+                if long_side
+                else forming.velocity_bps_per_second < 0
+            )
+            live_expansion = (
+                (
+                    forming.volume_pace_ratio is not None
+                    and forming.volume_pace_ratio >= 1.0
+                )
+                or (
+                    forming.range_expansion_ratio is not None
+                    and forming.range_expansion_ratio >= 0.90
+                )
+            )
+            forming_pressure = (
+                directional_body
+                and terminal_close
+                and directional_velocity
+                and forming.body_to_range >= 0.40
+                and live_expansion
+            )
+            if forming_pressure:
+                # Live 1m evidence may contribute one point, but cannot arm
+                # a breakout on its own. Confirmed structure + flow remain
+                # the majority of the pressure score.
+                pressure_score += 1
+
+        pressure = {
+            **pressure,
+            "formingPressure": forming_pressure,
+            "formingCandle": (
+                forming.public()
+                if forming is not None
+                else None
+            ),
+        }
 
         if generation in state.used_generations:
             state.stage = BreakoutStage.FOUND
