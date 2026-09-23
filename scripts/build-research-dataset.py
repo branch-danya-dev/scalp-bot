@@ -142,6 +142,12 @@ def main() -> None:
         help="Required leave-one-session-out sign agreement rate.",
     )
     parser.add_argument(
+        "--validation-threshold-consistency-rate",
+        type=float,
+        default=0.50,
+        help="Required modal threshold share across threshold-selection folds.",
+    )
+    parser.add_argument(
         "--output",
         help="Output ZIP path.",
     )
@@ -199,6 +205,10 @@ def main() -> None:
         raise SystemExit(
             "--validation-sign-agreement-rate must be in (0, 1]"
         )
+    if not 0 < args.validation_threshold_consistency_rate <= 1:
+        raise SystemExit(
+            "--validation-threshold-consistency-rate must be in (0, 1]"
+        )
 
     output = (
         Path(args.output)
@@ -245,6 +255,9 @@ def main() -> None:
         ),
         validation_sign_agreement_rate=(
             args.validation_sign_agreement_rate
+        ),
+        validation_threshold_consistency_rate=(
+            args.validation_threshold_consistency_rate
         ),
     )
     size_mb = (
