@@ -132,6 +132,7 @@ def _evidence(details: dict[str, Any]) -> dict[str, Any]:
         "replenishmentRatio",
         "remainingRatio",
         "strengthMultiple",
+        "entryFreshness",
     )
     return {
         key: details[key]
