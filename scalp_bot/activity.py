@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from math import log10
+from statistics import median
 
 from .domain import Candidate, Candle
 
@@ -37,6 +38,119 @@ def correlation_1h(candles: list[Candle], benchmark: list[Candle]) -> float | No
     return max(-1.0, min(1.0, value))
 
 
+def opportunity_readiness(
+    candles: list[Candle],
+) -> tuple[float, float, float, float]:
+    """Estimate pre-opportunity state without predicting a direction.
+
+    The scanner should prefer markets transitioning from compression into
+    fresh expansion, not simply the symbols that have already travelled the
+    farthest over the recent window.
+    """
+    confirmed = [row for row in candles if row.confirmed]
+    if len(confirmed) < 12:
+        return 0.0, 1.0, 1.0, 0.0
+
+    def range_pct(row: Candle) -> float:
+        return (
+            (row.high - row.low) / row.close
+            if row.close > 0 and row.high >= row.low
+            else 0.0
+        )
+
+    ranges = [
+        value
+        for value in (
+            range_pct(row)
+            for row in confirmed[-40:]
+        )
+        if value > 0
+    ]
+    if len(ranges) < 10:
+        return 0.0, 1.0, 1.0, 0.0
+
+    recent_rows = confirmed[-7:]
+    compression_rows = recent_rows[:5]
+    expansion_rows = recent_rows[-2:]
+    baseline_rows = confirmed[
+        max(0, len(confirmed) - 37):
+        max(0, len(confirmed) - 7)
+    ]
+    baseline_ranges = [
+        range_pct(row)
+        for row in baseline_rows
+        if range_pct(row) > 0
+    ]
+    baseline = median(
+        baseline_ranges or ranges[:-2] or ranges
+    )
+    compression = median([
+        range_pct(row)
+        for row in compression_rows
+        if range_pct(row) > 0
+    ] or [baseline])
+    expansion = median([
+        range_pct(row)
+        for row in expansion_rows
+        if range_pct(row) > 0
+    ] or [baseline])
+
+    compression_ratio = (
+        compression / baseline
+        if baseline > 0
+        else 1.0
+    )
+    expansion_ratio = (
+        expansion / baseline
+        if baseline > 0
+        else 1.0
+    )
+
+    move_start = recent_rows[0].open
+    move_end = recent_rows[-1].close
+    recent_move = (
+        abs(move_end - move_start) / move_start
+        if move_start > 0
+        else 0.0
+    )
+    expected_impulse = max(
+        0.0015,
+        baseline * 2.4,
+    )
+    move_spent_ratio = (
+        recent_move / expected_impulse
+        if expected_impulse > 0
+        else 0.0
+    )
+
+    compression_score = max(
+        0.0,
+        min(1.0, (1.05 - compression_ratio) / 0.45),
+    )
+    expansion_score = max(
+        0.0,
+        min(1.0, (expansion_ratio - 0.85) / 0.75),
+    )
+    unspent_score = max(
+        0.0,
+        min(
+            1.0,
+            1.0 - max(0.0, move_spent_ratio - 0.35) / 1.0,
+        ),
+    )
+    readiness = 100.0 * (
+        compression_score * 0.40
+        + expansion_score * 0.35
+        + unspent_score * 0.25
+    )
+    return (
+        readiness,
+        compression_ratio,
+        expansion_ratio,
+        move_spent_ratio,
+    )
+
+
 def activity_score(candidate: Candidate, window_minutes: int) -> float:
     turnover = max(candidate.turnover_24h, 0.0)
     turnover_component = min(
@@ -56,11 +170,18 @@ def activity_score(candidate: Candidate, window_minutes: int) -> float:
         )
     burst = min(1.0, burst_ratio / 3.0)
 
-    # Correlation is deliberately kept as context, not rewarded or punished
-    # until paper data proves that it predicts better setups.
+    readiness = max(
+        0.0,
+        min(candidate.opportunity_readiness / 100.0, 1.0),
+    )
+
+    # Correlation remains context-only. Stage 19C reduces pure chase bias:
+    # recent absolute move is only a small attention component, while a fresh
+    # compression->expansion transition receives the largest weight.
     return 100.0 * (
-        turnover_component * 0.20
-        + move_24h * 0.30
-        + move_recent * 0.30
-        + burst * 0.20
+        turnover_component * 0.15
+        + move_24h * 0.15
+        + move_recent * 0.10
+        + burst * 0.25
+        + readiness * 0.35
     )
