@@ -92,6 +92,9 @@ class Settings(BaseSettings):
     arbiter_interval_seconds: float = 0.25
     market_stale_seconds: float = 3.0
     book_stale_seconds: float = 1.5
+    # Disabled in bare Settings for deterministic unit tests; research/live
+    # profiles explicitly enable this safety gate.
+    confirmed_candle_stale_seconds: float = 0.0
     trade_buffer_seconds: int = 90
     orderbook_depth: int = 1000
     density_min_wall_notional_usd: float = 25_000.0
