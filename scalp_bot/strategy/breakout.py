@@ -674,11 +674,22 @@ class LevelBreakoutStrategy(Strategy):
                 and pressure_score >= hysteresis_floor
             )
         )
+        local_break_flow = (
+            level_flow.trade_count >= 3
+            and (
+                level_flow.imbalance >= 0.02
+                if long_side
+                else level_flow.imbalance <= -0.02
+            )
+        )
         probe_flow_supported = (
-            aligned_after_break
-            or (
-                arm_active
-                and forming_pressure
+            local_break_flow
+            and (
+                aligned_after_break
+                or (
+                    arm_active
+                    and forming_pressure
+                )
             )
         )
         if not pressure_supported or not probe_flow_supported:
@@ -713,6 +724,7 @@ class LevelBreakoutStrategy(Strategy):
                     "pressureHysteresisActive": arm_active,
                     "opportunityArm": opportunity_arm,
                     "probeOpened": state.probe_opened,
+                    "localBreakFlowConfirmed": local_break_flow,
                 },
             )
 
