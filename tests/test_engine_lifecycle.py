@@ -54,6 +54,8 @@ def plan(symbol: str) -> TradePlan:
 
 
 def make_engine(tmp_path, **overrides) -> TradingEngine:
+    overrides.setdefault("absolute_min_net_reward_risk", 0.0)
+    overrides.setdefault("trend_structure_enabled", True)
     cfg = Settings(
         session_dir=str(tmp_path),
         min_net_profit_usd=0,
