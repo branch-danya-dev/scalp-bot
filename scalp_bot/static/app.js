@@ -749,6 +749,27 @@ function reviewClassLabel(value) {
   })[value] || value || "—";
 }
 
+function marketMoveVisibilityLabel(value) {
+  return ({
+    undetected:"Не замечено стратегиями",
+    observed_not_tradeable:"Стратегия наблюдала, но не дала вход",
+    detected_not_executed:"Сигнал был, но сделка не открылась",
+    traded:"Движение было проторговано",
+  })[value] || value || "—";
+}
+
+function marketMoveStrategyText(row) {
+  const snapshots = row.strategySnapshot || [];
+  if (!snapshots.length) return "нет решений стратегий перед импульсом";
+  return snapshots.map(item => {
+    const state = stateLabel(item.state);
+    const action = item.action && item.action !== "wait"
+      ? ` · ${String(item.action).toUpperCase()}`
+      : "";
+    return `${strategyLabel(item.strategy)}: ${state}${action}`;
+  }).join(" · ");
+}
+
 function renderOpportunityReview(report) {
   const root = $("opportunityReview");
   if (!root) return;
@@ -759,6 +780,7 @@ function renderOpportunityReview(report) {
   const exitRows = (report.earlyExits || [])
     .filter(row => row.classification === "early_exit_review")
     .slice(0, 20);
+  const marketMoveRows = (report.marketMoves || []).slice(0, 30);
 
   root.innerHTML = `
     <div class="opportunity-summary">
@@ -767,6 +789,10 @@ function renderOpportunityReview(report) {
       <span class="good"><small>Сначала стоп</small>${summary.correctRejectCandidates || 0}</span>
       <span><small>Неоднозначно</small>${summary.ambiguous || 0}</span>
       <span class="warn"><small>Ранние выходы</small>${summary.earlyExitReviews || 0}</span>
+      <span><small>Движения ≥20 bps</small>${summary.significantMarketMoves || 0}</span>
+      <span class="warn"><small>Не замечены</small>${summary.undetectedMarketMoves || 0}</span>
+      <span><small>Видели без входа</small>${(summary.observedNotTradeableMarketMoves || 0) + (summary.detectedNotExecutedMarketMoves || 0)}</span>
+      <span class="good"><small>Проторгованы</small>${summary.tradedMarketMoves || 0}</span>
     </div>
     <div class="opportunity-columns">
       <div>
@@ -787,6 +813,30 @@ function renderOpportunityReview(report) {
             <div><span>${reviewClassLabel(row.classification)}</span><small>MFE после выхода ${row.postExitMfeR == null ? "—" : Number(row.postExitMfeR).toFixed(2) + "R"}</small></div>
           </div>`).join("") || '<div class="empty-row">Нет ранних выходов, требующих проверки.</div>'}
         </div>
+      </div>
+    </div>
+    <div class="opportunity-market-moves">
+      <h3>Независимо найденные движения рынка</h3>
+      <div class="opportunity-list">
+        ${marketMoveRows.map(row => {
+          const moveBps = Number(row.maxMovePct || 0) * 10000;
+          const side = String(row.side || "").toUpperCase();
+          const cls = row.visibility === "undetected" ? "market_move_undetected" : "market_move_detected";
+          return `<div class="opportunity-row ${cls}">
+            <div>
+              <strong>${row.symbol} · ${side}</strong>
+              <span>${clock(row.startTs)} → ${clock(row.extremeTs)}</span>
+            </div>
+            <div>
+              <span>${marketMoveVisibilityLabel(row.visibility)}</span>
+              <small>${marketMoveStrategyText(row)}</small>
+            </div>
+            <div>
+              <span>ход ${moveBps.toFixed(1)} bps</span>
+              <small>порог за ${Number(row.secondsToThreshold || 0).toFixed(1)}с · ${price(row.startPrice)} → ${price(row.extremePrice)}</small>
+            </div>
+          </div>`;
+        }).join("") || '<div class="empty-row">В записи не найдено направленных движений выше исследовательского порога.</div>'}
       </div>
     </div>
   `;
