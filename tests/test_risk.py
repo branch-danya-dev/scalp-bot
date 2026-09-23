@@ -221,7 +221,7 @@ def scalp_settings(**overrides) -> Settings:
     return Settings(**values)
 
 
-def test_controlled_risk_scale_increases_structural_budget_but_keeps_hard_cap() -> None:
+def test_requested_positive_risk_scale_is_capped_at_base_risk() -> None:
     trade = decision(100.60, stop=99.80)
     trade.details["riskScale"] = 1.20
     trade.details["riskScaleSource"] = "test"
@@ -237,11 +237,10 @@ def test_controlled_risk_scale_increases_structural_budget_but_keeps_hard_cap() 
 
     assert result.allowed
     assert result.plan is not None
-    assert result.plan.notional == pytest.approx(3000)
     economics = result.plan.strategy_details["economics"]
     assert economics["baseStructuralRiskBudgetUsd"] == pytest.approx(5.0)
-    assert economics["structuralRiskBudgetUsd"] == pytest.approx(6.0)
-    assert economics["riskScale"] == pytest.approx(1.20)
+    assert economics["structuralRiskBudgetUsd"] == pytest.approx(5.0)
+    assert economics["riskScale"] == pytest.approx(1.0)
     hard_cap = 1000 * scalp_settings().max_trade_all_in_loss_fraction
     assert result.plan.expected_net_loss <= hard_cap + 1e-9
 
@@ -1127,3 +1126,71 @@ def test_absolute_net_rr_floor_cannot_be_disabled_by_research_profile() -> None:
     assert result.diagnostics[
         "absoluteMinimumNetRewardRisk"
     ] == pytest.approx(1.0)
+
+
+
+def test_taker_plan_geometry_uses_slippage_adjusted_expected_fill() -> None:
+    cfg = scalp_settings(
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=1.0,
+        absolute_min_net_reward_risk=0.0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        decision(101.0, entry=100.0, stop=99.5),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        100,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    economics = result.plan.strategy_details["economics"]
+    assert economics["rawExecutableEntry"] == pytest.approx(100.0)
+    assert economics["expectedEntryFill"] == pytest.approx(100.01)
+    assert result.plan.market_entry == pytest.approx(100.01)
+    assert economics["entrySlippageEmbeddedInFill"] is True
+    assert economics["entrySlippageRate"] == pytest.approx(0.0001)
+
+
+def test_partial_is_not_planned_when_partial_leg_cannot_clear_min_net() -> None:
+    cfg = scalp_settings(
+        min_net_profit_usd=1.0,
+        min_net_profit_equity_fraction=0.0,
+        enforce_min_net_profit_gate=True,
+        partial_take_enabled=True,
+        partial_take_at_r=1.0,
+        breakout_partial_take_fraction=0.30,
+        taker_fee_rate=0.00055,
+        maker_fee_rate=0.00020,
+        slippage_bps=1.0,
+        absolute_min_net_reward_risk=0.0,
+    )
+    trade = StrategyDecision(
+        strategy="level_breakout",
+        action=Action.LONG,
+        reasons=["small stop"],
+        entry=100.0,
+        stop=99.90,
+        target=100.60,
+        details={"allowRunner": True},
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        trade,
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        100,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    economics = result.plan.strategy_details["economics"]
+    assert economics["partialCandidate"] is True
+    assert economics["partialPlanned"] is False
+    assert economics["partialNetAtTriggerUsd"] < 1.0
+    assert economics["partialFraction"] == 0.0
+    assert economics["runnerFraction"] == 1.0
