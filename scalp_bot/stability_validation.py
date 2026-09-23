@@ -117,7 +117,6 @@ def validate_feature_stability(
     neutral_epsilon_r: float = 0.05,
     minimum_effect_r: float = 0.10,
     sign_agreement_rate: float = 0.75,
-    threshold_consistency_rate: float = 0.50,
 ) -> list[dict]:
     exact_groups: dict[tuple[str, str, str], list[dict]] = defaultdict(list)
     for row in trades:
@@ -546,6 +545,7 @@ def validate_threshold_selection_holdout(
     neutral_epsilon_r: float = 0.05,
     minimum_effect_r: float = 0.10,
     sign_agreement_rate: float = 0.75,
+    threshold_consistency_rate: float = 0.50,
 ) -> list[dict]:
     groups: dict[tuple[str, str, str], list[dict]] = defaultdict(list)
     for row in trades:
