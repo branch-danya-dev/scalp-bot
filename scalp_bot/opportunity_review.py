@@ -3,6 +3,13 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from typing import Any
 
+from .market_interaction_review import TRACKED_STATES
+
+
+DEFAULT_MARKET_MOVE_PCT = 0.002
+DEFAULT_MARKET_MOVE_HORIZON_SECONDS = 300.0
+DEFAULT_MARKET_MOVE_DECISION_LOOKBACK_SECONDS = 30.0
+
 
 def _row_ts(row: dict) -> float:
     raw = row.get("ts")
@@ -11,31 +18,45 @@ def _row_ts(row: dict) -> float:
 
 def _observation(row: dict) -> dict | None:
     payload = row.get("payload") or {}
+    direct_price = payload.get("lastPrice")
     candle = payload.get("candle")
     if isinstance(candle, dict):
         close = candle.get("close")
         if close is None:
-            close = payload.get("lastPrice")
+            close = direct_price
         if close is None:
             return None
+        sampled_price = (
+            float(direct_price)
+            if isinstance(direct_price, (int, float)) and direct_price > 0
+            else float(close)
+        )
         return {
             "ts": _row_ts(row),
             "high": float(candle.get("high") or close),
             "low": float(candle.get("low") or close),
             "close": float(close),
+            "price": sampled_price,
         }
     market = payload.get("market")
     if isinstance(market, dict):
+        market_price = market.get("lastPrice")
         candles = market.get("candles") or []
         if candles:
             candle = candles[-1]
             close = candle.get("close")
             if close is not None:
+                sampled_price = (
+                    float(market_price)
+                    if isinstance(market_price, (int, float)) and market_price > 0
+                    else float(close)
+                )
                 return {
                     "ts": _row_ts(row),
                     "high": float(candle.get("high") or close),
                     "low": float(candle.get("low") or close),
                     "close": float(close),
+                    "price": sampled_price,
                 }
     return None
 
@@ -154,10 +175,378 @@ def _hypothetical_outcome(
     }
 
 
+def _decision_state(decision: dict) -> str:
+    details = decision.get("details") or {}
+    trace = decision.get("trace") or {}
+    return str(details.get("state") or trace.get("state") or "")
+
+
+def _decision_hypothesis_side(decision: dict) -> str | None:
+    action = str(decision.get("action") or "")
+    if action in {"long", "short"}:
+        return action
+
+    strategy = str(decision.get("strategy") or "")
+    details = decision.get("details") or {}
+    trace = decision.get("trace") or {}
+    obj = trace.get("object") or {}
+    if not isinstance(obj, dict):
+        obj = {}
+
+    if strategy == "trend_structure":
+        trend = str(trace.get("trend") or details.get("trend") or "")
+        if trend == "up":
+            return "long"
+        if trend == "down":
+            return "short"
+        return None
+
+    zone = details.get("zone") or {}
+    if not isinstance(zone, dict):
+        zone = {}
+    label = " ".join(
+        str(value or "")
+        for value in (
+            obj.get("label"),
+            obj.get("kind"),
+            zone.get("kind"),
+        )
+    ).lower()
+
+    if strategy == "level_breakout":
+        if "resistance" in label:
+            return "long"
+        if "support" in label:
+            return "short"
+    elif strategy == "weak_level_rejection":
+        if "resistance" in label:
+            return "short"
+        if "support" in label:
+            return "long"
+    elif strategy == "orderbook_density":
+        wall_side = str(details.get("wallSide") or obj.get("side") or "")
+        if wall_side == "ask":
+            return "short"
+        if wall_side == "bid":
+            return "long"
+    return None
+
+
+def _move_event(
+    observations: list[dict],
+    *,
+    side: str,
+    start_index: int,
+    threshold_index: int,
+    extreme_index: int,
+    minimum_move_pct: float,
+) -> dict:
+    start = observations[start_index]
+    threshold = observations[threshold_index]
+    extreme = observations[extreme_index]
+    start_price = float(start["price"])
+    extreme_price = float(extreme["price"])
+    if side == "long":
+        move_pct = (extreme_price - start_price) / start_price
+    else:
+        move_pct = (start_price - extreme_price) / start_price
+    return {
+        "side": side,
+        "startTs": start["ts"],
+        "thresholdTs": threshold["ts"],
+        "extremeTs": extreme["ts"],
+        "startPrice": start_price,
+        "thresholdPrice": float(threshold["price"]),
+        "extremePrice": extreme_price,
+        "minimumMovePct": minimum_move_pct,
+        "maxMovePct": max(0.0, move_pct),
+        "secondsToThreshold": max(0.0, threshold["ts"] - start["ts"]),
+        "secondsToExtreme": max(0.0, extreme["ts"] - start["ts"]),
+    }
+
+
+def _significant_market_moves(
+    observations: list[dict],
+    *,
+    minimum_move_pct: float,
+    maximum_threshold_seconds: float,
+) -> list[dict]:
+    if len(observations) < 2 or minimum_move_pct <= 0:
+        return []
+
+    events: list[dict] = []
+    direction: str | None = None
+
+    high_index = low_index = 0
+    high_price = low_price = float(observations[0]["price"])
+
+    pivot_index = extreme_index = threshold_index = 0
+    pivot_price = extreme_price = float(observations[0]["price"])
+
+    for index in range(1, len(observations)):
+        price = float(observations[index]["price"])
+
+        if direction is None:
+            if price >= high_price:
+                high_price = price
+                high_index = index
+            if price <= low_price:
+                low_price = price
+                low_index = index
+
+            up_move = (
+                (price - low_price) / low_price
+                if low_price > 0
+                else 0.0
+            )
+            down_move = (
+                (high_price - price) / high_price
+                if high_price > 0
+                else 0.0
+            )
+            if up_move >= minimum_move_pct and low_index < index:
+                direction = "long"
+                pivot_index = low_index
+                pivot_price = low_price
+                extreme_index = threshold_index = index
+                extreme_price = price
+            elif down_move >= minimum_move_pct and high_index < index:
+                direction = "short"
+                pivot_index = high_index
+                pivot_price = high_price
+                extreme_index = threshold_index = index
+                extreme_price = price
+            continue
+
+        if direction == "long":
+            if price >= extreme_price:
+                extreme_price = price
+                extreme_index = index
+            reversal = (
+                (extreme_price - price) / extreme_price
+                if extreme_price > 0
+                else 0.0
+            )
+            if reversal < minimum_move_pct:
+                continue
+
+            event = _move_event(
+                observations,
+                side="long",
+                start_index=pivot_index,
+                threshold_index=threshold_index,
+                extreme_index=extreme_index,
+                minimum_move_pct=minimum_move_pct,
+            )
+            if event["secondsToThreshold"] <= maximum_threshold_seconds:
+                events.append(event)
+
+            direction = "short"
+            pivot_index = extreme_index
+            pivot_price = extreme_price
+            extreme_index = threshold_index = index
+            extreme_price = price
+            continue
+
+        if price <= extreme_price:
+            extreme_price = price
+            extreme_index = index
+        reversal = (
+            (price - extreme_price) / extreme_price
+            if extreme_price > 0
+            else 0.0
+        )
+        if reversal < minimum_move_pct:
+            continue
+
+        event = _move_event(
+            observations,
+            side="short",
+            start_index=pivot_index,
+            threshold_index=threshold_index,
+            extreme_index=extreme_index,
+            minimum_move_pct=minimum_move_pct,
+        )
+        if event["secondsToThreshold"] <= maximum_threshold_seconds:
+            events.append(event)
+
+        direction = "long"
+        pivot_index = extreme_index
+        pivot_price = extreme_price
+        extreme_index = threshold_index = index
+        extreme_price = price
+
+    if direction is not None:
+        event = _move_event(
+            observations,
+            side=direction,
+            start_index=pivot_index,
+            threshold_index=threshold_index,
+            extreme_index=extreme_index,
+            minimum_move_pct=minimum_move_pct,
+        )
+        if (
+            event["maxMovePct"] >= minimum_move_pct
+            and event["secondsToThreshold"] <= maximum_threshold_seconds
+        ):
+            events.append(event)
+
+    return events
+
+
+def _latest_decisions_before(
+    rows: list[dict],
+    *,
+    symbol: str,
+    start_ts: float,
+    end_ts: float,
+) -> list[dict]:
+    latest: dict[str, dict] = {}
+    for row in rows:
+        if row.get("event") != "decision" or row.get("symbol") != symbol:
+            continue
+        ts = _row_ts(row)
+        if ts < start_ts or ts > end_ts:
+            continue
+        payload = row.get("payload") or {}
+        strategy = str(payload.get("strategy") or "")
+        if strategy:
+            latest[strategy] = {
+                "ts": ts,
+                "strategy": strategy,
+                "state": _decision_state(payload),
+                "action": payload.get("action"),
+                "hypothesisSide": _decision_hypothesis_side(payload),
+                "confidence": payload.get("confidence"),
+                "watchedLevel": payload.get("watched_level"),
+                "reasons": list(payload.get("reasons") or []),
+            }
+    return [latest[key] for key in sorted(latest)]
+
+
+def _classify_move_visibility(
+    rows: list[dict],
+    *,
+    symbol: str,
+    side: str,
+    start_ts: float,
+    threshold_ts: float,
+    decision_lookback_seconds: float,
+) -> dict:
+    window_start = start_ts - max(0.0, decision_lookback_seconds)
+    latest = _latest_decisions_before(
+        rows,
+        symbol=symbol,
+        start_ts=window_start,
+        end_ts=threshold_ts,
+    )
+
+    matching_strategies: set[str] = set()
+    matching_wait_strategies: set[str] = set()
+    tradeable_strategies: set[str] = set()
+    execution_events: list[str] = []
+
+    for item in latest:
+        strategy = str(item.get("strategy") or "")
+        state = str(item.get("state") or "")
+        hypothesis_side = item.get("hypothesisSide")
+        action = str(item.get("action") or "")
+        if hypothesis_side != side:
+            continue
+        if strategy:
+            matching_strategies.add(strategy)
+        if action == side:
+            tradeable_strategies.add(strategy)
+        elif state in TRACKED_STATES.get(strategy, set()):
+            matching_wait_strategies.add(strategy)
+
+    for row in rows:
+        if row.get("symbol") != symbol:
+            continue
+        ts = _row_ts(row)
+        if ts < window_start or ts > threshold_ts:
+            continue
+        event = str(row.get("event") or "")
+        payload = row.get("payload") or {}
+        if event == "trade_opened":
+            plan = payload.get("plan") or {}
+            event_side = str(plan.get("side") or payload.get("side") or "")
+            if event_side == side:
+                execution_events.append("trade_opened")
+        elif event == "entry_pending":
+            plan = payload.get("plan") or {}
+            event_side = str(plan.get("side") or payload.get("side") or "")
+            if event_side == side:
+                execution_events.append("entry_pending")
+        elif event in {"risk_reject", "setup_blocked"}:
+            decision = payload.get("decision") or {}
+            if isinstance(decision, dict):
+                event_side = str(decision.get("action") or "")
+                if event_side == side:
+                    execution_events.append(event)
+
+    if "trade_opened" in execution_events:
+        status = "traded"
+    elif tradeable_strategies or execution_events:
+        status = "detected_not_executed"
+    elif matching_wait_strategies:
+        status = "observed_not_tradeable"
+    else:
+        status = "undetected"
+
+    return {
+        "visibility": status,
+        "matchingStrategies": sorted(matching_strategies),
+        "matchingWaitStrategies": sorted(matching_wait_strategies),
+        "tradeableStrategies": sorted(tradeable_strategies),
+        "executionEvents": sorted(set(execution_events)),
+        "strategySnapshot": latest,
+    }
+
+
+def _market_move_census(
+    rows: list[dict],
+    observations: dict[str, list[dict]],
+    *,
+    minimum_move_pct: float,
+    maximum_threshold_seconds: float,
+    decision_lookback_seconds: float,
+) -> list[dict]:
+    result: list[dict] = []
+    move_index = 0
+    for symbol in sorted(observations):
+        moves = _significant_market_moves(
+            observations[symbol],
+            minimum_move_pct=minimum_move_pct,
+            maximum_threshold_seconds=maximum_threshold_seconds,
+        )
+        for move in moves:
+            move_index += 1
+            visibility = _classify_move_visibility(
+                rows,
+                symbol=symbol,
+                side=str(move["side"]),
+                start_ts=float(move["startTs"]),
+                threshold_ts=float(move["thresholdTs"]),
+                decision_lookback_seconds=decision_lookback_seconds,
+            )
+            result.append({
+                "reviewId": f"market-move-{move_index}",
+                "symbol": symbol,
+                **move,
+                **visibility,
+            })
+    result.sort(key=lambda item: float(item["startTs"]), reverse=True)
+    return result
+
+
 def analyze_session_rows(
     rows: list[dict],
     *,
     horizon_seconds: float = 120.0,
+    market_move_pct: float = DEFAULT_MARKET_MOVE_PCT,
+    market_move_horizon_seconds: float = DEFAULT_MARKET_MOVE_HORIZON_SECONDS,
+    market_move_decision_lookback_seconds: float = DEFAULT_MARKET_MOVE_DECISION_LOOKBACK_SECONDS,
 ) -> dict[str, Any]:
     observations = _observations_by_symbol(rows)
     candidates: list[dict] = []
@@ -279,6 +668,17 @@ def analyze_session_rows(
                 ),
             })
 
+    market_moves = _market_move_census(
+        rows,
+        observations,
+        minimum_move_pct=max(0.0001, market_move_pct),
+        maximum_threshold_seconds=max(10.0, market_move_horizon_seconds),
+        decision_lookback_seconds=max(
+            0.0,
+            market_move_decision_lookback_seconds,
+        ),
+    )
+
     by_reason = Counter(
         str(row.get("reason") or "unknown")
         for row in candidates
@@ -303,8 +703,22 @@ def analyze_session_rows(
         elif row["classification"] == "ambiguous":
             bucket["ambiguous"] += 1
 
+    market_move_status = Counter(
+        str(row.get("visibility") or "unknown")
+        for row in market_moves
+    )
+
     return {
         "horizonSeconds": horizon_seconds,
+        "marketMovePolicy": {
+            "minimumMovePct": market_move_pct,
+            "maximumThresholdSeconds": market_move_horizon_seconds,
+            "decisionLookbackSeconds": market_move_decision_lookback_seconds,
+            "priceSource": (
+                "research/market frame lastPrice, candle close fallback; "
+                "forming-candle high/low is not used for move discovery"
+            ),
+        },
         "summary": {
             "rejectedCandidates": len(candidates),
             "missedTargetFirst": sum(
@@ -323,9 +737,19 @@ def analyze_session_rows(
                 row["classification"] == "early_exit_review"
                 for row in early_exits
             ),
+            "significantMarketMoves": len(market_moves),
+            "undetectedMarketMoves": market_move_status["undetected"],
+            "observedNotTradeableMarketMoves": market_move_status[
+                "observed_not_tradeable"
+            ],
+            "detectedNotExecutedMarketMoves": market_move_status[
+                "detected_not_executed"
+            ],
+            "tradedMarketMoves": market_move_status["traded"],
         },
         "byReason": dict(by_reason),
         "byStrategy": by_strategy,
         "candidates": candidates,
         "earlyExits": early_exits,
+        "marketMoves": market_moves,
     }
