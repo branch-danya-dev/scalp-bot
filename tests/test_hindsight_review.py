@@ -286,3 +286,113 @@ def test_hindsight_uses_last_price_not_forming_candle_high() -> None:
     )
 
     assert report["summary"]["opportunities"] == 0
+
+
+
+def test_hindsight_only_analyzes_between_bot_start_and_stop() -> None:
+    rows = [
+        activated(),
+        frame(1.0, 100.0),
+        frame(2.0, 101.0),
+        {
+            "ts": 10.0,
+            "event": "bot_started",
+            "symbol": None,
+            "payload": {
+                "config": {
+                    "takerFeeRate": 0.0005,
+                    "slippageBps": 0.0,
+                },
+            },
+        },
+        frame(20.0, 200.0),
+        frame(30.0, 200.7),
+        {
+            "ts": 40.0,
+            "event": "run_summary",
+            "symbol": None,
+            "payload": {"stoppedAt": 40.0},
+        },
+        frame(50.0, 202.0),
+    ]
+
+    report = analyze_hindsight_opportunities(
+        rows,
+        minimum_net_move_pct=0.001,
+    )
+
+    assert report["summary"]["opportunities"] == 1
+    opportunity = report["opportunities"][0]
+    assert opportunity["oracleEntryTs"] == 20.0
+    assert opportunity["oracleExitTs"] == 30.0
+    assert report["policy"]["runStartTs"] == 10.0
+    assert report["policy"]["runEndTs"] == 40.0
+
+
+def test_hindsight_uses_recorded_session_execution_costs() -> None:
+    rows = [
+        activated(),
+        {
+            "ts": 5.0,
+            "event": "bot_started",
+            "symbol": None,
+            "payload": {
+                "config": {
+                    "takerFeeRate": 0.001,
+                    "slippageBps": 2.0,
+                },
+            },
+        },
+        frame(10.0, 100.0),
+        frame(20.0, 100.30),
+        {
+            "ts": 30.0,
+            "event": "run_summary",
+            "symbol": None,
+            "payload": {"stoppedAt": 30.0},
+        },
+    ]
+
+    report = analyze_hindsight_opportunities(
+        rows,
+        minimum_net_move_pct=0.001,
+    )
+
+    # Costs: 20 bps taker fees + 4 bps slippage = 24 bps.
+    # Required gross move is therefore 34 bps, so a 30 bps move is rejected.
+    assert report["policy"]["estimatedRoundTripCostPct"] == 0.0024
+    assert report["summary"]["opportunities"] == 0
+
+
+def test_pre_run_activation_generation_matches_strategy_mapping() -> None:
+    rows = [
+        activated(0.0),
+        deactivated(5.0),
+        activated(10.0),
+        decision(11.0, "trend_structure", "pullback"),
+        {
+            "ts": 20.0,
+            "event": "bot_started",
+            "symbol": None,
+            "payload": {},
+        },
+        frame(25.0, 100.0),
+        frame(35.0, 100.4),
+        {
+            "ts": 40.0,
+            "event": "run_summary",
+            "symbol": None,
+            "payload": {"stoppedAt": 40.0},
+        },
+    ]
+
+    report = analyze_hindsight_opportunities(
+        rows,
+        taker_fee_rate=0.0005,
+        slippage_bps=0.0,
+        minimum_net_move_pct=0.001,
+    )
+
+    opportunity = report["opportunities"][0]
+    assert opportunity["segment"] == 2
+    assert opportunity["strategyFit"]["mappedToExistingStrategy"] is True
