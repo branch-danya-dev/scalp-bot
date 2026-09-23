@@ -2598,6 +2598,140 @@ class TradingEngine:
             snapshot=True,
         )
 
+    @staticmethod
+    def _attach_research_policy_assessment(
+        decision: StrategyDecision,
+        assessment: PolicyAssessment,
+    ) -> None:
+        if not assessment.would_block:
+            return
+        existing = (
+            decision.details.get(
+                "researchPolicyAssessments"
+            )
+            if isinstance(decision.details, dict)
+            else None
+        )
+        rows = [
+            row
+            for row in (
+                existing
+                if isinstance(existing, list)
+                else []
+            )
+            if not (
+                isinstance(row, dict)
+                and row.get("phase")
+                == assessment.phase
+            )
+        ]
+        rows.append(assessment.public())
+        decision.details[
+            "researchPolicyAssessments"
+        ] = rows
+
+    @staticmethod
+    def _attach_plan_policy_assessment(
+        plan,
+        assessment: PolicyAssessment,
+    ) -> None:
+        if not assessment.would_block:
+            return
+        details = plan.strategy_details
+        existing = (
+            details.get(
+                "researchPolicyAssessments"
+            )
+            if isinstance(details, dict)
+            else None
+        )
+        rows = [
+            row
+            for row in (
+                existing
+                if isinstance(existing, list)
+                else []
+            )
+            if not (
+                isinstance(row, dict)
+                and row.get("phase")
+                == assessment.phase
+            )
+        ]
+        rows.append(assessment.public())
+        details["researchPolicyAssessments"] = rows
+
+    def _evaluate_research_policy(
+        self,
+        session: ActiveSymbolSession,
+        decision: StrategyDecision,
+        *,
+        phase: str,
+        plan=None,
+        arbitration: (
+            SemanticCandidateAssessment
+            | dict
+            | None
+        ) = None,
+    ) -> PolicyAssessment:
+        assessment = self.research_policy.evaluate(
+            decision,
+            session.market_context,
+            phase=phase,
+            plan=plan,
+            arbitration=arbitration,
+        )
+        if not assessment.would_block:
+            return assessment
+
+        self._attach_research_policy_assessment(
+            decision,
+            assessment,
+        )
+        if plan is not None:
+            self._attach_plan_policy_assessment(
+                plan,
+                assessment,
+            )
+
+        fingerprint = (
+            decision.setup_id,
+            assessment.policy_id,
+            assessment.policy_version,
+            assessment.phase,
+            assessment.mode.value,
+            assessment.matched_rule_ids,
+            assessment.blocked,
+        )
+        key = f"{decision.strategy}:{phase}"
+        if (
+            session.research_policy_fingerprints.get(
+                key
+            )
+            != fingerprint
+        ):
+            session.research_policy_fingerprints[
+                key
+            ] = fingerprint
+            event = (
+                "research_policy_blocked"
+                if assessment.blocked
+                else "research_policy_shadow"
+            )
+            self._emit(
+                event,
+                session.symbol,
+                {
+                    "strategy": decision.strategy,
+                    "setupId": decision.setup_id,
+                    "assessment": assessment.public(),
+                    "policy": self.research_policy.public(),
+                    "decision": decision.public(),
+                },
+                snapshot=True,
+            )
+        return assessment
+
     def _setup_blocked_reason(
         self,
         session: ActiveSymbolSession,
