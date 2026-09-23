@@ -719,15 +719,28 @@ class WeakLevelRejectionStrategy(Strategy):
         else:
             resistance = self._select_weak_zone(candles, price, "resistance")
             support = self._select_weak_zone(candles, price, "support")
-        choices = [zone for zone in (resistance, support) if zone is not None]
+        allowed_kinds = set()
+        if Trend.UP in context_plan.allowed_directions:
+            allowed_kinds.add("support")
+        if Trend.DOWN in context_plan.allowed_directions:
+            allowed_kinds.add("resistance")
+        choices = [
+            zone
+            for zone in (resistance, support)
+            if zone is not None and zone.kind in allowed_kinds
+        ]
         if not choices:
             state.stage = RejectionStage.SEARCH
             state.zone_key = None
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
-                ["Рядом нет молодого слабонаторгованного уровня"],
-                details={"state": RejectionStage.SEARCH.value},
+                ["Рядом нет молодого слабонаторгованного уровня в направлении разрешённого rejection playbook"],
+                details={
+                    "state": RejectionStage.SEARCH.value,
+                    "playbookContext": context_plan.public(),
+                    "legacyTrend": trend.value,
+                },
             )
 
         zone = min(choices, key=lambda item: abs(item.center - price))
