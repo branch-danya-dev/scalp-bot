@@ -63,6 +63,8 @@ def _extract_entry_features(strategy_details: dict) -> dict[str, Any]:
     liquidity = liquidity if isinstance(liquidity, dict) else {}
     arbitration = details.get("semanticArbitration")
     arbitration = arbitration if isinstance(arbitration, dict) else {}
+    economics = details.get("economics")
+    economics = economics if isinstance(economics, dict) else {}
     decision_context = details.get("decisionContext")
     decision_context = decision_context if isinstance(decision_context, dict) else {}
     return {
@@ -86,6 +88,45 @@ def _extract_entry_features(strategy_details: dict) -> dict[str, Any]:
         ),
         "confluenceCount": int(
             arbitration.get("confluenceCount") or 0
+        ),
+        "plannedNetAtTargetUsd": _safe_float(
+            economics.get("netAtTargetUsd")
+        ),
+        "plannedAllInLossUsd": _safe_float(
+            economics.get("allInNetLossUsd")
+        ),
+        "winnerCostShare": _safe_float(
+            economics.get("winnerCostShare")
+        ),
+        "stopCostShare": _safe_float(
+            economics.get("stopCostShare")
+        ),
+        "firstTakeMovePct": _safe_float(
+            economics.get("firstTakeMovePct")
+        ),
+        "requiredNetProfitUsd": _safe_float(
+            economics.get("requiredNetProfitUsd")
+        ),
+        "requiredNetRewardRisk": _safe_float(
+            economics.get("requiredNetRewardRisk")
+        ),
+        "wouldFailMinimumNetProfit": (
+            bool(economics.get("wouldFailMinimumNetProfit"))
+            if "wouldFailMinimumNetProfit" in economics
+            else None
+        ),
+        "wouldFailNetRewardRisk": (
+            bool(economics.get("wouldFailNetRewardRisk"))
+            if "wouldFailNetRewardRisk" in economics
+            else None
+        ),
+        "wouldFailFirstTakeMove": (
+            bool(economics.get("wouldFailFirstTakeMove"))
+            if "wouldFailFirstTakeMove" in economics
+            else None
+        ),
+        "economicPolicy": str(
+            economics.get("economicPolicy") or "unknown"
         ),
     }
 
@@ -185,6 +226,17 @@ def pair_closed_trades(rows: list[dict]) -> list[dict]:
             if initial_risk is not None and initial_risk > 0
             else None
         )
+        planned_all_in_loss = _safe_float(
+            trade.get("plannedAllInLossUsd")
+        )
+        realized_all_in_r = (
+            net / planned_all_in_loss
+            if (
+                planned_all_in_loss is not None
+                and planned_all_in_loss > 0
+            )
+            else None
+        )
         trade.update({
             "closeTs": close_ts,
             "durationSeconds": max(
@@ -196,6 +248,7 @@ def pair_closed_trades(rows: list[dict]) -> list[dict]:
             "fees": float(payload.get("fees") or 0.0),
             "netPnl": net,
             "realizedR": realized_r,
+            "realizedAllInR": realized_all_in_r,
             "mfeR": _safe_float(payload.get("mfeR")),
             "maeR": _safe_float(payload.get("maeR")),
             "mfeBps": _safe_float(

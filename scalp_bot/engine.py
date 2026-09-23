@@ -751,6 +751,12 @@ class TradingEngine:
             "minNetProfitEquityFraction": self.config.min_net_profit_equity_fraction,
             "minNetRewardRisk": self.config.min_net_reward_risk,
             "enforceNetRewardRiskGate": self.config.enforce_net_reward_risk_gate,
+            "economicCalibrationMinGroupSamples": (
+                self.config.economic_calibration_min_group_samples
+            ),
+            "economicCalibrationMinSegmentSamples": (
+                self.config.economic_calibration_min_segment_samples
+            ),
             "riskFraction": self.config.risk_fraction,
             "maxTradeAllInLossFraction": self.config.max_trade_all_in_loss_fraction,
             "maxTotalRiskFraction": self.config.max_total_risk_fraction,

@@ -207,6 +207,16 @@ def test_trade_review_reconstructs_trace_for_legacy_decision_payload() -> None:
 def test_session_report_includes_opportunities_books_charts_coins_and_closed_trades(tmp_path) -> None:
     recorder = SessionRecorder(str(tmp_path))
     recorder.record(
+        "bot_started",
+        None,
+        {
+            "config": {
+                "economicCalibrationMinGroupSamples": 1,
+                "economicCalibrationMinSegmentSamples": 1,
+            }
+        },
+    )
+    recorder.record(
         "scanner_update",
         None,
         {
@@ -308,6 +318,7 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
                 "market_entry": 100.0,
                 "stop": 99.0,
                 "target": 101.0,
+                "net_reward_risk": 1.2,
                 "strategy_details": {
                     "entryFreshness": {
                         "classification": "late",
@@ -337,6 +348,19 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
                         "flowPriority": 3,
                         "liquidityPriority": 2,
                         "freshnessPriority": 1,
+                    },
+                    "economics": {
+                        "netAtTargetUsd": 12.0,
+                        "allInNetLossUsd": 10.0,
+                        "winnerCostShare": 0.20,
+                        "stopCostShare": 0.30,
+                        "firstTakeMovePct": 0.003,
+                        "requiredNetProfitUsd": 1.0,
+                        "requiredNetRewardRisk": 1.15,
+                        "wouldFailMinimumNetProfit": False,
+                        "wouldFailNetRewardRisk": False,
+                        "wouldFailFirstTakeMove": False,
+                        "economicPolicy": "research_shadow",
                     },
                 },
             },
@@ -377,6 +401,7 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
             "mfeUsd": 10.0,
             "maeR": 0.1,
             "mfeR": 1.0,
+            "initialRiskUsd": 10.0,
             "reason": "target",
             "partialTaken": False,
             "market": {
@@ -417,6 +442,14 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
     assert perf_row["flowAlignmentCounts"] == {
         "short_term_reversal": 1
     }
+
+    calibration = report["conditionalEconomicCalibration"]
+    assert calibration["summary"]["economicTrades"] == 1
+    assert calibration["summary"]["sampleReadyExactGroups"] == 1
+    assert calibration["policy"]["minimumGroupSamples"] == 1
+    assert calibration["policy"]["minimumSegmentSamples"] == 1
+    assert calibration["groups"][0]["sampleReady"] is True
+    assert calibration["groups"][0]["baseline"]["expectancyAllInR"] == pytest.approx(0.85)
 
     diagnostics = report["strategyDiagnostics"]["level_breakout"]
     assert diagnostics["decisionUpdates"] == 1

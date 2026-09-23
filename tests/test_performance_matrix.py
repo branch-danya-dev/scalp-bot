@@ -20,6 +20,9 @@ def opened(
     flow: str,
     liquidity: str,
     confluence: int = 0,
+    winner_cost_share: float = 0.30,
+    planned_all_in_loss: float = 5.0,
+    first_take_move_pct: float = 0.003,
 ) -> dict:
     return {
         "ts": ts,
@@ -53,6 +56,19 @@ def opened(
                     },
                     "semanticArbitration": {
                         "confluenceCount": confluence,
+                    },
+                    "economics": {
+                        "netAtTargetUsd": net_rr * planned_all_in_loss,
+                        "allInNetLossUsd": planned_all_in_loss,
+                        "winnerCostShare": winner_cost_share,
+                        "stopCostShare": 0.25,
+                        "firstTakeMovePct": first_take_move_pct,
+                        "requiredNetProfitUsd": 1.0,
+                        "requiredNetRewardRisk": 1.15,
+                        "wouldFailMinimumNetProfit": False,
+                        "wouldFailNetRewardRisk": net_rr < 1.15,
+                        "wouldFailFirstTakeMove": first_take_move_pct < 0.003,
+                        "economicPolicy": "research_shadow",
                     },
                 },
             },
@@ -203,6 +219,9 @@ def test_pair_closed_trades_preserves_entry_context_and_realized_r() -> None:
     assert trade["regime"] == "bullish_trend"
     assert trade["plannedNetRewardRisk"] == pytest.approx(0.9)
     assert trade["realizedR"] == pytest.approx(-1.0)
+    assert trade["realizedAllInR"] == pytest.approx(-1.0)
+    assert trade["plannedAllInLossUsd"] == pytest.approx(5.0)
+    assert trade["winnerCostShare"] == pytest.approx(0.30)
     assert trade["moveSpentRatio"] == pytest.approx(0.62)
     assert trade["flowAlignmentClass"] == "short_term_reversal"
     assert trade["liquidityAlignmentClass"] == "opposed"

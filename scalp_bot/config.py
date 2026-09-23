@@ -73,6 +73,11 @@ class Settings(BaseSettings):
 
     strategy_expectancy_min_samples: int = 30
     enforce_strategy_expectancy_gate: bool = False
+    # Stage 9 research-only readiness guards. These values do not block
+    # trading; they only decide when conditional economic calibration has
+    # enough observations to be interpreted.
+    economic_calibration_min_group_samples: int = 20
+    economic_calibration_min_segment_samples: int = 8
     trend_structure_min_expectancy_r: float = 0.0
     weak_level_rejection_min_expectancy_r: float = 0.0
     density_min_expectancy_r: float = 0.0
