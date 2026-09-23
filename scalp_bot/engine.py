@@ -640,16 +640,50 @@ class TradingEngine:
         ):
             staged_strategy = self.strategies.get(key)
             if staged_strategy is not None:
+                staged_enabled = config.staged_entries_enabled
+                if key == "level_breakout":
+                    staged_enabled = (
+                        staged_enabled
+                        and config.breakout_staged_entries_enabled
+                    )
+                elif key == "weak_level_rejection":
+                    staged_enabled = (
+                        staged_enabled
+                        and config.weak_level_rejection_staged_entries_enabled
+                    )
                 setattr(
                     staged_strategy,
                     "staged_entries_enabled",
-                    config.staged_entries_enabled,
+                    staged_enabled,
                 )
                 setattr(
                     staged_strategy,
                     "probe_risk_fraction",
                     probe_fraction,
                 )
+
+        breakout_strategy = self.strategies.get("level_breakout")
+        if breakout_strategy is not None:
+            setattr(
+                breakout_strategy,
+                "retest_tolerance_bps",
+                config.breakout_retest_tolerance_bps,
+            )
+            setattr(
+                breakout_strategy,
+                "hold_without_retest_seconds",
+                config.breakout_hold_without_retest_seconds,
+            )
+            setattr(
+                breakout_strategy,
+                "absorption_efficiency_threshold",
+                config.breakout_absorption_efficiency_threshold,
+            )
+            setattr(
+                breakout_strategy,
+                "min_directional_response_bps",
+                config.breakout_min_directional_response_bps,
+            )
 
         density_strategy = self.strategies.get("orderbook_density")
         if density_strategy is not None:

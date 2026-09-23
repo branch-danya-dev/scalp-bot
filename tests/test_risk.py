@@ -147,6 +147,7 @@ def test_position_exposure_cap_never_exceeds_remaining_portfolio_exposure() -> N
 
 def test_research_mode_allows_positive_net_setup_even_when_net_rr_is_below_live_gate() -> None:
     cfg = Settings(
+        absolute_min_net_reward_risk=0.0,
         start_balance=1000,
         max_leverage=1,
         max_position_exposure_fraction=0.25,
@@ -175,6 +176,7 @@ def test_research_mode_allows_positive_net_setup_even_when_net_rr_is_below_live_
 
 def test_research_mode_still_rejects_setup_with_negative_expected_net_after_costs() -> None:
     cfg = Settings(
+        absolute_min_net_reward_risk=0.0,
         start_balance=1000,
         max_leverage=1,
         max_position_exposure_fraction=0.25,
@@ -211,6 +213,7 @@ def scalp_settings(**overrides) -> Settings:
         min_net_profit_equity_fraction=0.0,
         min_net_reward_risk=0,
         enforce_net_reward_risk_gate=False,
+        absolute_min_net_reward_risk=0.0,
         taker_fee_rate=0,
         slippage_bps=0,
     )
@@ -334,6 +337,7 @@ def test_remaining_portfolio_notional_still_caps_tight_stop_trade() -> None:
 
 def economic_settings(**overrides) -> Settings:
     values = dict(
+        absolute_min_net_reward_risk=0.0,
         start_balance=1000,
         risk_fraction=0.005,
         max_total_risk_fraction=0.02,
@@ -620,6 +624,7 @@ def test_depth_vwap_is_used_for_market_entry_and_diagnostics() -> None:
 
 def test_research_shadow_economics_allows_positive_net_below_both_legacy_gates() -> None:
     cfg = Settings(
+        absolute_min_net_reward_risk=0.0,
         start_balance=1000,
         risk_fraction=0.005,
         max_total_risk_fraction=0.02,
@@ -658,6 +663,7 @@ def test_research_shadow_economics_allows_positive_net_below_both_legacy_gates()
 
 def test_research_shadow_still_rejects_non_positive_net() -> None:
     cfg = Settings(
+        absolute_min_net_reward_risk=0.0,
         enforce_min_net_profit_gate=False,
         enforce_net_reward_risk_gate=False,
         min_net_profit_usd=1.0,
@@ -1086,3 +1092,38 @@ def test_staged_add_respects_remaining_position_exposure_cap() -> None:
     assert result.diagnostics[
         "remainingPositionExposureCapUsd"
     ] == pytest.approx(300)
+
+
+
+def test_absolute_net_rr_floor_cannot_be_disabled_by_research_profile() -> None:
+    cfg = economic_settings(
+        enforce_min_net_profit_gate=False,
+        enforce_net_reward_risk_gate=False,
+        absolute_min_net_reward_risk=1.0,
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        StrategyDecision(
+            strategy="level_breakout",
+            action=Action.LONG,
+            reasons=["bad payoff geometry"],
+            entry=100.0,
+            stop=99.0,
+            target=100.70,
+            details={"allowRunner": False},
+        ),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        100,
+    )
+
+    assert not result.allowed
+    assert "absolute_net_reward_risk" in result.reason
+    assert result.diagnostics is not None
+    assert result.diagnostics[
+        "absoluteMinimumNetRewardRisk"
+    ] == pytest.approx(1.0)

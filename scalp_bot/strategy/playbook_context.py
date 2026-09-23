@@ -206,23 +206,44 @@ def breakout_direction_plan(
         LocalRegime.BULLISH_TREND,
         LocalRegime.BULLISH_IMPULSE,
     }:
-        directions = (Trend.UP,)
-        reasons.append("bullish local regime prioritizes resistance breakout")
+        directions = (Trend.UP, Trend.DOWN)
+        source = "local_regime_preference_two_sided"
+        reasons.append(
+            "bullish local regime is preference/context only; both breakout "
+            "directions require their own level/flow evidence"
+        )
     elif regime in {
         LocalRegime.BEARISH_TREND,
         LocalRegime.BEARISH_IMPULSE,
     }:
-        directions = (Trend.DOWN,)
-        reasons.append("bearish local regime prioritizes support breakdown")
+        directions = (Trend.DOWN, Trend.UP)
+        source = "local_regime_preference_two_sided"
+        reasons.append(
+            "bearish local regime is preference/context only; both breakout "
+            "directions require their own level/flow evidence"
+        )
     elif regime == LocalRegime.PULLBACK:
         if local.parent_direction in {Trend.UP, Trend.DOWN}:
-            directions = (local.parent_direction,)
+            opposite = (
+                Trend.DOWN
+                if local.parent_direction == Trend.UP
+                else Trend.UP
+            )
+            directions = (
+                local.parent_direction,
+                opposite,
+            )
+            source = "parent_preference_two_sided"
             reasons.append(
-                "breakout during a pullback follows the 5m parent direction"
+                "pullback parent direction is preference only; breakout "
+                "direction must be proven by live level/flow evidence"
             )
         else:
-            directions = ()
-            reasons.append("pullback parent direction is unavailable")
+            directions = (Trend.UP, Trend.DOWN)
+            source = "pullback_two_sided"
+            reasons.append(
+                "pullback without parent permits either evidence-confirmed breakout"
+            )
     elif regime == LocalRegime.RANGE:
         directions = (Trend.UP, Trend.DOWN)
         source = "range_two_sided"
@@ -282,27 +303,44 @@ def rejection_direction_plan(
         LocalRegime.BULLISH_TREND,
         LocalRegime.BULLISH_IMPULSE,
     }:
-        directions = (Trend.UP,)
+        directions = (Trend.UP, Trend.DOWN)
+        source = "local_regime_preference_two_sided"
         reasons.append(
-            "bullish local regime permits support rejection long"
+            "bullish local regime is context, not a side veto; rejection "
+            "direction is decided by the tested level and local response"
         )
     elif regime in {
         LocalRegime.BEARISH_TREND,
         LocalRegime.BEARISH_IMPULSE,
     }:
-        directions = (Trend.DOWN,)
+        directions = (Trend.DOWN, Trend.UP)
+        source = "local_regime_preference_two_sided"
         reasons.append(
-            "bearish local regime permits resistance rejection short"
+            "bearish local regime is context, not a side veto; rejection "
+            "direction is decided by the tested level and local response"
         )
     elif regime == LocalRegime.PULLBACK:
         if local.parent_direction in {Trend.UP, Trend.DOWN}:
-            directions = (local.parent_direction,)
+            opposite = (
+                Trend.DOWN
+                if local.parent_direction == Trend.UP
+                else Trend.UP
+            )
+            directions = (
+                local.parent_direction,
+                opposite,
+            )
+            source = "parent_preference_two_sided"
             reasons.append(
-                "rejection during pullback follows the parent direction"
+                "pullback parent is a preference only; level rejection must "
+                "prove its direction with failed-break/absorption evidence"
             )
         else:
-            directions = ()
-            reasons.append("pullback has no directional parent")
+            directions = (Trend.UP, Trend.DOWN)
+            source = "pullback_two_sided"
+            reasons.append(
+                "pullback without parent permits either evidence-confirmed rejection"
+            )
     elif regime == LocalRegime.RANGE:
         directions = (Trend.UP, Trend.DOWN)
         source = "range_two_sided"
@@ -326,7 +364,7 @@ def rejection_direction_plan(
         allowed_directions=directions,
         primary_direction=(
             directions[0]
-            if len(directions) == 1
+            if directions
             else Trend.FLAT
         ),
         source=source,

@@ -880,6 +880,7 @@ def test_staged_add_aggregates_position_without_widening_stop() -> None:
     add.strategy = "level_breakout"
     add.setup_id = probe.setup_id
     add.stop = 99.6
+    add.target = 101.20
     add.expected_net_loss = 2.0
     add.strategy_details = {
         "stagedEntry": {
@@ -896,6 +897,13 @@ def test_staged_add_aggregates_position_without_widening_stop() -> None:
     assert position.original_notional == pytest.approx(700)
     assert position.entry > first_entry
     assert position.stop == pytest.approx(99.6)
+    assert position.target == pytest.approx(101.20)
+    assert position.strategy_details[
+        "stagedPositionGeometry"
+    ]["target"] == pytest.approx(101.20)
+    assert position.strategy_details[
+        "stagedPositionEconomics"
+    ]["netRewardRisk"] >= 1.0
     assert len(position.entry_legs) == 2
     assert position.entry_legs[0]["phase"] == "probe"
     assert position.entry_legs[1]["phase"] == "add"
@@ -981,3 +989,46 @@ def test_pending_maker_add_fills_into_existing_position() -> None:
     assert events[0]["event"] == "entry_added"
     assert broker.positions["STAGEDUSDT"].notional == pytest.approx(500)
     assert len(broker.positions["STAGEDUSDT"].entry_legs) == 2
+
+
+
+def test_staged_add_rejects_bad_aggregate_payoff_even_when_leg_is_valid() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.10,
+        absolute_min_net_reward_risk=1.0,
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+    )
+    broker = PaperBroker(cfg)
+
+    probe = plan("BADADDUSDT", Side.LONG, 300)
+    probe.strategy = "weak_level_rejection"
+    probe.setup_id = "weak:bad-add"
+    probe.stop = 99.50
+    probe.target = 101.50
+    broker.open(probe, book(99.99, 100.00))
+
+    add = plan("BADADDUSDT", Side.LONG, 400)
+    add.strategy = probe.strategy
+    add.setup_id = probe.setup_id
+    add.stop = 99.60
+    # This add target would make the combined weighted position expect
+    # less upside than downside.
+    add.target = 100.30
+    add.strategy_details = {
+        "stagedEntry": {"phase": "add", "riskFraction": 0.70}
+    }
+
+    with pytest.raises(
+        RuntimeError,
+        match="combined staged position net reward/risk",
+    ):
+        broker.add(
+            add,
+            book(100.19, 100.20),
+        )
