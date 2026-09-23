@@ -104,11 +104,11 @@ def test_active_symbol_is_sticky_during_minimum_lifetime(tmp_path) -> None:
         close_rest(engine)
 
 
-def test_central_arbiter_chooses_stronger_setup_instead_of_first_worker(tmp_path) -> None:
+def test_central_arbiter_uses_shared_priority_not_playbook_confidence(tmp_path) -> None:
     engine = make_engine(tmp_path, max_leverage=1, risk_fraction=0.01)
     try:
         engine.running = True
-        weak = ActiveSymbolSession(
+        first = ActiveSymbolSession(
             symbol="AAAUSDT",
             candles=[candle()],
             orderbook=book(),
@@ -116,7 +116,7 @@ def test_central_arbiter_chooses_stronger_setup_instead_of_first_worker(tmp_path
             last_market_at=time(),
             last_book_at=time(),
         )
-        strong = ActiveSymbolSession(
+        second = ActiveSymbolSession(
             symbol="BBBUSDT",
             candles=[candle()],
             orderbook=book(),
@@ -124,29 +124,31 @@ def test_central_arbiter_chooses_stronger_setup_instead_of_first_worker(tmp_path
             last_market_at=time(),
             last_book_at=time(),
         )
-        weak.decisions["trend_structure"] = StrategyDecision(
+        first.decisions["trend_structure"] = StrategyDecision(
             strategy="trend_structure",
             action=Action.LONG,
-            reasons=["weak"],
-            confidence=0.55,
+            reasons=["high playbook confidence"],
+            confidence=0.99,
             entry=100,
             stop=99.5,
             target=101,
             watched_level=99.8,
-            setup_id="weak-setup",
+            setup_id="first-setup",
+            details={"setupQuality": 0.99},
         )
-        strong.decisions["trend_structure"] = StrategyDecision(
+        second.decisions["trend_structure"] = StrategyDecision(
             strategy="trend_structure",
             action=Action.LONG,
-            reasons=["strong"],
-            confidence=0.90,
+            reasons=["low playbook confidence"],
+            confidence=0.10,
             entry=100,
             stop=99.5,
             target=101,
             watched_level=99.8,
-            setup_id="strong-setup",
+            setup_id="second-setup",
+            details={"setupQuality": 0.10},
         )
-        engine.sessions = {"AAAUSDT": weak, "BBBUSDT": strong}
+        engine.sessions = {"AAAUSDT": first, "BBBUSDT": second}
         engine.candidates = [
             Candidate("AAAUSDT", 200_000_000, 0, 100, activity_rank=2),
             Candidate("BBBUSDT", 200_000_000, 0, 100, activity_rank=1),
@@ -154,6 +156,8 @@ def test_central_arbiter_chooses_stronger_setup_instead_of_first_worker(tmp_path
 
         engine._arbitrate_once()
 
+        # Semantic/economic dimensions are equal, so the later shared
+        # activity-rank tie-break chooses BBB despite its lower setupQuality.
         assert set(engine.broker.positions) == {"BBBUSDT"}
     finally:
         close_rest(engine)
