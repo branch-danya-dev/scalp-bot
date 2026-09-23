@@ -2237,6 +2237,12 @@ class TradingEngine:
                 decision.details["semanticArbitration"] = (
                     base_assessment.public()
                 )
+                decision.details["riskScale"] = (
+                    base_assessment.risk_scale
+                )
+                decision.details["riskScaleSource"] = (
+                    "semantic_arbiter_stage13"
+                )
                 if not base_assessment.allowed:
                     self._record_arbiter_blocked(
                         session,
