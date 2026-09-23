@@ -353,3 +353,68 @@ def test_micro_reclaim_is_local_to_support_not_recent_three_bar_high() -> None:
     assert decision.details["state"] == "test"
     assert decision.details["reclaimLevel"] < 100.1
     assert decision.details["reclaimDistanceBps"] <= 5.0
+
+
+
+def test_trend_pullback_accepts_25bps_test_zone() -> None:
+    strategy = TrendStructureStrategy()
+    rows = long_pullback_candles()
+    rows[-1].low = 99.80
+    rows[-1].close = 100.10
+
+    decision = strategy.evaluate(
+        rows,
+        book(100.09, 100.11),
+        Trend.UP,
+        symbol="WIDETESTUSDT",
+        trades=buy_flow(),
+        structure=structure("support"),
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "test"
+    assert decision.details["testTolerancePct"] == 0.0025
+
+
+def test_wick_through_trendline_becomes_test_when_close_reclaims() -> None:
+    strategy = TrendStructureStrategy()
+    rows = long_pullback_candles()
+    rows[-1].low = 99.65
+    rows[-1].close = 100.05
+
+    decision = strategy.evaluate(
+        rows,
+        book(100.04, 100.06),
+        Trend.UP,
+        symbol="SWEEPUSDT",
+        trades=buy_flow(),
+        structure=structure("support"),
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "test"
+    assert decision.details["sweptTrendline"] is True
+    assert decision.details["deepPenetrationPct"] > strategy.deep_break_pct
+    assert decision.details["closePenetrationPct"] <= strategy.deep_break_pct
+
+
+def test_close_accepted_beyond_trendline_still_invalidates_setup() -> None:
+    strategy = TrendStructureStrategy()
+    rows = long_pullback_candles()
+    rows[-1].low = 99.60
+    rows[-1].close = 99.70
+
+    decision = strategy.evaluate(
+        rows,
+        book(99.69, 99.71),
+        Trend.UP,
+        symbol="BROKENUSDT",
+        trades=buy_flow(),
+        structure=structure("support"),
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "search"
+    assert decision.details["deepBreak"] is True
+    assert decision.details["acceptedBreak"] is True
+    assert decision.details["closePenetrationPct"] > strategy.deep_break_pct
