@@ -3409,11 +3409,16 @@ class TradingEngine:
                     event,
                     snapshot=True,
                 )
-        self._mark_position_from_book(session)
+        self._mark_position_from_book(
+            session,
+            trade_price=session.last_price,
+        )
 
     def _mark_position_from_book(
         self,
         session: ActiveSymbolSession,
+        *,
+        trade_price: float | None = None,
     ) -> None:
         if session.symbol not in self.broker.positions:
             return
@@ -3428,6 +3433,7 @@ class TradingEngine:
             session.symbol,
             mark,
             session.orderbook,
+            trade_price=trade_price,
         )
         self._handle_broker_events(session, events)
 
