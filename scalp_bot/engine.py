@@ -22,8 +22,10 @@ from .strategy import (
     HTFBiasSnapshot,
     LocalRegimeSnapshot,
     MultiHorizonFlowContext,
+    LiquidityEvidence,
     MarketStructure,
     Strategy,
+    build_liquidity_evidence,
     build_market_structure,
     build_multi_horizon_flow_context,
     classify_context_trend,
@@ -65,6 +67,7 @@ class ActiveSymbolSession:
     htf_bias: HTFBiasSnapshot | None = None
     local_regime: LocalRegimeSnapshot | None = None
     flow_context: MultiHorizonFlowContext | None = None
+    liquidity_evidence: LiquidityEvidence | None = None
     market_context_fingerprint: tuple | None = None
     entry_freshness_anchors: dict[str, dict] = field(default_factory=dict)
     entry_freshness_fingerprints: dict[str, tuple] = field(default_factory=dict)
@@ -422,6 +425,11 @@ class ActiveSymbolSession:
                 if self.flow_context is not None
                 else None
             ),
+            "liquidityEvidence": (
+                self.liquidity_evidence.public()
+                if self.liquidity_evidence is not None
+                else None
+            ),
         }
 
     def market_snapshot(self) -> dict:
@@ -729,6 +737,7 @@ class TradingEngine:
                 for key, enabled in self.strategy_enabled.items()
                 if enabled
             ],
+            "evidenceOnlyStrategies": ["orderbook_density"],
             "confirmedCandleStaleSeconds": (
                 self.config.confirmed_candle_stale_seconds
             ),
@@ -1381,7 +1390,14 @@ class TradingEngine:
             observed_at_ms=now_ms,
         )
         book_fresh = session.book_is_fresh(now)
-        for key, strategy in self.strategies.items():
+        if not self.strategy_enabled.get("orderbook_density", False):
+            session.liquidity_evidence = build_liquidity_evidence(None)
+
+        strategy_items = list(self.strategies.items())
+        strategy_items.sort(
+            key=lambda item: 0 if item[0] == "orderbook_density" else 1
+        )
+        for key, strategy in strategy_items:
             if not self.strategy_enabled[key]:
                 continue
             if key == "orderbook_density" and not book_fresh:
@@ -1389,13 +1405,20 @@ class TradingEngine:
                     strategy=key,
                     action=Action.WAIT,
                     reasons=[
-                        "Стакан не синхронизирован или устарел; density не оценивается"
+                        "Стакан не синхронизирован или устарел; liquidity evidence не обновляется"
                     ],
                     details={
                         "state": "stale_book",
                         "bookHealth": session.book_health(now),
                         "positionInvalidated": False,
+                        "evidenceOnly": True,
                     },
+                )
+                session.liquidity_evidence = build_liquidity_evidence(
+                    decision
+                )
+                decision.details["liquidityEvidence"] = (
+                    session.liquidity_evidence.public()
                 )
                 session.decisions[key] = decision
                 self._record_decision_if_changed(session, decision)
@@ -1427,6 +1450,23 @@ class TradingEngine:
                     details={"state": "error", "error": error},
                 )
             self._annotate_flow_context(
+                session,
+                decision,
+            )
+
+            if key == "orderbook_density":
+                session.liquidity_evidence = build_liquidity_evidence(
+                    decision
+                )
+                decision.details["liquidityEvidence"] = (
+                    session.liquidity_evidence.public()
+                )
+                decision = self._density_as_evidence_only(decision)
+                session.decisions[key] = decision
+                self._record_decision_if_changed(session, decision)
+                continue
+
+            self._annotate_liquidity_evidence(
                 session,
                 decision,
             )
@@ -1496,6 +1536,48 @@ class TradingEngine:
                 "marketContext": session.market_context_public(),
             },
         )
+
+    @staticmethod
+    def _density_as_evidence_only(
+        decision: StrategyDecision,
+    ) -> StrategyDecision:
+        details = dict(decision.details or {})
+        details["evidenceOnly"] = True
+        if decision.action in {Action.LONG, Action.SHORT}:
+            details["shadowAction"] = decision.action.value
+            details["shadowEntry"] = decision.entry
+            details["shadowStop"] = decision.stop
+            details["shadowTarget"] = decision.target
+            details["shadowConfidence"] = decision.confidence
+            reasons = [
+                *decision.reasons,
+                "Density переведена в evidence-only: самостоятельный вход отключён",
+            ]
+        else:
+            reasons = list(decision.reasons)
+        return StrategyDecision(
+            strategy=decision.strategy,
+            action=Action.WAIT,
+            reasons=reasons,
+            confidence=decision.confidence,
+            watched_level=decision.watched_level,
+            visuals=dict(decision.visuals),
+            details=details,
+            setup_id=decision.setup_id,
+        )
+
+    @staticmethod
+    def _annotate_liquidity_evidence(
+        session: ActiveSymbolSession,
+        decision: StrategyDecision,
+    ) -> None:
+        evidence = session.liquidity_evidence
+        if evidence is None:
+            return
+        decision.details["liquidityEvidence"] = evidence.public()
+        alignment = evidence.alignment_for(decision.action)
+        if alignment is not None:
+            decision.details["liquidityAlignment"] = alignment.public()
 
     @staticmethod
     def _annotate_flow_context(
@@ -1759,6 +1841,8 @@ class TradingEngine:
                 continue
 
             for decision in session.decisions.values():
+                if decision.strategy == "orderbook_density":
+                    continue
                 if not decision.tradeable or not self.strategy_enabled.get(decision.strategy, False):
                     continue
 
