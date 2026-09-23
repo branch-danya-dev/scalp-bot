@@ -1610,7 +1610,7 @@ class TradingEngine:
             object_key,
             freshness.classification.value,
             (
-                round(float(freshness.move_spent_ratio), 2)
+                round(float(freshness.move_spent_ratio), 1)
                 if freshness.move_spent_ratio is not None
                 else None
             ),
@@ -1623,7 +1623,14 @@ class TradingEngine:
             session.symbol,
             {
                 "strategy": strategy,
-                "setupId": decision.setup_id,
+                "setupId": (
+                    decision.setup_id
+                    or (
+                        self._resolve_setup_id(session, decision)
+                        if decision.tradeable
+                        else None
+                    )
+                ),
                 "state": state,
                 "entryFreshness": freshness.public(),
                 "decision": decision.public(),
