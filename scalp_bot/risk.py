@@ -106,7 +106,10 @@ class RiskEngine:
             if isinstance(requested_risk_scale, (int, float))
             else 1.0
         )
-        risk_scale = max(0.25, min(risk_scale, 1.25))
+        # Stage 19B allows semantic evidence to de-risk a setup, but never to
+        # lever it above the configured base risk until positive expectancy is
+        # proven from paper data.
+        risk_scale = max(0.25, min(risk_scale, 1.0))
         staged_entry = (
             (decision.details or {}).get("stagedEntry")
             if isinstance(
