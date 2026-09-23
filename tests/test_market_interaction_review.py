@@ -264,3 +264,41 @@ def test_density_checkpoint_is_not_counted_as_playbook_conflict() -> None:
     assert report["summary"]["liquidityEvidenceCheckpoints"] == 1
     assert report["summary"]["overlaps"] == 0
     assert report["summary"]["conflicts"] == 0
+
+
+
+def test_consumed_ask_density_uses_liquidity_bias_for_forward_direction() -> None:
+    rows = [
+        frame(99.0, "AAAUSDT", 100.0),
+        decision(
+            100.0,
+            "AAAUSDT",
+            "orderbook_density",
+            "exhausted",
+            label="ask density",
+            price=100.1,
+            action="wait",
+            details={
+                "wallSide": "ask",
+                "wallPrice": 100.1,
+                "liquidityEvidence": {
+                    "state": "consumed",
+                    "directionalBias": "up",
+                    "directionalStrength": 0.88,
+                },
+            },
+        ),
+        frame(110.0, "AAAUSDT", 100.3),
+    ]
+
+    report = analyze_market_interactions(
+        rows,
+        horizons_seconds=(30.0,),
+        move_bands=(0.002,),
+    )
+
+    assert report["summary"]["liquidityEvidenceCheckpoints"] == 1
+    checkpoint = report["checkpoints"][0]
+    assert checkpoint["hypothesisSide"] == "long"
+    band = checkpoint["forward"]["30s"]["movementBands"]["0.20%"]
+    assert band["classification"] == "hypothesis_first"
