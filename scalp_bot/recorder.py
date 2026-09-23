@@ -184,6 +184,41 @@ class SessionRecorder:
         return path
 
     @staticmethod
+    def _economic_calibration_policy(
+        rows: list[dict],
+    ) -> tuple[int, int]:
+        minimum_group_samples = 20
+        minimum_segment_samples = 8
+        for row in rows:
+            if row.get("event") != "bot_started":
+                continue
+            payload = row.get("payload") or {}
+            config = payload.get("config") or {}
+            if not isinstance(config, dict):
+                continue
+            raw_group = config.get(
+                "economicCalibrationMinGroupSamples"
+            )
+            raw_segment = config.get(
+                "economicCalibrationMinSegmentSamples"
+            )
+            if isinstance(raw_group, (int, float)):
+                minimum_group_samples = max(
+                    1,
+                    int(raw_group),
+                )
+            if isinstance(raw_segment, (int, float)):
+                minimum_segment_samples = max(
+                    1,
+                    int(raw_segment),
+                )
+            break
+        return (
+            minimum_group_samples,
+            minimum_segment_samples,
+        )
+
+    @staticmethod
     def _row_ts(row: dict) -> float:
         raw = row.get("ts")
         if isinstance(raw, (int, float)):
@@ -488,9 +523,19 @@ class SessionRecorder:
         report["strategySideRegimePerformance"] = (
             performance
         )
+        (
+            calibration_group_samples,
+            calibration_segment_samples,
+        ) = self._economic_calibration_policy(rows)
         report["conditionalEconomicCalibration"] = (
             build_conditional_economic_calibration(
                 performance.get("trades") or [],
+                minimum_group_samples=(
+                    calibration_group_samples
+                ),
+                minimum_segment_samples=(
+                    calibration_segment_samples
+                ),
             )
         )
         return report
@@ -1146,9 +1191,19 @@ class SessionRecorder:
                 else None
             ),
         )
+        (
+            calibration_group_samples,
+            calibration_segment_samples,
+        ) = cls._economic_calibration_policy(rows)
         economic_calibration = (
             build_conditional_economic_calibration(
                 performance_matrix.get("trades") or [],
+                minimum_group_samples=(
+                    calibration_group_samples
+                ),
+                minimum_segment_samples=(
+                    calibration_segment_samples
+                ),
             )
         )
         market_interactions = analyze_market_interactions(rows)
