@@ -1082,7 +1082,7 @@ def test_staged_add_respects_remaining_position_exposure_cap() -> None:
 
     assert result.allowed
     assert result.plan is not None
-    assert result.plan.notional <= pytest.approx(300)
+    assert result.plan.notional == pytest.approx(300)
     assert result.diagnostics[
         "remainingPositionExposureCapUsd"
     ] == pytest.approx(300)
