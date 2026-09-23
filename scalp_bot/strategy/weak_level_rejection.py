@@ -321,6 +321,7 @@ class WeakLevelRejectionStrategy(Strategy):
                     "breakoutFlow": breakout_flow.public(),
                     "roundLevel": round_level,
                     "weakLevel": True,
+                    "levelGeneration": generation_id,
                 },
             )
 
