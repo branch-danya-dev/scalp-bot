@@ -1,6 +1,11 @@
 from scalp_bot.domain import Action, Candle, OrderBook, TradeTick, Trend
-from scalp_bot.strategy import LevelBreakoutStrategy, WeakLevelRejectionStrategy
+from scalp_bot.strategy import (
+    FormingCandleContext,
+    LevelBreakoutStrategy,
+    WeakLevelRejectionStrategy,
+)
 from scalp_bot.strategy.structure import MarketStructure, StructuralLevel
+from types import SimpleNamespace
 
 
 def candle(
@@ -179,6 +184,59 @@ def test_breakout_shared_generation_is_used_only_once() -> None:
         structure=new_generation,
     )
     assert third_entry.action == Action.LONG
+
+
+def test_breakout_forming_candle_can_supply_one_early_pressure_point() -> None:
+    strategy = LevelBreakoutStrategy()
+    strategy._pressure_score = lambda *args, **kwargs: (
+        2,
+        {"fixtureBaseScore": 2},
+    )
+    forming = FormingCandleContext(
+        start_ms=30_000_000,
+        observed_at_ms=30_010_000,
+        age_seconds=10.0,
+        progress_ratio=1 / 6,
+        open=99.90,
+        high=100.04,
+        low=99.89,
+        close=100.03,
+        volume=40.0,
+        turnover=4_001.2,
+        body_pct=0.0013013,
+        range_pct=0.0015015,
+        body_to_range=0.866,
+        upper_wick_pct=0.0001001,
+        lower_wick_pct=0.0001001,
+        close_position=0.933,
+        volume_pace_ratio=1.4,
+        range_expansion_ratio=1.1,
+        velocity_bps_per_second=1.30,
+        direction=Trend.UP,
+    )
+    context = SimpleNamespace(
+        local_regime=None,
+        forming_candle=forming,
+    )
+
+    decision = strategy.evaluate(
+        mature_breakout_candles(),
+        OrderBook(bids=[(99.99, 50)], asks=[(100.01, 50)]),
+        Trend.UP,
+        symbol="PRESTATEBREAKUSDT",
+        trades=aggressive_buy_flow(),
+        structure=mature_structure(),
+        market_context=context,
+        observed_at_ms=30_010_000,
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "armed"
+    assert decision.details["pressureScore"] == 3
+    assert decision.details["pressure"]["formingPressure"] is True
+    assert decision.details["opportunityArm"]["source"] == (
+        "breakout_pressure_armed"
+    )
 
 
 def rejection_candles() -> list[Candle]:
