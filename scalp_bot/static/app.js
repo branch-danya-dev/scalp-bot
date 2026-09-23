@@ -642,6 +642,14 @@ function renderDecisions(decisions) {
     const contextSnapshotText = decisionContext.localRegime
       ? ` · ctx <b>${localRegimeLabel(decisionContext.localRegime)}</b>${decisionContext.executionReady === false ? " · exec stale" : ""}`
       : "";
+    const playbookContext = decision.details?.playbookContext || trace.evidence?.playbookContext || {};
+    const playbookText = playbookContext.primaryDirection
+      ? ` · playbook <b>${trendLabel(playbookContext.primaryDirection)}</b>${playbookContext.source ? " (" + String(playbookContext.source).replaceAll("_", " ") + ")" : ""}`
+      : "";
+    const entryAssessment = decision.details?.entryContextAssessment || trace.evidence?.entryContextAssessment || {};
+    const blockerText = entryAssessment.allowed === false && Array.isArray(entryAssessment.blockers)
+      ? ` · blocked: ${entryAssessment.blockers.join(", ")}`
+      : "";
     return `<article class="decision-card">
       <div class="decision-card-head">
         <div>
@@ -651,7 +659,7 @@ function renderDecisions(decisions) {
         <time>${observed}</time>
       </div>
       <div class="decision-object">${traceObjectText(trace.object)}</div>
-      <div class="decision-context">Тренд: <b>${trendLabel(trace.trend)}</b> · уверенность ${Number(trace.confidence || 0).toFixed(2)}${flowText}${liquidityText}${contextSnapshotText}</div>
+      <div class="decision-context">Тренд legacy: <b>${trendLabel(trace.trend)}</b> · уверенность ${Number(trace.confidence || 0).toFixed(2)}${playbookText}${flowText}${liquidityText}${contextSnapshotText}${blockerText}</div>
       <div class="trace-tags">${confirmed || '<span class="trace-tag">нет подтверждений</span>'}</div>
       ${waiting ? `<div class="decision-wait"><small>Чего ждём</small><ul>${waiting}</ul></div>` : ""}
     </article>`;
