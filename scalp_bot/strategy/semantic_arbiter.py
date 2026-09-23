@@ -438,6 +438,28 @@ def _raw_assessment(
     if freshness_class == "exhausted":
         blockers.append("opportunity_exhausted")
 
+    managed_breakout_obstacle = (
+        decision.strategy == "level_breakout"
+        and structural_path.obstacle_before_first_take
+        and not structural_path.own_breakout_level_exempted
+        and structural_path.risk_scale < 1.0
+    )
+    if managed_breakout_obstacle:
+        obstacle_consumption_ready = (
+            freshness_class in {"fresh", "acceptable"}
+            and flow_class in {"strongly_aligned", "aligned"}
+            and liquidity_class != "opposed"
+        )
+        if not obstacle_consumption_ready:
+            blockers.append(
+                "managed_structural_obstacle_requires_breakout_strength"
+            )
+        else:
+            reasons.append(
+                "breakout may challenge the next mature level only with "
+                "fresh/aligned evidence and reduced structural risk"
+            )
+
     risk_scale = structural_path.risk_scale
     if freshness_class == "late":
         risk_scale = min(risk_scale, 0.65)
