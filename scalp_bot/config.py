@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     max_daily_loss_fraction: float = 0.03
     enforce_session_loss_limit: bool = False
 
+    trend_structure_enabled: bool = True
+    weak_level_rejection_enabled: bool = True
+    density_enabled: bool = True
+    breakout_enabled: bool = True
+
     strategy_expectancy_min_samples: int = 30
     enforce_strategy_expectancy_gate: bool = False
     trend_structure_min_expectancy_r: float = 0.0
