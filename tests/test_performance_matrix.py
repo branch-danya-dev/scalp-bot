@@ -451,3 +451,134 @@ def test_pair_closed_trades_preserves_shadow_policy_assessments() -> None:
     assert trade["researchPolicyModes"] == ["shadow"]
     assert trade["researchPolicyIds"] == ["research-policy-1"]
     assert trade["researchPolicyAssessments"][0]["phase"] == "pre_plan"
+
+
+
+def test_pair_closed_staged_trade_uses_combined_leg_economics() -> None:
+    opened_row = opened(
+        10.0,
+        symbol="AAAUSDT",
+        strategy="level_breakout",
+        side="long",
+        setup_id="staged-1",
+        regime="bullish_trend",
+        net_rr=1.0,
+        freshness="fresh",
+        spent=0.10,
+        flow="strongly_aligned",
+        liquidity="supportive",
+        planned_all_in_loss=4.0,
+    )
+    details = opened_row["payload"]["plan"]["strategy_details"]
+    details["stagedEntry"] = {
+        "phase": "probe",
+        "riskFraction": 0.35,
+    }
+    details["preparedOpportunity"] = {
+        "preparedAtMs": 10_000,
+        "source": "breakout_pressure_armed",
+    }
+    details["fireTrigger"] = {
+        "observedAtMs": 10_500,
+        "source": "breakout_early_probe",
+    }
+    details["decisionContext"]["analysisRuntime"] = {
+        "mode": "live_fast_path",
+    }
+
+    probe_leg = {
+        "phase": "probe",
+        "notional": 300.0,
+        "fill": 100.0,
+        "plan": {
+            "expected_net_loss": 4.0,
+            "expected_net_profit": 4.0,
+        },
+    }
+    add_leg = {
+        "phase": "add",
+        "notional": 700.0,
+        "fill": 100.285714,
+        "plan": {
+            "expected_net_loss": 6.0,
+            "expected_net_profit": 8.0,
+        },
+    }
+    opened_row["payload"]["position"]["entry_legs"] = [
+        probe_leg,
+    ]
+
+    add_details = {
+        **details,
+        "stagedEntry": {
+            "phase": "add",
+            "riskFraction": 0.65,
+        },
+        "fireTrigger": {
+            "observedAtMs": 20_000,
+            "source": "breakout_acceptance_hold",
+        },
+    }
+    added_row = {
+        "ts": 20.0,
+        "event": "position_added",
+        "symbol": "AAAUSDT",
+        "payload": {
+            "plan": {
+                "strategy": "level_breakout",
+                "side": "long",
+                "setup_id": "staged-1",
+                "expected_net_loss": 6.0,
+                "expected_net_profit": 8.0,
+                "strategy_details": add_details,
+            },
+            "position": {
+                "side": "long",
+                "entry": 100.2,
+                "setup_id": "staged-1",
+                "entry_legs": [probe_leg, add_leg],
+            },
+        },
+    }
+    closed_row = closed(
+        40.0,
+        symbol="AAAUSDT",
+        strategy="level_breakout",
+        side="long",
+        setup_id="staged-1",
+        gross=6.0,
+        fees=1.0,
+        net=5.0,
+        initial_risk=10.0,
+        mfe_r=1.2,
+        mae_r=0.2,
+        reason="target",
+    )
+    closed_row["payload"].update({
+        "entry": 100.2,
+        "entryLegs": [probe_leg, add_leg],
+        "scaleInCount": 1,
+        "strategyDetails": add_details,
+    })
+
+    trades = pair_closed_trades([
+        opened_row,
+        added_row,
+        closed_row,
+    ])
+
+    assert len(trades) == 1
+    trade = trades[0]
+    assert trade["initialEntry"] == pytest.approx(100.0)
+    assert trade["finalEntry"] == pytest.approx(100.2)
+    assert trade["scaleInCount"] == 1
+    assert trade["addTs"] == [pytest.approx(20.0)]
+    assert len(trade["entryLegs"]) == 2
+    assert trade["plannedAllInLossUsd"] == pytest.approx(10.0)
+    assert trade["plannedNetAtTargetUsd"] == pytest.approx(12.0)
+    assert trade["plannedNetRewardRisk"] == pytest.approx(1.2)
+    assert trade["realizedAllInR"] == pytest.approx(0.5)
+    assert trade["stagedEntryPhase"] == "probe"
+    assert trade["entryRiskFraction"] == pytest.approx(0.35)
+    assert trade["preparedToFireSeconds"] == pytest.approx(0.5)
+    assert trade["analysisModeAtEntry"] == "live_fast_path"
