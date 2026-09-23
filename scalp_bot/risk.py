@@ -543,8 +543,6 @@ class RiskEngine:
             )
 
         shadow_reject_reasons: list[str] = []
-        if minimum_first_take_move_failed:
-            shadow_reject_reasons.append("minimum_first_take_move")
         if minimum_net_profit_failed:
             shadow_reject_reasons.append("minimum_net_profit")
         if net_reward_risk_failed:
