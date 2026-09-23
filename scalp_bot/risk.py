@@ -35,6 +35,8 @@ class RiskEngine:
         available_risk_usd: float,
         *,
         setup_id: str | None = None,
+        existing_position_notional: float = 0.0,
+        existing_position_all_in_risk_usd: float = 0.0,
     ) -> RiskResult:
         if not decision.tradeable or decision.side is None:
             return RiskResult(False, "strategy decision is not tradeable")
@@ -92,14 +94,47 @@ class RiskEngine:
             else 1.0
         )
         risk_scale = max(0.25, min(risk_scale, 1.25))
+        staged_entry = (
+            (decision.details or {}).get("stagedEntry")
+            if isinstance(
+                (decision.details or {}).get("stagedEntry"),
+                dict,
+            )
+            else {}
+        )
+        requested_entry_risk_fraction = staged_entry.get(
+            "riskFraction",
+            1.0,
+        )
+        entry_risk_fraction = (
+            float(requested_entry_risk_fraction)
+            if isinstance(
+                requested_entry_risk_fraction,
+                (int, float),
+            )
+            else 1.0
+        )
+        entry_risk_fraction = max(
+            0.05,
+            min(entry_risk_fraction, 1.0),
+        )
         base_structural_risk_budget = (
             balance * self.config.risk_fraction
         )
-        structural_risk_budget = (
+        scaled_structural_risk_budget = (
             base_structural_risk_budget * risk_scale
         )
-        trade_all_in_cap_usd = (
+        structural_risk_budget = (
+            scaled_structural_risk_budget
+            * entry_risk_fraction
+        )
+        full_trade_all_in_cap_usd = (
             balance * self.config.max_trade_all_in_loss_fraction
+        )
+        trade_all_in_cap_usd = max(
+            0.0,
+            full_trade_all_in_cap_usd
+            - max(0.0, existing_position_all_in_risk_usd),
         )
         if structural_risk_budget <= 0:
             return RiskResult(False, "structural risk budget exhausted")
@@ -173,9 +208,14 @@ class RiskEngine:
             portfolio_exposure_cap
             * max(0.0, self.config.max_position_exposure_fraction)
         )
-        position_exposure_cap = min(
+        full_position_exposure_cap = min(
             position_leverage_cap,
             position_share_cap,
+        )
+        position_exposure_cap = max(
+            0.0,
+            full_position_exposure_cap
+            - max(0.0, existing_position_notional),
         )
         notional = min(
             notional_by_structural_risk,
@@ -425,8 +465,23 @@ class RiskEngine:
         economic_diagnostics = {
             "riskBudgetUsd": structural_risk_budget,
             "baseStructuralRiskBudgetUsd": base_structural_risk_budget,
+            "scaledStructuralRiskBudgetUsd": scaled_structural_risk_budget,
             "structuralRiskBudgetUsd": structural_risk_budget,
             "riskScale": risk_scale,
+            "entryRiskFraction": entry_risk_fraction,
+            "stagedEntryPhase": staged_entry.get("phase"),
+            "existingPositionNotionalUsd": max(
+                0.0,
+                existing_position_notional,
+            ),
+            "existingPositionAllInRiskUsd": max(
+                0.0,
+                existing_position_all_in_risk_usd,
+            ),
+            "fullTradeAllInLossCapUsd": full_trade_all_in_cap_usd,
+            "remainingTradeAllInLossCapUsd": trade_all_in_cap_usd,
+            "fullPositionExposureCapUsd": full_position_exposure_cap,
+            "remainingPositionExposureCapUsd": position_exposure_cap,
             "riskScaleSource": (
                 (decision.details or {}).get("riskScaleSource")
             ),

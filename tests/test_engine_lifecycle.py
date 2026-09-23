@@ -2157,3 +2157,161 @@ def test_strategy_state_transition_records_dwell_and_arm_context(
         assert reclaim.details["stateTiming"]["toState"] == "reclaim"
     finally:
         close_rest(engine)
+
+
+
+def test_arbiter_adds_only_to_matching_staged_probe(tmp_path) -> None:
+    engine = make_engine(
+        tmp_path,
+        max_leverage=10,
+        max_position_leverage=5,
+        max_total_risk_fraction=0.10,
+        partial_take_enabled=False,
+        passive_entry_enabled=False,
+    )
+    try:
+        engine.running = True
+        now = time()
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=OrderBook(
+                bids=[(99.99, 1000)],
+                asks=[(100.00, 1000)],
+            ),
+            last_price=100.0,
+            last_market_at=now,
+            last_book_at=now,
+            book_synced=True,
+        )
+        probe = TradePlan(
+            symbol="AAAUSDT",
+            strategy="level_breakout",
+            side=Side.LONG,
+            setup_entry=100.0,
+            market_entry=100.0,
+            stop=99.5,
+            target=101.0,
+            notional=100.0,
+            leverage=0.1,
+            max_loss_usd=0.5,
+            expected_gross_profit=1.0,
+            estimated_costs=0.0,
+            expected_net_profit=1.0,
+            expected_net_loss=0.5,
+            net_reward_risk=2.0,
+            entry_drift_pct=0.0,
+            setup_id="stage15:test",
+            strategy_details={
+                "stagedEntry": {
+                    "phase": "probe",
+                    "riskFraction": 0.35,
+                }
+            },
+        )
+        engine.broker.open(probe, session.orderbook)
+
+        session.decisions["level_breakout"] = StrategyDecision(
+            strategy="level_breakout",
+            action=Action.LONG,
+            reasons=["confirmation add"],
+            confidence=0.9,
+            watched_level=100.0,
+            entry=100.0,
+            stop=99.5,
+            target=101.0,
+            setup_id=probe.setup_id,
+            details={
+                "state": "impulse",
+                "stagedEntry": {
+                    "phase": "add",
+                    "riskFraction": 0.65,
+                },
+                "opportunityFreshness": {
+                    "classification": "fresh",
+                },
+                "flowAlignment": {
+                    "classification": "strongly_aligned",
+                },
+                "liquidityAlignment": {
+                    "classification": "supportive",
+                },
+            },
+        )
+        engine.sessions = {session.symbol: session}
+        engine.candidates = [
+            Candidate(
+                "AAAUSDT",
+                200_000_000,
+                0,
+                100,
+                activity_rank=1,
+            )
+        ]
+
+        before = engine.broker.positions["AAAUSDT"].notional
+        engine._arbitrate_once()
+
+        pos = engine.broker.positions["AAAUSDT"]
+        assert pos.notional > before
+        assert len(pos.entry_legs) == 2
+        assert pos.entry_legs[-1]["phase"] == "add"
+        assert engine.strategy_stats[
+            "level_breakout"
+        ]["positionAdds"] == 1
+        assert any(
+            event["event"] == "position_added"
+            for event in engine.events
+        )
+    finally:
+        close_rest(engine)
+
+
+def test_arbiter_does_not_treat_orphaned_add_as_new_entry(tmp_path) -> None:
+    engine = make_engine(
+        tmp_path,
+        partial_take_enabled=False,
+    )
+    try:
+        now = time()
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100,
+            last_market_at=now,
+            last_book_at=now,
+            book_synced=True,
+        )
+        session.decisions["level_breakout"] = StrategyDecision(
+            strategy="level_breakout",
+            action=Action.LONG,
+            reasons=["orphaned add"],
+            entry=100,
+            stop=99.5,
+            target=101,
+            setup_id="missing-probe",
+            details={
+                "state": "impulse",
+                "stagedEntry": {
+                    "phase": "add",
+                    "riskFraction": 0.65,
+                },
+            },
+        )
+        engine.sessions = {session.symbol: session}
+        engine.candidates = [
+            Candidate(
+                "AAAUSDT",
+                200_000_000,
+                0,
+                100,
+                activity_rank=1,
+            )
+        ]
+
+        engine._arbitrate_once()
+
+        assert "AAAUSDT" not in engine.broker.positions
+    finally:
+        close_rest(engine)

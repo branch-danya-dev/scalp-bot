@@ -973,3 +973,116 @@ def test_first_take_movement_gate_accepts_30bps_plus_scalp() -> None:
     economics = result.plan.strategy_details["economics"]
     assert economics["firstTakeMovePct"] >= 0.003
     assert economics["firstTakeMoveGateEnabled"] is True
+
+
+
+def test_staged_probe_and_add_split_structural_risk_budget() -> None:
+    cfg = scalp_settings(
+        max_position_leverage=10.0,
+    )
+    engine = RiskEngine(cfg)
+
+    full_decision = decision(
+        102.0,
+        entry=100.0,
+        stop=99.0,
+    )
+    full = engine.build_plan(
+        "BTCUSDT",
+        full_decision,
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        100,
+    )
+    assert full.allowed and full.plan is not None
+
+    probe_decision = decision(
+        102.0,
+        entry=100.0,
+        stop=99.0,
+    )
+    probe_decision.details["stagedEntry"] = {
+        "phase": "probe",
+        "riskFraction": 0.35,
+    }
+    probe = engine.build_plan(
+        "BTCUSDT",
+        probe_decision,
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        100,
+    )
+    assert probe.allowed and probe.plan is not None
+    assert probe.plan.notional == pytest.approx(
+        full.plan.notional * 0.35
+    )
+    assert probe.diagnostics["entryRiskFraction"] == pytest.approx(
+        0.35
+    )
+
+    add_decision = decision(
+        102.0,
+        entry=100.0,
+        stop=99.0,
+    )
+    add_decision.details["stagedEntry"] = {
+        "phase": "add",
+        "riskFraction": 0.65,
+    }
+    add = engine.build_plan(
+        "BTCUSDT",
+        add_decision,
+        1000,
+        book(99.99, 100.00),
+        10_000 - probe.plan.notional,
+        100,
+        existing_position_notional=probe.plan.notional,
+        existing_position_all_in_risk_usd=(
+            probe.plan.expected_net_loss
+        ),
+    )
+    assert add.allowed and add.plan is not None
+    assert add.plan.notional == pytest.approx(
+        full.plan.notional * 0.65
+    )
+    assert (
+        probe.plan.notional + add.plan.notional
+        == pytest.approx(full.plan.notional)
+    )
+
+
+def test_staged_add_respects_remaining_position_exposure_cap() -> None:
+    cfg = scalp_settings(
+        max_position_leverage=1.0,
+        max_position_exposure_fraction=1.0,
+        risk_fraction=0.05,
+    )
+    add_decision = decision(
+        110.0,
+        entry=100.0,
+        stop=99.0,
+    )
+    add_decision.details["stagedEntry"] = {
+        "phase": "add",
+        "riskFraction": 0.65,
+    }
+
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        add_decision,
+        1000,
+        book(99.99, 100.00),
+        700,
+        100,
+        existing_position_notional=700,
+        existing_position_all_in_risk_usd=7,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.notional == pytest.approx(300)
+    assert result.diagnostics[
+        "remainingPositionExposureCapUsd"
+    ] == pytest.approx(300)

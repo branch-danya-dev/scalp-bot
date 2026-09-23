@@ -51,6 +51,7 @@ class BreakoutWatchState:
     armed_until: float = 0.0
     armed_price: float = 0.0
     break_started_at: float = 0.0
+    probe_opened: bool = False
 
 
 class LevelBreakoutStrategy(Strategy):
@@ -67,6 +68,8 @@ class LevelBreakoutStrategy(Strategy):
     pressure_hysteresis_score_margin = 1
     min_break_hold_seconds = 3.0
     minimum_target_r = 1.25
+    staged_entries_enabled = True
+    probe_risk_fraction = 0.35
 
     def __init__(self) -> None:
         self._states: dict[str, BreakoutWatchState] = {}
@@ -126,8 +129,22 @@ class LevelBreakoutStrategy(Strategy):
     def mark_opened(self, symbol: str, decision: StrategyDecision) -> None:
         state = self._states.get(symbol)
         generation = decision.details.get("zoneGeneration")
-        if state is not None and generation is not None:
-            state.used_generations.add(tuple(generation))
+        if state is None or generation is None:
+            return
+        staged = (
+            decision.details.get("stagedEntry")
+            if isinstance(
+                decision.details.get("stagedEntry"),
+                dict,
+            )
+            else {}
+        )
+        if staged.get("phase") == "probe":
+            state.probe_opened = True
+            state.stage = BreakoutStage.BREAK
+            return
+        state.used_generations.add(tuple(generation))
+        state.probe_opened = False
 
     @staticmethod
     def _generation(zone: LevelZone) -> tuple[str, str, float]:
@@ -428,6 +445,7 @@ class LevelBreakoutStrategy(Strategy):
             state.armed_until = 0.0
             state.armed_price = 0.0
             state.break_started_at = 0.0
+            state.probe_opened = False
         visuals = zone_visual(zone, "breakout zone")
         flow = compute_trade_flow(trades, observed_at_ms)
         level_tolerance = max(
@@ -656,20 +674,39 @@ class LevelBreakoutStrategy(Strategy):
                 and pressure_score >= hysteresis_floor
             )
         )
-        flow_supported = (
-            aligned_after_break
-            or (
-                state.break_started_at > 0
-                and arm_active
+        local_break_flow = (
+            level_flow.trade_count >= 3
+            and (
+                level_flow.imbalance >= 0.02
+                if long_side
+                else level_flow.imbalance <= -0.02
             )
         )
-        if not pressure_supported or not flow_supported:
-            if not arm_active:
+        probe_flow_supported = (
+            local_break_flow
+            and (
+                aligned_after_break
+                or (
+                    arm_active
+                    and forming_pressure
+                )
+            )
+        )
+        if not pressure_supported or not probe_flow_supported:
+            if not arm_active and not state.probe_opened:
                 state.break_started_at = 0.0
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
-                ["Зона проколота, но давление/поток недостаточны для подтверждённого пробоя"],
+                [
+                    (
+                        "Breakout probe уже открыт; ждём подтверждение "
+                        "acceptance/hold для add"
+                        if state.probe_opened
+                        else "Зона проколота, но давление/pre-state/flow "
+                        "недостаточны даже для probe"
+                    )
+                ],
                 0.55,
                 zone.center,
                 visuals=visuals,
@@ -686,6 +723,8 @@ class LevelBreakoutStrategy(Strategy):
                     "acceptanceBoundary": acceptance_boundary,
                     "pressureHysteresisActive": arm_active,
                     "opportunityArm": opportunity_arm,
+                    "probeOpened": state.probe_opened,
+                    "localBreakFlowConfirmed": local_break_flow,
                 },
             )
 
@@ -695,29 +734,86 @@ class LevelBreakoutStrategy(Strategy):
             0.0,
             market_now - state.break_started_at,
         )
-        if held_seconds < self.min_break_hold_seconds:
-            return StrategyDecision(
-                self.key,
-                Action.WAIT,
-                ["Пробой подтверждён потоком; ждём удержание цены за уровнем перед входом"],
-                0.64,
-                zone.center,
-                visuals=visuals,
-                details={
-                    "state": state.stage.value,
-                    **context_details,
-                    "zone": zone.public(),
-                    "zoneGeneration": generation,
-                    "pressureScore": pressure_score,
-                    "pressure": pressure,
-                    "flow": flow,
-                    "levelFlow": level_flow.public(),
-                    "acceptanceFlow": acceptance_flow.public(),
-                    "acceptanceBoundary": acceptance_boundary,
-                    "breakHoldSeconds": held_seconds,
-                    "requiredBreakHoldSeconds": self.min_break_hold_seconds,
-                },
+        confirmation_ready = (
+            aligned_after_break
+            and held_seconds >= self.min_break_hold_seconds
+        )
+
+        if self.staged_entries_enabled:
+            probe_fraction = max(
+                0.05,
+                min(float(self.probe_risk_fraction), 0.80),
             )
+            if state.probe_opened and not confirmation_ready:
+                return StrategyDecision(
+                    self.key,
+                    Action.WAIT,
+                    [
+                        "Breakout probe в позиции; ждём acceptance + hold "
+                        "перед использованием оставшегося risk budget"
+                    ],
+                    0.64,
+                    zone.center,
+                    visuals=visuals,
+                    details={
+                        "state": state.stage.value,
+                        **context_details,
+                        "zone": zone.public(),
+                        "zoneGeneration": generation,
+                        "pressureScore": pressure_score,
+                        "pressure": pressure,
+                        "flow": flow,
+                        "levelFlow": level_flow.public(),
+                        "acceptanceFlow": acceptance_flow.public(),
+                        "acceptanceBoundary": acceptance_boundary,
+                        "breakHoldSeconds": held_seconds,
+                        "requiredBreakHoldSeconds": (
+                            self.min_break_hold_seconds
+                        ),
+                        "probeOpened": True,
+                        "opportunityArm": opportunity_arm,
+                    },
+                )
+            if state.probe_opened:
+                staged_phase = "add"
+                staged_risk_fraction = 1.0 - probe_fraction
+            elif confirmation_ready:
+                staged_phase = "full"
+                staged_risk_fraction = 1.0
+            else:
+                staged_phase = "probe"
+                staged_risk_fraction = probe_fraction
+        else:
+            if not confirmation_ready:
+                return StrategyDecision(
+                    self.key,
+                    Action.WAIT,
+                    [
+                        "Пробой подтверждён потоком; ждём удержание цены "
+                        "за уровнем перед входом"
+                    ],
+                    0.64,
+                    zone.center,
+                    visuals=visuals,
+                    details={
+                        "state": state.stage.value,
+                        **context_details,
+                        "zone": zone.public(),
+                        "zoneGeneration": generation,
+                        "pressureScore": pressure_score,
+                        "pressure": pressure,
+                        "flow": flow,
+                        "levelFlow": level_flow.public(),
+                        "acceptanceFlow": acceptance_flow.public(),
+                        "acceptanceBoundary": acceptance_boundary,
+                        "breakHoldSeconds": held_seconds,
+                        "requiredBreakHoldSeconds": (
+                            self.min_break_hold_seconds
+                        ),
+                    },
+                )
+            staged_phase = "full"
+            staged_risk_fraction = 1.0
 
         range_abs = typical_range_abs(candles)
         entry = price
@@ -854,7 +950,11 @@ class LevelBreakoutStrategy(Strategy):
             + reaction_quality * 0.08
         )
 
-        state.stage = BreakoutStage.IMPULSE
+        state.stage = (
+            BreakoutStage.BREAK
+            if staged_phase == "probe"
+            else BreakoutStage.IMPULSE
+        )
         setup_id = (
             f"{self.key}:{action.value}:{generation[0]}:"
             f"{generation[1]}:{generation[2]:.10g}"
@@ -865,8 +965,18 @@ class LevelBreakoutStrategy(Strategy):
             reasons=[
                 "Пробой зрелой наторгованной горизонтальной зоны",
                 f"Зона подтверждена {zone.touches} касаниями, реакциями и объёмом",
-                "Подход сформировал давление, поток непосредственно у уровня подтверждает пробой",
-                "Одна генерация уровня торгуется только один раз",
+                (
+                    "Ранний probe разрешён сильным ARMED/pre-state; "
+                    "остаток риска ждёт acceptance + hold"
+                    if staged_phase == "probe"
+                    else (
+                        "Probe подтверждён acceptance + hold; добавляем "
+                        "только зарезервированный остаток риска"
+                        if staged_phase == "add"
+                        else "Пробой полностью подтверждён acceptance + hold"
+                    )
+                ),
+                "Одна генерация уровня торгуется только один раз после завершения staged entry",
             ],
             confidence=quality,
             watched_level=zone.center,
@@ -893,6 +1003,23 @@ class LevelBreakoutStrategy(Strategy):
                 "pressureHysteresisActive": arm_active,
                 "opportunityArm": opportunity_arm,
                 "pressureScore": pressure_score,
+                "stagedEntry": {
+                    "phase": staged_phase,
+                    "riskFraction": staged_risk_fraction,
+                    "probeRiskFraction": (
+                        max(
+                            0.05,
+                            min(
+                                float(self.probe_risk_fraction),
+                                0.80,
+                            ),
+                        )
+                        if self.staged_entries_enabled
+                        else 0.0
+                    ),
+                    "confirmationReady": confirmation_ready,
+                    "probeOpened": state.probe_opened,
+                },
                 "breakHoldSeconds": max(
                     0.0,
                     market_now - state.break_started_at,

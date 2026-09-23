@@ -53,6 +53,7 @@ class RejectionWatchState:
     swept: bool = False
     armed_at: float = 0.0
     armed_price: float = 0.0
+    probe_opened: bool = False
 
 
 class WeakLevelRejectionStrategy(Strategy):
@@ -64,6 +65,8 @@ class WeakLevelRejectionStrategy(Strategy):
     max_stop_pct = 0.006
     test_pin_seconds = 150.0
     test_pin_max_distance_pct = 0.008
+    staged_entries_enabled = True
+    probe_risk_fraction = 0.30
 
     def __init__(self) -> None:
         self._states: dict[str, RejectionWatchState] = {}
@@ -74,14 +77,28 @@ class WeakLevelRejectionStrategy(Strategy):
     def mark_opened(self, symbol: str, decision: StrategyDecision) -> None:
         state = self._states.get(symbol)
         generation = decision.details.get("levelGeneration")
-        if state is not None and generation:
-            state.used_generations.add(str(generation))
-            state.pinned_zone = None
-            state.pinned_generation_id = None
-            state.pinned_until = 0.0
-            state.swept = False
-            state.armed_at = 0.0
-            state.armed_price = 0.0
+        if state is None or not generation:
+            return
+        staged = (
+            decision.details.get("stagedEntry")
+            if isinstance(
+                decision.details.get("stagedEntry"),
+                dict,
+            )
+            else {}
+        )
+        if staged.get("phase") == "probe":
+            state.probe_opened = True
+            state.stage = RejectionStage.REJECT
+            return
+        state.used_generations.add(str(generation))
+        state.probe_opened = False
+        state.pinned_zone = None
+        state.pinned_generation_id = None
+        state.pinned_until = 0.0
+        state.swept = False
+        state.armed_at = 0.0
+        state.armed_price = 0.0
 
     @staticmethod
     def _key(zone: LevelZone) -> tuple[str, float, float, int]:
@@ -169,6 +186,7 @@ class WeakLevelRejectionStrategy(Strategy):
             state.swept = False
             state.armed_at = 0.0
             state.armed_price = 0.0
+            state.probe_opened = False
 
         if generation_id in state.used_generations:
             return StrategyDecision(
@@ -370,11 +388,25 @@ class WeakLevelRejectionStrategy(Strategy):
             )
 
         state.stage = RejectionStage.REJECT
-        if not flow_reversed:
+        probe_candidate = (
+            self.staged_entries_enabled
+            and not state.probe_opened
+            and not flow_reversed
+            and attack_absorbed
+        )
+        if not flow_reversed and not probe_candidate:
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
-                ["Пробой не удержался, но поток сделок ещё не подтвердил отскок"],
+                [
+                    (
+                        "Rejection probe уже открыт; ждём разворот "
+                        "локального flow для add"
+                        if state.probe_opened
+                        else "Пробой не удержался, но absorption/flow "
+                        "ещё недостаточны даже для probe"
+                    )
+                ],
                 0.58,
                 zone.center,
                 visuals=visuals,
@@ -394,6 +426,8 @@ class WeakLevelRejectionStrategy(Strategy):
                         else None
                     ),
                     "opportunityArm": opportunity_arm,
+                    "attackAbsorbed": attack_absorbed,
+                    "probeOpened": state.probe_opened,
                 },
             )
 
@@ -524,7 +558,27 @@ class WeakLevelRejectionStrategy(Strategy):
             + (0.06 if allow_runner else 0.0)
             + (0.03 if round_level is not None else 0.0)
         )
-        state.stage = RejectionStage.REACTION
+        if self.staged_entries_enabled:
+            probe_fraction = max(
+                0.05,
+                min(float(self.probe_risk_fraction), 0.80),
+            )
+            if not flow_reversed:
+                staged_phase = "probe"
+                staged_risk_fraction = probe_fraction
+                state.stage = RejectionStage.REJECT
+            elif state.probe_opened:
+                staged_phase = "add"
+                staged_risk_fraction = 1.0 - probe_fraction
+                state.stage = RejectionStage.REACTION
+            else:
+                staged_phase = "full"
+                staged_risk_fraction = 1.0
+                state.stage = RejectionStage.REACTION
+        else:
+            staged_phase = "full"
+            staged_risk_fraction = 1.0
+            state.stage = RejectionStage.REACTION
 
         return StrategyDecision(
             strategy=self.key,
@@ -532,7 +586,17 @@ class WeakLevelRejectionStrategy(Strategy):
             reasons=[
                 f"Слабый уровень: {approaches} отдельных подход(а), без длительной проторговки",
                 "Попытка пробоя не удержалась, цена вернулась за границу зоны",
-                "Поток непосредственно у уровня подтвердил разворот/поглощение",
+                (
+                    "Ранний probe разрешён подтверждённым absorption; "
+                    "остаток риска ждёт flow reversal"
+                    if staged_phase == "probe"
+                    else (
+                        "Flow reversal подтвердил probe; добавляем только "
+                        "зарезервированный остаток риска"
+                        if staged_phase == "add"
+                        else "Поток непосредственно у уровня подтвердил разворот/поглощение"
+                    )
+                ),
                 "Отскок разрешён локальным playbook-контекстом",
             ],
             confidence=quality,
@@ -557,6 +621,25 @@ class WeakLevelRejectionStrategy(Strategy):
                     else None
                 ),
                 "opportunityArm": opportunity_arm,
+                "attackAbsorbed": attack_absorbed,
+                "flowReversed": flow_reversed,
+                "stagedEntry": {
+                    "phase": staged_phase,
+                    "riskFraction": staged_risk_fraction,
+                    "probeRiskFraction": (
+                        max(
+                            0.05,
+                            min(
+                                float(self.probe_risk_fraction),
+                                0.80,
+                            ),
+                        )
+                        if self.staged_entries_enabled
+                        else 0.0
+                    ),
+                    "confirmationReady": flow_reversed,
+                    "probeOpened": state.probe_opened,
+                },
                 **context_details,
                 "entryContextAssessment": entry_context.public(),
                 "levelLifecycle": (
@@ -742,6 +825,7 @@ class WeakLevelRejectionStrategy(Strategy):
             state.swept = False
             state.armed_at = 0.0
             state.armed_price = 0.0
+            state.probe_opened = False
             state.stage = RejectionStage.SEARCH
             state.zone_key = None
 

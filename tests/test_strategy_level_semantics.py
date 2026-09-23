@@ -124,6 +124,7 @@ def test_breakout_shared_level_requires_mature_lifecycle() -> None:
 
 def test_breakout_shared_generation_is_used_only_once() -> None:
     strategy = LevelBreakoutStrategy()
+    strategy.staged_entries_enabled = False
     rows = mature_breakout_candles()
     book = OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)])
     structure = mature_structure()
@@ -394,6 +395,7 @@ def test_breakout_global_flow_away_from_level_does_not_confirm() -> None:
 
 def test_breakout_records_level_flow_on_entry() -> None:
     strategy = LevelBreakoutStrategy()
+    strategy.staged_entries_enabled = False
     book = OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)])
     first = strategy.evaluate(
         mature_breakout_candles(),
@@ -420,7 +422,7 @@ def test_breakout_records_level_flow_on_entry() -> None:
 
 
 
-def test_rejection_global_flow_away_from_level_does_not_confirm() -> None:
+def test_rejection_far_global_flow_cannot_upgrade_absorption_probe_to_reaction() -> None:
     strategy = WeakLevelRejectionStrategy()
     decision = strategy.evaluate(
         rejection_candles(),
@@ -444,8 +446,13 @@ def test_rejection_global_flow_away_from_level_does_not_confirm() -> None:
         structure=young_support(),
     )
 
-    assert decision.action == Action.WAIT
+    # Stage 15 intentionally allows the failed-break absorption itself to
+    # open only a small probe. Far-away global buys must not promote it to
+    # the confirmed REACTION/add phase.
+    assert decision.action == Action.LONG
     assert decision.details["state"] == "reject"
+    assert decision.details["stagedEntry"]["phase"] == "probe"
+    assert decision.details["flowReversed"] is False
     assert decision.details["flow"]["imbalance5s"] > 0
     assert decision.details["breakoutFlow"]["tradeCount"] > 0
     assert decision.details["levelFlow"]["imbalance"] < 0
