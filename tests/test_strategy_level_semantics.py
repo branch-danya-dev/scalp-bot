@@ -676,3 +676,137 @@ def test_breakout_keeps_exact_structural_generation_identity() -> None:
     state = strategy._states["IDENTITYUSDT"]
     assert state.armed_generation_id == "R:selected:g3"
     assert decision.details["zoneGeneration"][1] == "R:selected:g3"
+
+
+
+def test_breakout_time_only_hold_requires_directional_price_response(
+    monkeypatch,
+) -> None:
+    import scalp_bot.strategy.breakout as module
+    from scalp_bot.strategy.flow import LevelFlow
+
+    strategy = LevelBreakoutStrategy()
+    strategy.staged_entries_enabled = False
+    strategy._pressure_score = lambda *args, **kwargs: (
+        3,
+        {"fixtureBaseScore": 3},
+    )
+    weak_response = LevelFlow(
+        buy_notional=10_000,
+        total_notional=10_000,
+        imbalance=1.0,
+        trade_count=12,
+        price_response_pct=0.0001,
+        absorption_efficiency=0.10,
+    )
+    monkeypatch.setattr(
+        module,
+        "flow_at_level",
+        lambda *args, **kwargs: weak_response,
+    )
+    monkeypatch.setattr(
+        module,
+        "flow_beyond_level",
+        lambda *args, **kwargs: weak_response,
+    )
+
+    rows = mature_breakout_candles()
+    market = OrderBook(
+        bids=[(100.16, 50)],
+        asks=[(100.17, 50)],
+    )
+    first = strategy.evaluate(
+        rows,
+        market,
+        Trend.UP,
+        symbol="WEAKHOLDUSDT",
+        trades=aggressive_buy_flow(),
+        structure=mature_structure(),
+    )
+    assert first.action == Action.WAIT
+    strategy._states[
+        "WEAKHOLDUSDT"
+    ].break_started_at -= (
+        strategy.hold_without_retest_seconds + 1
+    )
+
+    still_wait = strategy.evaluate(
+        rows,
+        market,
+        Trend.UP,
+        symbol="WEAKHOLDUSDT",
+        trades=aggressive_buy_flow(),
+        structure=mature_structure(),
+    )
+    assert still_wait.action == Action.WAIT
+    assert still_wait.details["sustainedResponseReady"] is False
+
+
+def test_breakout_sustained_hold_fires_only_with_real_price_response(
+    monkeypatch,
+) -> None:
+    import scalp_bot.strategy.breakout as module
+    from scalp_bot.strategy.flow import LevelFlow
+
+    strategy = LevelBreakoutStrategy()
+    strategy.staged_entries_enabled = False
+    strategy._pressure_score = lambda *args, **kwargs: (
+        3,
+        {"fixtureBaseScore": 3},
+    )
+    directional = LevelFlow(
+        buy_notional=10_000,
+        total_notional=10_000,
+        imbalance=1.0,
+        trade_count=12,
+        price_response_pct=0.0007,
+        absorption_efficiency=0.05,
+    )
+    monkeypatch.setattr(
+        module,
+        "flow_at_level",
+        lambda *args, **kwargs: directional,
+    )
+    monkeypatch.setattr(
+        module,
+        "flow_beyond_level",
+        lambda *args, **kwargs: directional,
+    )
+
+    rows = mature_breakout_candles()
+    market = OrderBook(
+        bids=[(100.16, 50)],
+        asks=[(100.17, 50)],
+    )
+    first = strategy.evaluate(
+        rows,
+        market,
+        Trend.UP,
+        symbol="STRONGHOLDUSDT",
+        trades=aggressive_buy_flow(),
+        structure=mature_structure(),
+    )
+    assert first.action == Action.WAIT
+    strategy._states[
+        "STRONGHOLDUSDT"
+    ].break_started_at -= (
+        strategy.hold_without_retest_seconds + 1
+    )
+
+    fired = strategy.evaluate(
+        rows,
+        market,
+        Trend.UP,
+        symbol="STRONGHOLDUSDT",
+        trades=aggressive_buy_flow(),
+        structure=mature_structure(),
+    )
+    assert fired.action == Action.LONG
+    assert (
+        fired.details["breakoutConfirmationMode"]
+        == "sustained_price_response"
+    )
+    assert (
+        fired.details["fireTrigger"]["source"]
+        == "breakout_sustained_price_response"
+    )
