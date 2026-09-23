@@ -15,6 +15,14 @@ class EntryFreshnessClass(StrEnum):
     UNKNOWN = "unknown"
 
 
+DEFAULT_FRESHNESS_HORIZON_SECONDS = {
+    "trend_structure": 90.0,
+    "level_breakout": 120.0,
+    "weak_level_rejection": 60.0,
+    "orderbook_density": 60.0,
+}
+
+
 @dataclass(slots=True)
 class EntryFreshness:
     classification: EntryFreshnessClass
@@ -27,6 +35,9 @@ class EntryFreshness:
     move_since_trigger_pct: float | None
     expected_impulse_pct: float | None
     move_spent_ratio: float | None
+    expected_duration_seconds: float | None
+    time_spent_ratio: float | None
+    effective_spent_ratio: float | None
     watched_level: float | None
     distance_from_level_pct: float | None
     source: str
@@ -44,11 +55,21 @@ class EntryFreshness:
             "moveSinceTriggerPct": self.move_since_trigger_pct,
             "expectedImpulsePct": self.expected_impulse_pct,
             "moveSpentRatio": self.move_spent_ratio,
+            "expectedDurationSeconds": self.expected_duration_seconds,
+            "timeSpentRatio": self.time_spent_ratio,
+            "effectiveSpentRatio": self.effective_spent_ratio,
             "watchedLevel": self.watched_level,
             "distanceFromLevelPct": self.distance_from_level_pct,
             "source": self.source,
             "reasons": list(self.reasons),
         }
+
+
+# Stage 13 uses the market opportunity as the freshness object.  Keep the old
+# type/function names as compatibility aliases because reports and earlier
+# research stages already consume "entryFreshness".
+OpportunityFreshness = EntryFreshness
+OpportunityFreshnessClass = EntryFreshnessClass
 
 
 def _directional_move(
@@ -104,6 +125,48 @@ def _expected_impulse_pct(
     return resolved if resolved > 0 else None
 
 
+def _expected_duration_seconds(
+    decision: StrategyDecision,
+) -> float | None:
+    details = decision.details or {}
+    explicit = details.get("freshnessHorizonSeconds")
+    if isinstance(explicit, (int, float)) and explicit > 0:
+        return float(explicit)
+    return DEFAULT_FRESHNESS_HORIZON_SECONDS.get(
+        decision.strategy,
+        90.0,
+    )
+
+
+def _classification(
+    ratio: float | None,
+) -> tuple[EntryFreshnessClass, str]:
+    if ratio is None:
+        return (
+            EntryFreshnessClass.UNKNOWN,
+            "opportunity age and expected impulse could not be estimated",
+        )
+    if ratio <= 0.25:
+        return (
+            EntryFreshnessClass.FRESH,
+            "no more than 25% of the opportunity budget is spent",
+        )
+    if ratio <= 0.50:
+        return (
+            EntryFreshnessClass.ACCEPTABLE,
+            "25-50% of the opportunity budget is already spent",
+        )
+    if ratio <= 0.80:
+        return (
+            EntryFreshnessClass.LATE,
+            "50-80% of the opportunity budget is already spent",
+        )
+    return (
+        EntryFreshnessClass.EXHAUSTED,
+        "more than 80% of the opportunity budget is already spent",
+    )
+
+
 def classify_entry_freshness(
     decision: StrategyDecision,
     *,
@@ -114,31 +177,53 @@ def classify_entry_freshness(
     source: str,
 ) -> EntryFreshness:
     reasons: list[str] = []
+    age = (
+        max(0.0, observed_ts - trigger_ts)
+        if trigger_ts is not None
+        else None
+    )
+    duration = _expected_duration_seconds(decision)
+    time_spent = (
+        age / duration
+        if age is not None and duration is not None and duration > 0
+        else None
+    )
+
     if (
         decision.action not in {Action.LONG, Action.SHORT}
         or current_price <= 0
         or trigger_price is None
         or trigger_price <= 0
     ):
+        effective = time_spent
+        classification, classification_reason = _classification(
+            effective
+        )
+        if trigger_price is None or trigger_price <= 0:
+            reasons.append(
+                "opportunity freshness lacks a directional trigger price"
+            )
+        reasons.append(classification_reason)
+        if age is not None:
+            reasons.append(f"confirmation age is {age:.1f}s")
         return EntryFreshness(
-            classification=EntryFreshnessClass.UNKNOWN,
+            classification=classification,
             trigger_price=trigger_price,
             current_price=current_price if current_price > 0 else None,
             trigger_ts=trigger_ts,
             observed_ts=observed_ts,
-            confirmation_age_seconds=(
-                max(0.0, observed_ts - trigger_ts)
-                if trigger_ts is not None
-                else None
-            ),
+            confirmation_age_seconds=age,
             signed_move_since_trigger_pct=None,
             move_since_trigger_pct=None,
             expected_impulse_pct=None,
             move_spent_ratio=None,
+            expected_duration_seconds=duration,
+            time_spent_ratio=time_spent,
+            effective_spent_ratio=effective,
             watched_level=decision.watched_level,
             distance_from_level_pct=None,
             source=source,
-            reasons=["entry freshness lacks a directional trigger price"],
+            reasons=reasons,
         )
 
     signed_move = _directional_move(
@@ -148,43 +233,39 @@ def classify_entry_freshness(
     )
     favorable_move = max(0.0, signed_move)
     expected = _expected_impulse_pct(decision, current_price)
-    spent = (
+    move_spent = (
         favorable_move / expected
         if expected is not None and expected > 0
         else None
     )
+    available = [
+        ratio
+        for ratio in (move_spent, time_spent)
+        if ratio is not None
+    ]
+    effective = max(available) if available else None
+    classification, classification_reason = _classification(effective)
+    reasons.append(classification_reason)
+
     distance_from_level = (
         abs(float(current_price) - float(decision.watched_level))
         / float(current_price)
         if decision.watched_level is not None and current_price > 0
         else None
     )
-    age = (
-        max(0.0, observed_ts - trigger_ts)
-        if trigger_ts is not None
-        else None
-    )
 
-    if spent is None:
-        classification = EntryFreshnessClass.UNKNOWN
+    if move_spent is None:
         reasons.append("expected impulse could not be estimated")
-    elif spent <= 0.25:
-        classification = EntryFreshnessClass.FRESH
-        reasons.append("no more than 25% of expected impulse is spent")
-    elif spent <= 0.50:
-        classification = EntryFreshnessClass.ACCEPTABLE
-        reasons.append("25-50% of expected impulse is already spent")
-    elif spent <= 0.80:
-        classification = EntryFreshnessClass.LATE
-        reasons.append("50-80% of expected impulse is already spent")
-    else:
-        classification = EntryFreshnessClass.EXHAUSTED
-        reasons.append("more than 80% of expected impulse is already spent")
-
     if signed_move < 0:
         reasons.append("price is behind the causal trigger in trade direction")
     if age is not None:
         reasons.append(f"confirmation age is {age:.1f}s")
+    if (
+        time_spent is not None
+        and move_spent is not None
+        and time_spent > move_spent
+    ):
+        reasons.append("elapsed opportunity age is the binding freshness limit")
 
     return EntryFreshness(
         classification=classification,
@@ -196,9 +277,15 @@ def classify_entry_freshness(
         signed_move_since_trigger_pct=signed_move,
         move_since_trigger_pct=favorable_move,
         expected_impulse_pct=expected,
-        move_spent_ratio=spent,
+        move_spent_ratio=move_spent,
+        expected_duration_seconds=duration,
+        time_spent_ratio=time_spent,
+        effective_spent_ratio=effective,
         watched_level=decision.watched_level,
         distance_from_level_pct=distance_from_level,
         source=source,
         reasons=reasons,
     )
+
+
+classify_opportunity_freshness = classify_entry_freshness
