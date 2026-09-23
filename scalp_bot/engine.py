@@ -90,6 +90,8 @@ class ActiveSymbolSession:
     structure: MarketStructure | None = None
     decisions: dict[str, StrategyDecision] = field(default_factory=dict)
     decision_fingerprints: dict[str, tuple] = field(default_factory=dict)
+    strategy_states: dict[str, str] = field(default_factory=dict)
+    strategy_state_started_at: dict[str, float] = field(default_factory=dict)
     trades: deque[TradeTick] = field(default_factory=deque)
     book_flow: deque[tuple[int, float]] = field(default_factory=deque)
     last_book_flow_ms: int = 0
@@ -989,6 +991,22 @@ class TradingEngine:
             return False
         return True
 
+    def _evaluation_interval_seconds(
+        self,
+        session: ActiveSymbolSession,
+    ) -> float:
+        idle = max(
+            0.05,
+            float(self.config.evaluation_idle_interval_seconds),
+        )
+        engaged = max(
+            0.05,
+            float(self.config.evaluation_engaged_interval_seconds),
+        )
+        if self._session_engaged(session):
+            return min(idle, engaged)
+        return idle
+
     def _session_engaged(self, session: ActiveSymbolSession) -> bool:
         if any(decision.tradeable for decision in session.decisions.values()):
             return True
@@ -1276,7 +1294,10 @@ class TradingEngine:
                     )
 
             now = monotonic()
-            if now - session.last_eval >= 0.8:
+            evaluation_interval = self._evaluation_interval_seconds(
+                session
+            )
+            if now - session.last_eval >= evaluation_interval:
                 session.last_eval = now
                 await self._evaluate(session)
 
@@ -3240,7 +3261,11 @@ class TradingEngine:
             snapshot=True,
         )
 
-    def _record_decision_if_changed(self, session: ActiveSymbolSession, decision: StrategyDecision) -> None:
+    def _record_decision_if_changed(
+        self,
+        session: ActiveSymbolSession,
+        decision: StrategyDecision,
+    ) -> None:
         fingerprint = (
             decision.action.value,
             decision.setup_id,
@@ -3249,17 +3274,112 @@ class TradingEngine:
             decision.details.get("state"),
             tuple(decision.reasons),
         )
-        if session.decision_fingerprints.get(decision.strategy) == fingerprint:
+        if (
+            session.decision_fingerprints.get(decision.strategy)
+            == fingerprint
+        ):
             return
-        session.decision_fingerprints[decision.strategy] = fingerprint
+
+        observed_at = time()
+        state = str(decision.details.get("state") or "")
+        if state:
+            previous_state = session.strategy_states.get(
+                decision.strategy
+            )
+            previous_started_at = (
+                session.strategy_state_started_at.get(
+                    decision.strategy
+                )
+            )
+            if previous_state != state:
+                previous_duration = (
+                    max(0.0, observed_at - previous_started_at)
+                    if previous_started_at is not None
+                    else None
+                )
+                state_timing = {
+                    "fromState": previous_state,
+                    "toState": state,
+                    "transitionAt": observed_at,
+                    "stateEnteredAt": observed_at,
+                    "stateAgeSeconds": 0.0,
+                    "previousStateDurationSeconds": (
+                        previous_duration
+                    ),
+                }
+                session.strategy_states[decision.strategy] = state
+                session.strategy_state_started_at[
+                    decision.strategy
+                ] = observed_at
+                decision.details["stateTiming"] = state_timing
+                self._emit(
+                    "strategy_state_transition",
+                    session.symbol,
+                    {
+                        "strategy": decision.strategy,
+                        "setupId": decision.setup_id,
+                        "action": decision.action.value,
+                        "tradeable": decision.tradeable,
+                        **state_timing,
+                        "opportunityArm": (
+                            decision.details.get(
+                                "opportunityArm"
+                            )
+                        ),
+                        "opportunityFreshness": (
+                            decision.details.get(
+                                "opportunityFreshness"
+                            )
+                        ),
+                        "formingCandle": (
+                            session.forming_candle_context.public()
+                            if (
+                                session.forming_candle_context
+                                is not None
+                            )
+                            else None
+                        ),
+                    },
+                )
+            else:
+                state_started_at = (
+                    previous_started_at
+                    if previous_started_at is not None
+                    else observed_at
+                )
+                session.strategy_state_started_at.setdefault(
+                    decision.strategy,
+                    state_started_at,
+                )
+                decision.details["stateTiming"] = {
+                    "fromState": state,
+                    "toState": state,
+                    "transitionAt": None,
+                    "stateEnteredAt": state_started_at,
+                    "stateAgeSeconds": max(
+                        0.0,
+                        observed_at - state_started_at,
+                    ),
+                    "previousStateDurationSeconds": None,
+                }
+
+        session.decision_fingerprints[decision.strategy] = (
+            fingerprint
+        )
         stats = self.strategy_stats.get(decision.strategy)
         if stats is not None:
             stats["decisions"] = int(stats["decisions"]) + 1
-            stats["decisionUpdates"] = int(stats["decisionUpdates"]) + 1
+            stats["decisionUpdates"] = (
+                int(stats["decisionUpdates"]) + 1
+            )
             state_counts = stats.get("stateCounts")
             if isinstance(state_counts, dict):
-                state_key = str(decision.details.get("state") or "unknown")
-                state_counts[state_key] = int(state_counts.get(state_key, 0)) + 1
+                state_key = str(
+                    decision.details.get("state") or "unknown"
+                )
+                state_counts[state_key] = (
+                    int(state_counts.get(state_key, 0)) + 1
+                )
             if decision.tradeable:
                 stats["tradeableSignals"] += 1
                 resolved_setup_id = (
@@ -3279,7 +3399,7 @@ class TradingEngine:
                     stats["uniqueTradeableSetups"] += 1
             else:
                 stats["waitDecisions"] += 1
-        observed_at_ms = int(time() * 1000)
+        observed_at_ms = int(observed_at * 1000)
         payload = decision.public()
         payload["marketContext"] = session.market_context_public()
         payload["trace"] = build_decision_trace(

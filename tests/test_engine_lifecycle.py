@@ -2019,3 +2019,132 @@ def test_strategy_stats_count_unique_setup_once_across_updates(
         assert stats["decisionUpdates"] == 2
     finally:
         close_rest(engine)
+
+
+def test_engaged_setup_uses_fast_evaluation_cadence(tmp_path) -> None:
+    engine = make_engine(
+        tmp_path,
+        evaluation_idle_interval_seconds=0.8,
+        evaluation_engaged_interval_seconds=0.2,
+    )
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+        )
+        assert engine._evaluation_interval_seconds(
+            session
+        ) == pytest.approx(0.8)
+
+        session.decisions["trend_structure"] = StrategyDecision(
+            strategy="trend_structure",
+            action=Action.WAIT,
+            reasons=["armed"],
+            confidence=0.2,
+            details={"state": "armed"},
+        )
+
+        assert engine._session_engaged(session)
+        assert engine._evaluation_interval_seconds(
+            session
+        ) == pytest.approx(0.2)
+    finally:
+        close_rest(engine)
+
+
+def test_engaged_evaluation_never_becomes_slower_than_idle(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        evaluation_idle_interval_seconds=0.4,
+        evaluation_engaged_interval_seconds=0.9,
+    )
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            decisions={
+                "level_breakout": StrategyDecision(
+                    strategy="level_breakout",
+                    action=Action.WAIT,
+                    reasons=["armed"],
+                    details={"state": "armed"},
+                )
+            },
+        )
+        assert engine._evaluation_interval_seconds(
+            session
+        ) == pytest.approx(0.4)
+    finally:
+        close_rest(engine)
+
+
+def test_strategy_state_transition_records_dwell_and_arm_context(
+    tmp_path,
+) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            trend=Trend.UP,
+        )
+        armed = StrategyDecision(
+            strategy="trend_structure",
+            action=Action.WAIT,
+            reasons=["armed"],
+            watched_level=100.0,
+            details={
+                "state": "armed",
+                "opportunityArm": {
+                    "observedAtMs": 100_000,
+                    "price": 100.0,
+                    "source": "trendline_live_test_armed",
+                },
+            },
+        )
+        engine._record_decision_if_changed(
+            session,
+            armed,
+        )
+
+        reclaim = StrategyDecision(
+            strategy="trend_structure",
+            action=Action.WAIT,
+            reasons=["reclaim"],
+            watched_level=100.0,
+            details={
+                "state": "reclaim",
+                "opportunityArm": armed.details[
+                    "opportunityArm"
+                ],
+            },
+        )
+        engine._record_decision_if_changed(
+            session,
+            reclaim,
+        )
+
+        transitions = [
+            row
+            for row in engine.events
+            if row["event"] == "strategy_state_transition"
+        ]
+        assert len(transitions) == 2
+        reclaim_event = next(
+            row
+            for row in transitions
+            if row["payload"]["toState"] == "reclaim"
+        )
+        payload = reclaim_event["payload"]
+        assert payload["fromState"] == "armed"
+        assert payload["previousStateDurationSeconds"] is not None
+        assert payload["previousStateDurationSeconds"] >= 0.0
+        assert (
+            payload["opportunityArm"]["source"]
+            == "trendline_live_test_armed"
+        )
+        assert reclaim.details["stateTiming"]["fromState"] == "armed"
+        assert reclaim.details["stateTiming"]["toState"] == "reclaim"
+    finally:
+        close_rest(engine)

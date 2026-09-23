@@ -120,6 +120,11 @@ class Settings(BaseSettings):
 
     setup_rearm_seconds: float = 20.0
     setup_reset_wait_seconds: float = 10.0
+    # Keep idle symbols cheap, but evaluate engaged setups much faster so
+    # ARMED -> confirmation -> FIRE latency is driven by market evidence
+    # instead of the old fixed 0.8s polling cadence.
+    evaluation_idle_interval_seconds: float = 0.8
+    evaluation_engaged_interval_seconds: float = 0.20
     arbiter_interval_seconds: float = 0.25
     market_stale_seconds: float = 3.0
     book_stale_seconds: float = 1.5
