@@ -1,8 +1,20 @@
+import os
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+_DISABLE_DOTENV = os.getenv(
+    "SCALP_DISABLE_DOTENV",
+    "",
+).strip().lower() in {"1", "true", "yes", "on"}
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="SCALP_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="SCALP_",
+        env_file=None if _DISABLE_DOTENV else ".env",
+        extra="ignore",
+    )
 
     bybit_rest_url: str = "https://api.bybit.com"
     bybit_rest_fallback_urls: str = "https://api.bytick.com"
