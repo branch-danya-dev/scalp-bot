@@ -66,10 +66,34 @@ def test_analysis_pack_keeps_events_candles_reports_and_sampled_books(tmp_path):
                 "target": 101.0,
             },
         })
+        write_row(
+            fh,
+            3.5,
+            "strategy_state_transition",
+            "AAAUSDT",
+            {
+                "strategy": "level_breakout",
+                "fromState": "armed",
+                "toState": "break",
+                "preparedOpportunity": {
+                    "preparedAtMs": 3000,
+                    "pinned": True,
+                },
+                "fireTrigger": {
+                    "observedAtMs": 3500,
+                    "source": "breakout_early_probe",
+                },
+            },
+        )
         for second in range(4, 10):
             write_row(fh, float(second), "research_frame", "AAAUSDT", {
                 "lastPrice": 100.0 + second / 10,
                 "trend": "up",
+                "analysisRuntime": {
+                    "mode": "live_fast_path",
+                    "staticAnalysisRebuilds": 1,
+                    "liveFastPathReuses": second,
+                },
                 "marketContext": {
                     "legacyTrend": "up",
                     "htfBias": {
@@ -177,10 +201,22 @@ def test_analysis_pack_keeps_events_candles_reports_and_sampled_books(tmp_path):
     assert report["marketContextDiagnostics"]["frameCounts"]["liquidityBias"]["up"] > 0
     assert report["marketContextDiagnostics"]["frameCounts"]["executionReady"]["true"] > 0
     assert report["marketContextDiagnostics"]["frameCounts"]["structureAvailable"]["true"] > 0
+    assert report["marketContextDiagnostics"]["frameCounts"]["analysisMode"]["live_fast_path"] > 0
     assert '"marketContext"' in compact
+    assert '"analysisRuntime"' in compact
+    assert '"strategy_state_transition"' in compact
     assert manifest["compaction"]["interactionDecisionFocusStates"]["level_breakout"] == [
+        "armed",
         "break",
         "impulse",
+        "pressure",
+    ]
+    assert manifest["compaction"]["interactionDecisionFocusStates"]["trend_structure"] == [
+        "armed",
+        "continuation",
+        "pullback",
+        "reclaim",
+        "test",
     ]
     assert '"risk_reject"' in compact
     assert books

@@ -44,8 +44,12 @@ class SessionRecorder:
             "risk_reject",
             "setup_blocked",
             "entry_pending",
+            "entry_add_pending",
             "entry_cancelled",
             "trade_opened",
+            "position_added",
+            "strategy_state_transition",
+            "entry_freshness_changed",
             "partial_take",
             "trade_closed",
             "setup_consumed",
@@ -332,8 +336,12 @@ class SessionRecorder:
             "risk_reject",
             "setup_blocked",
             "entry_pending",
+            "entry_add_pending",
             "entry_cancelled",
             "trade_opened",
+            "position_added",
+            "strategy_state_transition",
+            "entry_freshness_changed",
             "partial_take",
             "trade_closed",
             "setup_consumed",
@@ -419,6 +427,12 @@ class SessionRecorder:
                 "initialStop": close_payload.get("initialStop"),
                 "target": close_payload.get("target"),
                 "originalNotional": close_payload.get("originalNotional"),
+                "entryLegs": list(
+                    close_payload.get("entryLegs") or []
+                ),
+                "scaleInCount": int(
+                    close_payload.get("scaleInCount") or 0
+                ),
                 "netPnl": close_payload.get("netPnl"),
                 "grossPnl": close_payload.get("grossPnl"),
                 "fees": close_payload.get("fees"),
@@ -554,6 +568,7 @@ class SessionRecorder:
             "lastPrice": snapshot.get("lastPrice"),
             "trend": snapshot.get("trend"),
             "marketContext": snapshot.get("marketContext"),
+            "analysisRuntime": snapshot.get("analysisRuntime"),
             "orderbook": {
                 "bids": list(book.get("bids") or [])[:book_depth],
                 "asks": list(book.get("asks") or [])[:book_depth],
@@ -622,6 +637,7 @@ class SessionRecorder:
             "liquidityBias": {},
             "executionReady": {},
             "structureAvailable": {},
+            "analysisMode": {},
         }
 
         def strategy_diag(strategy: str) -> dict:
@@ -648,8 +664,10 @@ class SessionRecorder:
                     "researchPolicyBlockedMatches": 0,
                     "researchPolicyRuleMatchCounts": {},
                     "entryPending": 0,
+                    "entryAddPending": 0,
                     "entryCancelled": 0,
                     "tradesOpened": 0,
+                    "positionAdds": 0,
                     "entryFreshnessCounts": {},
                     "entryMoveSpentTotal": 0.0,
                     "entryMoveSpentSamples": 0,
@@ -928,7 +946,11 @@ class SessionRecorder:
                             + 1
                         )
 
-            if event in {"entry_pending", "entry_cancelled"}:
+            if event in {
+                "entry_pending",
+                "entry_add_pending",
+                "entry_cancelled",
+            }:
                 strategy = str(
                     payload.get("strategy")
                     or (payload.get("plan") or {}).get("strategy")
@@ -938,9 +960,23 @@ class SessionRecorder:
                     key = (
                         "entryPending"
                         if event == "entry_pending"
-                        else "entryCancelled"
+                        else (
+                            "entryAddPending"
+                            if event == "entry_add_pending"
+                            else "entryCancelled"
+                        )
                     )
                     strategy_diag(strategy)[key] += 1
+
+            if event == "position_added":
+                plan = payload.get("plan") or {}
+                strategy = str(
+                    plan.get("strategy")
+                    or payload.get("strategy")
+                    or ""
+                )
+                if strategy:
+                    strategy_diag(strategy)["positionAdds"] += 1
 
             if event == "trade_opened":
                 plan = payload.get("plan") or {}
@@ -1232,6 +1268,17 @@ class SessionRecorder:
                         if isinstance(structure_context, dict)
                         else "false"
                     )
+                    analysis_runtime = (
+                        payload.get("analysisRuntime") or {}
+                    )
+                    analysis_mode = (
+                        str(
+                            analysis_runtime.get("mode")
+                            or "unknown"
+                        )
+                        if isinstance(analysis_runtime, dict)
+                        else "unknown"
+                    )
                     for bucket_name, value in (
                         ("legacyTrend", legacy),
                         ("htfBias", htf_key),
@@ -1243,6 +1290,7 @@ class SessionRecorder:
                         ("liquidityBias", liquidity_bias),
                         ("executionReady", execution_ready_key),
                         ("structureAvailable", structure_available_key),
+                        ("analysisMode", analysis_mode),
                     ):
                         bucket = market_context_counts[bucket_name]
                         bucket[value] = bucket.get(value, 0) + 1
@@ -1255,7 +1303,13 @@ class SessionRecorder:
                     item["maxAskDepth"] = max(item["maxAskDepth"], len(asks))
 
             market = payload.get("market")
-            if event in {"trade_opened", "trade_closed", "risk_reject", "partial_take"} and isinstance(market, dict):
+            if event in {
+                "trade_opened",
+                "position_added",
+                "trade_closed",
+                "risk_reject",
+                "partial_take",
+            } and isinstance(market, dict):
                 item["tradeSnapshots"] += 1
                 for candle in market.get("candles") or []:
                     remember_candle(symbol, candle)
