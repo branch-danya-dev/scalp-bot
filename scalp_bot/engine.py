@@ -2471,7 +2471,8 @@ class TradingEngine:
         plan: dict,
         position: dict,
         *,
-        opportunity_score: float | None = None,
+        semantic_arbitration: dict | None = None,
+        selection_priority: dict | None = None,
     ) -> None:
         strategy_key = str(plan.get("strategy") or "")
         stats = self.strategy_stats.get(strategy_key)
@@ -2489,8 +2490,31 @@ class TradingEngine:
                 "position": position,
                 "reasons": decision.reasons if decision else [],
                 "visuals": decision.visuals if decision else {},
-                "opportunityScore": opportunity_score,
-                "opportunityQuality": float(
+                "semanticArbitration": (
+                    semantic_arbitration
+                    or (
+                        plan.get("strategy_details", {})
+                        .get("semanticArbitration")
+                        if isinstance(
+                            plan.get("strategy_details"),
+                            dict,
+                        )
+                        else None
+                    )
+                ),
+                "selectionPriority": (
+                    selection_priority
+                    or (
+                        plan.get("strategy_details", {})
+                        .get("selectionPriority")
+                        if isinstance(
+                            plan.get("strategy_details"),
+                            dict,
+                        )
+                        else None
+                    )
+                ),
+                "playbookSetupQuality": float(
                     decision.details.get(
                         "setupQuality",
                         decision.confidence,
@@ -2504,24 +2528,45 @@ class TradingEngine:
             snapshot=True,
         )
 
-    @staticmethod
-    def _opportunity_score(
+    def _record_arbiter_blocked(
+        self,
+        session: ActiveSymbolSession,
         decision: StrategyDecision,
-        activity_rank: int,
-        activity_score: float = 0.0,
-    ) -> float:
-        # Geometry-derived net R/R was not predictive in the long paper run:
-        # it describes payoff *if target is reached*, not the probability of
-        # reaching it. Rank opportunities by strategy-specific setup quality
-        # and use activity only as a small tie-breaker.
-        quality = float(decision.details.get("setupQuality", decision.confidence) or 0.0)
-        activity_bonus = max(0.0, 12 - min(activity_rank, 12)) * 0.5
-        market_attention_bonus = max(0.0, min(activity_score, 100.0)) * 0.12
-        return (
-            quality * 100
-            + decision.confidence * 15
-            + activity_bonus
-            + market_attention_bonus
+        assessment: SemanticCandidateAssessment,
+    ) -> None:
+        fingerprint = (
+            decision.setup_id,
+            tuple(assessment.blockers),
+            tuple(assessment.conflicting_strategies),
+            assessment.structural_path.blocked,
+        )
+        if (
+            session.arbiter_block_fingerprints.get(
+                decision.strategy
+            )
+            == fingerprint
+        ):
+            return
+        session.arbiter_block_fingerprints[
+            decision.strategy
+        ] = fingerprint
+        self._emit(
+            "arbiter_blocked",
+            session.symbol,
+            {
+                "strategy": decision.strategy,
+                "setupId": decision.setup_id,
+                "blockers": list(assessment.blockers),
+                "conflictingStrategies": list(
+                    assessment.conflicting_strategies
+                ),
+                "confluenceStrategies": list(
+                    assessment.confluence_strategies
+                ),
+                "semanticArbitration": assessment.public(),
+                "decision": decision.public(),
+            },
+            snapshot=True,
         )
 
     def _setup_blocked_reason(
