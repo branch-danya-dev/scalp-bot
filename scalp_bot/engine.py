@@ -102,6 +102,11 @@ class ActiveSymbolSession:
     entry_freshness_anchors: dict[str, dict] = field(default_factory=dict)
     entry_freshness_fingerprints: dict[str, tuple] = field(default_factory=dict)
     structure: MarketStructure | None = None
+    static_analysis_key: tuple | None = None
+    static_analysis_rebuilds: int = 0
+    live_fast_path_reuses: int = 0
+    static_analysis_rebuilt_at_ms: int = 0
+    last_analysis_mode: str = "uninitialized"
     decisions: dict[str, StrategyDecision] = field(default_factory=dict)
     decision_fingerprints: dict[str, tuple] = field(default_factory=dict)
     strategy_states: dict[str, str] = field(default_factory=dict)
@@ -445,6 +450,21 @@ class ActiveSymbolSession:
             "focusLevels": focus,
         }
 
+    def analysis_runtime_public(self) -> dict:
+        return {
+            "mode": self.last_analysis_mode,
+            "staticAnalysisRebuilds": self.static_analysis_rebuilds,
+            "liveFastPathReuses": self.live_fast_path_reuses,
+            "staticAnalysisRebuiltAtMs": (
+                self.static_analysis_rebuilt_at_ms or None
+            ),
+            "staticAnalysisKey": (
+                list(self.static_analysis_key)
+                if self.static_analysis_key is not None
+                else None
+            ),
+        }
+
     def market_context_public(self) -> dict:
         if self.market_context is not None:
             return self.market_context.public()
@@ -484,6 +504,7 @@ class ActiveSymbolSession:
             "lastPrice": self.last_price,
             "trend": self.trend.value,
             "marketContext": self.market_context_public(),
+            "analysisRuntime": self.analysis_runtime_public(),
             "candles": [x.public() for x in self.candles[-240:]],
             "chartSeries": self.chart_series(now_ms),
             "orderbook": self.orderbook.public(50),
@@ -525,6 +546,7 @@ class ActiveSymbolSession:
             "lastPrice": self.last_price,
             "trend": self.trend.value,
             "marketContext": self.market_context_public(),
+            "analysisRuntime": self.analysis_runtime_public(),
             "candle": self.candles[-1].public() if self.candles else None,
             "orderbook": self.orderbook.public(book_depth),
             "bookHealth": self.book_health(),
@@ -1256,6 +1278,10 @@ class TradingEngine:
                         closed_15m=session.context_15m,
                         closed_1h=session.context_1h,
                     )
+                    # REST context may correct the latest confirmed HTF bar.
+                    # Force the next live evaluation to rebuild structural
+                    # geometry from that refreshed confirmed-candle snapshot.
+                    session.static_analysis_key = None
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
@@ -1441,6 +1467,38 @@ class TradingEngine:
         latest = max(incoming, key=lambda candle: candle.start_ms)
         session.last_price = latest.close
 
+    @staticmethod
+    def _closed_candle_source_key(
+        candles: list[Candle],
+    ) -> tuple:
+        if not candles:
+            return (0, None)
+        latest = candles[-1]
+        return (
+            len(candles),
+            latest.start_ms,
+            round(latest.open, 10),
+            round(latest.high, 10),
+            round(latest.low, 10),
+            round(latest.close, 10),
+            round(latest.volume, 6),
+        )
+
+    @classmethod
+    def _static_analysis_source_key(
+        cls,
+        closed_1m: list[Candle],
+        closed_5m: list[Candle],
+        closed_15m: list[Candle],
+        closed_1h: list[Candle],
+    ) -> tuple:
+        return (
+            cls._closed_candle_source_key(closed_1m),
+            cls._closed_candle_source_key(closed_5m),
+            cls._closed_candle_source_key(closed_15m),
+            cls._closed_candle_source_key(closed_1h),
+        )
+
     async def _evaluate(self, session: ActiveSymbolSession) -> None:
         if not session.candles:
             return
@@ -1464,15 +1522,6 @@ class TradingEngine:
             closed_1m,
             observed_at_ms=now_ms,
         )
-        self._refresh_market_context(
-            session,
-            closed_1m=closed_1m,
-            closed_5m=closed_5m,
-            closed_15m=closed_15m,
-            closed_1h=closed_1h,
-            commit=False,
-            observed_at_ms=now_ms,
-        )
 
         trade_flow = compute_trade_flow(
             list(session.trades),
@@ -1489,6 +1538,7 @@ class TradingEngine:
             self.config.confirmed_candle_stale_seconds,
             now,
         ):
+            session.last_analysis_mode = "stale_candle"
             self._commit_market_context(
                 session,
                 observed_at_ms=now_ms,
@@ -1519,14 +1569,48 @@ class TradingEngine:
                 self._record_decision_if_changed(session, decision)
             return
 
-        reference_price = session.orderbook.mid or session.last_price
-        session.structure = build_market_structure(
+        static_key = self._static_analysis_source_key(
             closed_1m,
+            closed_5m,
             closed_15m,
-            reference_price,
-            context_5m=closed_5m,
-            context_1h=closed_1h,
+            closed_1h,
         )
+        static_rebuild = (
+            session.structure is None
+            or session.static_analysis_key != static_key
+            or session.local_regime is None
+            or session.htf_bias is None
+        )
+        if static_rebuild:
+            self._refresh_market_context(
+                session,
+                closed_1m=closed_1m,
+                closed_5m=closed_5m,
+                closed_15m=closed_15m,
+                closed_1h=closed_1h,
+                commit=False,
+                observed_at_ms=now_ms,
+            )
+            # Structural geometry is derived only from confirmed candles.
+            # Use the last confirmed close as the stable construction
+            # reference; the live price is applied below by lifecycle/context.
+            structure_reference = closed_1m[-1].close
+            session.structure = build_market_structure(
+                closed_1m,
+                closed_15m,
+                structure_reference,
+                context_5m=closed_5m,
+                context_1h=closed_1h,
+            )
+            session.static_analysis_key = static_key
+            session.static_analysis_rebuilds += 1
+            session.static_analysis_rebuilt_at_ms = now_ms
+            session.last_analysis_mode = "static_rebuild"
+        else:
+            session.live_fast_path_reuses += 1
+            session.last_analysis_mode = "live_fast_path"
+
+        reference_price = session.orderbook.mid or session.last_price
         session.structure = session.level_tracker.update(
             session.structure,
             closed_1m,
@@ -1958,6 +2042,7 @@ class TradingEngine:
                 if context.forming_candle is not None
                 else None
             ),
+            "analysisRuntime": session.analysis_runtime_public(),
             "executionReady": context.execution.ready,
             "spreadPct": context.execution.spread_pct,
             "top5DepthUsd": (
