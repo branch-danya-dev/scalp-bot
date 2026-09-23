@@ -1,3 +1,5 @@
+import pytest
+
 from scalp_bot.hindsight_review import analyze_hindsight_opportunities
 
 
@@ -360,7 +362,7 @@ def test_hindsight_uses_recorded_session_execution_costs() -> None:
 
     # Costs: 20 bps taker fees + 4 bps slippage = 24 bps.
     # Required gross move is therefore 34 bps, so a 30 bps move is rejected.
-    assert report["policy"]["estimatedRoundTripCostPct"] == 0.0024
+    assert report["policy"]["estimatedRoundTripCostPct"] == pytest.approx(0.0024)
     assert report["summary"]["opportunities"] == 0
 
 
