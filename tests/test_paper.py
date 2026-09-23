@@ -765,3 +765,83 @@ def test_expire_pending_releases_reservation_without_trade() -> None:
     assert events and events[0]["reason"] == "passive_entry_timeout"
     assert broker.pending_exposure_usd == 0
     assert broker.pending_risk_usd == 0
+
+
+
+def test_position_public_tracks_price_movement_timing_and_fee_estimate() -> None:
+    cfg = Settings(
+        taker_fee_rate=0.0005,
+        maker_fee_rate=0.0002,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+        max_leverage=2,
+    )
+    broker = PaperBroker(cfg)
+    pos = broker.open(
+        plan("TRACKUSDT", Side.LONG, 1000),
+        book(99.99, 100.00),
+    )
+    assert pos.entry_fee_total_usd == pytest.approx(0.5)
+
+    broker.mark(
+        "TRACKUSDT",
+        100.30,
+        book(100.30, 100.31),
+    )
+    public = broker.positions["TRACKUSDT"].public()
+
+    assert public["current_move_pct"] > 0
+    assert public["max_favorable_move_pct"] > 0
+    assert public["mfe_at"] is not None
+    assert public["mfe_price"] is not None
+    assert public["fees_committed_usd"] == pytest.approx(0.5)
+    assert public["estimated_total_fees_if_close_now_usd"] > 0.5
+
+
+def test_closed_trade_persists_move_extremes_timestamps_and_fees() -> None:
+    cfg = Settings(
+        taker_fee_rate=0.0005,
+        maker_fee_rate=0.0002,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+        max_leverage=2,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("CLOSETRACKUSDT", Side.LONG, 1000)
+    p.strategy_details = {
+        "economics": {
+            "firstTakeMovePct": 0.003,
+            "movementFloorBands": {
+                "0.10%": True,
+                "0.15%": True,
+                "0.20%": True,
+                "0.25%": True,
+                "0.30%": True,
+            },
+        }
+    }
+    broker.open(p, book(99.99, 100.00))
+    broker.mark(
+        "CLOSETRACKUSDT",
+        99.80,
+        book(99.80, 99.81),
+    )
+    events = broker.mark(
+        "CLOSETRACKUSDT",
+        101.00,
+        book(101.00, 101.01),
+    )
+
+    trade = events[-1]
+    assert trade["event"] == "trade_closed"
+    assert trade["exitMoveBps"] > 0
+    assert trade["maxFavorableMoveBps"] > 0
+    assert trade["maxAdverseMoveBps"] > 0
+    assert trade["mfeAt"] is not None
+    assert trade["maeAt"] is not None
+    assert trade["fees"] > 0
+    assert trade["entryFeeUsd"] == pytest.approx(0.5)
+    assert trade["plannedFirstTakeMovePct"] == pytest.approx(0.003)
+    assert trade["movementFloorBands"]["0.30%"] is True
