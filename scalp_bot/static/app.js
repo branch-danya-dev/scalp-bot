@@ -491,12 +491,12 @@ function renderStrategies(rows) {
         <button class="switch ${row.enabled ? "on" : ""}" data-strategy="${row.key}" data-enabled="${row.enabled}"></button>
       </div>
       <div class="strategy-stats">
-        <span><small>Сигналы</small>${stats.tradeableSignals || 0}</span>
+        <span><small>Уникальные сетапы</small>${stats.uniqueTradeableSetups ?? stats.tradeableSignals ?? 0}</span>
         <span><small>Сделки</small>${stats.tradesClosed || 0}</span>
         <span><small>П/У</small>${stats.wins || 0}/${stats.losses || 0}</span>
         <span class="${netClass}"><small>Net PnL</small>${money(stats.netPnl || 0)}</span>
-        <span><small>Отказы</small>${stats.riskRejects || 0}</span>
-        <span><small>Ожидание R</small>${row.expectancy?.sampleReady ? Number(row.expectancy.expectancyR || 0).toFixed(2) : "н/д"}</span>
+        <span><small>Уникальные отказы</small>${stats.uniqueRiskRejectedSetups ?? stats.riskRejects ?? 0}</span>
+        <span title="Все изменения состояния/цены одного и того же сетапа"><small>Updates</small>${stats.decisionUpdates ?? stats.decisions ?? 0}</span>
       </div>
     </div>`;
   }).join("");
