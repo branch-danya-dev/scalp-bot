@@ -185,8 +185,8 @@ def test_moderate_counter_move_is_pullback_not_impulse() -> None:
         [*baseline, *recent],
         range_pad=0.03,
     )
-    candles_5m = candles_from_closes(
-        structured_closes(Trend.UP),
+    candles_5m = structured_candles(
+        Trend.UP,
         interval_ms=5 * 60_000,
     )
 
