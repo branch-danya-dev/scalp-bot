@@ -265,3 +265,70 @@ def test_search_state_resets_old_freshness_anchor(tmp_path) -> None:
         assert "trend_structure" not in session.entry_freshness_anchors
     finally:
         close_engine(engine)
+
+
+
+def test_rejection_generation_keeps_reject_anchor_until_reaction(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            last_price=100.05,
+            orderbook=OrderBook(
+                bids=[(100.04, 10)],
+                asks=[(100.06, 10)],
+            ),
+        )
+        engine.sessions[session.symbol] = session
+
+        reject = StrategyDecision(
+            strategy="weak_level_rejection",
+            action=Action.WAIT,
+            reasons=["failed break confirmed"],
+            watched_level=100.0,
+            details={
+                "state": "reject",
+                "levelGeneration": "support:g1",
+                "zone": {
+                    "kind": "support",
+                    "low": 99.90,
+                    "high": 100.00,
+                },
+            },
+        )
+        engine._annotate_entry_freshness(
+            session,
+            reject,
+            observed_at=200.0,
+        )
+
+        reaction = tradeable(
+            "weak_level_rejection",
+            action=Action.LONG,
+            entry=100.30,
+            stop=99.80,
+            target=101.00,
+            state="reaction",
+            watched_level=100.0,
+            details={
+                "levelGeneration": "support:g1",
+                "zone": {
+                    "kind": "support",
+                    "low": 99.90,
+                    "high": 100.00,
+                },
+                "expectedImpulsePct": 0.01,
+            },
+        )
+        engine._annotate_entry_freshness(
+            session,
+            reaction,
+            observed_at=205.0,
+        )
+
+        freshness = reaction.details["entryFreshness"]
+        assert freshness["source"] == "reject_state"
+        assert freshness["triggerTs"] == 200.0
+        assert freshness["confirmationAgeSeconds"] == 5.0
+    finally:
+        close_engine(engine)
