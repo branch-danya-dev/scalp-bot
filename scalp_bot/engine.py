@@ -662,6 +662,14 @@ class TradingEngine:
             "maxTradeAllInLossFraction": self.config.max_trade_all_in_loss_fraction,
             "maxTotalRiskFraction": self.config.max_total_risk_fraction,
             "maxLeverage": self.config.max_leverage,
+            "enabledStrategies": [
+                key
+                for key, enabled in self.strategy_enabled.items()
+                if enabled
+            ],
+            "confirmedCandleStaleSeconds": (
+                self.config.confirmed_candle_stale_seconds
+            ),
             "passiveEntryEnabled": self.config.passive_entry_enabled,
             "passiveEntryTimeoutSeconds": self.config.passive_entry_timeout_seconds,
             "makerFillConfirmationBps": self.config.maker_fill_confirmation_bps,
