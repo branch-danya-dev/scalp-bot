@@ -593,6 +593,7 @@ function renderStrategies(rows) {
         <span><small>П/У</small>${stats.wins || 0}/${stats.losses || 0}</span>
         <span class="${netClass}"><small>Net PnL</small>${money(stats.netPnl || 0)}</span>
         <span><small>Уникальные отказы</small>${stats.uniqueRiskRejectedSetups ?? stats.riskRejects ?? 0}</span>
+        <span title="Semantic veto: структура, конфликт playbook, readiness"><small>Arbiter blocks</small>${stats.arbiterBlockedUpdates ?? 0}</span>
         <span title="Все изменения состояния/цены одного и того же сетапа"><small>Updates</small>${stats.decisionUpdates ?? stats.decisions ?? 0}</span>
       </div>
       ${funnel ? `<div class="strategy-funnel">${funnel}</div>` : ""}
