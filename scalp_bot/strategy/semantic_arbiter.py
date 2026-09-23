@@ -173,6 +173,15 @@ def _details_mapping(
 def _mature_obstacle(level: StructuralLevel | None) -> bool:
     if level is None or level.lifecycle == "broken":
         return False
+    if level.kind in {
+        "day_high",
+        "day_low",
+        "previous_day_high",
+        "previous_day_low",
+    }:
+        # Session and previous-session extremes are structural references by
+        # definition; they do not need three local touches to matter.
+        return True
     return (
         level.lifecycle == "worked"
         or level.distinct_approaches >= 3

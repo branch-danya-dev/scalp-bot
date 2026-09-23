@@ -635,3 +635,35 @@ def test_breakout_overlap_with_day_high_is_not_own_level_exemption() -> None:
     assert assessment.structural_path.risk_scale == pytest.approx(
         0.65
     )
+
+
+
+def test_fresh_single_touch_day_high_is_still_structural_obstacle() -> None:
+    day_high = StructuralLevel(
+        kind="day_high",
+        low=100.20,
+        high=100.20,
+        touches=1,
+        timeframe="1D",
+        score=0.9,
+        reaction_pct=0.0,
+        volume_ratio=1.0,
+        generation_id="DAY:H:fresh",
+        distinct_approaches=0,
+        dwell_bars=0,
+        lifecycle="fresh",
+    )
+    ctx = context(resistance=day_high)
+    trade = decision(
+        "weak_level_rejection",
+        Action.LONG,
+        entry=100.0,
+        stop=99.50,
+        target=101.0,
+    )
+
+    path = assess_structural_path(trade, ctx)
+
+    assert path.obstacle_before_first_take is True
+    assert path.blocked is True
+    assert path.obstacle["kind"] == "day_high"

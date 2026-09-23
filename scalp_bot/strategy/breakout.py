@@ -998,17 +998,28 @@ class LevelBreakoutStrategy(Strategy):
             and retest_hold_seconds
             >= self.min_break_hold_seconds
         )
+        sustained_response_ready = (
+            directional_response_bps
+            >= self.min_directional_response_bps
+        )
         sustained_hold_ready = (
             held_seconds
             >= self.hold_without_retest_seconds
+            and sustained_response_ready
+        )
+        confirmation_mode = (
+            "retest_hold"
+            if retest_hold_ready
+            else (
+                "sustained_price_response"
+                if sustained_hold_ready
+                else None
+            )
         )
         confirmation_ready = (
             aligned_after_break
             and not breakout_absorbed
-            and (
-                retest_hold_ready
-                or sustained_hold_ready
-            )
+            and confirmation_mode is not None
         )
 
         if self.staged_entries_enabled:
@@ -1087,6 +1098,12 @@ class LevelBreakoutStrategy(Strategy):
                         "retestHoldSeconds": retest_hold_seconds,
                         "sustainedHoldSecondsRequired": (
                             self.hold_without_retest_seconds
+                        ),
+                        "sustainedResponseReady": (
+                            sustained_response_ready
+                        ),
+                        "breakoutConfirmationMode": (
+                            confirmation_mode
                         ),
                         "breakoutAbsorbed": breakout_absorbed,
                         "directionalResponseBps": (
@@ -1297,7 +1314,11 @@ class LevelBreakoutStrategy(Strategy):
                     "source": (
                         "breakout_early_probe"
                         if staged_phase == "probe"
-                        else "breakout_acceptance_hold"
+                        else (
+                            "breakout_retest_hold"
+                            if confirmation_mode == "retest_hold"
+                            else "breakout_sustained_price_response"
+                        )
                     ),
                     "preparedAtMs": (
                         int(state.armed_at * 1000)
@@ -1332,6 +1353,12 @@ class LevelBreakoutStrategy(Strategy):
                 "retestHoldSeconds": retest_hold_seconds,
                 "sustainedHoldSecondsRequired": (
                     self.hold_without_retest_seconds
+                ),
+                "sustainedResponseReady": (
+                    sustained_response_ready
+                ),
+                "breakoutConfirmationMode": (
+                    confirmation_mode
                 ),
                 "breakoutAbsorbed": breakout_absorbed,
                 "directionalResponseBps": directional_response_bps,
