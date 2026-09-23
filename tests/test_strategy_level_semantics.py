@@ -140,7 +140,7 @@ def test_breakout_shared_generation_is_used_only_once() -> None:
         structure=structure,
     )
     assert first.action == Action.WAIT
-    strategy._states["BREAKUSDT"].break_started_at -= 4
+    strategy._states["BREAKUSDT"].break_started_at -= strategy.hold_without_retest_seconds + 1
 
     entry = strategy.evaluate(
         rows,
@@ -177,7 +177,7 @@ def test_breakout_shared_generation_is_used_only_once() -> None:
         structure=new_generation,
     )
     assert third.action == Action.WAIT
-    strategy._states["BREAKUSDT"].break_started_at -= 4
+    strategy._states["BREAKUSDT"].break_started_at -= strategy.hold_without_retest_seconds + 1
     third_entry = strategy.evaluate(
         rows,
         book,
@@ -408,7 +408,7 @@ def test_breakout_records_level_flow_on_entry() -> None:
         structure=mature_structure(),
     )
     assert first.action == Action.WAIT
-    strategy._states["LOCALFLOWUSDT"].break_started_at -= 4
+    strategy._states["LOCALFLOWUSDT"].break_started_at -= strategy.hold_without_retest_seconds + 1
     decision = strategy.evaluate(
         mature_breakout_candles(),
         book,
@@ -552,3 +552,61 @@ def test_breakout_armed_hypothesis_pins_market_object_until_fire(
         still_armed.details["preparedOpportunity"]["watchedLevel"]
         == pytest.approx(pinned_level)
     )
+
+
+
+def test_breakout_absorption_vetoes_aggression_without_price_response(
+    monkeypatch,
+) -> None:
+    import scalp_bot.strategy.breakout as module
+    from scalp_bot.strategy.flow import LevelFlow
+
+    strategy = LevelBreakoutStrategy()
+    strategy.staged_entries_enabled = False
+    strategy._pressure_score = lambda *args, **kwargs: (
+        3,
+        {"fixtureBaseScore": 3},
+    )
+    absorbed = LevelFlow(
+        buy_notional=10_000,
+        sell_notional=0,
+        total_notional=10_000,
+        imbalance=1.0,
+        trade_count=12,
+        price_response_pct=0.0001,
+        absorption_efficiency=0.80,
+    )
+    accepted = LevelFlow(
+        buy_notional=10_000,
+        sell_notional=0,
+        total_notional=10_000,
+        imbalance=1.0,
+        trade_count=12,
+        price_response_pct=0.0001,
+        absorption_efficiency=0.0,
+    )
+    monkeypatch.setattr(
+        module,
+        "flow_at_level",
+        lambda *args, **kwargs: absorbed,
+    )
+    monkeypatch.setattr(
+        module,
+        "flow_beyond_level",
+        lambda *args, **kwargs: accepted,
+    )
+
+    decision = strategy.evaluate(
+        mature_breakout_candles(),
+        OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)]),
+        Trend.UP,
+        symbol="ABSORBEDBREAKUSDT",
+        trades=aggressive_buy_flow(),
+        structure=mature_structure(),
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "break"
+    assert decision.details["breakoutAbsorbed"] is True
+    assert decision.details["absorptionEfficiency"] == pytest.approx(0.80)
+    assert decision.details["directionalResponseBps"] == pytest.approx(1.0)
