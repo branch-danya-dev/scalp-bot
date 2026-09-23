@@ -533,7 +533,11 @@ class WeakLevelRejectionStrategy(Strategy):
         mode = (
             "range_rejection"
             if context_plan.source == "range_two_sided"
-            else "trend_following"
+            else (
+                "contextual_rejection"
+                if "two_sided" in context_plan.source
+                else "trend_following"
+            )
         )
         allow_runner = True
         target_r = 1.6
