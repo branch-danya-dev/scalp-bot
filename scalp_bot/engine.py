@@ -1506,18 +1506,83 @@ class TradingEngine:
         self._maybe_strategy_invalidation(session)
 
     @staticmethod
-    def _market_context_fingerprint(
+    def _trade_buffer_seconds(
         session: ActiveSymbolSession,
-    ) -> tuple:
-        htf = session.htf_bias
-        local = session.local_regime
-        return (
-            session.trend.value,
-            htf.bias.value if htf is not None else None,
-            htf.alignment if htf is not None else None,
-            local.regime.value if local is not None else None,
-            local.direction.value if local is not None else None,
-            local.parent_direction.value if local is not None else None,
+    ) -> float:
+        if len(session.trades) < 2:
+            return 0.0
+        return max(
+            0.0,
+            (session.trades[-1].ts_ms - session.trades[0].ts_ms)
+            / 1000,
+        )
+
+    def _build_market_context(
+        self,
+        session: ActiveSymbolSession,
+        *,
+        observed_at_ms: int,
+    ) -> MarketContext:
+        observed_at = observed_at_ms / 1000
+        reference_price = (
+            session.orderbook.mid
+            or session.last_price
+            or 0.0
+        )
+        execution = build_execution_context(
+            book=session.orderbook,
+            book_fresh=session.book_is_fresh(observed_at),
+            book_synced=session.book_synced,
+            book_age_seconds=session.book_age_seconds(observed_at),
+            candle_fresh=session.confirmed_candle_is_fresh(
+                session.confirmed_candle_stale_after_seconds,
+                observed_at,
+            ),
+            candle_age_seconds=session.confirmed_candle_age_seconds(
+                observed_at
+            ),
+            trade_buffer_seconds=self._trade_buffer_seconds(session),
+        )
+        return MarketContext(
+            symbol=session.symbol,
+            observed_at_ms=observed_at_ms,
+            last_price=session.last_price,
+            legacy_trend=session.trend,
+            htf_bias=session.htf_bias,
+            local_regime=session.local_regime,
+            flow=session.flow_context,
+            liquidity=session.liquidity_evidence,
+            structure=build_structure_context(
+                session.structure,
+                float(reference_price),
+            ),
+            execution=execution,
+        )
+
+    def _commit_market_context(
+        self,
+        session: ActiveSymbolSession,
+        *,
+        observed_at_ms: int,
+        emit: bool = True,
+    ) -> None:
+        context = self._build_market_context(
+            session,
+            observed_at_ms=observed_at_ms,
+        )
+        fingerprint = context.fingerprint()
+        previous = session.market_context_fingerprint
+        session.market_context = context
+        session.market_context_fingerprint = fingerprint
+        if not emit or previous == fingerprint:
+            return
+        self._emit(
+            "market_context_changed",
+            session.symbol,
+            {
+                "previousFingerprint": list(previous) if previous else None,
+                "marketContext": context.public(),
+            },
         )
 
     def _refresh_market_context(
@@ -1528,6 +1593,8 @@ class TradingEngine:
         closed_5m: list[Candle],
         closed_15m: list[Candle],
         closed_1h: list[Candle],
+        commit: bool = True,
+        observed_at_ms: int | None = None,
     ) -> None:
         session.trend = classify_context_trend(
             closed_15m,
@@ -1541,19 +1608,15 @@ class TradingEngine:
             closed_1m,
             closed_5m,
         )
-        fingerprint = self._market_context_fingerprint(session)
-        if session.market_context_fingerprint == fingerprint:
-            return
-        previous = session.market_context_fingerprint
-        session.market_context_fingerprint = fingerprint
-        self._emit(
-            "market_context_changed",
-            session.symbol,
-            {
-                "previousFingerprint": list(previous) if previous else None,
-                "marketContext": session.market_context_public(),
-            },
-        )
+        if commit:
+            self._commit_market_context(
+                session,
+                observed_at_ms=(
+                    int(time() * 1000)
+                    if observed_at_ms is None
+                    else observed_at_ms
+                ),
+            )
 
     @staticmethod
     def _density_as_evidence_only(
