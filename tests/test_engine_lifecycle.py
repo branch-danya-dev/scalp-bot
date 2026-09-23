@@ -1131,13 +1131,14 @@ def test_book_flow_snapshot_expires_against_observation_clock() -> None:
     assert stale["bestLevelOfiUsd15s"] == 500.0
 
 
-def test_executable_book_move_can_trigger_target_without_new_trade_tick(
+def test_book_move_alone_does_not_claim_maker_target_fill(
     tmp_path,
 ) -> None:
     engine = make_engine(
         tmp_path,
         partial_take_enabled=False,
         no_follow_through_seconds=999,
+        maker_fill_confirmation_bps=0.5,
     )
     try:
         session = ActiveSymbolSession(
@@ -1157,6 +1158,13 @@ def test_executable_book_move_can_trigger_target_without_new_trade_tick(
         )
         engine._mark_position_from_book(session)
 
+        assert "AAAUSDT" in engine.broker.positions
+
+        session.last_price = 101.01
+        engine._mark_position_from_book(
+            session,
+            trade_price=101.01,
+        )
         assert "AAAUSDT" not in engine.broker.positions
         assert engine.broker.closed_trades[-1]["reason"] == "target"
     finally:
