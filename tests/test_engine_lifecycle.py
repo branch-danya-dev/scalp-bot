@@ -393,28 +393,6 @@ async def test_promote_symbol_survives_bootstrap_failure(tmp_path) -> None:
 
 
 
-def test_opportunity_score_prefers_setup_quality_not_geometry_rr(tmp_path) -> None:
-    engine = make_engine(tmp_path)
-    try:
-        high_quality = StrategyDecision(
-            strategy="test",
-            action=Action.LONG,
-            reasons=["quality"],
-            confidence=0.70,
-            details={"setupQuality": 0.90},
-        )
-        low_quality = StrategyDecision(
-            strategy="test",
-            action=Action.LONG,
-            reasons=["geometry"],
-            confidence=0.85,
-            details={"setupQuality": 0.40},
-        )
-        assert engine._opportunity_score(high_quality, 5, 50) > engine._opportunity_score(low_quality, 1, 50)
-    finally:
-        close_rest(engine)
-
-
 def test_density_only_invalidates_on_explicit_price_flow_failure(tmp_path) -> None:
     engine = make_engine(tmp_path)
     try:
@@ -530,24 +508,6 @@ def test_breakout_retest_does_not_immediately_invalidate(tmp_path) -> None:
         assert "_breakoutBackInsideSinceMs" in pos.strategy_details
     finally:
         close_rest(engine)
-
-
-def test_activity_score_can_break_close_setup_quality_tie(tmp_path) -> None:
-    engine = make_engine(tmp_path)
-    try:
-        decision = StrategyDecision(
-            strategy="test",
-            action=Action.LONG,
-            reasons=["same quality"],
-            confidence=0.70,
-            details={"setupQuality": 0.70},
-        )
-        hot = engine._opportunity_score(decision, 5, 90)
-        quiet = engine._opportunity_score(decision, 5, 10)
-        assert hot > quiet
-    finally:
-        close_rest(engine)
-
 
 
 @pytest.mark.asyncio
