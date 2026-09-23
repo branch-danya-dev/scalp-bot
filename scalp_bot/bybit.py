@@ -8,7 +8,11 @@ from time import time
 import httpx
 import websockets
 
-from .activity import activity_score, correlation_1h
+from .activity import (
+    activity_score,
+    correlation_1h,
+    opportunity_readiness,
+)
 from .config import Settings
 from .domain import Candidate, Candle, OrderBook
 
@@ -275,6 +279,12 @@ class BybitRestClient:
                     if candidate.symbol == self.config.activity_benchmark_symbol
                     else correlation_1h(closed, benchmark_closed)
                 )
+                (
+                    candidate.opportunity_readiness,
+                    candidate.activity_compression_ratio,
+                    candidate.activity_expansion_ratio,
+                    candidate.activity_move_spent_ratio,
+                ) = opportunity_readiness(closed)
                 candidate.activity_score = activity_score(
                     candidate,
                     self.config.activity_window_minutes,
