@@ -13,6 +13,11 @@ from .expectancy import StrategyExpectancyBook
 from .strategy_policy import minimum_expectancy_r
 from .observability import build_decision_trace
 from .recorder import SessionRecorder
+from .research_policy import (
+    PolicyAssessment,
+    PolicyMode,
+    ResearchPolicyRuntime,
+)
 from .risk import RiskEngine
 from .strategy.flow import best_level_ofi_usd, prune_trades
 from .strategy.lifecycle import LevelLifecycleTracker
@@ -107,6 +112,9 @@ class ActiveSymbolSession:
     last_blocked_fingerprint: tuple | None = None
     last_economic_shadow_fingerprint: tuple | None = None
     arbiter_block_fingerprints: dict[str, tuple] = field(
+        default_factory=dict
+    )
+    research_policy_fingerprints: dict[str, tuple] = field(
         default_factory=dict
     )
 
@@ -535,6 +543,10 @@ class TradingEngine:
         self.risk = RiskEngine(config)
         self.broker = PaperBroker(config)
         self.recorder = SessionRecorder(config.session_dir)
+        self.research_policy = ResearchPolicyRuntime.from_settings(
+            path=config.research_policy_file,
+            mode=config.research_policy_mode,
+        )
         self.strategies: dict[str, Strategy] = {x.key: x for x in DEFAULT_STRATEGIES}
         configured_strategy_state = {
             "trend_structure": config.trend_structure_enabled,
@@ -686,6 +698,12 @@ class TradingEngine:
                     "config": self._run_config_snapshot(),
                 },
             )
+            if self.research_policy.active:
+                self._emit(
+                    "research_policy_activated",
+                    None,
+                    self.research_policy.public(),
+                )
             return
 
         self._stop_trading("bot_stop")
@@ -757,6 +775,7 @@ class TradingEngine:
             "economicCalibrationMinSegmentSamples": (
                 self.config.economic_calibration_min_segment_samples
             ),
+            "researchPolicy": self.research_policy.public(),
             "riskFraction": self.config.risk_fraction,
             "maxTradeAllInLossFraction": self.config.max_trade_all_in_loss_fraction,
             "maxTotalRiskFraction": self.config.max_total_risk_fraction,
