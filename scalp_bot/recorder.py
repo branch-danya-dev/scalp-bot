@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
@@ -14,6 +15,15 @@ class SessionRecorder:
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         self.path = self.root / f"session-{stamp}.jsonl"
         self._lock = Lock()
+        # Live trade-review cache. The UI must never re-read a multi-GB
+        # research JSONL simply because a user opened a closed trade.
+        self._live_review_pre_roll: dict[str, deque[dict]] = {}
+        self._live_review_open: dict[
+            tuple[str, str | None],
+            list[dict],
+        ] = {}
+        self._live_reviews: list[dict] = []
+        self._live_reviews_by_id: dict[str, dict] = {}
 
     def record(self, event: str, symbol: str | None, payload: dict) -> None:
         row = {
@@ -25,6 +35,99 @@ class SessionRecorder:
         }
         with self._lock, self.path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
+            self._capture_live_review_row(row)
+
+    @staticmethod
+    def _review_row_relevant(row: dict) -> bool:
+        return row.get("event") in {
+            "decision",
+            "risk_reject",
+            "setup_blocked",
+            "entry_pending",
+            "entry_cancelled",
+            "trade_opened",
+            "partial_take",
+            "trade_closed",
+            "setup_consumed",
+            "setup_rearmed",
+            "strategy_error",
+            "research_frame",
+            "market_frame",
+        }
+
+    def _capture_live_review_row(self, row: dict) -> None:
+        symbol = str(row.get("symbol") or "")
+        if not symbol or not self._review_row_relevant(row):
+            return
+
+        event = str(row.get("event") or "")
+        ts = self._row_ts(row)
+        pre_roll = self._live_review_pre_roll.setdefault(
+            symbol,
+            deque(),
+        )
+
+        if event == "trade_opened":
+            setup_id = self._setup_id_from_open(
+                row.get("payload") or {}
+            )
+            self._live_review_open[
+                (symbol, setup_id)
+            ] = [*pre_roll, row]
+        else:
+            for (open_symbol, _setup_id), rows in list(
+                self._live_review_open.items()
+            ):
+                if open_symbol == symbol:
+                    rows.append(row)
+
+        if event == "trade_closed":
+            setup_id = self._setup_id_from_close(
+                row.get("payload") or {}
+            )
+            key = (symbol, setup_id)
+            rows = self._live_review_open.pop(key, None)
+            if rows is None:
+                fallback = next(
+                    (
+                        candidate
+                        for candidate in self._live_review_open
+                        if candidate[0] == symbol
+                    ),
+                    None,
+                )
+                if fallback is not None:
+                    rows = self._live_review_open.pop(fallback)
+            if rows:
+                reviews = self._build_trade_reviews(
+                    rows,
+                    pre_roll_seconds=120.0,
+                    post_roll_seconds=0.0,
+                )
+                if reviews:
+                    review = reviews[-1]
+                    review_id = review["summary"]["reviewId"]
+                    self._live_reviews.append(review)
+                    self._live_reviews = self._live_reviews[-200:]
+                    self._live_reviews_by_id[review_id] = review
+                    live_ids = {
+                        item["summary"]["reviewId"]
+                        for item in self._live_reviews
+                    }
+                    self._live_reviews_by_id = {
+                        key: value
+                        for key, value
+                        in self._live_reviews_by_id.items()
+                        if key in live_ids
+                    }
+
+        pre_roll.append(row)
+        cutoff = ts - 120.0
+        while (
+            pre_roll
+            and self._row_ts(pre_roll[0]) < cutoff
+        ):
+            pre_roll.popleft()
 
     def list_sessions(self) -> list[dict]:
         sessions: list[dict] = []
@@ -313,6 +416,11 @@ class SessionRecorder:
         self,
         name: str | None = None,
     ) -> list[dict]:
+        if name in {None, "", "current"}:
+            return [
+                review["summary"]
+                for review in self._live_reviews
+            ]
         path = self._session_path(name)
         reviews = self._build_trade_reviews(
             self._read_rows(path)
@@ -324,6 +432,11 @@ class SessionRecorder:
         review_id: str,
         name: str | None = None,
     ) -> dict:
+        if name in {None, "", "current"}:
+            review = self._live_reviews_by_id.get(review_id)
+            if review is None:
+                raise KeyError(review_id)
+            return review
         path = self._session_path(name)
         reviews = self._build_trade_reviews(
             self._read_rows(path)
