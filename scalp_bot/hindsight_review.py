@@ -138,11 +138,23 @@ def _frame_context(row: dict) -> dict[str, Any]:
         if isinstance(market_context, dict)
         else None
     )
+    structure_context = (
+        market_context.get("structureContext")
+        if isinstance(market_context, dict)
+        else None
+    )
+    execution_context = (
+        market_context.get("executionContext")
+        if isinstance(market_context, dict)
+        else None
+    )
     return {
         "trend": source.get("trend"),
         "marketContext": market_context,
         "flowContext": flow_context,
         "liquidityEvidence": liquidity_evidence,
+        "structureContext": structure_context,
+        "executionContext": execution_context,
         "tradeFlow": source.get("tradeFlow"),
         "bookFlow": source.get("bookFlow"),
         "densityContext": source.get("densityContext"),
