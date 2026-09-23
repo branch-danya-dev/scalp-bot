@@ -1581,3 +1581,23 @@ async def test_evaluate_replaces_tradeable_signal_with_stale_candle_wait(
         )
     finally:
         await engine.rest.close()
+
+
+
+def test_strategy_startup_flags_can_isolate_trend_only(tmp_path) -> None:
+    engine = make_engine(
+        tmp_path,
+        trend_structure_enabled=True,
+        weak_level_rejection_enabled=False,
+        density_enabled=False,
+        breakout_enabled=False,
+    )
+    try:
+        assert engine.strategy_enabled == {
+            "trend_structure": True,
+            "weak_level_rejection": False,
+            "orderbook_density": False,
+            "level_breakout": False,
+        }
+    finally:
+        close_rest(engine)
