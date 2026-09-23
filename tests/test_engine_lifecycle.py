@@ -1601,3 +1601,57 @@ def test_strategy_startup_flags_can_isolate_trend_only(tmp_path) -> None:
         }
     finally:
         close_rest(engine)
+
+
+
+def test_strategy_stats_count_unique_setup_once_across_updates(
+    tmp_path,
+) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            trend=Trend.UP,
+        )
+        first = StrategyDecision(
+            strategy="trend_structure",
+            action=Action.LONG,
+            reasons=["first update"],
+            confidence=0.7,
+            entry=100.0,
+            stop=99.5,
+            target=101.0,
+            setup_id="trend-episode-1",
+        )
+        second = StrategyDecision(
+            strategy="trend_structure",
+            action=Action.LONG,
+            reasons=["same setup repriced"],
+            confidence=0.75,
+            entry=100.05,
+            stop=99.5,
+            target=101.0,
+            setup_id="trend-episode-1",
+        )
+
+        engine._record_decision_if_changed(session, first)
+        engine._record_decision_if_changed(session, second)
+        engine._risk_reject_if_changed(
+            session,
+            second,
+            "reason-one",
+        )
+        engine._risk_reject_if_changed(
+            session,
+            second,
+            "reason-two",
+        )
+
+        stats = engine.strategy_stats["trend_structure"]
+        assert stats["tradeableSignals"] == 2
+        assert stats["uniqueTradeableSetups"] == 1
+        assert stats["riskRejects"] == 2
+        assert stats["uniqueRiskRejectedSetups"] == 1
+        assert stats["decisionUpdates"] == 2
+    finally:
+        close_rest(engine)
