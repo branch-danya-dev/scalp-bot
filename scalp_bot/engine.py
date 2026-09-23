@@ -947,8 +947,24 @@ class TradingEngine:
                 items = list(self.sessions.items())
                 if not items:
                     continue
-                async def refresh(symbol: str):
+                async def refresh(
+                    symbol: str,
+                    session: ActiveSymbolSession,
+                ):
+                    stale_1m = not session.confirmed_candle_is_fresh(
+                        self.config.confirmed_candle_stale_seconds,
+                    )
+                    one_minute = (
+                        self.rest.klines(
+                            symbol,
+                            "1",
+                            min(self.config.bootstrap_1m_candles, 240),
+                        )
+                        if stale_1m
+                        else asyncio.sleep(0, result=None)
+                    )
                     return await asyncio.gather(
+                        one_minute,
                         self.rest.klines(
                             symbol,
                             "5",
@@ -967,7 +983,10 @@ class TradingEngine:
                     )
 
                 results = await asyncio.gather(
-                    *(refresh(symbol) for symbol, _ in items),
+                    *(
+                        refresh(symbol, session)
+                        for symbol, session in items
+                    ),
                     return_exceptions=True,
                 )
                 for (symbol, session), result in zip(
@@ -977,7 +996,41 @@ class TradingEngine:
                 ):
                     if isinstance(result, Exception):
                         continue
-                    context_5m, context_15m, context_1h = result
+                    (
+                        refreshed_1m,
+                        context_5m,
+                        context_15m,
+                        context_1h,
+                    ) = result
+                    if refreshed_1m:
+                        age_before = session.confirmed_candle_age_seconds()
+                        by_start = {
+                            candle.start_ms: candle
+                            for candle in session.candles
+                        }
+                        for candle in refreshed_1m:
+                            previous = by_start.get(candle.start_ms)
+                            if (
+                                previous is not None
+                                and previous.confirmed
+                            ):
+                                candle.confirmed = True
+                            by_start[candle.start_ms] = candle
+                        session.candles = sorted(
+                            by_start.values(),
+                            key=lambda candle: candle.start_ms,
+                        )[-self.config.bootstrap_1m_candles:]
+                        age_after = session.confirmed_candle_age_seconds()
+                        self._emit(
+                            "candle_resync",
+                            symbol,
+                            {
+                                "reason": "stale_confirmed_1m",
+                                "ageBeforeSeconds": age_before,
+                                "ageAfterSeconds": age_after,
+                                "fetchedCandles": len(refreshed_1m),
+                            },
+                        )
                     session.context_5m = [x for x in context_5m if x.confirmed]
                     session.context_15m = [x for x in context_15m if x.confirmed]
                     session.context_1h = [x for x in context_1h if x.confirmed]
