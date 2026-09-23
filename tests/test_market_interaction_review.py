@@ -223,3 +223,44 @@ def test_non_tracked_state_resets_checkpoint_identity_for_reentry() -> None:
     )
 
     assert report["summary"]["checkpoints"] == 2
+
+
+
+def test_density_checkpoint_is_not_counted_as_playbook_conflict() -> None:
+    rows = [
+        frame(99.0, "AAAUSDT", 100.0),
+        decision(
+            100.0,
+            "AAAUSDT",
+            "orderbook_density",
+            "reaction",
+            label="ask density",
+            price=100.1,
+            action="short",
+            details={
+                "wallSide": "ask",
+                "wallPrice": 100.1,
+            },
+        ),
+        decision(
+            101.0,
+            "AAAUSDT",
+            "level_breakout",
+            "break",
+            label="resistance",
+            low=99.9,
+            high=100.1,
+            action="long",
+        ),
+        frame(110.0, "AAAUSDT", 100.3),
+    ]
+
+    report = analyze_market_interactions(
+        rows,
+        horizons_seconds=(30.0,),
+        move_bands=(0.002,),
+    )
+
+    assert report["summary"]["liquidityEvidenceCheckpoints"] == 1
+    assert report["summary"]["overlaps"] == 0
+    assert report["summary"]["conflicts"] == 0
