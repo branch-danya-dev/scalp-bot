@@ -206,6 +206,8 @@ def test_engine_preserves_reclaim_anchor_until_tradeable_continuation(tmp_path) 
         assert freshness["triggerTs"] == 100.0
         assert freshness["confirmationAgeSeconds"] == 8.0
         assert freshness["classification"] == "late"
+        assert continuation.details["armToFireSeconds"] == 8.0
+        assert continuation.details["causalTriggerSource"] == "reclaim_state"
     finally:
         close_engine(engine)
 
