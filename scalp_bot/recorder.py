@@ -604,6 +604,13 @@ class SessionRecorder:
         chart_candles: dict[str, dict[int, dict]] = {}
         coverage: dict[str, dict] = {}
         strategy_diagnostics: dict[str, dict] = {}
+        research_policy_audit = {
+            "activations": [],
+            "shadowMatches": 0,
+            "blockedMatches": 0,
+            "ruleMatchCounts": {},
+            "policyIds": {},
+        }
         market_context_counts = {
             "legacyTrend": {},
             "htfBias": {},
@@ -637,6 +644,9 @@ class SessionRecorder:
                     "arbiterBlockerCounts": {},
                     "arbiterConflictCounts": {},
                     "selectedConfluenceCounts": {},
+                    "researchPolicyShadowMatches": 0,
+                    "researchPolicyBlockedMatches": 0,
+                    "researchPolicyRuleMatchCounts": {},
                     "entryPending": 0,
                     "entryCancelled": 0,
                     "tradesOpened": 0,
@@ -828,6 +838,94 @@ class SessionRecorder:
                         peer_key = str(peer)
                         conflict_counts[peer_key] = (
                             conflict_counts.get(peer_key, 0) + 1
+                        )
+
+            if event == "research_policy_activated":
+                research_policy_audit["activations"].append({
+                    "ts": ts,
+                    **dict(payload),
+                })
+                policy_id = str(
+                    payload.get("policyId") or "unknown"
+                )
+                policy_ids = research_policy_audit[
+                    "policyIds"
+                ]
+                policy_ids[policy_id] = (
+                    policy_ids.get(policy_id, 0) + 1
+                )
+
+            if event in {
+                "research_policy_shadow",
+                "research_policy_blocked",
+            }:
+                assessment = payload.get("assessment") or {}
+                strategy = str(
+                    payload.get("strategy")
+                    or assessment.get("strategy")
+                    or ""
+                )
+                blocked_event = (
+                    event == "research_policy_blocked"
+                )
+                counter_key = (
+                    "blockedMatches"
+                    if blocked_event
+                    else "shadowMatches"
+                )
+                research_policy_audit[counter_key] += 1
+                policy_id = str(
+                    assessment.get("policyId")
+                    or (payload.get("policy") or {}).get(
+                        "policyId"
+                    )
+                    or "unknown"
+                )
+                policy_ids = research_policy_audit[
+                    "policyIds"
+                ]
+                policy_ids[policy_id] = (
+                    policy_ids.get(policy_id, 0) + 1
+                )
+                global_rule_counts = research_policy_audit[
+                    "ruleMatchCounts"
+                ]
+                for rule_id in (
+                    assessment.get("matchedRuleIds") or []
+                ):
+                    rule_key = str(rule_id)
+                    global_rule_counts[rule_key] = (
+                        global_rule_counts.get(
+                            rule_key,
+                            0,
+                        )
+                        + 1
+                    )
+
+                if strategy:
+                    item_diag = strategy_diag(strategy)
+                    strategy_counter = (
+                        "researchPolicyBlockedMatches"
+                        if blocked_event
+                        else "researchPolicyShadowMatches"
+                    )
+                    item_diag[strategy_counter] += 1
+                    rule_counts = item_diag[
+                        "researchPolicyRuleMatchCounts"
+                    ]
+                    for rule_id in (
+                        assessment.get(
+                            "matchedRuleIds"
+                        )
+                        or []
+                    ):
+                        rule_key = str(rule_id)
+                        rule_counts[rule_key] = (
+                            rule_counts.get(
+                                rule_key,
+                                0,
+                            )
+                            + 1
                         )
 
             if event in {"entry_pending", "entry_cancelled"}:
@@ -1275,6 +1373,7 @@ class SessionRecorder:
             "marketContextDiagnostics": {
                 "frameCounts": market_context_counts,
             },
+            "researchPolicyAudit": research_policy_audit,
             "closedTrades": closed_trades,
             "tradeReviews": compact_reviews,
             "coins": {
