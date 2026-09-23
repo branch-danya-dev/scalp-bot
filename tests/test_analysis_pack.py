@@ -106,6 +106,20 @@ def test_analysis_pack_keeps_events_candles_reports_and_sampled_books(tmp_path):
                         "wallSide": "ask",
                         "wallPrice": 101.0,
                     },
+                    "structureContext": {
+                        "referencePrice": 100.5,
+                        "levelCount": 3,
+                        "trendlineCount": 1,
+                        "supportDistancePct": 0.002,
+                        "resistanceDistancePct": 0.003,
+                    },
+                    "executionContext": {
+                        "ready": True,
+                        "bookFresh": True,
+                        "candleFresh": True,
+                        "spreadPct": 0.0001,
+                        "top5DepthUsd": 10000.0,
+                    },
                 },
                 "candle": {
                     "time": second,
@@ -161,6 +175,8 @@ def test_analysis_pack_keeps_events_candles_reports_and_sampled_books(tmp_path):
     assert report["marketContextDiagnostics"]["frameCounts"]["shortFlowAlignment"]["opposed"] > 0
     assert report["marketContextDiagnostics"]["frameCounts"]["liquidityState"]["consumed"] > 0
     assert report["marketContextDiagnostics"]["frameCounts"]["liquidityBias"]["up"] > 0
+    assert report["marketContextDiagnostics"]["frameCounts"]["executionReady"]["true"] > 0
+    assert report["marketContextDiagnostics"]["frameCounts"]["structureAvailable"]["true"] > 0
     assert '"marketContext"' in compact
     assert manifest["compaction"]["interactionDecisionFocusStates"]["level_breakout"] == [
         "break",
