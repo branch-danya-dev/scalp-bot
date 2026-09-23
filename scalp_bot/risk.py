@@ -614,17 +614,6 @@ class RiskEngine:
                 diagnostics=dict(economic_diagnostics),
             )
 
-        if absolute_net_reward_risk_failed:
-            return RiskResult(
-                False,
-                (
-                    "economic_safety: absolute_net_reward_risk: "
-                    f"net reward/risk {net_rr:.4f} < hard minimum "
-                    f"{self.config.absolute_min_net_reward_risk:.4f}"
-                ),
-                diagnostics=dict(economic_diagnostics),
-            )
-
         if expected_net <= 0:
             return RiskResult(
                 False,
@@ -640,6 +629,17 @@ class RiskEngine:
                 ),
                 diagnostics=dict(economic_diagnostics),
             )
+        if absolute_net_reward_risk_failed:
+            return RiskResult(
+                False,
+                (
+                    "economic_safety: absolute_net_reward_risk: "
+                    f"net reward/risk {net_rr:.4f} < hard minimum "
+                    f"{self.config.absolute_min_net_reward_risk:.4f}"
+                ),
+                diagnostics=dict(economic_diagnostics),
+            )
+
         if self.config.enforce_net_reward_risk_gate and net_reward_risk_failed:
             return RiskResult(
                 False,
