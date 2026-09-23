@@ -167,6 +167,8 @@ class WeakLevelRejectionStrategy(Strategy):
             state.pinned_generation_id = None
             state.pinned_until = 0.0
             state.swept = False
+            state.armed_at = 0.0
+            state.armed_price = 0.0
 
         if generation_id in state.used_generations:
             return StrategyDecision(
@@ -800,6 +802,8 @@ class WeakLevelRejectionStrategy(Strategy):
         if not all_choices:
             state.stage = RejectionStage.SEARCH
             state.zone_key = None
+            state.armed_at = 0.0
+            state.armed_price = 0.0
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
