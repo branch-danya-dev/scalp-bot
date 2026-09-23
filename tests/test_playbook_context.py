@@ -357,3 +357,38 @@ def test_trend_position_management_uses_local_context_not_legacy_flat() -> None:
         last_price=100.0,
         market_context=bearish,
     ) == "trend_structure_context_lost"
+
+
+
+def test_breakout_bearish_regime_is_preference_not_short_only() -> None:
+    ctx = context(
+        LocalRegime.BEARISH_IMPULSE,
+        direction=Trend.DOWN,
+        parent=Trend.DOWN,
+    )
+
+    plan = breakout_direction_plan(ctx, Trend.DOWN)
+
+    assert plan.primary_direction == Trend.DOWN
+    assert set(plan.allowed_directions) == {
+        Trend.DOWN,
+        Trend.UP,
+    }
+    assert plan.source == "local_regime_preference_two_sided"
+
+
+def test_rejection_bullish_regime_is_preference_not_long_only() -> None:
+    ctx = context(
+        LocalRegime.BULLISH_TREND,
+        direction=Trend.UP,
+        parent=Trend.UP,
+    )
+
+    plan = rejection_direction_plan(ctx, Trend.UP)
+
+    assert plan.primary_direction == Trend.UP
+    assert set(plan.allowed_directions) == {
+        Trend.UP,
+        Trend.DOWN,
+    }
+    assert plan.source == "local_regime_preference_two_sided"
