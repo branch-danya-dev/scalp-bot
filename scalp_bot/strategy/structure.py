@@ -18,6 +18,26 @@ from .common import (
 )
 
 
+SUPPORT_LEVEL_KINDS = frozenset({
+    "support",
+    "day_low",
+    "previous_day_low",
+})
+RESISTANCE_LEVEL_KINDS = frozenset({
+    "resistance",
+    "day_high",
+    "previous_day_high",
+})
+
+
+def directional_level_kind(kind: str) -> LevelKind | None:
+    if kind in SUPPORT_LEVEL_KINDS:
+        return "support"
+    if kind in RESISTANCE_LEVEL_KINDS:
+        return "resistance"
+    return None
+
+
 @dataclass(slots=True)
 class StructuralLevel:
     kind: str
@@ -58,12 +78,9 @@ class StructuralLevel:
         return data
 
     def as_zone(self) -> LevelZone:
+        resolved_kind = directional_level_kind(self.kind)
         return LevelZone(
-            kind=(
-                "support"
-                if "support" in self.kind or self.kind.endswith("_low")
-                else "resistance"
-            ),
+            kind=resolved_kind or "resistance",
             low=self.low,
             high=self.high,
             touches=self.touches,
@@ -110,6 +127,50 @@ class MarketStructure:
             "previousDayHigh": self.previous_day_high,
             "previousDayLow": self.previous_day_low,
         }
+
+    def directional_levels(
+        self,
+        kind: LevelKind,
+    ) -> list[StructuralLevel]:
+        allowed = (
+            SUPPORT_LEVEL_KINDS
+            if kind == "support"
+            else RESISTANCE_LEVEL_KINDS
+        )
+        return [
+            level
+            for level in self.levels
+            if level.kind in allowed
+        ]
+
+    def nearest_directional(
+        self,
+        price: float,
+        kind: LevelKind,
+    ) -> StructuralLevel | None:
+        if price <= 0:
+            return None
+        if kind == "support":
+            rows = [
+                level
+                for level in self.directional_levels(kind)
+                if level.center <= price
+            ]
+        else:
+            rows = [
+                level
+                for level in self.directional_levels(kind)
+                if level.center >= price
+            ]
+        if not rows:
+            return None
+        return min(
+            rows,
+            key=lambda level: (
+                abs(level.center - price),
+                -level.score,
+            ),
+        )
 
     def nearest_horizontal(
         self,
