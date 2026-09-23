@@ -87,6 +87,11 @@ try {
         "false",
         "Process"
     )
+    [Environment]::SetEnvironmentVariable(
+        "SCALP_ENFORCE_MIN_FIRST_TAKE_MOVE_GATE",
+        "false",
+        "Process"
+    )
 
     & $venvPython -m pytest -q
     $testExitCode = $LASTEXITCODE
