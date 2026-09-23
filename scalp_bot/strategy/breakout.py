@@ -451,6 +451,7 @@ class LevelBreakoutStrategy(Strategy):
                 visuals=visuals,
                 details={
                     "state": state.stage.value,
+                    **context_details,
                     "zone": zone.public(),
                     "zoneGeneration": generation,
                     "alreadyUsed": True,
@@ -473,6 +474,7 @@ class LevelBreakoutStrategy(Strategy):
                 visuals=visuals,
                 details={
                     "state": state.stage.value,
+                    **context_details,
                     "zone": zone.public(),
                     "zoneGeneration": generation,
                     "pressureScore": pressure_score,
@@ -511,6 +513,7 @@ class LevelBreakoutStrategy(Strategy):
                 visuals=visuals,
                 details={
                     "state": state.stage.value,
+                    **context_details,
                     "zone": zone.public(),
                     "zoneGeneration": generation,
                     "pressureScore": pressure_score,
@@ -554,6 +557,7 @@ class LevelBreakoutStrategy(Strategy):
                 visuals=visuals,
                 details={
                     "state": state.stage.value,
+                    **context_details,
                     "zone": zone.public(),
                     "zoneGeneration": generation,
                     "pressureScore": pressure_score,
@@ -586,6 +590,7 @@ class LevelBreakoutStrategy(Strategy):
                 visuals=visuals,
                 details={
                     "state": state.stage.value,
+                    **context_details,
                     "zone": zone.public(),
                     "zoneGeneration": generation,
                     "pressureScore": pressure_score,
@@ -614,6 +619,39 @@ class LevelBreakoutStrategy(Strategy):
             stop = zone.low + invalidation_buffer
             stop_pct = (stop - entry) / entry
             action = Action.SHORT
+
+        entry_context = assess_entry_context(
+            PlaybookKind.LEVEL_BREAKOUT,
+            action,
+            market_context,
+            trend,
+        )
+        if not entry_context.allowed:
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                [
+                    "Пробой подтверждён, но MarketContext блокирует breakout-вход",
+                    *entry_context.blockers,
+                ],
+                0.55,
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    **context_details,
+                    "zone": zone.public(),
+                    "zoneGeneration": generation,
+                    "pressureScore": pressure_score,
+                    "pressure": pressure,
+                    "flow": flow,
+                    "levelFlow": level_flow.public(),
+                    "acceptanceFlow": acceptance_flow.public(),
+                    "acceptanceBoundary": acceptance_boundary,
+                    "breakHoldSeconds": held_seconds,
+                    "entryContextAssessment": entry_context.public(),
+                },
+            )
 
         structural_risk = abs(entry - stop)
         expected_impulse = max(
@@ -652,6 +690,7 @@ class LevelBreakoutStrategy(Strategy):
                 visuals=visuals,
                 details={
                     "state": state.stage.value,
+                    **context_details,
                     "zone": zone.public(),
                     "zoneGeneration": generation,
                     "stopDistancePct": stop_pct,
@@ -722,6 +761,7 @@ class LevelBreakoutStrategy(Strategy):
             visuals=visuals,
             details={
                 "state": state.stage.value,
+                **context_details,
                 "zone": zone.public(),
                 "zoneGeneration": generation,
                 "levelLifecycle": (
@@ -732,6 +772,7 @@ class LevelBreakoutStrategy(Strategy):
                 "flow": flow,
                 "levelFlow": level_flow.public(),
                 "acceptanceFlow": acceptance_flow.public(),
+                "entryContextAssessment": entry_context.public(),
                 "acceptanceBoundary": acceptance_boundary,
                 "pressure": pressure,
                 "pressureScore": pressure_score,
@@ -765,7 +806,7 @@ class LevelBreakoutStrategy(Strategy):
                     if liquidity_target
                     else "impulse_risk_fallback"
                 ),
-                "tradeMode": "trend_following",
+                "tradeMode": "breakout",
                 "allowRunner": True,
                 "setupQuality": quality,
                 "qualityFactors": {
