@@ -565,6 +565,38 @@ def _validate_policy_manifest(
         raise ValueError(
             "Policy version must be positive"
         )
+    if str(manifest.get("status") or "") != "promoted":
+        raise ValueError(
+            "Research policy status must be promoted"
+        )
+    source = manifest.get("source")
+    if (
+        not isinstance(source, dict)
+        or not str(
+            source.get("stabilitySha256")
+            or ""
+        )
+    ):
+        raise ValueError(
+            "Research policy must preserve Stage 11 stability provenance"
+        )
+    audit = manifest.get("audit")
+    if not isinstance(audit, dict):
+        raise ValueError(
+            "Research policy audit metadata is required"
+        )
+    if bool(audit.get("automaticPromotion")):
+        raise ValueError(
+            "Automatic research policy promotion is not permitted"
+        )
+    candidate_ids = audit.get("candidateIds")
+    if (
+        not isinstance(candidate_ids, list)
+        or not candidate_ids
+    ):
+        raise ValueError(
+            "Research policy must record explicitly selected candidate ids"
+        )
     rules = manifest.get("rules")
     if not isinstance(rules, list) or not rules:
         raise ValueError(
@@ -614,21 +646,60 @@ def _validate_policy_manifest(
                     f"Policy exact scope lacks {key}"
                 )
 
+        candidate_id = str(
+            rule.get("candidateId") or ""
+        )
+        if not candidate_id:
+            raise ValueError(
+                "Policy rule must reference a promoted candidate"
+            )
+        validation = rule.get("validation")
+        if not isinstance(validation, dict):
+            raise ValueError(
+                "Policy rule must preserve Stage 11 validation evidence"
+            )
+        validation_status = str(
+            validation.get("status") or ""
+        )
+        if (
+            rule_type
+            == PolicyRuleType.BLOCK_FEATURE_VALUE.value
+            and validation_status != "stable_negative"
+        ):
+            raise ValueError(
+                "Feature block rules require stable_negative validation"
+            )
+        if (
+            rule_type
+            == PolicyRuleType.MIN_NET_REWARD_RISK.value
+            and validation_status
+            not in {
+                "stable_positive",
+                "stable_positive_holdout",
+            }
+        ):
+            raise ValueError(
+                "Economic threshold rules require stable positive validation"
+            )
+
     fingerprint = str(
         manifest.get("policyFingerprint") or ""
     )
-    if fingerprint:
-        expected = _sha256_bytes(
-            _canonical_bytes(
-                _policy_fingerprint_payload(
-                    manifest
-                )
+    if not fingerprint:
+        raise ValueError(
+            "Research policy fingerprint is required"
+        )
+    expected = _sha256_bytes(
+        _canonical_bytes(
+            _policy_fingerprint_payload(
+                manifest
             )
         )
-        if fingerprint != expected:
-            raise ValueError(
-                "Research policy fingerprint mismatch"
-            )
+    )
+    if fingerprint != expected:
+        raise ValueError(
+            "Research policy fingerprint mismatch"
+        )
 
 
 def _mode(value: str | PolicyMode) -> PolicyMode:
