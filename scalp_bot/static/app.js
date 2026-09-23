@@ -485,6 +485,18 @@ function renderStrategies(rows) {
   $("strategyList").innerHTML = rows.map(row => {
     const stats = row.stats || {};
     const netClass = Number(stats.netPnl || 0) >= 0 ? "positive" : "negative";
+    const stateCounts = stats.stateCounts || {};
+    const funnelOrder = row.key === "trend_structure"
+      ? ["search", "pullback", "test", "reclaim", "continuation"]
+      : row.key === "weak_level_rejection"
+        ? ["search", "found", "approach", "test", "reject", "reaction"]
+        : row.key === "orderbook_density"
+          ? ["search", "found", "persisting", "approach", "test", "reaction", "exhausted"]
+          : ["search", "found", "approach", "pressure", "break", "impulse"];
+    const funnel = funnelOrder
+      .filter(state => Number(stateCounts[state] || 0) > 0)
+      .map(state => `<span><small>${stateLabel(state)}</small>${Number(stateCounts[state] || 0)}</span>`)
+      .join("");
     return `<div class="strategy-card">
       <div class="strategy-row">
         <span><strong>${row.label}</strong><small>${row.key}</small></span>
@@ -498,6 +510,7 @@ function renderStrategies(rows) {
         <span><small>Уникальные отказы</small>${stats.uniqueRiskRejectedSetups ?? stats.riskRejects ?? 0}</span>
         <span title="Все изменения состояния/цены одного и того же сетапа"><small>Updates</small>${stats.decisionUpdates ?? stats.decisions ?? 0}</span>
       </div>
+      ${funnel ? `<div class="strategy-funnel">${funnel}</div>` : ""}
     </div>`;
   }).join("");
   document.querySelectorAll("[data-strategy]").forEach(button => {
