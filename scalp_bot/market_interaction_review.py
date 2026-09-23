@@ -19,8 +19,14 @@ TRACKED_STATES = {
 HYPOTHESIS_KIND = {
     "trend_structure": "trend_continuation",
     "weak_level_rejection": "level_rejection",
-    "orderbook_density": "liquidity_rejection",
+    "orderbook_density": "liquidity_evidence",
     "level_breakout": "level_breakout",
+}
+
+PLAYBOOK_STRATEGIES = {
+    "trend_structure",
+    "weak_level_rejection",
+    "level_breakout",
 }
 
 
@@ -688,7 +694,13 @@ def analyze_market_interactions(
         checkpoints.append(checkpoint)
         active[active_key] = checkpoint
 
-        for other_strategy in TRACKED_STATES:
+        # Density remains in checkpoint research, but it is no longer an
+        # independent playbook after Stage 4. Conflict/confluence is therefore
+        # measured only between tradeable playbooks.
+        if strategy not in PLAYBOOK_STRATEGIES:
+            continue
+
+        for other_strategy in PLAYBOOK_STRATEGIES:
             if other_strategy == strategy:
                 continue
             other = active.get((symbol, other_strategy))
@@ -805,6 +817,10 @@ def analyze_market_interactions(
             "confluences": sum(
                 item["relationship"] == "confluence"
                 for item in overlaps
+            ),
+            "liquidityEvidenceCheckpoints": sum(
+                item["strategy"] == "orderbook_density"
+                for item in checkpoints
             ),
         },
         "strategyStateSummary": state_summary,
