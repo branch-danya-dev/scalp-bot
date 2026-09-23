@@ -461,7 +461,7 @@ class TradingEngine:
         self.expectancy = StrategyExpectancyBook(
             list(self.strategies)
         )
-        self.strategy_stats: dict[str, dict[str, float | int]] = {
+        self.strategy_stats: dict[str, dict[str, object]] = {
             x.key: {
                 "decisions": 0,
                 "decisionUpdates": 0,
@@ -475,6 +475,7 @@ class TradingEngine:
                 "wins": 0,
                 "losses": 0,
                 "netPnl": 0.0,
+                "stateCounts": {},
             }
             for x in DEFAULT_STRATEGIES
         }
@@ -1915,8 +1916,12 @@ class TradingEngine:
         session.decision_fingerprints[decision.strategy] = fingerprint
         stats = self.strategy_stats.get(decision.strategy)
         if stats is not None:
-            stats["decisions"] += 1
-            stats["decisionUpdates"] += 1
+            stats["decisions"] = int(stats["decisions"]) + 1
+            stats["decisionUpdates"] = int(stats["decisionUpdates"]) + 1
+            state_counts = stats.get("stateCounts")
+            if isinstance(state_counts, dict):
+                state_key = str(decision.details.get("state") or "unknown")
+                state_counts[state_key] = int(state_counts.get(state_key, 0)) + 1
             if decision.tradeable:
                 stats["tradeableSignals"] += 1
                 resolved_setup_id = (
