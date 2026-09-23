@@ -329,6 +329,43 @@ def test_arbiter_waits_when_viable_playbooks_conflict_on_direction(tmp_path) -> 
         close_rest(engine)
 
 
+def test_live_strategy_stats_split_side_and_local_regime() -> None:
+    stats = {
+        "sideRegime": {
+            "long": {},
+            "short": {},
+        }
+    }
+    event = {
+        "side": "long",
+        "grossPnl": -4.0,
+        "fees": 1.0,
+        "netPnl": -5.0,
+        "mfeR": 0.2,
+        "maeR": 0.8,
+        "strategyDetails": {
+            "decisionContext": {
+                "localRegime": "bullish_trend",
+            }
+        },
+    }
+
+    TradingEngine._update_side_regime_stats(
+        stats,
+        event,
+    )
+
+    overall = stats["sideRegime"]["long"]["all"]
+    regime = stats["sideRegime"]["long"]["bullish_trend"]
+    assert overall["trades"] == 1
+    assert overall["losses"] == 1
+    assert overall["netPnl"] == pytest.approx(-5.0)
+    assert overall["averageMfeR"] == pytest.approx(0.2)
+    assert overall["averageMaeR"] == pytest.approx(0.8)
+    assert regime["trades"] == 1
+    assert regime["winRate"] == 0
+
+
 def test_stop_button_finalizes_open_paper_position(tmp_path) -> None:
     engine = make_engine(tmp_path)
     try:
