@@ -19,7 +19,7 @@ _WAITING_BY_STATE: dict[str, dict[str, list[str]]] = {
         "approach": ["real break beyond the zone and reclaim"],
         "test": ["real break beyond the zone and reclaim"],
         "reject": ["fresh local tape reversal at the level"],
-        "reaction": ["risk and execution approval"],
+        "reaction": ["liquidity evidence propagation to active playbooks"],
     },
     "orderbook_density": {
         "search": ["significant observable order-book wall"],
@@ -135,6 +135,8 @@ def _evidence(details: dict[str, Any]) -> dict[str, Any]:
         "entryFreshness",
         "multiHorizonFlow",
         "flowAlignment",
+        "liquidityEvidence",
+        "liquidityAlignment",
     )
     return {
         key: details[key]

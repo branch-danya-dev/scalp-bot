@@ -540,6 +540,8 @@ class SessionRecorder:
             "flowDirection": {},
             "longFlowAlignment": {},
             "shortFlowAlignment": {},
+            "liquidityState": {},
+            "liquidityBias": {},
         }
 
         def strategy_diag(strategy: str) -> dict:
@@ -567,6 +569,13 @@ class SessionRecorder:
                     },
                     "entryFlowScoreTotal": 0.0,
                     "entryFlowScoreSamples": 0,
+                    "entryLiquidityAlignmentCounts": {},
+                    "entryLiquidityAlignmentBySide": {
+                        "long": {},
+                        "short": {},
+                    },
+                    "entryLiquidityScoreTotal": 0.0,
+                    "entryLiquidityScoreSamples": 0,
                     "tradesClosed": 0,
                     "wins": 0,
                     "losses": 0,
@@ -738,6 +747,37 @@ class SessionRecorder:
                             )
                             item_diag["entryFlowScoreSamples"] += 1
 
+                    liquidity_alignment = (
+                        strategy_details.get("liquidityAlignment")
+                        if isinstance(strategy_details, dict)
+                        else None
+                    )
+                    if isinstance(liquidity_alignment, dict):
+                        liquidity_class = str(
+                            liquidity_alignment.get("classification")
+                            or "unknown"
+                        )
+                        liquidity_counts = item_diag[
+                            "entryLiquidityAlignmentCounts"
+                        ]
+                        liquidity_counts[liquidity_class] = (
+                            liquidity_counts.get(liquidity_class, 0) + 1
+                        )
+                        side = str(plan.get("side") or "")
+                        side_counts = item_diag[
+                            "entryLiquidityAlignmentBySide"
+                        ].get(side)
+                        if isinstance(side_counts, dict):
+                            side_counts[liquidity_class] = (
+                                side_counts.get(liquidity_class, 0) + 1
+                            )
+                        liquidity_score = liquidity_alignment.get("score")
+                        if isinstance(liquidity_score, (int, float)):
+                            item_diag["entryLiquidityScoreTotal"] += float(
+                                liquidity_score
+                            )
+                            item_diag["entryLiquidityScoreSamples"] += 1
+
             if event == "trade_closed":
                 strategy = str(payload.get("strategy") or "")
                 if strategy:
@@ -824,6 +864,21 @@ class SessionRecorder:
                         if isinstance(flow_context, dict)
                         else "unknown"
                     )
+                    liquidity = (
+                        market_context.get("liquidityEvidence") or {}
+                        if isinstance(market_context, dict)
+                        else {}
+                    )
+                    liquidity_state = (
+                        str(liquidity.get("state") or "unknown")
+                        if isinstance(liquidity, dict)
+                        else "unknown"
+                    )
+                    liquidity_bias = (
+                        str(liquidity.get("directionalBias") or "unknown")
+                        if isinstance(liquidity, dict)
+                        else "unknown"
+                    )
                     long_alignment = (
                         flow_context.get("longAlignment") or {}
                         if isinstance(flow_context, dict)
@@ -851,6 +906,8 @@ class SessionRecorder:
                         ("flowDirection", flow_direction),
                         ("longFlowAlignment", long_alignment_key),
                         ("shortFlowAlignment", short_alignment_key),
+                        ("liquidityState", liquidity_state),
+                        ("liquidityBias", liquidity_bias),
                     ):
                         bucket = market_context_counts[bucket_name]
                         bucket[value] = bucket.get(value, 0) + 1
@@ -908,8 +965,20 @@ class SessionRecorder:
             move_spent_samples = int(item.pop("entryMoveSpentSamples"))
             flow_score_total = float(item.pop("entryFlowScoreTotal"))
             flow_score_samples = int(item.pop("entryFlowScoreSamples"))
+            liquidity_score_total = float(
+                item.pop("entryLiquidityScoreTotal")
+            )
+            liquidity_score_samples = int(
+                item.pop("entryLiquidityScoreSamples")
+            )
             strategy_report[strategy] = {
                 **item,
+                "averageEntryLiquidityAlignmentScore": (
+                    liquidity_score_total / liquidity_score_samples
+                    if liquidity_score_samples > 0
+                    else None
+                ),
+                "entryLiquidityScoreSamples": liquidity_score_samples,
                 "averageEntryFlowAlignmentScore": (
                     flow_score_total / flow_score_samples
                     if flow_score_samples > 0

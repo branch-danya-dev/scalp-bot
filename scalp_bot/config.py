@@ -66,6 +66,8 @@ class Settings(BaseSettings):
 
     trend_structure_enabled: bool = True
     weak_level_rejection_enabled: bool = True
+    # Stage 4: retained name for env compatibility; enables the liquidity
+    # evidence provider, not standalone density entries.
     density_enabled: bool = True
     breakout_enabled: bool = True
 

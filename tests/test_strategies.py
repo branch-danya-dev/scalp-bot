@@ -537,6 +537,40 @@ def test_density_global_flow_away_from_wall_does_not_confirm() -> None:
     assert decision.details["recentLevelFlow"]["imbalance"] > 0
 
 
+def test_density_tracks_defended_wall_even_when_htf_is_flat() -> None:
+    strategy = DensityBounceStrategy()
+    book = density_book(50_000)
+    rows = density_candles()
+    first = strategy.evaluate(
+        rows,
+        book,
+        Trend.FLAT,
+        symbol="FLATEVIDENCEUSDT",
+        trades=density_sell_flow(),
+    )
+    assert first.action == Action.WAIT
+    state = strategy._states["FLATEVIDENCEUSDT"]
+    state.first_seen -= 4
+    state.observations = [
+        (state.first_seen, 50_000),
+        (state.first_seen + 1, 49_000),
+        (state.first_seen + 2, 50_000),
+    ]
+
+    decision = strategy.evaluate(
+        rows,
+        book,
+        Trend.FLAT,
+        symbol="FLATEVIDENCEUSDT",
+        trades=density_sell_flow(),
+    )
+
+    assert decision.action == Action.WAIT
+    assert decision.details["state"] == "defended"
+    assert decision.details["evidenceAction"] == "short"
+    assert decision.details["trendAligned"] is None
+
+
 def test_density_countertrend_reaction_is_not_tradeable() -> None:
     strategy = DensityBounceStrategy()
     book = density_book(50_000)

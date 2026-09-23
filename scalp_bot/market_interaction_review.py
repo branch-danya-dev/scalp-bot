@@ -12,15 +12,21 @@ DEFAULT_MAX_SHARED_LEVEL_DISTANCE_PCT = 0.006
 TRACKED_STATES = {
     "trend_structure": {"pullback", "test", "reclaim", "continuation"},
     "weak_level_rejection": {"approach", "test", "reject", "reaction"},
-    "orderbook_density": {"approach", "test", "defended", "reaction"},
+    "orderbook_density": {"approach", "test", "defended", "reaction", "exhausted"},
     "level_breakout": {"approach", "pressure", "break", "impulse"},
 }
 
 HYPOTHESIS_KIND = {
     "trend_structure": "trend_continuation",
     "weak_level_rejection": "level_rejection",
-    "orderbook_density": "liquidity_rejection",
+    "orderbook_density": "liquidity_evidence",
     "level_breakout": "level_breakout",
+}
+
+PLAYBOOK_STRATEGIES = {
+    "trend_structure",
+    "weak_level_rejection",
+    "level_breakout",
 }
 
 
@@ -146,6 +152,17 @@ def _hypothesis_side(decision: dict) -> str | None:
         return None
 
     if strategy == "orderbook_density":
+        liquidity = details.get("liquidityEvidence") or {}
+        if isinstance(liquidity, dict):
+            directional_bias = str(
+                liquidity.get("directionalBias") or ""
+            )
+            if directional_bias == "up":
+                return "long"
+            if directional_bias == "down":
+                return "short"
+            if directional_bias == "flat":
+                return None
         wall_side = str(details.get("wallSide") or obj.get("side") or "")
         if wall_side == "ask":
             return "short"
@@ -168,6 +185,8 @@ def _feature_snapshot(decision: dict, anchor_price: float) -> dict[str, Any]:
     flow = mapping("flow")
     multi_flow = mapping("multiHorizonFlow")
     flow_alignment = mapping("flowAlignment")
+    liquidity_evidence = mapping("liquidityEvidence")
+    liquidity_alignment = mapping("liquidityAlignment")
     horizons = (
         multi_flow.get("horizons")
         if isinstance(multi_flow.get("horizons"), dict)
@@ -221,6 +240,20 @@ def _feature_snapshot(decision: dict, anchor_price: float) -> dict[str, Any]:
         "normalizedOfi5s": flow_5.get("normalizedOfi"),
         "normalizedOfi15s": flow_15.get("normalizedOfi"),
         "normalizedOfi60s": flow_60.get("normalizedOfi"),
+        "liquidityEvidenceState": liquidity_evidence.get("state"),
+        "liquidityDirectionalBias": liquidity_evidence.get("directionalBias"),
+        "liquidityDirectionalStrength": liquidity_evidence.get("directionalStrength"),
+        "liquidityAlignmentClass": liquidity_alignment.get("classification"),
+        "liquidityAlignmentScore": liquidity_alignment.get("score"),
+        "liquidityWallSide": liquidity_evidence.get("wallSide"),
+        "liquidityWallPrice": liquidity_evidence.get("wallPrice"),
+        "liquidityWallPresent": liquidity_evidence.get("wallPresent"),
+        "liquidityRemainingRatio": liquidity_evidence.get("remainingRatio"),
+        "liquidityAttackRatio": liquidity_evidence.get("attackRatio"),
+        "liquidityDepletionPerSecond": liquidity_evidence.get("depletionPerSecond"),
+        "liquidityReplenishmentRatio": liquidity_evidence.get("replenishmentRatio"),
+        "liquidityAbsorptionObserved": liquidity_evidence.get("absorptionObserved"),
+        "liquidityConsumptionCauses": liquidity_evidence.get("consumptionCauses"),
         "levelFlowImbalance": level_flow.get("imbalance"),
         "levelFlowTradeCount": level_flow.get("tradeCount"),
         "levelFlowPriceResponsePct": level_flow.get("priceResponsePct"),
@@ -672,7 +705,13 @@ def analyze_market_interactions(
         checkpoints.append(checkpoint)
         active[active_key] = checkpoint
 
-        for other_strategy in TRACKED_STATES:
+        # Density remains in checkpoint research, but it is no longer an
+        # independent playbook after Stage 4. Conflict/confluence is therefore
+        # measured only between tradeable playbooks.
+        if strategy not in PLAYBOOK_STRATEGIES:
+            continue
+
+        for other_strategy in PLAYBOOK_STRATEGIES:
             if other_strategy == strategy:
                 continue
             other = active.get((symbol, other_strategy))
@@ -789,6 +828,10 @@ def analyze_market_interactions(
             "confluences": sum(
                 item["relationship"] == "confluence"
                 for item in overlaps
+            ),
+            "liquidityEvidenceCheckpoints": sum(
+                item["strategy"] == "orderbook_density"
+                for item in checkpoints
             ),
         },
         "strategyStateSummary": state_summary,
