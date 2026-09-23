@@ -72,6 +72,8 @@ class Settings(BaseSettings):
     passive_entry_timeout_seconds: float = 15.0
     max_winner_cost_share: float = 0.35
     enforce_winner_cost_share_gate: bool = False
+    min_first_take_move_pct: float = 0.003
+    enforce_min_first_take_move_gate: bool = False
     max_stop_cost_share: float = 1.0
     enforce_stop_cost_share_gate: bool = False
 
