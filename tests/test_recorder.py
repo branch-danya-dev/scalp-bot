@@ -346,6 +346,18 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
     assert report["closedTrades"][0]["netPnl"] == 8.5
     assert "market" not in report["closedTrades"][0]
     assert report["tradeReviews"][0]["summary"]["symbol"] == "AAAUSDT"
+    assert report["tradeReviews"][0]["openSnapshot"]["orderbook"]["bids"]
+    assert report["tradeReviews"][0]["closeSnapshot"]["orderbook"]["asks"]
+    diagnostics = report["strategyDiagnostics"]["level_breakout"]
+    assert diagnostics["decisionUpdates"] == 1
+    assert diagnostics["tradeableDecisionUpdates"] == 1
+    assert diagnostics["uniqueTradeableSetups"] == 1
+    assert diagnostics["uniqueRiskRejectedSetups"] == 1
+    assert diagnostics["tradesOpened"] == 1
+    assert diagnostics["tradesClosed"] == 1
+    assert diagnostics["grossPnl"] == 10.0
+    assert diagnostics["fees"] == 1.5
+    assert diagnostics["netPnl"] == 8.5
     assert report["postRunOpportunity"]["summary"]["rejectedCandidates"] == 1
     assert report["coins"]["latestRanked"][0]["activity_score"] == 88.0
     market = report["marketData"]["symbols"]["AAAUSDT"]
