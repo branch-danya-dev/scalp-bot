@@ -611,5 +611,18 @@ def test_cross_session_dataset_embeds_stable_feature_validation(tmp_path):
     assert effect["status"] == "stable_negative"
     assert effect["leaveOneSessionOutSignAgreementRate"] == 1.0
     assert effect["livePolicyEligible"] is False
+    candidates = dataset["policyPromotionCandidates"]
+    promoted = [
+        row
+        for row in candidates["candidates"]
+        if (
+            row.get("ruleType") == "block_feature_value"
+            and row.get("dimension") == "flowAlignment"
+            and row.get("value") == "short_term_reversal"
+        )
+    ]
+    assert len(promoted) == 1
+    assert promoted[0]["validationStatus"] == "stable_negative"
+    assert candidates["summary"]["featureBlockCandidates"] >= 1
     assert dataset["policy"]["minimumValidationSessions"] == 4
     assert dataset["policy"]["validationThresholdConsistencyRate"] == 0.50
