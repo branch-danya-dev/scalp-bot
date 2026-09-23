@@ -562,6 +562,10 @@ class SessionRecorder:
                     "playbookDirectionCounts": {},
                     "entryContextBlockedUpdates": 0,
                     "entryContextBlockerCounts": {},
+                    "arbiterBlockedUpdates": 0,
+                    "arbiterBlockerCounts": {},
+                    "arbiterConflictCounts": {},
+                    "selectedConfluenceCounts": {},
                     "entryPending": 0,
                     "entryCancelled": 0,
                     "tradesOpened": 0,
@@ -735,6 +739,26 @@ class SessionRecorder:
                     reasons = item_diag["riskRejectReasons"]
                     reasons[reason] = reasons.get(reason, 0) + 1
 
+            if event == "arbiter_blocked":
+                strategy = str(payload.get("strategy") or "")
+                if strategy:
+                    item_diag = strategy_diag(strategy)
+                    item_diag["arbiterBlockedUpdates"] += 1
+                    blocker_counts = item_diag["arbiterBlockerCounts"]
+                    for blocker in payload.get("blockers") or []:
+                        key_blocker = str(blocker)
+                        blocker_counts[key_blocker] = (
+                            blocker_counts.get(key_blocker, 0) + 1
+                        )
+                    conflict_counts = item_diag["arbiterConflictCounts"]
+                    for peer in payload.get(
+                        "conflictingStrategies"
+                    ) or []:
+                        peer_key = str(peer)
+                        conflict_counts[peer_key] = (
+                            conflict_counts.get(peer_key, 0) + 1
+                        )
+
             if event in {"entry_pending", "entry_cancelled"}:
                 strategy = str(
                     payload.get("strategy")
@@ -809,6 +833,33 @@ class SessionRecorder:
                                 flow_score
                             )
                             item_diag["entryFlowScoreSamples"] += 1
+
+                    arbitration = (
+                        payload.get("semanticArbitration")
+                        or (
+                            strategy_details.get(
+                                "semanticArbitration"
+                            )
+                            if isinstance(strategy_details, dict)
+                            else None
+                        )
+                    )
+                    if isinstance(arbitration, dict):
+                        confluence = int(
+                            arbitration.get("confluenceCount")
+                            or 0
+                        )
+                        confluence_counts = item_diag[
+                            "selectedConfluenceCounts"
+                        ]
+                        confluence_key = str(confluence)
+                        confluence_counts[confluence_key] = (
+                            confluence_counts.get(
+                                confluence_key,
+                                0,
+                            )
+                            + 1
+                        )
 
                     decision_context = (
                         strategy_details.get("decisionContext")
