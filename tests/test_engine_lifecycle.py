@@ -124,8 +124,8 @@ def test_central_arbiter_chooses_stronger_setup_instead_of_first_worker(tmp_path
             last_market_at=time(),
             last_book_at=time(),
         )
-        weak.decisions["orderbook_density"] = StrategyDecision(
-            strategy="orderbook_density",
+        weak.decisions["trend_structure"] = StrategyDecision(
+            strategy="trend_structure",
             action=Action.LONG,
             reasons=["weak"],
             confidence=0.55,
@@ -135,8 +135,8 @@ def test_central_arbiter_chooses_stronger_setup_instead_of_first_worker(tmp_path
             watched_level=99.8,
             setup_id="weak-setup",
         )
-        strong.decisions["orderbook_density"] = StrategyDecision(
-            strategy="orderbook_density",
+        strong.decisions["trend_structure"] = StrategyDecision(
+            strategy="trend_structure",
             action=Action.LONG,
             reasons=["strong"],
             confidence=0.90,
@@ -193,8 +193,8 @@ def test_central_arbiter_ignores_stale_market_snapshot(tmp_path) -> None:
             last_market_at=time() - 10,
             last_book_at=time() - 10,
         )
-        session.decisions["orderbook_density"] = StrategyDecision(
-            strategy="orderbook_density",
+        session.decisions["trend_structure"] = StrategyDecision(
+            strategy="trend_structure",
             action=Action.LONG,
             reasons=["stale"],
             confidence=0.99,
@@ -1269,7 +1269,7 @@ def test_strategy_expectancy_remains_observational_until_sample_ready(tmp_path) 
 
 
 
-def test_arbiter_uses_pending_maker_entry_for_density_and_fills_after_trade_through(tmp_path) -> None:
+def test_arbiter_uses_pending_maker_entry_for_tradeable_playbook_and_fills_after_trade_through(tmp_path) -> None:
     engine = make_engine(
         tmp_path,
         passive_entry_enabled=True,
@@ -1298,7 +1298,7 @@ def test_arbiter_uses_pending_maker_entry_for_density_and_fills_after_trade_thro
             entry=100.0,
             stop=99.5,
             target=101.0,
-            setup_id="density-passive-1",
+            setup_id="trend-passive-1",
             details={"allowRunner": True, "state": "defended"},
         )
         engine.sessions = {session.symbol: session}
@@ -1320,7 +1320,7 @@ def test_arbiter_uses_pending_maker_entry_for_density_and_fills_after_trade_thro
         assert "AAAUSDT" not in engine.broker.pending_entries
         assert "AAAUSDT" in engine.broker.positions
         assert any(event["event"] == "trade_opened" for event in engine.events)
-        assert engine.strategy_stats["orderbook_density"]["tradesOpened"] == 1
+        assert engine.strategy_stats["trend_structure"]["tradesOpened"] == 1
     finally:
         close_rest(engine)
 
