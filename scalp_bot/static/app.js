@@ -582,6 +582,23 @@ function renderStrategies(rows) {
       .filter(state => Number(stateCounts[state] || 0) > 0)
       .map(state => `<span><small>${stateLabel(state)}</small>${Number(stateCounts[state] || 0)}</span>`)
       .join("");
+    const sideRegime = stats.sideRegime || {};
+    const longAll = sideRegime.long?.all || {};
+    const shortAll = sideRegime.short?.all || {};
+    const sideStats = [longAll, shortAll].some(row => Number(row.trades || 0) > 0)
+      ? `<div class="strategy-side-stats">
+          <span class="${Number(longAll.netPnl || 0) >= 0 ? "positive" : "negative"}">
+            <small>LONG</small>
+            ${Number(longAll.trades || 0)} · W ${pct(longAll.winRate)} · net ${money(longAll.netPnl || 0)}
+            <em>MFE ${longAll.averageMfeR == null ? "—" : Number(longAll.averageMfeR).toFixed(2) + "R"} · MAE ${longAll.averageMaeR == null ? "—" : Number(longAll.averageMaeR).toFixed(2) + "R"}</em>
+          </span>
+          <span class="${Number(shortAll.netPnl || 0) >= 0 ? "positive" : "negative"}">
+            <small>SHORT</small>
+            ${Number(shortAll.trades || 0)} · W ${pct(shortAll.winRate)} · net ${money(shortAll.netPnl || 0)}
+            <em>MFE ${shortAll.averageMfeR == null ? "—" : Number(shortAll.averageMfeR).toFixed(2) + "R"} · MAE ${shortAll.averageMaeR == null ? "—" : Number(shortAll.averageMaeR).toFixed(2) + "R"}</em>
+          </span>
+        </div>`
+      : "";
     return `<div class="strategy-card">
       <div class="strategy-row">
         <span><strong>${row.label}</strong><small>${row.key}</small></span>
@@ -597,6 +614,7 @@ function renderStrategies(rows) {
         <span title="Все изменения состояния/цены одного и того же сетапа"><small>Updates</small>${stats.decisionUpdates ?? stats.decisions ?? 0}</span>
       </div>
       ${funnel ? `<div class="strategy-funnel">${funnel}</div>` : ""}
+      ${sideStats}
     </div>`;
   }).join("");
   document.querySelectorAll("[data-strategy]").forEach(button => {
@@ -928,6 +946,21 @@ function renderOpportunityReview(report) {
   const summary = report.summary || {};
   const hindsight = report.hindsight || {};
   const hindsightSummary = hindsight.summary || {};
+  const performance = report.strategySideRegimePerformance || {};
+  const performanceRows = (performance.byStrategySideRegime || [])
+    .slice()
+    .sort((left, right) => {
+      if (left.strategy !== right.strategy) return String(left.strategy).localeCompare(String(right.strategy));
+      if (left.side !== right.side) return String(left.side).localeCompare(String(right.side));
+      return String(left.regime).localeCompare(String(right.regime));
+    });
+  const hindsightMatrix = new Map(
+    (performance.hindsightByStrategySideRegime || []).map(row => [
+      [row.strategy, row.side, row.regime].join("|"),
+      row,
+    ])
+  );
+  const sidePerformance = performance.sideSummary || [];
   const hindsightRows = (hindsight.opportunities || [])
     .slice()
     .sort((left, right) => Number(right.estimatedNetMovePct || 0) - Number(left.estimatedNetMovePct || 0))
@@ -948,6 +981,56 @@ function renderOpportunityReview(report) {
       <span class="warn"><small>Нет подходящей стратегии</small>${hindsightSummary.unmappedToExistingStrategy || 0}</span>
       <span><small>Поздние входы</small>${hindsightSummary.botLateEntry || 0}</span>
       <span><small>Ранние выходы</small>${hindsightSummary.botEarlyExit || 0}</span>
+    </div>
+
+    <div class="side-regime-performance">
+      <div class="opportunity-oracle-head">
+        <div>
+          <h3>Strategy × Side × LocalRegime</h3>
+          <small>Фактические сделки сгруппированы по playbook, направлению и локальному режиму на входе. Hindsight coverage считается отдельно и не смешивается с PnL.</small>
+        </div>
+        <small>${performance.summary?.closedTrades || 0} закрытых сделок · LONG ${performance.summary?.longTrades || 0} · SHORT ${performance.summary?.shortTrades || 0}</small>
+      </div>
+      <div class="side-regime-summary">
+        ${sidePerformance.map(row => `<span class="${Number(row.netPnl || 0) >= 0 ? "positive" : "negative"}">
+          <small>${String(row.side || "").toUpperCase()}</small>
+          <b>${row.trades || 0} сделок · W ${pct(row.winRate)}</b>
+          <em>gross ${money(row.grossPnl)} · fees ${money(row.fees)} · net ${money(row.netPnl)}</em>
+          <em>MFE ${row.averageMfeR == null ? "—" : Number(row.averageMfeR).toFixed(2) + "R"} · MAE ${row.averageMaeR == null ? "—" : Number(row.averageMaeR).toFixed(2) + "R"}</em>
+        </span>`).join("") || '<span><small>Нет закрытых сделок</small>—</span>'}
+      </div>
+      <div class="side-regime-table">
+        ${performanceRows.map(row => {
+          const hindsightRow = hindsightMatrix.get([row.strategy, row.side, row.regime].join("|")) || {};
+          const coverage = hindsightRow.opportunities
+            ? `hindsight ${hindsightRow.observed || 0}/${hindsightRow.opportunities} observed · ${hindsightRow.tradeable || 0} tradeable · ${hindsightRow.traded || 0} traded`
+            : "hindsight: нет выборки";
+          const flowCounts = Object.entries(row.flowAlignmentCounts || {})
+            .map(([key, value]) => `${flowAlignmentLabel(key)} ${value}`)
+            .join(" · ");
+          const freshnessCounts = Object.entries(row.freshnessCounts || {})
+            .map(([key, value]) => `${entryFreshnessLabel(key)} ${value}`)
+            .join(" · ");
+          return `<div class="side-regime-row">
+            <div>
+              <strong>${strategyLabel(row.strategy)} · ${String(row.side || "").toUpperCase()}</strong>
+              <span>${localRegimeLabel(row.regime)}</span>
+            </div>
+            <div>
+              <span>${row.trades || 0} сделок · ${row.wins || 0}/${row.losses || 0} · W ${pct(row.winRate)}</span>
+              <small>gross ${money(row.grossPnl)} · fees ${money(row.fees)} · net ${money(row.netPnl)}</small>
+            </div>
+            <div>
+              <span>R ${row.averageRealizedR == null ? "—" : Number(row.averageRealizedR).toFixed(2)} · MFE ${row.averageMfeR == null ? "—" : Number(row.averageMfeR).toFixed(2)} · MAE ${row.averageMaeR == null ? "—" : Number(row.averageMaeR).toFixed(2)}</span>
+              <small>plan RR ${row.averagePlannedNetRewardRisk == null ? "—" : Number(row.averagePlannedNetRewardRisk).toFixed(2)} · spent ${row.averageEntryMoveSpentRatio == null ? "—" : pct(row.averageEntryMoveSpentRatio)}</small>
+            </div>
+            <div>
+              <span>${coverage}</span>
+              <small>${flowCounts || "flow —"}${freshnessCounts ? " · " + freshnessCounts : ""}</small>
+            </div>
+          </div>`;
+        }).join("") || '<div class="empty-row">Для выбранной сессии пока нет strategy × side × regime выборки.</div>'}
+      </div>
     </div>
 
     <div class="opportunity-oracle">

@@ -1,4 +1,5 @@
 import json
+import pytest
 from scalp_bot.recorder import SessionRecorder
 
 
@@ -400,6 +401,23 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
     assert report["tradeReviews"][0]["summary"]["symbol"] == "AAAUSDT"
     assert report["tradeReviews"][0]["openSnapshot"]["orderbook"]["bids"]
     assert report["tradeReviews"][0]["closeSnapshot"]["orderbook"]["asks"]
+    performance = report["strategySideRegimePerformance"]
+    matrix = {
+        (row["strategy"], row["side"], row["regime"]): row
+        for row in performance["byStrategySideRegime"]
+    }
+    perf_row = matrix[
+        ("level_breakout", "long", "bullish_trend")
+    ]
+    assert perf_row["trades"] == 1
+    assert perf_row["netPnl"] == pytest.approx(8.5)
+    assert perf_row["averageEntryMoveSpentRatio"] == pytest.approx(
+        0.62
+    )
+    assert perf_row["flowAlignmentCounts"] == {
+        "short_term_reversal": 1
+    }
+
     diagnostics = report["strategyDiagnostics"]["level_breakout"]
     assert diagnostics["decisionUpdates"] == 1
     assert diagnostics["tradeableDecisionUpdates"] == 1

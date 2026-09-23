@@ -564,6 +564,10 @@ class TradingEngine:
                 "losses": 0,
                 "netPnl": 0.0,
                 "stateCounts": {},
+                "sideRegime": {
+                    "long": {},
+                    "short": {},
+                },
             }
             for x in DEFAULT_STRATEGIES
         }
@@ -2726,6 +2730,10 @@ class TradingEngine:
                         stats["wins"] += 1
                     elif net < 0:
                         stats["losses"] += 1
+                    self._update_side_regime_stats(
+                        stats,
+                        event,
+                    )
                 self.expectancy.record(
                     strategy_key,
                     net_pnl_usd=float(
@@ -2741,6 +2749,126 @@ class TradingEngine:
                     str(event.get("setupId") or ""),
                 )
                 self._emit("trade_closed", session.symbol, event, snapshot=True)
+
+    @staticmethod
+    def _update_side_regime_stats(
+        stats: dict[str, object],
+        event: dict,
+    ) -> None:
+        side = str(event.get("side") or "unknown")
+        if side not in {"long", "short"}:
+            return
+
+        details = event.get("strategyDetails") or {}
+        decision_context = (
+            details.get("decisionContext")
+            if isinstance(details, dict)
+            else None
+        )
+        regime = (
+            str(
+                decision_context.get("localRegime")
+                or "unknown"
+            )
+            if isinstance(decision_context, dict)
+            else "unknown"
+        )
+
+        side_regime = stats.setdefault(
+            "sideRegime",
+            {"long": {}, "short": {}},
+        )
+        if not isinstance(side_regime, dict):
+            return
+        side_bucket = side_regime.setdefault(side, {})
+        if not isinstance(side_bucket, dict):
+            return
+
+        def update_bucket(key: str) -> None:
+            bucket = side_bucket.setdefault(
+                key,
+                {
+                    "trades": 0,
+                    "wins": 0,
+                    "losses": 0,
+                    "grossPnl": 0.0,
+                    "fees": 0.0,
+                    "netPnl": 0.0,
+                    "mfeRTotal": 0.0,
+                    "mfeRSamples": 0,
+                    "maeRTotal": 0.0,
+                    "maeRSamples": 0,
+                },
+            )
+            if not isinstance(bucket, dict):
+                return
+            net = float(event.get("netPnl") or 0.0)
+            bucket["trades"] = int(
+                bucket.get("trades") or 0
+            ) + 1
+            if net > 0:
+                bucket["wins"] = int(
+                    bucket.get("wins") or 0
+                ) + 1
+            elif net < 0:
+                bucket["losses"] = int(
+                    bucket.get("losses") or 0
+                ) + 1
+            bucket["grossPnl"] = float(
+                bucket.get("grossPnl") or 0.0
+            ) + float(event.get("grossPnl") or 0.0)
+            bucket["fees"] = float(
+                bucket.get("fees") or 0.0
+            ) + float(event.get("fees") or 0.0)
+            bucket["netPnl"] = float(
+                bucket.get("netPnl") or 0.0
+            ) + net
+
+            mfe_r = event.get("mfeR")
+            if isinstance(mfe_r, (int, float)):
+                bucket["mfeRTotal"] = float(
+                    bucket.get("mfeRTotal") or 0.0
+                ) + float(mfe_r)
+                bucket["mfeRSamples"] = int(
+                    bucket.get("mfeRSamples") or 0
+                ) + 1
+            mae_r = event.get("maeR")
+            if isinstance(mae_r, (int, float)):
+                bucket["maeRTotal"] = float(
+                    bucket.get("maeRTotal") or 0.0
+                ) + float(mae_r)
+                bucket["maeRSamples"] = int(
+                    bucket.get("maeRSamples") or 0
+                ) + 1
+
+            trades = int(bucket.get("trades") or 0)
+            wins = int(bucket.get("wins") or 0)
+            bucket["winRate"] = (
+                wins / trades
+                if trades > 0
+                else None
+            )
+            mfe_samples = int(
+                bucket.get("mfeRSamples") or 0
+            )
+            mae_samples = int(
+                bucket.get("maeRSamples") or 0
+            )
+            bucket["averageMfeR"] = (
+                float(bucket.get("mfeRTotal") or 0.0)
+                / mfe_samples
+                if mfe_samples > 0
+                else None
+            )
+            bucket["averageMaeR"] = (
+                float(bucket.get("maeRTotal") or 0.0)
+                / mae_samples
+                if mae_samples > 0
+                else None
+            )
+
+        update_bucket("all")
+        update_bucket(regime)
 
     def _consume_setup(self, session: ActiveSymbolSession, strategy: str, setup_id: str) -> None:
         if not strategy or not setup_id:

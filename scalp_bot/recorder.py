@@ -468,12 +468,23 @@ class SessionRecorder:
         horizon_seconds: float = 120.0,
     ) -> dict:
         from .opportunity_review import analyze_session_rows
+        from .performance_matrix import (
+            build_strategy_side_regime_report,
+        )
 
         path = self._session_path(name)
-        return analyze_session_rows(
-            self._read_rows(path),
+        rows = self._read_rows(path)
+        report = analyze_session_rows(
+            rows,
             horizon_seconds=horizon_seconds,
         )
+        report["strategySideRegimePerformance"] = (
+            build_strategy_side_regime_report(
+                rows,
+                hindsight=report.get("hindsight"),
+            )
+        )
+        return report
 
 
     @staticmethod
@@ -523,6 +534,9 @@ class SessionRecorder:
     ) -> dict:
         from .market_interaction_review import analyze_market_interactions
         from .opportunity_review import analyze_session_rows
+        from .performance_matrix import (
+            build_strategy_side_regime_report,
+        )
 
         event_counts: dict[str, int] = {}
         symbols: set[str] = set()
@@ -1112,6 +1126,14 @@ class SessionRecorder:
             rows,
             horizon_seconds=horizon_seconds,
         )
+        performance_matrix = build_strategy_side_regime_report(
+            rows,
+            hindsight=(
+                opportunity.get("hindsight")
+                if isinstance(opportunity, dict)
+                else None
+            ),
+        )
         market_interactions = analyze_market_interactions(rows)
         latest_scanner = scanner_history[-1] if scanner_history else {}
 
@@ -1174,6 +1196,7 @@ class SessionRecorder:
             },
             "runSummary": run_summary,
             "postRunOpportunity": opportunity,
+            "strategySideRegimePerformance": performance_matrix,
             "marketInteractionResearch": market_interactions,
             "strategyDiagnostics": strategy_report,
             "marketContextDiagnostics": {

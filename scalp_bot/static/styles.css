@@ -254,6 +254,29 @@
   color:#8e8e93;
   font-size:8px;
 }
+.strategy-side-stats {
+  margin-top:6px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+}
+.strategy-side-stats > span {
+  display:grid;
+  gap:2px;
+  border:1px solid #ededf0;
+  border-radius:8px;
+  padding:6px;
+  font-size:9px;
+}
+.strategy-side-stats small {
+  color:#8e8e93;
+  font-size:8px;
+}
+.strategy-side-stats em {
+  color:#8e8e93;
+  font-size:8px;
+  font-style:normal;
+}
 .decision-strip {
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
@@ -391,6 +414,53 @@
 .opportunity-row.early_exit_review {
   border-color:rgba(175,82,222,.30);
 }
+.side-regime-performance {
+  margin:14px 0 18px;
+}
+.side-regime-summary {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px;
+  margin-bottom:9px;
+}
+.side-regime-summary > span {
+  display:grid;
+  gap:2px;
+  border:1px solid #ededf0;
+  border-radius:10px;
+  padding:8px;
+  font-size:9px;
+}
+.side-regime-summary small,
+.side-regime-summary em {
+  color:#8e8e93;
+  font-size:8px;
+  font-style:normal;
+}
+.side-regime-table {
+  display:grid;
+  gap:6px;
+}
+.side-regime-row {
+  display:grid;
+  grid-template-columns:minmax(150px,.9fr) minmax(180px,1fr) minmax(190px,1.1fr) minmax(240px,1.35fr);
+  gap:8px;
+  border:1px solid #ededf0;
+  border-radius:10px;
+  padding:8px;
+  font-size:9px;
+}
+.side-regime-row > div {
+  display:grid;
+  gap:2px;
+}
+.side-regime-row small,
+.side-regime-row span {
+  color:#6e6e73;
+}
+.side-regime-row strong {
+  font-size:10px;
+}
 .opportunity-oracle {
   margin:14px 0 18px;
 }
@@ -445,6 +515,9 @@
 @media(max-width:900px) {
   .opportunity-summary {grid-template-columns:repeat(2,minmax(0,1fr));}
   .opportunity-columns {grid-template-columns:1fr;}
+  .strategy-side-stats {grid-template-columns:1fr;}
+  .side-regime-summary {grid-template-columns:1fr;}
+  .side-regime-row {grid-template-columns:1fr;}
 }
 
 
