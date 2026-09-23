@@ -41,7 +41,6 @@ ACTIVE_SETUP_STATES = {"found", "persisting", "approach", "pressure", "test", "d
 ENTRY_FRESHNESS_TRIGGER_STATES = {
     "trend_structure": {"reclaim"},
     "weak_level_rejection": {"reject"},
-    "orderbook_density": {"defended"},
     "level_breakout": {"break"},
 }
 ENTRY_FRESHNESS_RESET_STATES = {
