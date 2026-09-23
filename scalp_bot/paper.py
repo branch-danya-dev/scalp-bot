@@ -24,6 +24,7 @@ class Position:
     target: float
     opened_at: float
     entry_fee_remaining: float
+    entry_fee_total_usd: float
     last_price: float
     setup_id: str
     strategy_details: dict[str, Any] = field(default_factory=dict)
@@ -37,6 +38,15 @@ class Position:
     partial_net_preview_usd: float = 0.0
     partial_required_net_usd: float = 0.0
     partial_economic_ready: bool = False
+    current_move_pct: float = 0.0
+    max_favorable_move_pct: float = 0.0
+    max_adverse_move_pct: float = 0.0
+    mfe_price: float | None = None
+    mae_price: float | None = None
+    mfe_at: float | None = None
+    mae_at: float | None = None
+    partial_taken_at: float | None = None
+    estimated_exit_fee_usd: float = 0.0
 
     @property
     def initial_risk_usd(self) -> float:
@@ -84,6 +94,29 @@ class Position:
         data["current_risk_usd"] = self.current_risk_usd
         data["mfe_r"] = self.mfe_r
         data["mae_r"] = self.mae_r
+        data["fees_committed_usd"] = (
+            self.fees_paid_usd + self.entry_fee_remaining
+        )
+        data["estimated_total_fees_if_close_now_usd"] = (
+            self.fees_paid_usd
+            + self.entry_fee_remaining
+            + self.estimated_exit_fee_usd
+        )
+        economics = (
+            self.strategy_details.get("economics")
+            if isinstance(self.strategy_details, dict)
+            else None
+        )
+        if isinstance(economics, dict):
+            data["planned_first_take_move_pct"] = economics.get(
+                "firstTakeMovePct"
+            )
+            data["planned_target_move_pct"] = economics.get(
+                "targetMovePct"
+            )
+            data["movement_floor_bands"] = economics.get(
+                "movementFloorBands"
+            )
         return data
 
 
@@ -206,6 +239,7 @@ class PaperBroker:
             target=plan.target,
             opened_at=time(),
             entry_fee_remaining=entry_fee,
+            entry_fee_total_usd=entry_fee,
             last_price=fill,
             setup_id=plan.setup_id,
             strategy_details=dict(plan.strategy_details),
@@ -390,6 +424,29 @@ class PaperBroker:
         pos.last_price = last_price
         direction = 1 if pos.side == Side.LONG else -1
         executable = book.executable_exit(pos.side) or last_price
+        now = time()
+        directional_move_pct = (
+            direction * (executable - pos.entry) / pos.entry
+            if pos.entry > 0
+            else 0.0
+        )
+        pos.current_move_pct = directional_move_pct
+        if directional_move_pct > pos.max_favorable_move_pct:
+            pos.max_favorable_move_pct = directional_move_pct
+            pos.mfe_price = executable
+            pos.mfe_at = now
+        adverse_move_pct = max(0.0, -directional_move_pct)
+        if adverse_move_pct > pos.max_adverse_move_pct:
+            pos.max_adverse_move_pct = adverse_move_pct
+            pos.mae_price = executable
+            pos.mae_at = now
+        profile = execution_profile(pos.strategy)
+        pos.estimated_exit_fee_usd = (
+            pos.notional * fee_rate(
+                self.config,
+                profile.stop_exit,
+            )
+        )
 
         # All lifecycle triggers use an executable exit price, not the public
         # last trade. This prevents a target from firing when the bid/ask plus
@@ -409,7 +466,6 @@ class PaperBroker:
 
         events: list[dict] = []
         allow_runner = bool(pos.strategy_details.get("allowRunner", True))
-        profile = execution_profile(pos.strategy)
         partial_triggered = self._partial_triggered(
             pos,
             executable,
@@ -464,6 +520,17 @@ class PaperBroker:
             book,
             reason=reason,
         )
+        direction = 1 if pos.side == Side.LONG else -1
+        exit_move_pct = (
+            direction * (final_leg["fill"] - pos.entry) / pos.entry
+            if pos.entry > 0
+            else 0.0
+        )
+        economics = (
+            pos.strategy_details.get("economics")
+            if isinstance(pos.strategy_details, dict)
+            else None
+        )
         trade = {
             "event": "trade_closed",
             "symbol": pos.symbol,
@@ -473,12 +540,34 @@ class PaperBroker:
             "setupEntry": pos.setup_entry,
             "entry": pos.entry,
             "exit": final_leg["fill"],
+            "exitMovePct": exit_move_pct,
+            "exitMoveBps": exit_move_pct * 10_000,
+            "currentMovePct": pos.current_move_pct,
+            "maxFavorableMovePct": pos.max_favorable_move_pct,
+            "maxFavorableMoveBps": pos.max_favorable_move_pct * 10_000,
+            "maxAdverseMovePct": pos.max_adverse_move_pct,
+            "maxAdverseMoveBps": pos.max_adverse_move_pct * 10_000,
+            "mfePrice": pos.mfe_price,
+            "maePrice": pos.mae_price,
+            "mfeAt": pos.mfe_at,
+            "maeAt": pos.mae_at,
             "initialStop": pos.initial_stop,
             "stop": pos.stop,
             "target": pos.target,
             "originalNotional": pos.original_notional,
             "grossPnl": pos.realized_gross_usd,
             "fees": pos.fees_paid_usd,
+            "entryFeeUsd": pos.entry_fee_total_usd,
+            "plannedFirstTakeMovePct": (
+                economics.get("firstTakeMovePct")
+                if isinstance(economics, dict)
+                else None
+            ),
+            "movementFloorBands": (
+                economics.get("movementFloorBands")
+                if isinstance(economics, dict)
+                else None
+            ),
             "netPnl": pos.realized_net_usd,
             "partialTaken": pos.partial_taken,
             "mfeUsd": pos.mfe_usd,
@@ -488,6 +577,7 @@ class PaperBroker:
             "initialRiskUsd": pos.initial_risk_usd,
             "reason": reason,
             "openedAt": pos.opened_at,
+            "partialTakenAt": pos.partial_taken_at,
             "closedAt": time(),
             "strategyDetails": dict(pos.strategy_details),
         }
@@ -606,6 +696,7 @@ class PaperBroker:
             reason="partial_take",
         )
         pos.partial_taken = True
+        pos.partial_taken_at = time()
         pos.partial_net_preview_usd = leg["net"]
         pos.partial_required_net_usd = required_net
         pos.partial_economic_ready = True
@@ -646,6 +737,22 @@ class PaperBroker:
             "side": pos.side.value,
             "setupId": pos.setup_id,
             "fill": leg["fill"],
+            "movePct": (
+                (1 if pos.side == Side.LONG else -1)
+                * (leg["fill"] - pos.entry)
+                / pos.entry
+                if pos.entry > 0
+                else 0.0
+            ),
+            "moveBps": (
+                (1 if pos.side == Side.LONG else -1)
+                * (leg["fill"] - pos.entry)
+                / pos.entry
+                * 10_000
+                if pos.entry > 0
+                else 0.0
+            ),
+            "takenAt": pos.partial_taken_at,
             "closedNotional": close_notional,
             "remainingNotional": pos.notional,
             "grossPnl": leg["gross"],
