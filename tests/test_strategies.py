@@ -122,6 +122,7 @@ def rejection_absorption_only_flow() -> list[TradeTick]:
 
 def test_weak_rejection_stages_absorption_probe_then_flow_add() -> None:
     strategy = WeakLevelRejectionStrategy()
+    strategy.staged_entries_enabled = True
     book = OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)])
     rows = weak_support_rejection_candles()
 
@@ -226,6 +227,7 @@ def aggressive_buy_flow() -> list[TradeTick]:
 
 def test_breakout_stages_probe_before_hold_then_adds_after_confirmation() -> None:
     strategy = LevelBreakoutStrategy()
+    strategy.staged_entries_enabled = True
     book = OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)])
     probe = strategy.evaluate(
         mature_breakout_candles(),
