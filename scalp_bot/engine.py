@@ -1029,20 +1029,18 @@ class TradingEngine:
         )
         session.last_price = candles[-1].close if candles else 0
         closed_1m = [x for x in session.candles if x.confirmed]
-        session.trend = classify_context_trend(
-            session.context_15m,
-            session.context_1h,
+        self._refresh_market_context(
+            session,
+            closed_1m=closed_1m,
+            closed_5m=session.context_5m,
+            closed_15m=session.context_15m,
+            closed_1h=session.context_1h,
+            commit=False,
         )
-        session.htf_bias = classify_htf_bias(
-            session.context_15m,
-            session.context_1h,
-        )
-        session.local_regime = classify_local_regime(
-            closed_1m,
-            session.context_5m,
-        )
-        session.market_context_fingerprint = self._market_context_fingerprint(
-            session
+        self._commit_market_context(
+            session,
+            observed_at_ms=int(now * 1000),
+            emit=False,
         )
         self.sessions[symbol] = session
         self._emit(
