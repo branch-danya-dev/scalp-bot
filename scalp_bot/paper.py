@@ -262,6 +262,157 @@ class PaperBroker:
             return False, "portfolio risk budget exhausted"
         return True, "allowed"
 
+    def staged_add_economics(
+        self,
+        plan: TradePlan,
+        *,
+        fill: float | None = None,
+        entry_fee: float | None = None,
+    ) -> dict:
+        pos = self.positions.get(plan.symbol)
+        if pos is None:
+            return {
+                "allowed": False,
+                "reason": "no open position for staged add",
+            }
+
+        resolved_fill = float(
+            plan.market_entry
+            if fill is None
+            else fill
+        )
+        if resolved_fill <= 0:
+            return {
+                "allowed": False,
+                "reason": "invalid staged add fill",
+            }
+
+        combined_notional = pos.notional + plan.notional
+        if combined_notional <= 0:
+            return {
+                "allowed": False,
+                "reason": "invalid combined staged notional",
+            }
+
+        combined_entry = (
+            pos.entry * pos.notional
+            + resolved_fill * plan.notional
+        ) / combined_notional
+        if pos.side == Side.LONG:
+            combined_stop = max(pos.stop, plan.stop)
+            combined_target = plan.target
+            target_move = max(
+                0.0,
+                (combined_target - combined_entry)
+                / combined_entry,
+            )
+            stop_move = max(
+                0.0,
+                (combined_entry - combined_stop)
+                / combined_entry,
+            )
+        else:
+            combined_stop = min(pos.stop, plan.stop)
+            combined_target = plan.target
+            target_move = max(
+                0.0,
+                (combined_entry - combined_target)
+                / combined_entry,
+            )
+            stop_move = max(
+                0.0,
+                (combined_stop - combined_entry)
+                / combined_entry,
+            )
+
+        if target_move <= 0 or stop_move <= 0:
+            return {
+                "allowed": False,
+                "reason": "staged add creates invalid combined stop/target geometry",
+                "combinedEntry": combined_entry,
+                "combinedStop": combined_stop,
+                "combinedTarget": combined_target,
+            }
+
+        profile = execution_profile(plan.strategy)
+        resolved_entry_fee = (
+            plan.notional * fee_rate(
+                self.config,
+                plan.entry_mode,
+            )
+            if entry_fee is None
+            else max(0.0, entry_fee)
+        )
+        committed_entry_fees = (
+            max(0.0, pos.entry_fee_remaining)
+            + resolved_entry_fee
+        )
+        target_exit_cost = combined_notional * (
+            fee_rate(
+                self.config,
+                profile.target_exit,
+            )
+            + slippage_rate(
+                self.config,
+                profile.target_exit,
+            )
+        )
+        stop_exit_cost = combined_notional * (
+            fee_rate(
+                self.config,
+                profile.stop_exit,
+            )
+            + slippage_rate(
+                self.config,
+                profile.stop_exit,
+            )
+        )
+        gross_target = combined_notional * target_move
+        gross_loss = combined_notional * stop_move
+        net_target = (
+            gross_target
+            - committed_entry_fees
+            - target_exit_cost
+        )
+        all_in_loss = (
+            gross_loss
+            + committed_entry_fees
+            + stop_exit_cost
+        )
+        net_rr = (
+            net_target / all_in_loss
+            if all_in_loss > 0
+            else 0.0
+        )
+        hard_floor = max(
+            0.0,
+            self.config.absolute_min_net_reward_risk,
+        )
+        allowed = (
+            net_target > 0
+            and net_rr + 1e-12 >= hard_floor
+        )
+        return {
+            "allowed": allowed,
+            "reason": (
+                "allowed"
+                if allowed
+                else (
+                    "combined staged position net reward/risk "
+                    f"{net_rr:.4f} < hard minimum {hard_floor:.4f}"
+                )
+            ),
+            "combinedEntry": combined_entry,
+            "combinedStop": combined_stop,
+            "combinedTarget": combined_target,
+            "combinedNotional": combined_notional,
+            "grossAtTargetUsd": gross_target,
+            "allInLossUsd": all_in_loss,
+            "netAtTargetUsd": net_target,
+            "netRewardRisk": net_rr,
+            "absoluteMinimumNetRewardRisk": hard_floor,
+        }
+
     def _position_from_fill(
         self,
         plan: TradePlan,
@@ -318,6 +469,18 @@ class PaperBroker:
         pos = self.positions.get(plan.symbol)
         if pos is None:
             raise RuntimeError("no open position for staged add")
+        combined_economics = self.staged_add_economics(
+            plan,
+            fill=fill,
+            entry_fee=entry_fee,
+        )
+        if not bool(combined_economics.get("allowed")):
+            raise RuntimeError(
+                str(
+                    combined_economics.get("reason")
+                    or "combined staged economics rejected"
+                )
+            )
         previous_notional = pos.notional
         combined_notional = previous_notional + plan.notional
         if combined_notional <= 0:
@@ -349,9 +512,22 @@ class PaperBroker:
             pos.stop = max(pos.stop, plan.stop)
         else:
             pos.stop = min(pos.stop, plan.stop)
+        # The add leg is a new confirmed strategy state. Keep the live
+        # position geometry coherent with that latest plan instead of
+        # leaving the probe target stale.
+        pos.target = plan.target
 
         merged_details = dict(pos.strategy_details)
         merged_details.update(plan.strategy_details)
+        merged_details["stagedPositionEconomics"] = (
+            combined_economics
+        )
+        merged_details["stagedPositionGeometry"] = {
+            "entry": pos.entry,
+            "stop": pos.stop,
+            "target": pos.target,
+            "notional": pos.notional,
+        }
         pos.strategy_details = merged_details
         pos.entry_legs.append({
             "phase": str(
@@ -415,6 +591,17 @@ class PaperBroker:
         if plan.expected_net_loss > self.available_risk_usd + 1e-9:
             raise RuntimeError(
                 "staged add exceeds remaining all-in portfolio risk budget"
+            )
+        economics = self.staged_add_economics(
+            plan,
+            fill=plan.market_entry,
+        )
+        if not bool(economics.get("allowed")):
+            raise RuntimeError(
+                str(
+                    economics.get("reason")
+                    or "combined staged economics rejected"
+                )
             )
         now = time()
         pending = PendingEntry(
@@ -524,6 +711,25 @@ class PaperBroker:
             "maker_limit",
         )
         if is_add:
+            economics = self.staged_add_economics(
+                pending.plan,
+                fill=pending.limit_price,
+                entry_fee=fee,
+            )
+            if not bool(economics.get("allowed")):
+                return [{
+                    "event": "entry_cancelled",
+                    "symbol": symbol,
+                    "strategy": pending.plan.strategy,
+                    "setupId": pending.plan.setup_id,
+                    "reason": (
+                        "staged_add_economics: "
+                        + str(economics.get("reason"))
+                    ),
+                    "limitPrice": pending.limit_price,
+                    "positionAction": pending.position_action,
+                    "combinedEconomics": economics,
+                }]
             position = self._add_to_position_from_fill(
                 pending.plan,
                 pending.limit_price,
@@ -634,6 +840,18 @@ class PaperBroker:
             self.config,
             profile.entry,
         )
+        economics = self.staged_add_economics(
+            plan,
+            fill=fill,
+            entry_fee=fee,
+        )
+        if not bool(economics.get("allowed")):
+            raise RuntimeError(
+                str(
+                    economics.get("reason")
+                    or "combined staged economics rejected"
+                )
+            )
         return self._add_to_position_from_fill(
             plan,
             fill,
