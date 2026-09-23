@@ -1348,10 +1348,39 @@ class TradingEngine:
         closed_1h = [x for x in session.context_1h if x.confirmed]
         if not closed_1m:
             return
+
+        now = time()
+        now_ms = int(now * 1000)
+        self._refresh_market_context(
+            session,
+            closed_1m=closed_1m,
+            closed_5m=closed_5m,
+            closed_15m=closed_15m,
+            closed_1h=closed_1h,
+            commit=False,
+            observed_at_ms=now_ms,
+        )
+
+        trade_flow = compute_trade_flow(
+            list(session.trades),
+            now_ms,
+        )
+        book_flow = session.book_flow_snapshot(now_ms)
+        session.flow_context = build_multi_horizon_flow_context(
+            trade_flow,
+            book_flow,
+            observed_at_ms=now_ms,
+        )
+
         if not session.confirmed_candle_is_fresh(
             self.config.confirmed_candle_stale_seconds,
+            now,
         ):
-            age = session.confirmed_candle_age_seconds()
+            self._commit_market_context(
+                session,
+                observed_at_ms=now_ms,
+            )
+            age = session.confirmed_candle_age_seconds(now)
             for key in self.strategies:
                 if not self.strategy_enabled.get(key, False):
                     continue
@@ -1367,18 +1396,16 @@ class TradingEngine:
                         "staleAfterSeconds": (
                             self.config.confirmed_candle_stale_seconds
                         ),
+                        "evidenceOnly": (
+                            key == "orderbook_density"
+                        ),
                     },
                 )
+                self._annotate_decision_context(session, decision)
                 session.decisions[key] = decision
                 self._record_decision_if_changed(session, decision)
             return
-        self._refresh_market_context(
-            session,
-            closed_1m=closed_1m,
-            closed_5m=closed_5m,
-            closed_15m=closed_15m,
-            closed_1h=closed_1h,
-        )
+
         reference_price = session.orderbook.mid or session.last_price
         session.structure = build_market_structure(
             closed_1m,
@@ -1391,34 +1418,27 @@ class TradingEngine:
             session.structure,
             closed_1m,
             reference_price,
-            int(time() * 1000),
-        )
-        now = time()
-        now_ms = int(now * 1000)
-        trade_flow = compute_trade_flow(
-            list(session.trades),
             now_ms,
         )
-        book_flow = session.book_flow_snapshot(now_ms)
-        session.flow_context = build_multi_horizon_flow_context(
-            trade_flow,
-            book_flow,
-            observed_at_ms=now_ms,
-        )
-        book_fresh = session.book_is_fresh(now)
-        if not self.strategy_enabled.get("orderbook_density", False):
-            session.liquidity_evidence = None
 
-        strategy_items = list(self.strategies.items())
-        strategy_items.sort(
-            key=lambda item: 0 if item[0] == "orderbook_density" else 1
+        # Density is the liquidity provider, so the preliminary context passed
+        # into it deliberately excludes the previous cycle's liquidity state.
+        session.liquidity_evidence = None
+        self._commit_market_context(
+            session,
+            observed_at_ms=now_ms,
+            emit=False,
         )
-        for key, strategy in strategy_items:
-            if not self.strategy_enabled[key]:
-                continue
-            if key == "orderbook_density" and not book_fresh:
-                decision = StrategyDecision(
-                    strategy=key,
+
+        density_decision: StrategyDecision | None = None
+        density = self.strategies.get("orderbook_density")
+        if (
+            density is not None
+            and self.strategy_enabled.get("orderbook_density", False)
+        ):
+            if not session.book_is_fresh(now):
+                raw_density = StrategyDecision(
+                    strategy="orderbook_density",
                     action=Action.WAIT,
                     reasons=[
                         "Стакан не синхронизирован или устарел; liquidity evidence не обновляется"
@@ -1430,14 +1450,82 @@ class TradingEngine:
                         "evidenceOnly": True,
                     },
                 )
-                session.liquidity_evidence = build_liquidity_evidence(
-                    decision
-                )
-                decision.details["liquidityEvidence"] = (
-                    session.liquidity_evidence.public()
-                )
-                session.decisions[key] = decision
-                self._record_decision_if_changed(session, decision)
+            else:
+                try:
+                    raw_density = density.evaluate(
+                        closed_1m,
+                        session.orderbook,
+                        session.trend,
+                        symbol=session.symbol,
+                        trades=list(session.trades),
+                        structure=session.structure,
+                        market_context=session.market_context,
+                        observed_at_ms=now_ms,
+                    )
+                except Exception as exc:
+                    error = f"{type(exc).__name__}: {exc}"
+                    previous = session.decisions.get(
+                        "orderbook_density"
+                    )
+                    if (
+                        previous is None
+                        or previous.details.get("error") != error
+                    ):
+                        self._emit(
+                            "strategy_error",
+                            session.symbol,
+                            {
+                                "strategy": "orderbook_density",
+                                "error": error,
+                            },
+                            snapshot=True,
+                        )
+                    raw_density = StrategyDecision(
+                        strategy="orderbook_density",
+                        action=Action.WAIT,
+                        reasons=[f"Ошибка стратегии: {error}"],
+                        details={
+                            "state": "error",
+                            "error": error,
+                            "evidenceOnly": True,
+                        },
+                    )
+
+            self._annotate_flow_context(
+                session,
+                raw_density,
+            )
+            session.liquidity_evidence = build_liquidity_evidence(
+                raw_density
+            )
+            raw_density.details["liquidityEvidence"] = (
+                session.liquidity_evidence.public()
+            )
+            density_decision = self._density_as_evidence_only(
+                raw_density
+            )
+
+        # This is the canonical context shared by all tradeable playbooks.
+        self._commit_market_context(
+            session,
+            observed_at_ms=now_ms,
+        )
+
+        if density_decision is not None:
+            self._annotate_decision_context(
+                session,
+                density_decision,
+            )
+            session.decisions["orderbook_density"] = density_decision
+            self._record_decision_if_changed(
+                session,
+                density_decision,
+            )
+
+        for key, strategy in self.strategies.items():
+            if key == "orderbook_density":
+                continue
+            if not self.strategy_enabled.get(key, False):
                 continue
             try:
                 decision = strategy.evaluate(
@@ -1447,7 +1535,8 @@ class TradingEngine:
                     symbol=session.symbol,
                     trades=list(session.trades),
                     structure=session.structure,
-                    observed_at_ms=int(now * 1000),
+                    market_context=session.market_context,
+                    observed_at_ms=now_ms,
                 )
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"
@@ -1465,23 +1554,11 @@ class TradingEngine:
                     reasons=[f"Ошибка стратегии: {error}"],
                     details={"state": "error", "error": error},
                 )
+
             self._annotate_flow_context(
                 session,
                 decision,
             )
-
-            if key == "orderbook_density":
-                session.liquidity_evidence = build_liquidity_evidence(
-                    decision
-                )
-                decision.details["liquidityEvidence"] = (
-                    session.liquidity_evidence.public()
-                )
-                decision = self._density_as_evidence_only(decision)
-                session.decisions[key] = decision
-                self._record_decision_if_changed(session, decision)
-                continue
-
             self._annotate_liquidity_evidence(
                 session,
                 decision,
@@ -1491,12 +1568,24 @@ class TradingEngine:
                 decision,
                 observed_at=now,
             )
+            self._annotate_decision_context(
+                session,
+                decision,
+            )
+
             if decision.tradeable:
-                decision.setup_id = self._resolve_setup_id(session, decision)
+                decision.setup_id = self._resolve_setup_id(
+                    session,
+                    decision,
+                )
                 session.last_signal_at = now
                 session.nontradeable_since.pop(key, None)
             else:
-                self._observe_wait_for_rearm(session, key, now)
+                self._observe_wait_for_rearm(
+                    session,
+                    key,
+                    now,
+                )
 
             session.decisions[key] = decision
             self._record_decision_if_changed(session, decision)
