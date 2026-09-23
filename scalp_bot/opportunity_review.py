@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from typing import Any
 
+from .hindsight_review import analyze_hindsight_opportunities
 from .market_interaction_review import TRACKED_STATES
 
 
@@ -683,6 +684,7 @@ def analyze_session_rows(
             market_move_decision_lookback_seconds,
         ),
     )
+    hindsight = analyze_hindsight_opportunities(rows)
 
     by_reason = Counter(
         str(row.get("reason") or "unknown")
@@ -751,10 +753,17 @@ def analyze_session_rows(
                 "detected_not_executed"
             ],
             "tradedMarketMoves": market_move_status["traded"],
+            "hindsightOpportunities": hindsight["summary"]["opportunities"],
+            "hindsightMissed": hindsight["summary"]["botMissed"],
+            "hindsightMapped": hindsight["summary"]["mappedToExistingStrategy"],
+            "hindsightUnmapped": hindsight["summary"]["unmappedToExistingStrategy"],
+            "hindsightLateEntry": hindsight["summary"]["botLateEntry"],
+            "hindsightEarlyExit": hindsight["summary"]["botEarlyExit"],
         },
         "byReason": dict(by_reason),
         "byStrategy": by_strategy,
         "candidates": candidates,
         "earlyExits": early_exits,
         "marketMoves": market_moves,
+        "hindsight": hindsight,
     }
