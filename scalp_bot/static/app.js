@@ -569,7 +569,7 @@ function eventText(event) {
   if (event.event === "entry_cancelled") return `${reasonText(payload.reason)} · ${price(payload.limitPrice)}`;
   if (event.event === "trade_opened") return `${sideLabel(payload.plan?.side)} · ${money(payload.plan?.notional)} · net на цели ${money(payload.plan?.net_at_target ?? payload.plan?.expected_net_profit)} · качество ${Number(payload.opportunityQuality ?? 0).toFixed(2)}`;
   if (event.event === "partial_take") return `частичная фиксация ${money(payload.netPnl)} · осталось ${money(payload.remainingNotional)} · стоп→${price(payload.newStop)}`;
-  if (event.event === "trade_closed") return `${reasonText(payload.reason)} · ${money(payload.netPnl)} · MAE ${money(payload.maeUsd)} · MFE ${money(payload.mfeUsd)}`;
+  if (event.event === "trade_closed") return `${reasonText(payload.reason)} · ${payload.exitMoveBps == null ? "—" : Number(payload.exitMoveBps).toFixed(1) + " bps"} · комиссия ${money(payload.fees)} · net ${money(payload.netPnl)}`;
   if (event.event === "risk_reject") {
     const d = payload.diagnostics || {};
     const economics = d.netAtTargetUsd != null
@@ -837,9 +837,12 @@ function timelineText(row) {
     const waiting = (trace.waitingFor || []).slice(0, 2).map(translatePhrase).join(" · ");
     return `${strategyLabel(trace.strategy || payload.strategy)} · ${stateLabel(trace.state || payload.details?.state)}${objectText}${waiting ? " · ждём: " + waiting : ""}`;
   }
-  if (row.event === "trade_opened") return "Позиция открыта";
+  if (row.event === "trade_opened") {
+    const position = payload.position || {};
+    return `Позиция открыта @ ${price(position.entry)} · первый тейк ${bps(position.planned_first_take_move_pct)} · комиссия входа ${money(position.entry_fee_total_usd)}`;
+  }
   if (row.event === "partial_take") return `Частичная фиксация · ${payload.moveBps == null ? "—" : Number(payload.moveBps).toFixed(1) + " bps"} · комиссия ${money(payload.fees)} · net ${money(payload.netPnl)}`;
-  if (row.event === "trade_closed") return `${reasonText(payload.reason || "closed")} · ${money(payload.netPnl)}`;
+  if (row.event === "trade_closed") return `${reasonText(payload.reason || "closed")} · движение ${payload.exitMoveBps == null ? "—" : Number(payload.exitMoveBps).toFixed(1) + " bps"} · комиссия ${money(payload.fees)} · net ${money(payload.netPnl)}`;
   if (row.event === "risk_reject") return `Отклонено риском · ${reasonText(payload.reason)}`;
   if (row.event === "setup_blocked") return `Сетап заблокирован · ${reasonText(payload.reason)}`;
   return row.event.replaceAll("_", " ");
