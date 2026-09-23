@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 from .config import Settings
+from .domain import Side
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,3 +74,34 @@ def preferred_entry_mode(
     if config.passive_entry_enabled and profile.passive_entry_eligible:
         return "maker_limit"
     return profile.entry
+
+
+
+def apply_entry_slippage(
+    price: float,
+    side: Side,
+    rate: float,
+) -> float:
+    resolved = max(0.0, float(rate))
+    if price <= 0 or resolved <= 0:
+        return price
+    return price * (
+        1 + resolved
+        if side == Side.LONG
+        else 1 - resolved
+    )
+
+
+def apply_exit_slippage(
+    price: float,
+    side: Side,
+    rate: float,
+) -> float:
+    resolved = max(0.0, float(rate))
+    if price <= 0 or resolved <= 0:
+        return price
+    return price * (
+        1 - resolved
+        if side == Side.LONG
+        else 1 + resolved
+    )
