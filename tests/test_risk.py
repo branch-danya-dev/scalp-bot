@@ -1086,3 +1086,38 @@ def test_staged_add_respects_remaining_position_exposure_cap() -> None:
     assert result.diagnostics[
         "remainingPositionExposureCapUsd"
     ] == pytest.approx(300)
+
+
+
+def test_absolute_net_rr_floor_cannot_be_disabled_by_research_profile() -> None:
+    cfg = economic_settings(
+        enforce_min_net_profit_gate=False,
+        enforce_net_reward_risk_gate=False,
+        absolute_min_net_reward_risk=1.0,
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        StrategyDecision(
+            strategy="level_breakout",
+            action=Action.LONG,
+            reasons=["bad payoff geometry"],
+            entry=100.0,
+            stop=99.0,
+            target=100.70,
+            details={"allowRunner": False},
+        ),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        100,
+    )
+
+    assert not result.allowed
+    assert "absolute_net_reward_risk" in result.reason
+    assert result.diagnostics is not None
+    assert result.diagnostics[
+        "absoluteMinimumNetRewardRisk"
+    ] == pytest.approx(1.0)
