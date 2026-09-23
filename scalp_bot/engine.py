@@ -2376,6 +2376,7 @@ class TradingEngine:
             trend=session.trend,
             last_price=session.last_price,
             book=session.orderbook,
+            market_context=session.market_context,
             observed_at_ms=int(time() * 1000),
         )
         if not reason:
