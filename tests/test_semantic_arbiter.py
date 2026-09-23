@@ -1,3 +1,5 @@
+import pytest
+
 from __future__ import annotations
 
 from scalp_bot.domain import Action, Side, StrategyDecision, TradePlan, Trend
