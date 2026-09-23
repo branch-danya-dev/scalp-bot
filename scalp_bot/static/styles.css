@@ -414,6 +414,62 @@
 .opportunity-row.early_exit_review {
   border-color:rgba(175,82,222,.30);
 }
+.economic-calibration {
+  margin:14px 0 18px;
+}
+.calibration-summary {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:7px;
+  margin-bottom:9px;
+}
+.calibration-summary > span {
+  display:grid;
+  gap:2px;
+  border:1px solid #ededf0;
+  border-radius:10px;
+  padding:8px;
+  font-size:9px;
+}
+.calibration-summary small {
+  color:#8e8e93;
+  font-size:8px;
+}
+.calibration-table {
+  display:grid;
+  gap:6px;
+}
+.calibration-row {
+  display:grid;
+  grid-template-columns:minmax(150px,.8fr) minmax(190px,1fr) minmax(190px,1fr) minmax(190px,1fr);
+  gap:8px;
+  border:1px solid #ededf0;
+  border-radius:10px;
+  padding:8px;
+  font-size:9px;
+}
+.calibration-row.ready {
+  border-color:rgba(52,199,89,.28);
+}
+.calibration-row.not-ready {
+  border-color:rgba(142,142,147,.22);
+}
+.calibration-row > div {
+  display:grid;
+  gap:2px;
+}
+.calibration-row small,
+.calibration-row span {
+  color:#6e6e73;
+}
+.calibration-row strong {
+  font-size:10px;
+}
+.calibration-bands {
+  grid-column:1 / -1;
+  border-top:1px dashed #ededf0;
+  padding-top:5px;
+}
 .side-regime-performance {
   margin:14px 0 18px;
 }
@@ -518,6 +574,8 @@
   .strategy-side-stats {grid-template-columns:1fr;}
   .side-regime-summary {grid-template-columns:1fr;}
   .side-regime-row {grid-template-columns:1fr;}
+  .calibration-row {grid-template-columns:1fr;}
+  .calibration-bands {grid-column:auto;}
 }
 
 
