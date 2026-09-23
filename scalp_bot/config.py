@@ -123,7 +123,10 @@ class Settings(BaseSettings):
     partial_take_at_r: float = 1.0
     partial_take_fraction: float = 0.70
     trend_structure_partial_take_fraction: float = 0.50
-    weak_level_rejection_partial_take_fraction: float = 0.70
+    # Rejection edge appears at REJECT, while taking 70% at 1R made the
+    # planned winner smaller than the all-in loser after costs. Keep more
+    # notional for the structural target.
+    weak_level_rejection_partial_take_fraction: float = 0.30
     density_partial_take_fraction: float = 0.70
     breakout_partial_take_fraction: float = 0.30
     runner_target_r: float = 2.5
