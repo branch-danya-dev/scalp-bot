@@ -592,6 +592,109 @@ def _feature_outcomes(
     return result
 
 
+def _policy_shadow_outcomes(
+    trades: list[dict],
+) -> list[dict]:
+    grouped: dict[tuple, list[dict]] = defaultdict(list)
+    rule_meta: dict[tuple, dict[str, Any]] = {}
+    for row in trades:
+        assessments = row.get(
+            "researchPolicyAssessments"
+        )
+        if not isinstance(assessments, list):
+            continue
+        for assessment in assessments:
+            if not isinstance(assessment, dict):
+                continue
+            if (
+                str(assessment.get("mode") or "")
+                != "shadow"
+                or not bool(
+                    assessment.get("wouldBlock")
+                )
+            ):
+                continue
+            policy_id = str(
+                assessment.get("policyId")
+                or "unknown"
+            )
+            policy_version = int(
+                assessment.get("policyVersion")
+                or 0
+            )
+            phase = str(
+                assessment.get("phase")
+                or "unknown"
+            )
+            matched_rules = (
+                assessment.get("matchedRules")
+                if isinstance(
+                    assessment.get("matchedRules"),
+                    list,
+                )
+                else []
+            )
+            by_rule = {
+                str(rule.get("ruleId") or ""): rule
+                for rule in matched_rules
+                if isinstance(rule, dict)
+            }
+            for rule_id in (
+                assessment.get("matchedRuleIds")
+                or []
+            ):
+                rule_key = str(rule_id)
+                key = (
+                    policy_id,
+                    policy_version,
+                    rule_key,
+                    str(row.get("strategy") or "unknown"),
+                    str(row.get("side") or "unknown"),
+                    str(row.get("regime") or "unknown"),
+                    phase,
+                )
+                grouped[key].append(row)
+                rule_meta[key] = (
+                    by_rule.get(rule_key)
+                    or {}
+                )
+
+    result = []
+    for key, rows in sorted(grouped.items()):
+        outcome = _trade_outcome_summary(rows)
+        expectancy = outcome.get(
+            "expectancyAllInR"
+        )
+        result.append({
+            "policyId": key[0],
+            "policyVersion": key[1],
+            "ruleId": key[2],
+            "strategy": key[3],
+            "side": key[4],
+            "regime": key[5],
+            "phase": key[6],
+            "rule": rule_meta.get(key) or {},
+            **outcome,
+            "zeroTradeCounterfactualNetImprovement": (
+                -float(
+                    outcome.get("netPnl")
+                    or 0.0
+                )
+            ),
+            "zeroTradeCounterfactualAllInRImprovementPerTrade": (
+                -float(expectancy)
+                if expectancy is not None
+                else None
+            ),
+            "counterfactualCaveat": (
+                "Assumes the matched trade becomes no-trade. "
+                "It does not simulate replacement opportunities "
+                "the arbiter might have selected instead."
+            ),
+        })
+    return result
+
+
 def _hindsight_coverage(
     opportunities: list[dict],
 ) -> list[dict]:
@@ -1046,6 +1149,9 @@ def aggregate_research_sources(
         ),
         "arbiterBlockSummary": (
             _arbiter_summary(arbiter_blocks)
+        ),
+        "researchPolicyShadowOutcomes": (
+            _policy_shadow_outcomes(trades)
         ),
         "conditionalEconomicCalibration": (
             calibration
