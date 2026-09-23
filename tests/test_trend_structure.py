@@ -78,7 +78,12 @@ def buy_flow() -> list[TradeTick]:
         for i in range(7)
     ]
     rows += [
-        TradeTick(100_000 + i * 100, 100.0, 10, "Buy")
+        TradeTick(
+            100_000 + i * 100,
+            100.0 + i * 0.005,
+            10,
+            "Buy",
+        )
         for i in range(6)
     ]
     return rows
@@ -90,7 +95,12 @@ def sell_flow() -> list[TradeTick]:
         for i in range(7)
     ]
     rows += [
-        TradeTick(100_000 + i * 100, 100.0, 10, "Sell")
+        TradeTick(
+            100_000 + i * 100,
+            100.0 - i * 0.005,
+            10,
+            "Sell",
+        )
         for i in range(6)
     ]
     return rows
@@ -157,7 +167,7 @@ def test_reclaim_without_trade_flow_is_still_wait() -> None:
     assert decision.details["flowConfirmed"] is False
 
 
-def test_long_entry_requires_test_reclaim_flow_and_follow_through() -> None:
+def test_long_entry_requires_test_reclaim_flow_and_price_response() -> None:
     strategy = TrendStructureStrategy()
     candles = long_pullback_candles()
     market_structure = structure("support")
@@ -259,6 +269,39 @@ def test_short_entry_uses_symmetric_confirmation_sequence() -> None:
     )
     assert entry.action == Action.SHORT
     assert entry.stop > entry.entry
+
+
+def test_aggressive_flow_without_price_response_does_not_confirm_reclaim() -> None:
+    strategy = TrendStructureStrategy()
+    candles = long_pullback_candles()
+    market_structure = structure("support")
+    stalled_flow = buy_flow()
+    for row in stalled_flow[-6:]:
+        row.price = 100.0
+
+    first = strategy.evaluate(
+        candles,
+        book(100.09, 100.11),
+        Trend.UP,
+        symbol="ABSORBUSDT",
+        trades=stalled_flow,
+        structure=market_structure,
+    )
+    assert first.details["state"] == "armed"
+
+    stalled = strategy.evaluate(
+        candles,
+        book(100.69, 100.71),
+        Trend.UP,
+        symbol="ABSORBUSDT",
+        trades=stalled_flow,
+        structure=market_structure,
+    )
+
+    assert stalled.action == Action.WAIT
+    assert stalled.details["state"] == "test"
+    assert stalled.details["flowConfirmed"] is False
+    assert stalled.details["effortWithoutResult"] is True
 
 
 def test_uptrend_rejects_descending_support_trendline() -> None:
