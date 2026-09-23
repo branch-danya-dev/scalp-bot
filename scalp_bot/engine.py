@@ -1390,7 +1390,7 @@ class TradingEngine:
         )
         book_fresh = session.book_is_fresh(now)
         if not self.strategy_enabled.get("orderbook_density", False):
-            session.liquidity_evidence = build_liquidity_evidence(None)
+            session.liquidity_evidence = None
 
         strategy_items = list(self.strategies.items())
         strategy_items.sort(
