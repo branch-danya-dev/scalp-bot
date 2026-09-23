@@ -542,3 +542,71 @@ def test_research_pack_contains_normalized_tables_and_report(tmp_path):
     assert stability["policy"]["livePolicyEnforcement"] == "disabled"
     assert manifest["files"]["stabilityValidation"] == "stability-validation.json"
     assert trades[0]["sessionId"] == cross["sessions"][0]["sessionId"]
+
+
+
+def test_cross_session_dataset_embeds_stable_feature_validation(tmp_path):
+    paths = []
+    for index in range(4):
+        session_trades = [
+            trade(
+                flow="short_term_reversal",
+                realized_all_in_r=-0.5,
+                net=-2.5,
+                rr=0.9,
+            ),
+            trade(
+                flow="short_term_reversal",
+                realized_all_in_r=-0.5,
+                net=-2.5,
+                rr=0.9,
+            ),
+            trade(
+                flow="strongly_aligned",
+                realized_all_in_r=0.4,
+                net=2.0,
+                rr=1.3,
+            ),
+            trade(
+                flow="strongly_aligned",
+                realized_all_in_r=0.4,
+                net=2.0,
+                rr=1.3,
+            ),
+        ]
+        payload = report(
+            session_file=f"session-{index}.jsonl",
+            run_label=f"run-{index}",
+            start_ts=100.0 + index * 100,
+            end_ts=150.0 + index * 100,
+            trades=session_trades,
+        )
+        path = tmp_path / f"session-{index}-report.json"
+        write_report(path, payload)
+        paths.append(path)
+
+    dataset = aggregate_research_sources(
+        paths,
+        minimum_validation_sessions=4,
+        minimum_validation_session_samples=2,
+        minimum_validation_train_samples=6,
+    )
+
+    validation = dataset["stabilityValidation"]
+    effect = next(
+        row
+        for row in validation["featureEffects"]
+        if (
+            row["strategy"] == "trend_structure"
+            and row["side"] == "long"
+            and row["regime"] == "bullish_trend"
+            and row["dimension"] == "flowAlignment"
+            and row["value"] == "short_term_reversal"
+        )
+    )
+
+    assert effect["status"] == "stable_negative"
+    assert effect["leaveOneSessionOutSignAgreementRate"] == 1.0
+    assert effect["livePolicyEligible"] is False
+    assert dataset["policy"]["minimumValidationSessions"] == 4
+    assert dataset["policy"]["validationThresholdConsistencyRate"] == 0.50
