@@ -5,6 +5,13 @@ from statistics import median
 from typing import Any
 
 
+TRADEABLE_PLAYBOOKS = {
+    "trend_structure",
+    "weak_level_rejection",
+    "level_breakout",
+}
+
+
 def _row_ts(row: dict) -> float:
     raw = row.get("ts")
     return float(raw) if isinstance(raw, (int, float)) else 0.0
@@ -394,7 +401,10 @@ def _hindsight_rows(
         strategy_fit = item.get("strategyFit") or {}
         for fit in strategy_fit.get("strategies") or []:
             strategy = str(fit.get("strategy") or "")
-            if not strategy:
+            if (
+                not strategy
+                or strategy not in TRADEABLE_PLAYBOOKS
+            ):
                 continue
             fit_class = str(fit.get("fit") or "unaware")
             result.append({
