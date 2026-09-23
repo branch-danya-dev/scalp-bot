@@ -441,6 +441,21 @@ def _raw_assessment(
     )
 
 
+def assess_candidate(
+    decision: StrategyDecision,
+    context: MarketContext | None,
+    *,
+    partial_take_at_r: float = 1.0,
+    partial_take_enabled: bool = True,
+) -> SemanticCandidateAssessment:
+    return _raw_assessment(
+        decision,
+        context,
+        partial_take_at_r=partial_take_at_r,
+        partial_take_enabled=partial_take_enabled,
+    )
+
+
 def assess_session_candidates(
     decisions: Iterable[StrategyDecision],
     context: MarketContext | None,
