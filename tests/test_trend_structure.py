@@ -183,6 +183,11 @@ def test_long_entry_requires_test_reclaim_flow_and_price_response() -> None:
     )
     assert first.action == Action.WAIT
     assert first.details["state"] == "armed"
+    assert first.details["preparedOpportunity"]["pinned"] is True
+    assert (
+        first.details["preparedOpportunity"]["source"]
+        == "trendline_live_test_armed"
+    )
 
     reclaim = strategy.evaluate(
         candles,
@@ -206,6 +211,11 @@ def test_long_entry_requires_test_reclaim_flow_and_price_response() -> None:
     assert entry.action == Action.LONG
     assert entry.details["state"] == "continuation"
     assert entry.details["flowConfirmed"] is True
+    assert entry.details["preparedOpportunity"]["pinned"] is True
+    assert (
+        entry.details["fireTrigger"]["source"]
+        == "trend_reclaim_price_response"
+    )
     assert entry.stop < entry.entry
 
     still_available = strategy.evaluate(

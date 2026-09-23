@@ -137,6 +137,11 @@ def test_weak_rejection_stages_absorption_probe_then_flow_add() -> None:
     assert probe.details["attackAbsorbed"] is True
     assert probe.details["flowReversed"] is False
     assert probe.details["stagedEntry"]["phase"] == "probe"
+    assert probe.details["preparedOpportunity"]["pinned"] is True
+    assert (
+        probe.details["fireTrigger"]["source"]
+        == "rejection_absorption_probe"
+    )
 
     strategy.mark_opened("STAGEDREJECTUSDT", probe)
     add = strategy.evaluate(
@@ -150,6 +155,11 @@ def test_weak_rejection_stages_absorption_probe_then_flow_add() -> None:
     assert add.details["state"] == "reaction"
     assert add.details["flowReversed"] is True
     assert add.details["stagedEntry"]["phase"] == "add"
+    assert add.details["preparedOpportunity"]["pinned"] is True
+    assert (
+        add.details["fireTrigger"]["source"]
+        == "rejection_flow_reversal"
+    )
 
     strategy.mark_opened("STAGEDREJECTUSDT", add)
     consumed = strategy.evaluate(

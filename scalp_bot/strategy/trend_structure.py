@@ -81,6 +81,31 @@ class TrendStructureStrategy(Strategy):
         )
 
     @staticmethod
+    def _prepared_opportunity(
+        state: TrendPullbackState,
+        *,
+        long_side: bool,
+        anchor: tuple,
+    ) -> dict | None:
+        if state.armed_at <= 0:
+            return None
+        return {
+            "preparedAtMs": int(state.armed_at * 1000),
+            "source": "trendline_live_test_armed",
+            "action": (
+                Action.LONG.value
+                if long_side
+                else Action.SHORT.value
+            ),
+            "anchor": list(anchor),
+            "watchedLevel": state.test_line_price,
+            "armPrice": state.armed_price,
+            "reclaimLevel": state.reclaim_level,
+            "invalidationExtreme": state.test_extreme,
+            "pinned": True,
+        }
+
+    @staticmethod
     def _pullback_is_directional(
         candles: list[Candle],
         *,
@@ -596,6 +621,11 @@ class TrendStructureStrategy(Strategy):
                 "price": state.armed_price,
                 "source": "trendline_live_test_armed",
             }
+            prepared_opportunity = self._prepared_opportunity(
+                state,
+                long_side=long_side,
+                anchor=anchor,
+            )
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
@@ -616,6 +646,7 @@ class TrendStructureStrategy(Strategy):
                         confirmed_close_penetration_pct
                     ),
                     "opportunityArm": opportunity_arm,
+                    "preparedOpportunity": prepared_opportunity,
                 },
             )
 
@@ -635,6 +666,11 @@ class TrendStructureStrategy(Strategy):
             }
             if state.armed_at > 0
             else None
+        )
+        prepared_opportunity = self._prepared_opportunity(
+            state,
+            long_side=long_side,
+            anchor=anchor,
         )
         forming_contradictory = (
             forming is not None
@@ -692,6 +728,7 @@ class TrendStructureStrategy(Strategy):
                             )
                         ),
                         "opportunityArm": opportunity_arm,
+                        "preparedOpportunity": prepared_opportunity,
                         "flow": flow,
                         "levelFlow": level_flow,
                     },
@@ -718,6 +755,7 @@ class TrendStructureStrategy(Strategy):
                     "flowConfirmed": True,
                     "formingContradictory": False,
                     "opportunityArm": opportunity_arm,
+                        "preparedOpportunity": prepared_opportunity,
                     "flow": flow,
                     "levelFlow": level_flow,
                 },
@@ -743,6 +781,7 @@ class TrendStructureStrategy(Strategy):
                         "state": state.stage.value,
                         "reclaimLost": True,
                         "opportunityArm": opportunity_arm,
+                        "preparedOpportunity": prepared_opportunity,
                     },
                 )
 
@@ -775,6 +814,7 @@ class TrendStructureStrategy(Strategy):
                             )
                         ),
                         "opportunityArm": opportunity_arm,
+                        "preparedOpportunity": prepared_opportunity,
                         "flow": flow,
                         "levelFlow": level_flow,
                     },
@@ -906,6 +946,16 @@ class TrendStructureStrategy(Strategy):
                         )
                     ),
                     "opportunityArm": opportunity_arm,
+                    "fireTrigger": {
+                        "observedAtMs": observed_at_ms,
+                        "source": "trend_reclaim_price_response",
+                        "preparedAtMs": (
+                            int(state.armed_at * 1000)
+                            if state.armed_at > 0
+                            else None
+                        ),
+                    },
+                        "preparedOpportunity": prepared_opportunity,
                     "flow": flow,
                     "levelFlow": level_flow,
                     "entryContextAssessment": entry_context.public(),

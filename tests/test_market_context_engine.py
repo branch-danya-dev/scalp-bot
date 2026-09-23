@@ -411,6 +411,162 @@ def test_decision_context_binds_entry_freshness_to_same_market_snapshot(tmp_path
             session.market_context.fingerprint()
         )
         assert overlay["entryFreshness"]["classification"] == "late"
+        assert overlay["analysisRuntime"]["mode"] == "uninitialized"
         assert overlay["executionReady"] is True
+    finally:
+        close_engine(engine)
+
+
+
+def test_live_fast_path_reuses_confirmed_candle_analysis(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    import scalp_bot.engine as engine_module
+
+    engine = make_engine(tmp_path)
+    calls = {"structure": 0}
+    original_build = engine_module.build_market_structure
+
+    def counted_build(*args, **kwargs):
+        calls["structure"] += 1
+        return original_build(*args, **kwargs)
+
+    monkeypatch.setattr(
+        engine_module,
+        "build_market_structure",
+        counted_build,
+    )
+    strategy = CaptureStrategy("trend_structure")
+    engine.strategies = {strategy.key: strategy}
+    engine.strategy_enabled = {strategy.key: True}
+
+    closed = flat_rows(80, 60_000)
+    forming = Candle(
+        start_ms=80 * 60_000,
+        open=100.0,
+        high=100.10,
+        low=99.95,
+        close=100.05,
+        volume=50,
+        turnover=5_002.5,
+        confirmed=False,
+    )
+    session = ActiveSymbolSession(
+        symbol="AAAUSDT",
+        candles=[*closed, forming],
+        context_5m=flat_rows(80, 5 * 60_000),
+        context_15m=flat_rows(80, 15 * 60_000),
+        context_1h=flat_rows(80, 60 * 60_000),
+        orderbook=OrderBook(
+            bids=[(100.04, 100)],
+            asks=[(100.06, 100)],
+        ),
+        last_price=100.05,
+        last_market_at=time.time(),
+        last_book_at=time.time(),
+        book_synced=True,
+        confirmed_candle_stale_after_seconds=0,
+    )
+    engine.sessions[session.symbol] = session
+
+    try:
+        asyncio.run(engine._evaluate(session))
+        first_structure = session.structure
+        assert calls["structure"] == 1
+        assert session.static_analysis_rebuilds == 1
+        assert session.live_fast_path_reuses == 0
+        assert session.last_analysis_mode == "static_rebuild"
+
+        # Only live market evidence changes; confirmed-candle inputs do not.
+        session.orderbook = OrderBook(
+            bids=[(100.08, 100)],
+            asks=[(100.10, 100)],
+        )
+        session.last_price = 100.09
+        session.candles[-1].close = 100.09
+        session.candles[-1].high = 100.12
+
+        asyncio.run(engine._evaluate(session))
+
+        assert calls["structure"] == 1
+        assert session.structure is first_structure
+        assert session.static_analysis_rebuilds == 1
+        assert session.live_fast_path_reuses == 1
+        assert session.last_analysis_mode == "live_fast_path"
+        assert (
+            strategy.seen_contexts[-1].forming_candle.close
+            == pytest.approx(100.09)
+        )
+    finally:
+        close_engine(engine)
+
+
+def test_new_confirmed_candle_invalidates_live_fast_path_cache(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    import scalp_bot.engine as engine_module
+
+    engine = make_engine(tmp_path)
+    calls = {"structure": 0}
+    original_build = engine_module.build_market_structure
+
+    def counted_build(*args, **kwargs):
+        calls["structure"] += 1
+        return original_build(*args, **kwargs)
+
+    monkeypatch.setattr(
+        engine_module,
+        "build_market_structure",
+        counted_build,
+    )
+    strategy = CaptureStrategy("trend_structure")
+    engine.strategies = {strategy.key: strategy}
+    engine.strategy_enabled = {strategy.key: True}
+
+    session = ActiveSymbolSession(
+        symbol="AAAUSDT",
+        candles=flat_rows(80, 60_000),
+        context_5m=flat_rows(80, 5 * 60_000),
+        context_15m=flat_rows(80, 15 * 60_000),
+        context_1h=flat_rows(80, 60 * 60_000),
+        orderbook=OrderBook(
+            bids=[(99.99, 100)],
+            asks=[(100.01, 100)],
+        ),
+        last_price=100.0,
+        last_market_at=time.time(),
+        last_book_at=time.time(),
+        book_synced=True,
+        confirmed_candle_stale_after_seconds=0,
+    )
+    engine.sessions[session.symbol] = session
+
+    try:
+        asyncio.run(engine._evaluate(session))
+        first_key = session.static_analysis_key
+        assert calls["structure"] == 1
+
+        session.candles.append(
+            Candle(
+                start_ms=80 * 60_000,
+                open=100.0,
+                high=100.20,
+                low=99.95,
+                close=100.15,
+                volume=120,
+                turnover=12_018,
+                confirmed=True,
+            )
+        )
+        session.last_price = 100.15
+
+        asyncio.run(engine._evaluate(session))
+
+        assert calls["structure"] == 2
+        assert session.static_analysis_key != first_key
+        assert session.static_analysis_rebuilds == 2
+        assert session.last_analysis_mode == "static_rebuild"
     finally:
         close_engine(engine)
