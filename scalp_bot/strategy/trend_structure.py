@@ -627,17 +627,55 @@ class TrendStructureStrategy(Strategy):
             now_ms=observed_at_ms,
         )
 
-        if state.stage == TrendPullbackStage.TEST:
+        opportunity_arm = (
+            {
+                "observedAtMs": int(state.armed_at * 1000),
+                "price": state.armed_price,
+                "source": "trendline_live_test_armed",
+            }
+            if state.armed_at > 0
+            else None
+        )
+        forming_contradictory = (
+            forming is not None
+            and forming.age_seconds >= 1.0
+            and (
+                (
+                    long_side
+                    and forming.velocity_bps_per_second < 0
+                    and forming.close_position < 0.40
+                )
+                or (
+                    not long_side
+                    and forming.velocity_bps_per_second > 0
+                    and forming.close_position > 0.60
+                )
+            )
+        )
+
+        if state.stage in {
+            TrendPullbackStage.ARMED,
+            TrendPullbackStage.TEST,
+        }:
+            state.stage = TrendPullbackStage.TEST
             reclaimed = (
                 price > state.reclaim_level
                 if long_side
                 else price < state.reclaim_level
             )
-            if not (reclaimed and flow_ok):
+            response_ready = (
+                reclaimed
+                and flow_ok
+                and not forming_contradictory
+            )
+            if not response_ready:
                 return StrategyDecision(
                     self.key,
                     Action.WAIT,
-                    ["Тест состоялся; ждём micro reclaim и возврат инициативы по тренду"],
+                    [
+                        "Live test ARMED; ждём micro reclaim с price response, "
+                        "не похожим на exhaustion"
+                    ],
                     0.62,
                     state.test_line_price or projected,
                     visuals=visuals,
@@ -647,17 +685,29 @@ class TrendStructureStrategy(Strategy):
                         "reclaimLevel": state.reclaim_level,
                         "reclaimed": reclaimed,
                         "flowConfirmed": flow_ok,
+                        "formingContradictory": forming_contradictory,
+                        "effortWithoutResult": bool(
+                            flow.get(
+                                "trendContinuationEffortWithoutResult"
+                            )
+                        ),
+                        "opportunityArm": opportunity_arm,
                         "flow": flow,
                         "levelFlow": level_flow,
                     },
                 )
             state.stage = TrendPullbackStage.RECLAIM
             state.reclaim_price = price
+            state.reclaim_at = (
+                observed_at_ms / 1000
+                if observed_at_ms is not None
+                else state.armed_at
+            )
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
-                ["Micro reclaim подтверждён; ждём короткое продолжение импульса"],
-                0.70,
+                ["Micro reclaim подтверждён; проверяем удержание и качество response вместо chase за дополнительным импульсом"],
+                0.72,
                 state.test_line_price or projected,
                 visuals=visuals,
                 details={
@@ -666,6 +716,8 @@ class TrendStructureStrategy(Strategy):
                     "reclaimLevel": state.reclaim_level,
                     "reclaimPrice": state.reclaim_price,
                     "flowConfirmed": True,
+                    "formingContradictory": False,
+                    "opportunityArm": opportunity_arm,
                     "flow": flow,
                     "levelFlow": level_flow,
                 },
@@ -682,7 +734,7 @@ class TrendStructureStrategy(Strategy):
                 return StrategyDecision(
                     self.key,
                     Action.WAIT,
-                    ["Micro reclaim не удержан; возвращаемся к ожиданию подтверждения"],
+                    ["Micro reclaim не удержан; возвращаемся к ARMED/TEST без нового chase"],
                     0.50,
                     state.test_line_price or projected,
                     visuals=visuals,
@@ -690,31 +742,39 @@ class TrendStructureStrategy(Strategy):
                         **common_details,
                         "state": state.stage.value,
                         "reclaimLost": True,
+                        "opportunityArm": opportunity_arm,
                     },
                 )
 
-            continuation_pct = max(
-                self.continuation_bps / 10_000,
-                book.spread_pct * 2.0,
+            response_confirmed = (
+                flow_ok
+                and not forming_contradictory
+                and not bool(
+                    flow.get(
+                        "trendContinuationEffortWithoutResult"
+                    )
+                )
             )
-            continued = (
-                price >= state.reclaim_price * (1 + continuation_pct)
-                if long_side
-                else price <= state.reclaim_price * (1 - continuation_pct)
-            )
-            if not (continued and flow_ok):
+            if not response_confirmed:
                 return StrategyDecision(
                     self.key,
                     Action.WAIT,
-                    ["Reclaim удержан; ждём продолжение и сохранение потока"],
-                    0.68,
+                    ["Reclaim удержан, но price response/flow пока не подтверждают ранний continuation"],
+                    0.62,
                     state.test_line_price or projected,
                     visuals=visuals,
                     details={
                         **common_details,
                         "state": state.stage.value,
-                        "continued": continued,
+                        "responseConfirmed": False,
                         "flowConfirmed": flow_ok,
+                        "formingContradictory": forming_contradictory,
+                        "effortWithoutResult": bool(
+                            flow.get(
+                                "trendContinuationEffortWithoutResult"
+                            )
+                        ),
+                        "opportunityArm": opportunity_arm,
                         "flow": flow,
                         "levelFlow": level_flow,
                     },
@@ -741,7 +801,7 @@ class TrendStructureStrategy(Strategy):
                     details={
                         **common_details,
                         "state": state.stage.value,
-                        "continued": continued,
+                        "responseConfirmed": response_confirmed,
                         "flowConfirmed": flow_ok,
                         "flow": flow,
                         "levelFlow": level_flow,
@@ -823,7 +883,7 @@ class TrendStructureStrategy(Strategy):
                     "Состоялся направленный pullback к подтверждённой трендовой опоре",
                     "Цена вернула micro structure после теста",
                     "Trade flow подтвердил возврат инициативы по тренду",
-                    "После reclaim появился follow-through",
+                    "Reclaim удержался без effort-without-result / противоречащего pre-state",
                 ],
                 confidence=quality,
                 watched_level=state.test_line_price or projected,
@@ -838,6 +898,14 @@ class TrendStructureStrategy(Strategy):
                     "reclaimLevel": state.reclaim_level,
                     "reclaimPrice": state.reclaim_price,
                     "flowConfirmed": True,
+                    "responseConfirmed": response_confirmed,
+                    "formingContradictory": forming_contradictory,
+                    "effortWithoutResult": bool(
+                        flow.get(
+                            "trendContinuationEffortWithoutResult"
+                        )
+                    ),
+                    "opportunityArm": opportunity_arm,
                     "flow": flow,
                     "levelFlow": level_flow,
                     "entryContextAssessment": entry_context.public(),
