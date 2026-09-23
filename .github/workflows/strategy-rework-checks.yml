@@ -24,7 +24,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
       - name: Python tests
-        run: python -m pytest -q
+        run: python scripts/test_preflight.py
       - name: JavaScript syntax
         run: |
           node --check scalp_bot/static/app.js
