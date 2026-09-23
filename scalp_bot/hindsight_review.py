@@ -723,9 +723,60 @@ def _trade_pairs(rows: list[dict]) -> dict[str, list[dict]]:
                 "openTs": _row_ts(row),
                 "side": str(position.get("side") or plan.get("side") or ""),
                 "entry": position.get("entry") or plan.get("market_entry"),
+                "initialEntry": (
+                    position.get("entry")
+                    or plan.get("market_entry")
+                ),
+                "finalEntry": position.get("entry") or plan.get("market_entry"),
+                "addTs": [],
+                "scaleInCount": 0,
                 "strategy": plan.get("strategy") or payload.get("strategy"),
                 "setupId": setup_id,
             })
+            continue
+
+        if event == "position_added":
+            plan = payload.get("plan") or {}
+            position = payload.get("position") or {}
+            setup_id = (
+                plan.get("setup_id")
+                or plan.get("setupId")
+                or position.get("setup_id")
+                or position.get("setupId")
+            )
+            key = (
+                symbol,
+                str(setup_id)
+                if setup_id is not None
+                else None,
+            )
+            queue = pending.get(key)
+            if not queue:
+                fallback = next(
+                    (
+                        candidate
+                        for candidate, values in pending.items()
+                        if candidate[0] == symbol and values
+                    ),
+                    None,
+                )
+                queue = pending.get(fallback) if fallback else None
+            if queue:
+                trade = queue[-1]
+                trade.setdefault("addTs", []).append(
+                    _row_ts(row)
+                )
+                trade["scaleInCount"] = max(
+                    int(trade.get("scaleInCount") or 0),
+                    len(
+                        position.get("entry_legs")
+                        or position.get("entryLegs")
+                        or []
+                    )
+                    - 1,
+                )
+                if position.get("entry") is not None:
+                    trade["finalEntry"] = position.get("entry")
             continue
 
         if event != "trade_closed":
@@ -750,6 +801,16 @@ def _trade_pairs(rows: list[dict]) -> dict[str, list[dict]]:
         trade = queue.pop(0)
         trade.update({
             "closeTs": _row_ts(row),
+            "finalEntry": (
+                payload.get("entry")
+                if payload.get("entry") is not None
+                else trade.get("finalEntry")
+            ),
+            "scaleInCount": int(
+                payload.get("scaleInCount")
+                if payload.get("scaleInCount") is not None
+                else trade.get("scaleInCount") or 0
+            ),
             "exit": payload.get("exit"),
             "netPnl": payload.get("netPnl"),
             "reason": payload.get("reason"),
