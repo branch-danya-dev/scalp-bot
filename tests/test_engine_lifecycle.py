@@ -1290,16 +1290,16 @@ def test_arbiter_uses_pending_maker_entry_for_tradeable_playbook_and_fills_after
             last_book_at=now,
             book_synced=True,
         )
-        session.decisions["orderbook_density"] = StrategyDecision(
-            strategy="orderbook_density",
+        session.decisions["trend_structure"] = StrategyDecision(
+            strategy="trend_structure",
             action=Action.LONG,
-            reasons=["defended wall"],
+            reasons=["trend continuation"],
             confidence=0.9,
             entry=100.0,
             stop=99.5,
             target=101.0,
             setup_id="trend-passive-1",
-            details={"allowRunner": True, "state": "defended"},
+            details={"allowRunner": True, "state": "continuation"},
         )
         engine.sessions = {session.symbol: session}
         engine.candidates = [
