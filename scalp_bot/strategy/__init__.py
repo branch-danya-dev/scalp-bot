@@ -46,6 +46,15 @@ from .playbook_context import (
     position_context_supported,
     rejection_direction_plan,
 )
+from .semantic_arbiter import (
+    SelectionPriority,
+    SemanticCandidateAssessment,
+    StructuralPathAssessment,
+    assess_candidate,
+    assess_session_candidates,
+    assess_structural_path,
+    build_selection_priority,
+)
 from .regime import (
     HTFBias,
     HTFBiasSnapshot,
@@ -107,6 +116,13 @@ __all__ = [
     "continuation_direction_plan",
     "position_context_supported",
     "rejection_direction_plan",
+    "SelectionPriority",
+    "SemanticCandidateAssessment",
+    "StructuralPathAssessment",
+    "assess_candidate",
+    "assess_session_candidates",
+    "assess_structural_path",
+    "build_selection_priority",
     "HTFBias",
     "HTFBiasSnapshot",
     "LocalRegime",
