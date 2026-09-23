@@ -223,6 +223,7 @@ class LevelBreakoutStrategy(Strategy):
         trend: Trend,
         last_price: float,
         book: OrderBook | None = None,
+        market_context: "MarketContext | None" = None,
         observed_at_ms: int | None = None,
     ) -> str | None:
         zone = (
