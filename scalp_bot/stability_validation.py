@@ -7,6 +7,12 @@ from typing import Any, Callable, Iterable
 from .economic_calibration import DEFAULT_RR_THRESHOLDS
 
 
+TRADEABLE_PLAYBOOKS = {
+    "trend_structure",
+    "weak_level_rejection",
+    "level_breakout",
+}
+
 FEATURE_DIMENSIONS = {
     "flowAlignment": "flowAlignmentClass",
     "entryFreshness": "freshnessClass",
@@ -800,7 +806,7 @@ def _opportunity_rows(
         fit = item.get("strategyFit") or {}
         for fit_row in fit.get("strategies") or []:
             strategy = str(fit_row.get("strategy") or "")
-            if not strategy:
+            if strategy not in TRADEABLE_PLAYBOOKS:
                 continue
             fit_class = str(fit_row.get("fit") or "unaware")
             grouped[(strategy, side, regime)][session_id].append({
