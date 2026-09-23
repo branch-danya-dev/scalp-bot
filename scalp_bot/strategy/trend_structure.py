@@ -40,7 +40,7 @@ class TrendStructureStrategy(Strategy):
     label = "Трендовый откат с подтверждением"
 
     approach_pct = 0.004
-    test_tolerance_pct = 0.0015
+    test_tolerance_pct = 0.0025
     deep_break_pct = 0.0025
     continuation_bps = 1.0
     aggressive_pullback_volume_ratio = 1.35
@@ -407,9 +407,19 @@ class TrendStructureStrategy(Strategy):
                 else 0.0
             )
         )
-        deeply_broken = deep_penetration_pct > self.deep_break_pct
+        close_penetration_pct = (
+            max(0.0, (projected - last.close) / projected)
+            if long_side and projected > 0
+            else (
+                max(0.0, (last.close - projected) / projected)
+                if projected > 0
+                else 0.0
+            )
+        )
+        swept_trendline = deep_penetration_pct > self.deep_break_pct
+        accepted_break = close_penetration_pct > self.deep_break_pct
 
-        if deeply_broken:
+        if accepted_break:
             state.stage = TrendPullbackStage.SEARCH
             return StrategyDecision(
                 self.key,
@@ -421,15 +431,21 @@ class TrendStructureStrategy(Strategy):
                 details={
                     **common_details,
                     "deepBreak": True,
+                    "acceptedBreak": True,
+                    "sweptTrendline": swept_trendline,
                     "testPrice": test_price,
                     "testDistancePct": test_distance,
                     "deepPenetrationPct": deep_penetration_pct,
+                    "closePenetrationPct": close_penetration_pct,
                     "lastClosedPrice": last.close,
                 },
             )
 
         if state.stage == TrendPullbackStage.PULLBACK:
-            if test_distance > self.test_tolerance_pct:
+            if (
+                test_distance > self.test_tolerance_pct
+                and not swept_trendline
+            ):
                 return StrategyDecision(
                     self.key,
                     Action.WAIT,
@@ -441,6 +457,9 @@ class TrendStructureStrategy(Strategy):
                         **common_details,
                         "state": state.stage.value,
                         "testDistancePct": test_distance,
+                        "sweptTrendline": swept_trendline,
+                        "deepPenetrationPct": deep_penetration_pct,
+                        "closePenetrationPct": close_penetration_pct,
                     },
                 )
 
@@ -472,6 +491,9 @@ class TrendStructureStrategy(Strategy):
                     "reclaimLevel": state.reclaim_level,
                     "reclaimDistanceBps": reclaim_distance_bps,
                     "testExtreme": state.test_extreme,
+                    "sweptTrendline": swept_trendline,
+                    "deepPenetrationPct": deep_penetration_pct,
+                    "closePenetrationPct": close_penetration_pct,
                 },
             )
 
