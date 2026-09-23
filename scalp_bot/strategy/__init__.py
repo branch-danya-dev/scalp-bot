@@ -13,7 +13,10 @@ from .lifecycle import LevelLifecycleTracker
 from .freshness import (
     EntryFreshness,
     EntryFreshnessClass,
+    OpportunityFreshness,
+    OpportunityFreshnessClass,
     classify_entry_freshness,
+    classify_opportunity_freshness,
 )
 from .flow_context import (
     FlowAlignment,
@@ -96,7 +99,10 @@ __all__ = [
     "LevelLifecycleTracker",
     "EntryFreshness",
     "EntryFreshnessClass",
+    "OpportunityFreshness",
+    "OpportunityFreshnessClass",
     "classify_entry_freshness",
+    "classify_opportunity_freshness",
     "FlowAlignment",
     "FlowAlignmentClass",
     "FlowHorizon",
