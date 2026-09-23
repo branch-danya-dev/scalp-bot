@@ -263,10 +263,21 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
         return {
             "buyNotional5s": 0.0,
             "sellNotional5s": 0.0,
+            "buyNotional15s": 0.0,
+            "sellNotional15s": 0.0,
+            "buyNotional60s": 0.0,
+            "sellNotional60s": 0.0,
+            "notional5s": 0.0,
+            "notional15s": 0.0,
+            "notional60s": 0.0,
             "imbalance5s": 0.0,
+            "imbalance15s": 0.0,
+            "imbalance60s": 0.0,
             "notionalPerSecond5s": 0.0,
             "acceleration": 0.0,
             "tradeCount5s": 0,
+            "tradeCount15s": 0,
+            "tradeCount60s": 0,
             "previousTradeCount15s": 0,
             "tradeRateRatio": 0.0,
             "tradeSizeRatio": 0.0,
@@ -280,28 +291,58 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
     if now_ms is None:
         now_ms = trades[-1].ts_ms
 
-    recent_start = now_ms - 5_000
-    previous_start = now_ms - 20_000
-    recent = [
-        t
-        for t in trades
-        if recent_start <= t.ts_ms <= now_ms
-    ]
-    previous = [
-        t
-        for t in trades
-        if previous_start <= t.ts_ms < recent_start
-    ]
+    def window_stats(seconds: int) -> dict:
+        cutoff = now_ms - seconds * 1000
+        rows = [
+            trade
+            for trade in trades
+            if cutoff <= trade.ts_ms <= now_ms
+        ]
+        buy = sum(
+            trade.notional
+            for trade in rows
+            if trade.side.lower() == "buy"
+        )
+        sell = sum(
+            trade.notional
+            for trade in rows
+            if trade.side.lower() == "sell"
+        )
+        total = buy + sell
+        return {
+            "rows": rows,
+            "buy": buy,
+            "sell": sell,
+            "total": total,
+            "imbalance": (
+                (buy - sell) / total
+                if total > 0
+                else 0.0
+            ),
+        }
 
-    buy = sum(t.notional for t in recent if t.side.lower() == "buy")
-    sell = sum(t.notional for t in recent if t.side.lower() == "sell")
-    recent_total = buy + sell
-    previous_total = sum(t.notional for t in previous)
-    recent_rate = recent_total / 5
+    recent = window_stats(5)
+    medium = window_stats(15)
+    long = window_stats(60)
+
+    previous_start = now_ms - 20_000
+    previous_end = now_ms - 5_000
+    previous = [
+        trade
+        for trade in trades
+        if previous_start <= trade.ts_ms < previous_end
+    ]
+    previous_total = sum(trade.notional for trade in previous)
+
+    recent_rate = recent["total"] / 5
     previous_rate = previous_total / 15
-    recent_count_rate = len(recent) / 5
+    recent_count_rate = len(recent["rows"]) / 5
     previous_count_rate = len(previous) / 15
-    recent_average = recent_total / len(recent) if recent else 0.0
+    recent_average = (
+        recent["total"] / len(recent["rows"])
+        if recent["rows"]
+        else 0.0
+    )
     previous_average = (
         previous_total / len(previous)
         if previous
@@ -325,31 +366,39 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
     baseline_ready = len(previous) >= 3 and previous_total > 0
     participation_confirmed = (
         baseline_ready
-        and len(recent) >= 3
+        and len(recent["rows"]) >= 3
         and acceleration >= 1.0
     )
 
-    from .flow import cumulative_delta
-
     latest_age_ms = max(0, now_ms - trades[-1].ts_ms)
     return {
-        "buyNotional5s": buy,
-        "sellNotional5s": sell,
-        "imbalance5s": (buy - sell) / recent_total if recent_total > 0 else 0.0,
+        "buyNotional5s": recent["buy"],
+        "sellNotional5s": recent["sell"],
+        "buyNotional15s": medium["buy"],
+        "sellNotional15s": medium["sell"],
+        "buyNotional60s": long["buy"],
+        "sellNotional60s": long["sell"],
+        "notional5s": recent["total"],
+        "notional15s": medium["total"],
+        "notional60s": long["total"],
+        "imbalance5s": recent["imbalance"],
+        "imbalance15s": medium["imbalance"],
+        "imbalance60s": long["imbalance"],
         "notionalPerSecond5s": recent_rate,
         "acceleration": acceleration,
-        "tradeCount5s": len(recent),
+        "tradeCount5s": len(recent["rows"]),
+        "tradeCount15s": len(medium["rows"]),
+        "tradeCount60s": len(long["rows"]),
         "previousTradeCount15s": len(previous),
         "tradeRateRatio": trade_rate_ratio,
         "tradeSizeRatio": trade_size_ratio,
         "baselineReady": baseline_ready,
         "participationConfirmed": participation_confirmed,
         "latestTradeAgeMs": latest_age_ms,
-        "cvd5s": cumulative_delta(trades, 5, now_ms),
-        "cvd15s": cumulative_delta(trades, 15, now_ms),
-        "cvd60s": cumulative_delta(trades, 60, now_ms),
+        "cvd5s": recent["buy"] - recent["sell"],
+        "cvd15s": medium["buy"] - medium["sell"],
+        "cvd60s": long["buy"] - long["sell"],
     }
-
 
 def bullish_rejection(candle: Candle) -> bool:
     body = abs(candle.close - candle.open)

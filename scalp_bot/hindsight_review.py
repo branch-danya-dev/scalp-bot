@@ -127,8 +127,16 @@ def _frame_context(row: dict) -> dict[str, Any]:
     orderbook = source.get("orderbook") or {}
     if not isinstance(orderbook, dict):
         orderbook = {}
+    market_context = source.get("marketContext")
+    flow_context = (
+        market_context.get("flowContext")
+        if isinstance(market_context, dict)
+        else None
+    )
     return {
         "trend": source.get("trend"),
+        "marketContext": market_context,
+        "flowContext": flow_context,
         "tradeFlow": source.get("tradeFlow"),
         "bookFlow": source.get("bookFlow"),
         "densityContext": source.get("densityContext"),

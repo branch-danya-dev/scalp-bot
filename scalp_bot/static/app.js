@@ -140,6 +140,16 @@ function entryFreshnessLabel(value) {
     unknown:"нет оценки",
   })[String(value || "unknown")] || String(value || "—").replaceAll("_", " ");
 }
+function flowAlignmentLabel(value) {
+  return ({
+    strongly_aligned:"полностью согласован",
+    aligned:"согласован",
+    short_term_reversal:"5с разворот против старшего потока",
+    mixed:"смешанный",
+    opposed:"против сделки",
+    insufficient_data:"мало данных",
+  })[String(value || "insufficient_data")] || String(value || "—").replaceAll("_", " ");
+}
 function sideLabel(value) { return SIDE_LABELS[String(value || "").toLowerCase()] || String(value || "—").toUpperCase(); }
 function actionLabel(value) { return ACTION_LABELS[String(value || "wait")] || String(value || "—").toUpperCase(); }
 function eventLabel(value) { return EVENT_LABELS[value] || String(value || "").replaceAll("_", " "); }
@@ -381,7 +391,11 @@ function renderSymbolMeta(market) {
   const context = market.marketContext || {};
   const htf = context.htfBias || {};
   const local = context.localRegime || {};
-  const contextText = ` · HTF ${htfBiasLabel(htf.bias)} · локально: ${localRegimeLabel(local.regime)}`;
+  const multiFlow = context.flowContext || {};
+  const dominantFlow = multiFlow.dominantDirection
+    ? trendLabel(multiFlow.dominantDirection)
+    : "—";
+  const contextText = ` · HTF ${htfBiasLabel(htf.bias)} · локально: ${localRegimeLabel(local.regime)} · flow: ${dominantFlow}`;
   $("symbolMeta").textContent = `${selectedChartTimeframe} · ${barState} · цена ${price(market.lastPrice)}${gapText} · 24ч ${pct(profile.change_24h)} · оборот ${compact(profile.turnover_24h)} · ${corr} · ${trades24h} · активность ${Number(profile.activity_score || 0).toFixed(0)}${contextText}${flowText}`;
 }
 
@@ -576,6 +590,10 @@ function renderDecisions(decisions) {
       : "—";
     const confirmed = (trace.confirmed || []).map(row => `<span class="trace-tag confirmed">${translatePhrase(row)}</span>`).join("");
     const waiting = (trace.waitingFor || []).map(row => `<li>${translatePhrase(row)}</li>`).join("");
+    const flowAlignment = decision.details?.flowAlignment || trace.evidence?.flowAlignment;
+    const flowText = flowAlignment
+      ? ` · flow <b>${flowAlignmentLabel(flowAlignment.classification)}</b>${flowAlignment.score == null ? "" : " (" + Number(flowAlignment.score).toFixed(2) + ")"}`
+      : "";
     return `<article class="decision-card">
       <div class="decision-card-head">
         <div>
@@ -585,7 +603,7 @@ function renderDecisions(decisions) {
         <time>${observed}</time>
       </div>
       <div class="decision-object">${traceObjectText(trace.object)}</div>
-      <div class="decision-context">Тренд: <b>${trendLabel(trace.trend)}</b> · уверенность ${Number(trace.confidence || 0).toFixed(2)}</div>
+      <div class="decision-context">Тренд: <b>${trendLabel(trace.trend)}</b> · уверенность ${Number(trace.confidence || 0).toFixed(2)}${flowText}</div>
       <div class="trace-tags">${confirmed || '<span class="trace-tag">нет подтверждений</span>'}</div>
       ${waiting ? `<div class="decision-wait"><small>Чего ждём</small><ul>${waiting}</ul></div>` : ""}
     </article>`;
@@ -596,7 +614,7 @@ function eventText(event) {
   const payload = event.payload || {};
   if (event.event === "entry_pending") return `PostOnly @ ${price(payload.pending?.limitPrice ?? payload.plan?.market_entry)} · ${money(payload.plan?.notional)}`;
   if (event.event === "entry_cancelled") return `${reasonText(payload.reason)} · ${price(payload.limitPrice)}`;
-  if (event.event === "trade_opened") return `${sideLabel(payload.plan?.side)} · ${money(payload.plan?.notional)} · net на цели ${money(payload.plan?.net_at_target ?? payload.plan?.expected_net_profit)} · качество ${Number(payload.opportunityQuality ?? 0).toFixed(2)}`;
+  if (event.event === "trade_opened") { const fa = payload.plan?.strategy_details?.flowAlignment; return `${sideLabel(payload.plan?.side)} · ${money(payload.plan?.notional)} · net на цели ${money(payload.plan?.net_at_target ?? payload.plan?.expected_net_profit)} · качество ${Number(payload.opportunityQuality ?? 0).toFixed(2)}${fa ? " · flow " + flowAlignmentLabel(fa.classification) : ""}`; }
   if (event.event === "partial_take") return `частичная фиксация ${money(payload.netPnl)} · осталось ${money(payload.remainingNotional)} · стоп→${price(payload.newStop)}`;
   if (event.event === "trade_closed") return `${reasonText(payload.reason)} · ${payload.exitMoveBps == null ? "—" : Number(payload.exitMoveBps).toFixed(1) + " bps"} · комиссия ${money(payload.fees)} · net ${money(payload.netPnl)}`;
   if (event.event === "risk_reject") {

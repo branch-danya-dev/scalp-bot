@@ -86,6 +86,19 @@ def test_analysis_pack_keeps_events_candles_reports_and_sampled_books(tmp_path):
                         "parent_direction": "up",
                         "strength": 0.9,
                     },
+                    "flowContext": {
+                        "dominantDirection": "up",
+                        "directionalScore": 0.8,
+                        "coherence": 1.0,
+                        "longAlignment": {
+                            "classification": "strongly_aligned",
+                            "score": 0.8,
+                        },
+                        "shortAlignment": {
+                            "classification": "opposed",
+                            "score": -0.8,
+                        },
+                    },
                 },
                 "candle": {
                     "time": second,
@@ -136,6 +149,9 @@ def test_analysis_pack_keeps_events_candles_reports_and_sampled_books(tmp_path):
     assert report["marketInteractionResearch"]["summary"]["checkpoints"] == 1
     assert report["marketContextDiagnostics"]["frameCounts"]["htfBias"]["bullish"] > 0
     assert report["marketContextDiagnostics"]["frameCounts"]["localRegime"]["bullish_impulse"] > 0
+    assert report["marketContextDiagnostics"]["frameCounts"]["flowDirection"]["up"] > 0
+    assert report["marketContextDiagnostics"]["frameCounts"]["longFlowAlignment"]["strongly_aligned"] > 0
+    assert report["marketContextDiagnostics"]["frameCounts"]["shortFlowAlignment"]["opposed"] > 0
     assert '"marketContext"' in compact
     assert manifest["compaction"]["interactionDecisionFocusStates"]["level_breakout"] == [
         "break",

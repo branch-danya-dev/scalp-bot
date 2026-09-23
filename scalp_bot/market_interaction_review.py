@@ -166,6 +166,16 @@ def _feature_snapshot(decision: dict, anchor_price: float) -> dict[str, Any]:
         return value if isinstance(value, dict) else {}
 
     flow = mapping("flow")
+    multi_flow = mapping("multiHorizonFlow")
+    flow_alignment = mapping("flowAlignment")
+    horizons = (
+        multi_flow.get("horizons")
+        if isinstance(multi_flow.get("horizons"), dict)
+        else {}
+    )
+    flow_5 = horizons.get("5s") if isinstance(horizons.get("5s"), dict) else {}
+    flow_15 = horizons.get("15s") if isinstance(horizons.get("15s"), dict) else {}
+    flow_60 = horizons.get("60s") if isinstance(horizons.get("60s"), dict) else {}
     level_flow = mapping("levelFlow")
     recent_level_flow = mapping("recentLevelFlow")
     zone = details.get("zone")
@@ -188,6 +198,8 @@ def _feature_snapshot(decision: dict, anchor_price: float) -> dict[str, Any]:
         "pressureScore": details.get("pressureScore"),
         "flowParticipationConfirmed": flow.get("participationConfirmed"),
         "flowImbalance5s": flow.get("imbalance5s"),
+        "flowImbalance15s": flow.get("imbalance15s"),
+        "flowImbalance60s": flow.get("imbalance60s"),
         "flowNotionalPerSecond5s": flow.get("notionalPerSecond5s"),
         "flowAcceleration": flow.get("acceleration"),
         "flowTradeRateRatio": flow.get("tradeRateRatio"),
@@ -195,6 +207,20 @@ def _feature_snapshot(decision: dict, anchor_price: float) -> dict[str, Any]:
         "cvd5s": flow.get("cvd5s"),
         "cvd15s": flow.get("cvd15s"),
         "cvd60s": flow.get("cvd60s"),
+        "flowAlignmentClass": flow_alignment.get("classification"),
+        "flowAlignmentScore": flow_alignment.get("score"),
+        "flowDominantDirection": multi_flow.get("dominantDirection"),
+        "flowDirectionalScore": multi_flow.get("directionalScore"),
+        "flowCoherence": multi_flow.get("coherence"),
+        "flow5Score": flow_5.get("score"),
+        "flow15Score": flow_15.get("score"),
+        "flow60Score": flow_60.get("score"),
+        "flow5Direction": flow_5.get("direction"),
+        "flow15Direction": flow_15.get("direction"),
+        "flow60Direction": flow_60.get("direction"),
+        "normalizedOfi5s": flow_5.get("normalizedOfi"),
+        "normalizedOfi15s": flow_15.get("normalizedOfi"),
+        "normalizedOfi60s": flow_60.get("normalizedOfi"),
         "levelFlowImbalance": level_flow.get("imbalance"),
         "levelFlowTradeCount": level_flow.get("tradeCount"),
         "levelFlowPriceResponsePct": level_flow.get("priceResponsePct"),

@@ -21,9 +21,11 @@ from .strategy import (
     DEFAULT_STRATEGIES,
     HTFBiasSnapshot,
     LocalRegimeSnapshot,
+    MultiHorizonFlowContext,
     MarketStructure,
     Strategy,
     build_market_structure,
+    build_multi_horizon_flow_context,
     classify_context_trend,
     classify_entry_freshness,
     classify_htf_bias,
@@ -62,6 +64,7 @@ class ActiveSymbolSession:
     trend: Trend = Trend.FLAT
     htf_bias: HTFBiasSnapshot | None = None
     local_regime: LocalRegimeSnapshot | None = None
+    flow_context: MultiHorizonFlowContext | None = None
     market_context_fingerprint: tuple | None = None
     entry_freshness_anchors: dict[str, dict] = field(default_factory=dict)
     entry_freshness_fingerprints: dict[str, tuple] = field(default_factory=dict)
@@ -179,13 +182,14 @@ class ActiveSymbolSession:
     def book_flow_snapshot(self, now_ms: int | None = None) -> dict:
         resolved_now_ms = int(time() * 1000) if now_ms is None else now_ms
 
-        def window(seconds: int) -> float:
+        def window(seconds: int) -> tuple[float, int]:
             cutoff = resolved_now_ms - seconds * 1000
-            return sum(
+            rows = [
                 value
                 for ts, value in self.book_flow
                 if cutoff <= ts <= resolved_now_ms
-            )
+            ]
+            return sum(rows), len(rows)
 
         depth_usd = sum(
             price * qty
@@ -193,13 +197,22 @@ class ActiveSymbolSession:
                 self.orderbook.bids[:5] + self.orderbook.asks[:5]
             )
         )
-        ofi_5s = window(5)
-        ofi_15s = window(15)
-        ofi_60s = window(60)
+        ofi_5s, count_5s = window(5)
+        ofi_15s, count_15s = window(15)
+        ofi_60s, count_60s = window(60)
+        latest_age_ms = (
+            max(0, resolved_now_ms - self.last_book_flow_ms)
+            if self.last_book_flow_ms > 0
+            else None
+        )
         return {
             "bestLevelOfiUsd5s": ofi_5s,
             "bestLevelOfiUsd15s": ofi_15s,
             "bestLevelOfiUsd60s": ofi_60s,
+            "eventCount5s": count_5s,
+            "eventCount15s": count_15s,
+            "eventCount60s": count_60s,
+            "latestEventAgeMs": latest_age_ms,
             "top5DepthUsd": depth_usd,
             "normalizedOfi5s": ofi_5s / depth_usd if depth_usd > 0 else 0.0,
             "normalizedOfi15s": ofi_15s / depth_usd if depth_usd > 0 else 0.0,
@@ -402,6 +415,11 @@ class ActiveSymbolSession:
             "localRegime": (
                 self.local_regime.public()
                 if self.local_regime is not None
+                else None
+            ),
+            "flowContext": (
+                self.flow_context.public()
+                if self.flow_context is not None
                 else None
             ),
         }
@@ -1351,6 +1369,17 @@ class TradingEngine:
             int(time() * 1000),
         )
         now = time()
+        now_ms = int(now * 1000)
+        trade_flow = compute_trade_flow(
+            list(session.trades),
+            now_ms,
+        )
+        book_flow = session.book_flow_snapshot(now_ms)
+        session.flow_context = build_multi_horizon_flow_context(
+            trade_flow,
+            book_flow,
+            observed_at_ms=now_ms,
+        )
         book_fresh = session.book_is_fresh(now)
         for key, strategy in self.strategies.items():
             if not self.strategy_enabled[key]:
@@ -1397,6 +1426,10 @@ class TradingEngine:
                     reasons=[f"Ошибка стратегии: {error}"],
                     details={"state": "error", "error": error},
                 )
+            self._annotate_flow_context(
+                session,
+                decision,
+            )
             self._annotate_entry_freshness(
                 session,
                 decision,
@@ -1463,6 +1496,19 @@ class TradingEngine:
                 "marketContext": session.market_context_public(),
             },
         )
+
+    @staticmethod
+    def _annotate_flow_context(
+        session: ActiveSymbolSession,
+        decision: StrategyDecision,
+    ) -> None:
+        context = session.flow_context
+        if context is None:
+            return
+        decision.details["multiHorizonFlow"] = context.public()
+        alignment = context.alignment_for(decision.action)
+        if alignment is not None:
+            decision.details["flowAlignment"] = alignment.public()
 
     @staticmethod
     def _freshness_object_key(
