@@ -203,14 +203,20 @@ def build_liquidity_evidence(
     if causes:
         consuming = True
 
-    if source_reason == "wall_outside_book_coverage":
+    if source_reason in {
+        "wall_outside_book_coverage",
+        "wall_exhausted_cooldown",
+    }:
         state = LiquidityEvidenceState.UNKNOWN
     elif source_reason in {
         "wall_removed_before_defense",
         "wall_removed_after_defense",
     } or wall_present is False:
         state = LiquidityEvidenceState.REMOVED
-    elif source_reason == "wall_lost_significance" or lost_significance:
+    elif source_reason in {
+        "wall_lost_significance",
+        "wall_freshness_exhausted",
+    } or lost_significance:
         state = LiquidityEvidenceState.LOST_SIGNIFICANCE
     elif source_reason == "wall_consumed_before_defense" or consuming:
         state = LiquidityEvidenceState.CONSUMED
