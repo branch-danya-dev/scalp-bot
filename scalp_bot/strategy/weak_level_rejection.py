@@ -403,30 +403,52 @@ class WeakLevelRejectionStrategy(Strategy):
             )
 
         state.stage = RejectionStage.REJECT
+        early_absorption_ready = (
+            attack_absorbed
+            and not flow_reversed
+        )
         probe_candidate = (
             self.staged_entries_enabled
             and not state.probe_opened
-            and not flow_reversed
-            and attack_absorbed
+            and early_absorption_ready
         )
-        if not flow_reversed and not probe_candidate:
+        late_reaction_only = (
+            flow_reversed
+            and not state.probe_opened
+        )
+        if (
+            (not flow_reversed and not early_absorption_ready)
+            or (
+                not self.staged_entries_enabled
+                and late_reaction_only
+            )
+        ):
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
                 [
                     (
-                        "Rejection probe уже открыт; ждём разворот "
-                        "локального flow для add"
-                        if state.probe_opened
-                        else "Пробой не удержался, но absorption/flow "
-                        "ещё недостаточны даже для probe"
+                        "Поздний flow reversal наблюдается после REJECT; "
+                        "Stage 18 не открывает новую позицию на запоздалом REACTION"
+                        if late_reaction_only
+                        else (
+                            "Rejection probe уже открыт; ждём разворот "
+                            "локального flow для add"
+                            if state.probe_opened
+                            else "Пробой не удержался, но локального absorption "
+                            "ещё недостаточно для раннего REJECT-входа"
+                        )
                     )
                 ],
                 0.58,
                 zone.center,
                 visuals=visuals,
                 details={
-                    "state": state.stage.value,
+                    "state": (
+                        RejectionStage.REACTION.value
+                        if late_reaction_only
+                        else state.stage.value
+                    ),
                     "zone": zone.public(),
                     "flow": flow,
                     "levelFlow": level_flow.public(),
@@ -443,6 +465,8 @@ class WeakLevelRejectionStrategy(Strategy):
                     "opportunityArm": opportunity_arm,
                     "preparedOpportunity": prepared_opportunity,
                     "attackAbsorbed": attack_absorbed,
+                    "flowReversed": flow_reversed,
+                    "lateReactionObserved": late_reaction_only,
                     "probeOpened": state.probe_opened,
                 },
             )
@@ -592,9 +616,12 @@ class WeakLevelRejectionStrategy(Strategy):
                 staged_risk_fraction = 1.0
                 state.stage = RejectionStage.REACTION
         else:
+            # Smoke evidence showed REJECT carried the edge while waiting for
+            # REACTION degraded it. Enter once on early failed-break absorption
+            # and do not add later.
             staged_phase = "full"
             staged_risk_fraction = 1.0
-            state.stage = RejectionStage.REACTION
+            state.stage = RejectionStage.REJECT
 
         return StrategyDecision(
             strategy=self.key,
@@ -610,7 +637,12 @@ class WeakLevelRejectionStrategy(Strategy):
                         "Flow reversal подтвердил probe; добавляем только "
                         "зарезервированный остаток риска"
                         if staged_phase == "add"
-                        else "Поток непосредственно у уровня подтвердил разворот/поглощение"
+                        else (
+                            "Failed break + локальное absorption дают ранний "
+                            "REJECT-вход без ожидания позднего REACTION"
+                            if not self.staged_entries_enabled
+                            else "Поток непосредственно у уровня подтвердил разворот/поглощение"
+                        )
                     )
                 ),
                 "Отскок разрешён локальным playbook-контекстом",
@@ -647,7 +679,11 @@ class WeakLevelRejectionStrategy(Strategy):
                     "source": (
                         "rejection_absorption_probe"
                         if staged_phase == "probe"
-                        else "rejection_flow_reversal"
+                        else (
+                            "rejection_absorption_fire"
+                            if not self.staged_entries_enabled
+                            else "rejection_flow_reversal"
+                        )
                     ),
                     "preparedAtMs": (
                         int(state.armed_at * 1000)
@@ -671,7 +707,11 @@ class WeakLevelRejectionStrategy(Strategy):
                         if self.staged_entries_enabled
                         else 0.0
                     ),
-                    "confirmationReady": flow_reversed,
+                    "confirmationReady": (
+                        flow_reversed
+                        if self.staged_entries_enabled
+                        else early_absorption_ready
+                    ),
                     "probeOpened": state.probe_opened,
                 },
                 **context_details,
