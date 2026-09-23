@@ -53,6 +53,7 @@ STRATEGY_STATE_ORDER = {
 class PricePoint:
     ts: float
     price: float
+    context: dict[str, Any]
 
 
 def _row_ts(row: dict) -> float:
@@ -118,6 +119,29 @@ def _frame_price(row: dict) -> float | None:
     return None
 
 
+def _frame_context(row: dict) -> dict[str, Any]:
+    payload = row.get("payload") or {}
+    market = payload.get("market")
+    source = market if isinstance(market, dict) else payload
+
+    orderbook = source.get("orderbook") or {}
+    if not isinstance(orderbook, dict):
+        orderbook = {}
+    return {
+        "trend": source.get("trend"),
+        "tradeFlow": source.get("tradeFlow"),
+        "bookFlow": source.get("bookFlow"),
+        "densityContext": source.get("densityContext"),
+        "bookHealth": source.get("bookHealth"),
+        "candleHealth": source.get("candleHealth"),
+        "spreadPct": orderbook.get("spreadPct"),
+        "bestBid": orderbook.get("bestBid"),
+        "bestAsk": orderbook.get("bestAsk"),
+        "topBids": list(orderbook.get("bids") or [])[:5],
+        "topAsks": list(orderbook.get("asks") or [])[:5],
+    }
+
+
 def _price_segments(
     rows: list[dict],
     *,
@@ -178,9 +202,19 @@ def _price_segments(
 
         _segment_id, segment = item
         if segment and ts == segment[-1].ts:
-            segment[-1] = PricePoint(ts=ts, price=price)
+            segment[-1] = PricePoint(
+                ts=ts,
+                price=price,
+                context=_frame_context(row),
+            )
         elif not segment or ts > segment[-1].ts:
-            segment.append(PricePoint(ts=ts, price=price))
+            segment.append(
+                PricePoint(
+                    ts=ts,
+                    price=price,
+                    context=_frame_context(row),
+                )
+            )
 
     return {
         symbol: [
@@ -275,6 +309,13 @@ def _swing(
         "estimatedRoundTripCostPct": cost_pct,
         "estimatedNetMovePct": max(0.0, gross_move_pct - cost_pct),
         "durationSeconds": max(0.0, end.ts - start.ts),
+        "marketSnapshots": {
+            "oracleEntry": start.context,
+            "confirmation": confirmation.context,
+            "entryWindowEnd": entry_window_end.context,
+            "exitWindowStart": exit_window_start.context,
+            "oracleExit": end.context,
+        },
     }
 
 
