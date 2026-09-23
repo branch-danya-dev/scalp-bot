@@ -123,9 +123,10 @@ def _price_segments(
     *,
     run_start: float | None,
     run_end: float | None,
-) -> dict[str, list[list[PricePoint]]]:
-    by_symbol: dict[str, list[list[PricePoint]]] = defaultdict(list)
-    current: dict[str, list[PricePoint]] = {}
+) -> dict[str, list[tuple[int, list[PricePoint]]]]:
+    by_symbol: dict[str, list[tuple[int, list[PricePoint]]]] = defaultdict(list)
+    current: dict[str, tuple[int, list[PricePoint]]] = {}
+    segment_counter: dict[str, int] = defaultdict(int)
     saw_lifecycle: set[str] = set()
 
     for row in rows:
@@ -136,9 +137,11 @@ def _price_segments(
 
         if event == "symbol_activated":
             saw_lifecycle.add(symbol)
+            segment_counter[symbol] += 1
             segment: list[PricePoint] = []
-            current[symbol] = segment
-            by_symbol[symbol].append(segment)
+            item = (segment_counter[symbol], segment)
+            current[symbol] = item
+            by_symbol[symbol].append(item)
             continue
 
         if event == "symbol_deactivated":
@@ -159,28 +162,34 @@ def _price_segments(
         if price is None:
             continue
 
-        segment = current.get(symbol)
-        if segment is None:
+        item = current.get(symbol)
+        if item is None:
             # Old/synthetic sessions may not have activation events.
             if symbol in saw_lifecycle:
                 continue
             if not by_symbol[symbol]:
-                segment = []
-                by_symbol[symbol].append(segment)
+                segment_counter[symbol] = max(1, segment_counter[symbol])
+                segment: list[PricePoint] = []
+                item = (segment_counter[symbol], segment)
+                by_symbol[symbol].append(item)
             else:
-                segment = by_symbol[symbol][-1]
-            current[symbol] = segment
+                item = by_symbol[symbol][-1]
+            current[symbol] = item
 
+        _segment_id, segment = item
         if segment and ts == segment[-1].ts:
             segment[-1] = PricePoint(ts=ts, price=price)
         elif not segment or ts > segment[-1].ts:
             segment.append(PricePoint(ts=ts, price=price))
 
     return {
-        symbol: [segment for segment in segments if len(segment) >= 2]
+        symbol: [
+            (segment_id, segment)
+            for segment_id, segment in segments
+            if len(segment) >= 2
+        ]
         for symbol, segments in by_symbol.items()
     }
-
 
 def _directional_move(start: float, end: float, side: str) -> float:
     if start <= 0:
@@ -815,7 +824,7 @@ def analyze_hindsight_opportunities(
     opportunities: list[dict] = []
     sequence = 0
     for symbol in sorted(segments):
-        for segment_index, points in enumerate(segments[symbol], start=1):
+        for segment_index, points in segments[symbol]:
             swings = _segment_swings(
                 points,
                 gross_required_pct=gross_required_pct,
