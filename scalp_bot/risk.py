@@ -459,8 +459,18 @@ class RiskEngine:
         minimum_net_reward = (
             all_in_net_loss * self.config.min_net_reward_risk
         )
+        absolute_min_net_reward = (
+            all_in_net_loss
+            * max(
+                0.0,
+                self.config.absolute_min_net_reward_risk,
+            )
+        )
         minimum_net_profit_failed = expected_net < required_net_profit
         net_reward_risk_failed = expected_net < minimum_net_reward
+        absolute_net_reward_risk_failed = (
+            expected_net < absolute_min_net_reward
+        )
 
         economic_diagnostics = {
             "riskBudgetUsd": structural_risk_budget,
@@ -549,6 +559,12 @@ class RiskEngine:
             "netReturnOnEquity": expected_net / balance if balance > 0 else 0.0,
             "netRewardRisk": net_rr,
             "requiredNetRewardRisk": self.config.min_net_reward_risk,
+            "absoluteMinimumNetRewardRisk": (
+                self.config.absolute_min_net_reward_risk
+            ),
+            "wouldFailAbsoluteNetRewardRisk": (
+                absolute_net_reward_risk_failed
+            ),
             "minimumNetProfitGateEnabled": self.config.enforce_min_net_profit_gate,
             "payoffGateEnabled": self.config.enforce_net_reward_risk_gate,
             "requiredNetProfitUsd": required_net_profit,
@@ -594,6 +610,17 @@ class RiskEngine:
                     "economic_gate: stop_cost_share "
                     f"{stop_cost_share:.3f} > maximum "
                     f"{self.config.max_stop_cost_share:.3f}"
+                ),
+                diagnostics=dict(economic_diagnostics),
+            )
+
+        if absolute_net_reward_risk_failed:
+            return RiskResult(
+                False,
+                (
+                    "economic_safety: absolute_net_reward_risk: "
+                    f"net reward/risk {net_rr:.4f} < hard minimum "
+                    f"{self.config.absolute_min_net_reward_risk:.4f}"
                 ),
                 diagnostics=dict(economic_diagnostics),
             )
@@ -645,6 +672,9 @@ class RiskEngine:
             "spreadCostDoubleCounted": False,
             "netRewardRiskRatio": net_rr,
             "minimumNetRewardRiskRatio": self.config.min_net_reward_risk,
+            "absoluteMinimumNetRewardRiskRatio": (
+                self.config.absolute_min_net_reward_risk
+            ),
             "shadowRejectReasons": shadow_reject_reasons,
             "economicPolicy": (
                 "strict"
