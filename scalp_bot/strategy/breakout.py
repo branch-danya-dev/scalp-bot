@@ -50,6 +50,8 @@ class BreakoutWatchState:
     armed_at: float = 0.0
     armed_until: float = 0.0
     armed_price: float = 0.0
+    armed_zone: LevelZone | None = None
+    armed_trend: Trend = Trend.FLAT
     break_started_at: float = 0.0
     probe_opened: bool = False
 
@@ -145,6 +147,8 @@ class LevelBreakoutStrategy(Strategy):
             return
         state.used_generations.add(tuple(generation))
         state.probe_opened = False
+        state.armed_zone = None
+        state.armed_trend = Trend.FLAT
 
     @staticmethod
     def _generation(zone: LevelZone) -> tuple[str, str, float]:
@@ -342,78 +346,130 @@ class LevelBreakoutStrategy(Strategy):
         state = self._states.setdefault(symbol, BreakoutWatchState())
         trades = trades or []
         price = book.mid or candles[-1].close
+        market_now = (
+            observed_at_ms / 1000
+            if observed_at_ms is not None
+            else (
+                trades[-1].ts_ms / 1000
+                if trades
+                else candles[-1].start_ms / 1000 + 60.0
+            )
+        )
+        pinned_arm = (
+            state.armed_zone is not None
+            and state.armed_trend in context_plan.allowed_directions
+            and (
+                state.probe_opened
+                or (
+                    state.armed_at > 0
+                    and market_now <= state.armed_until
+                )
+            )
+        )
 
         candidates: list[
             tuple[float, Trend, LevelZone, list]
         ] = []
-        for direction in context_plan.allowed_directions:
-            long_candidate = direction == Trend.UP
-            zone_kind: LevelKind = (
+        if not pinned_arm:
+            for direction in context_plan.allowed_directions:
+                long_candidate = direction == Trend.UP
+                zone_kind: LevelKind = (
+                    "resistance"
+                    if long_candidate
+                    else "support"
+                )
+                if structure is not None:
+                    structural_rows = [
+                        level
+                        for level in structure.levels
+                        if level.kind == zone_kind
+                        and level.touches >= self.min_zone_touches
+                        and level.distinct_approaches >= self.min_distinct_approaches
+                        and level.reaction_pct
+                        >= typical_range_pct(candles) * 0.45
+                        and level.volume_ratio >= 0.80
+                        and level.lifecycle == "worked"
+                    ]
+                    zones = [
+                        level.as_zone()
+                        for level in structural_rows
+                    ]
+                else:
+                    structural_rows = []
+                    zones = detect_level_zones(
+                        candles,
+                        zone_kind,
+                        min_touches=self.min_zone_touches,
+                    )
+                    zones = [
+                        zone
+                        for zone in zones
+                        if self._mature(zone, candles)
+                    ]
+                candidate_zone = self._select_zone(
+                    zones,
+                    price,
+                    long_side=long_candidate,
+                )
+                if candidate_zone is not None:
+                    candidates.append(
+                        (
+                            abs(candidate_zone.center - price),
+                            direction,
+                            candidate_zone,
+                            structural_rows,
+                        )
+                    )
+
+        if pinned_arm:
+            playbook_trend = state.armed_trend
+            zone = state.armed_zone
+            zone_kind = (
                 "resistance"
-                if long_candidate
+                if playbook_trend == Trend.UP
                 else "support"
             )
-            if structure is not None:
-                structural_rows = [
+            structural = (
+                [
                     level
                     for level in structure.levels
                     if level.kind == zone_kind
-                    and level.touches >= self.min_zone_touches
-                    and level.distinct_approaches >= self.min_distinct_approaches
-                    and level.reaction_pct
-                    >= typical_range_pct(candles) * 0.45
-                    and level.volume_ratio >= 0.80
-                    and level.lifecycle == "worked"
                 ]
-                zones = [
-                    level.as_zone()
-                    for level in structural_rows
-                ]
-            else:
-                structural_rows = []
-                zones = detect_level_zones(
-                    candles,
-                    zone_kind,
-                    min_touches=self.min_zone_touches,
-                )
-                zones = [
-                    zone
-                    for zone in zones
-                    if self._mature(zone, candles)
-                ]
-            candidate_zone = self._select_zone(
-                zones,
-                price,
-                long_side=long_candidate,
+                if structure is not None
+                else []
             )
-            if candidate_zone is not None:
-                candidates.append(
-                    (
-                        abs(candidate_zone.center - price),
-                        direction,
-                        candidate_zone,
-                        structural_rows,
-                    )
+        else:
+            if not candidates:
+                state.stage = BreakoutStage.SEARCH
+                state.zone_key = None
+                state.armed_zone = None
+                state.armed_trend = Trend.FLAT
+                return StrategyDecision(
+                    self.key,
+                    Action.WAIT,
+                    ["Зрелая наторгованная зона для разрешённого breakout-направления рядом не найдена"],
+                    details={
+                        "state": state.stage.value,
+                        "playbookContext": context_plan.public(),
+                        "legacyTrend": trend.value,
+                    },
                 )
 
-        if not candidates:
+            _, playbook_trend, zone, structural = min(
+                candidates,
+                key=lambda row: row[0],
+            )
+        if zone is None:
             state.stage = BreakoutStage.SEARCH
             state.zone_key = None
+            state.armed_zone = None
+            state.armed_trend = Trend.FLAT
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
-                ["Зрелая наторгованная зона для разрешённого breakout-направления рядом не найдена"],
-                details={
-                    "state": state.stage.value,
-                    "playbookContext": context_plan.public(),
-                    "legacyTrend": trend.value,
-                },
+                ["Prepared breakout hypothesis lost its market object"],
+                details={"state": state.stage.value},
             )
-
-        _, playbook_trend, zone, structural = min(
-            candidates,
-            key=lambda row: row[0],
-        )
         long_side = playbook_trend == Trend.UP
         context_details = {
             "playbookContext": context_plan.public(),
@@ -444,6 +500,8 @@ class LevelBreakoutStrategy(Strategy):
             state.armed_at = 0.0
             state.armed_until = 0.0
             state.armed_price = 0.0
+            state.armed_zone = None
+            state.armed_trend = Trend.FLAT
             state.break_started_at = 0.0
             state.probe_opened = False
         visuals = zone_visual(zone, "breakout zone")
@@ -565,15 +623,6 @@ class LevelBreakoutStrategy(Strategy):
                 },
             )
 
-        market_now = (
-            observed_at_ms / 1000
-            if observed_at_ms is not None
-            else (
-                trades[-1].ts_ms / 1000
-                if trades
-                else candles[-1].start_ms / 1000 + 60.0
-            )
-        )
         pressure_ready = pressure_score >= self.min_pressure_score
         arm_active = (
             state.armed_at > 0
@@ -588,6 +637,8 @@ class LevelBreakoutStrategy(Strategy):
             if not arm_active:
                 state.armed_at = market_now
                 state.armed_price = price
+            state.armed_zone = zone
+            state.armed_trend = playbook_trend
             state.armed_until = max(
                 state.armed_until,
                 market_now + self.pressure_hysteresis_seconds,
@@ -598,6 +649,9 @@ class LevelBreakoutStrategy(Strategy):
             state.stage = BreakoutStage.ARMED
         else:
             state.stage = BreakoutStage.APPROACH
+            if not state.probe_opened:
+                state.armed_zone = None
+                state.armed_trend = Trend.FLAT
 
         opportunity_arm = (
             {
@@ -606,6 +660,26 @@ class LevelBreakoutStrategy(Strategy):
                 "source": "breakout_pressure_armed",
             }
             if state.armed_at > 0 and arm_active
+            else None
+        )
+        prepared_opportunity = (
+            {
+                "preparedAtMs": int(state.armed_at * 1000),
+                "source": "breakout_pressure_armed",
+                "action": (
+                    Action.LONG.value
+                    if long_side
+                    else Action.SHORT.value
+                ),
+                "generation": list(generation),
+                "watchedLevel": zone.center,
+                "armPrice": state.armed_price,
+                "pinned": True,
+            }
+            if (
+                state.armed_at > 0
+                and (arm_active or state.probe_opened)
+            )
             else None
         )
         break_buffer = max(0.00015, book.spread_pct * 1.5)
@@ -639,6 +713,7 @@ class LevelBreakoutStrategy(Strategy):
                     "pressure": pressure,
                     "pressureHysteresisActive": arm_active,
                     "opportunityArm": opportunity_arm,
+                    "preparedOpportunity": prepared_opportunity,
                     "flow": flow,
                     "levelFlow": level_flow.public(),
                 },
@@ -1002,6 +1077,24 @@ class LevelBreakoutStrategy(Strategy):
                 "pressure": pressure,
                 "pressureHysteresisActive": arm_active,
                 "opportunityArm": opportunity_arm,
+                "preparedOpportunity": prepared_opportunity,
+                "fireTrigger": {
+                    "observedAtMs": (
+                        observed_at_ms
+                        if observed_at_ms is not None
+                        else int(market_now * 1000)
+                    ),
+                    "source": (
+                        "breakout_early_probe"
+                        if staged_phase == "probe"
+                        else "breakout_acceptance_hold"
+                    ),
+                    "preparedAtMs": (
+                        int(state.armed_at * 1000)
+                        if state.armed_at > 0
+                        else None
+                    ),
+                },
                 "pressureScore": pressure_score,
                 "stagedEntry": {
                     "phase": staged_phase,
