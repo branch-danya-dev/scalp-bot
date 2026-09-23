@@ -675,9 +675,4 @@ def test_breakout_keeps_exact_structural_generation_identity() -> None:
     assert decision.details["zone"]["low"] == pytest.approx(100.08)
     state = strategy._states["IDENTITYUSDT"]
     assert state.armed_generation_id == "R:selected:g3"
-    assert (
-        decision.details["preparedOpportunity"][
-            "structuralGenerationId"
-        ]
-        == "R:selected:g3"
-    )
+    assert decision.details["zoneGeneration"][1] == "R:selected:g3"
