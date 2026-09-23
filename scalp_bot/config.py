@@ -147,6 +147,11 @@ class Settings(BaseSettings):
     evaluation_idle_interval_seconds: float = 0.8
     evaluation_engaged_interval_seconds: float = 0.20
     arbiter_interval_seconds: float = 0.25
+    # market_context_changed is diagnostic telemetry, not the trading clock.
+    # Full causal context is already attached to decisions/state transitions
+    # and research frames; throttle minor context churn to keep long sessions
+    # tractable.
+    market_context_event_interval_seconds: float = 10.0
     market_stale_seconds: float = 3.0
     book_stale_seconds: float = 1.5
     # Disabled in bare Settings for deterministic unit tests; research/live

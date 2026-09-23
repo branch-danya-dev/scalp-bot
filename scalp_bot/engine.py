@@ -99,6 +99,11 @@ class ActiveSymbolSession:
     forming_candle_context: FormingCandleContext | None = None
     market_context: MarketContext | None = None
     market_context_fingerprint: tuple | None = None
+    market_context_semantic_fingerprint: tuple | None = None
+    last_market_context_event_at: float = 0.0
+    market_context_changes_suppressed: int = 0
+    market_context_changes_pending: int = 0
+    market_context_events_emitted: int = 0
     entry_freshness_anchors: dict[str, dict] = field(default_factory=dict)
     entry_freshness_fingerprints: dict[str, tuple] = field(default_factory=dict)
     structure: MarketStructure | None = None
@@ -455,6 +460,12 @@ class ActiveSymbolSession:
             "mode": self.last_analysis_mode,
             "staticAnalysisRebuilds": self.static_analysis_rebuilds,
             "liveFastPathReuses": self.live_fast_path_reuses,
+            "marketContextEventsEmitted": (
+                self.market_context_events_emitted
+            ),
+            "marketContextChangesSuppressed": (
+                self.market_context_changes_suppressed
+            ),
             "staticAnalysisRebuiltAtMs": (
                 self.static_analysis_rebuilt_at_ms or None
             ),
@@ -1879,6 +1890,251 @@ class TradingEngine:
             forming_candle=session.forming_candle_context,
         )
 
+    @staticmethod
+    def _context_level_digest(level) -> tuple | None:
+        if level is None:
+            return None
+        return (
+            str(level.kind),
+            str(level.generation_id or ""),
+            round(float(level.center), 8),
+            str(level.lifecycle),
+        )
+
+    @classmethod
+    def _market_context_semantic_fingerprint(
+        cls,
+        context: MarketContext,
+    ) -> tuple:
+        structure = context.structure
+        liquidity = context.liquidity
+        return (
+            context.legacy_trend.value,
+            (
+                context.htf_bias.bias.value
+                if context.htf_bias is not None
+                else None
+            ),
+            (
+                context.htf_bias.alignment
+                if context.htf_bias is not None
+                else None
+            ),
+            (
+                context.local_regime.regime.value
+                if context.local_regime is not None
+                else None
+            ),
+            (
+                context.local_regime.direction.value
+                if context.local_regime is not None
+                else None
+            ),
+            (
+                liquidity.state.value
+                if liquidity is not None
+                else None
+            ),
+            (
+                liquidity.directional_bias.value
+                if liquidity is not None
+                else None
+            ),
+            context.execution.ready,
+            cls._context_level_digest(
+                structure.nearest_support
+                if structure is not None
+                else None
+            ),
+            cls._context_level_digest(
+                structure.nearest_resistance
+                if structure is not None
+                else None
+            ),
+        )
+
+    @staticmethod
+    def _compact_market_context(
+        context: MarketContext,
+    ) -> dict:
+        flow = context.flow
+        liquidity = context.liquidity
+        structure = context.structure
+        forming = context.forming_candle
+
+        def level_payload(level) -> dict | None:
+            if level is None:
+                return None
+            return {
+                "kind": level.kind,
+                "center": level.center,
+                "low": level.low,
+                "high": level.high,
+                "timeframe": level.timeframe,
+                "score": level.score,
+                "generationId": level.generation_id,
+                "lifecycle": level.lifecycle,
+            }
+
+        return {
+            "schemaVersion": 2,
+            "compact": True,
+            "symbol": context.symbol,
+            "observedAtMs": context.observed_at_ms,
+            "lastPrice": context.last_price,
+            "legacyTrend": context.legacy_trend.value,
+            "htfBias": (
+                {
+                    "bias": context.htf_bias.bias.value,
+                    "strength": context.htf_bias.strength,
+                    "alignment": context.htf_bias.alignment,
+                }
+                if context.htf_bias is not None
+                else None
+            ),
+            "localRegime": (
+                {
+                    "regime": (
+                        context.local_regime.regime.value
+                    ),
+                    "direction": (
+                        context.local_regime.direction.value
+                    ),
+                    "parentDirection": (
+                        context.local_regime
+                        .parent_direction.value
+                    ),
+                    "strength": (
+                        context.local_regime.strength
+                    ),
+                    "recentMovePct": (
+                        context.local_regime
+                        .recent_move_pct
+                    ),
+                    "rangeExpansionRatio": (
+                        context.local_regime
+                        .range_expansion_ratio
+                    ),
+                    "directionalEfficiency": (
+                        context.local_regime
+                        .directional_efficiency
+                    ),
+                }
+                if context.local_regime is not None
+                else None
+            ),
+            "flowContext": (
+                {
+                    "dominantDirection": (
+                        flow.dominant_direction.value
+                    ),
+                    "directionalScore": (
+                        flow.directional_score
+                    ),
+                    "coherence": flow.coherence,
+                    "longAlignment": {
+                        "classification": (
+                            flow.long_alignment
+                            .classification.value
+                        ),
+                        "score": flow.long_alignment.score,
+                    },
+                    "shortAlignment": {
+                        "classification": (
+                            flow.short_alignment
+                            .classification.value
+                        ),
+                        "score": flow.short_alignment.score,
+                    },
+                }
+                if flow is not None
+                else None
+            ),
+            "liquidityEvidence": (
+                {
+                    "state": liquidity.state.value,
+                    "directionalBias": (
+                        liquidity.directional_bias.value
+                    ),
+                    "directionalStrength": (
+                        liquidity.directional_strength
+                    ),
+                    "wallSide": liquidity.wall_side,
+                    "wallPrice": liquidity.wall_price,
+                    "absorptionObserved": (
+                        liquidity.absorption_observed
+                    ),
+                    "consuming": liquidity.consuming,
+                }
+                if liquidity is not None
+                else None
+            ),
+            "structureContext": (
+                {
+                    "referencePrice": (
+                        structure.reference_price
+                    ),
+                    "levelCount": structure.level_count,
+                    "trendlineCount": (
+                        structure.trendline_count
+                    ),
+                    "nearestSupport": level_payload(
+                        structure.nearest_support
+                    ),
+                    "nearestResistance": level_payload(
+                        structure.nearest_resistance
+                    ),
+                    "supportDistancePct": (
+                        structure.support_distance_pct
+                    ),
+                    "resistanceDistancePct": (
+                        structure.resistance_distance_pct
+                    ),
+                }
+                if structure is not None
+                else None
+            ),
+            "executionContext": {
+                "ready": context.execution.ready,
+                "bookFresh": context.execution.book_fresh,
+                "candleFresh": (
+                    context.execution.candle_fresh
+                ),
+                "bookAgeSeconds": (
+                    context.execution.book_age_seconds
+                ),
+                "candleAgeSeconds": (
+                    context.execution.candle_age_seconds
+                ),
+                "spreadPct": context.execution.spread_pct,
+                "top5DepthUsd": (
+                    context.execution.top5_depth_usd
+                ),
+            },
+            "formingCandle": (
+                {
+                    "startMs": forming.start_ms,
+                    "ageSeconds": forming.age_seconds,
+                    "progressRatio": forming.progress_ratio,
+                    "bodyPct": forming.body_pct,
+                    "rangePct": forming.range_pct,
+                    "closePosition": forming.close_position,
+                    "volumePaceRatio": (
+                        forming.volume_pace_ratio
+                    ),
+                    "rangeExpansionRatio": (
+                        forming.range_expansion_ratio
+                    ),
+                    "velocityBpsPerSecond": (
+                        forming.velocity_bps_per_second
+                    ),
+                    "direction": forming.direction.value,
+                }
+                if forming is not None
+                else None
+            ),
+        }
+
     def _commit_market_context(
         self,
         session: ActiveSymbolSession,
@@ -1892,16 +2148,70 @@ class TradingEngine:
         )
         fingerprint = context.fingerprint()
         previous = session.market_context_fingerprint
+        semantic_fingerprint = (
+            self._market_context_semantic_fingerprint(
+                context
+            )
+        )
+        previous_semantic = (
+            session.market_context_semantic_fingerprint
+        )
+
         session.market_context = context
         session.market_context_fingerprint = fingerprint
+        session.market_context_semantic_fingerprint = (
+            semantic_fingerprint
+        )
+
         if not emit or previous == fingerprint:
             return
+
+        semantic_changed = (
+            previous_semantic != semantic_fingerprint
+        )
+        observed_at = observed_at_ms / 1000
+        min_interval = max(
+            0.0,
+            float(
+                self.config
+                .market_context_event_interval_seconds
+            ),
+        )
+        interval_elapsed = (
+            session.last_market_context_event_at <= 0
+            or observed_at
+            - session.last_market_context_event_at
+            >= min_interval
+        )
+
+        if not semantic_changed and not interval_elapsed:
+            session.market_context_changes_suppressed += 1
+            session.market_context_changes_pending += 1
+            return
+
+        suppressed = (
+            session.market_context_changes_pending
+        )
+        session.market_context_changes_pending = 0
+        session.last_market_context_event_at = observed_at
+        session.market_context_events_emitted += 1
         self._emit(
             "market_context_changed",
             session.symbol,
             {
-                "previousFingerprint": list(previous) if previous else None,
-                "marketContext": context.public(),
+                "previousFingerprint": (
+                    list(previous)
+                    if previous
+                    else None
+                ),
+                "semanticChanged": semantic_changed,
+                "suppressedChangesSinceLastEvent": (
+                    suppressed
+                ),
+                "eventIntervalSeconds": min_interval,
+                "marketContext": (
+                    self._compact_market_context(context)
+                ),
             },
         )
 
