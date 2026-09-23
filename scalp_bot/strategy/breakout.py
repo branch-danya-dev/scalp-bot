@@ -798,6 +798,7 @@ class LevelBreakoutStrategy(Strategy):
                     "acceptanceBoundary": acceptance_boundary,
                     "pressureHysteresisActive": arm_active,
                     "opportunityArm": opportunity_arm,
+                    "preparedOpportunity": prepared_opportunity,
                     "probeOpened": state.probe_opened,
                     "localBreakFlowConfirmed": local_break_flow,
                 },
@@ -847,6 +848,7 @@ class LevelBreakoutStrategy(Strategy):
                         ),
                         "probeOpened": True,
                         "opportunityArm": opportunity_arm,
+                    "preparedOpportunity": prepared_opportunity,
                     },
                 )
             if state.probe_opened:
