@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
@@ -33,9 +33,22 @@ class EntryFreshness:
     reasons: list[str]
 
     def public(self) -> dict[str, Any]:
-        data = asdict(self)
-        data["classification"] = self.classification.value
-        return data
+        return {
+            "classification": self.classification.value,
+            "triggerPrice": self.trigger_price,
+            "currentPrice": self.current_price,
+            "triggerTs": self.trigger_ts,
+            "observedTs": self.observed_ts,
+            "confirmationAgeSeconds": self.confirmation_age_seconds,
+            "signedMoveSinceTriggerPct": self.signed_move_since_trigger_pct,
+            "moveSinceTriggerPct": self.move_since_trigger_pct,
+            "expectedImpulsePct": self.expected_impulse_pct,
+            "moveSpentRatio": self.move_spent_ratio,
+            "watchedLevel": self.watched_level,
+            "distanceFromLevelPct": self.distance_from_level_pct,
+            "source": self.source,
+            "reasons": list(self.reasons),
+        }
 
 
 def _directional_move(
