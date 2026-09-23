@@ -191,7 +191,7 @@ def test_structure_context_exposes_nearest_support_resistance_and_trendlines() -
     assert context.nearest_resistance is not None
     assert context.nearest_support.center == 99.1
     assert context.nearest_resistance.center == 100.9
-    assert context.support_distance_pct == 0.009
+    assert context.support_distance_pct == pytest.approx(0.009)
     assert context.resistance_distance_pct == pytest.approx(0.009)
     assert context.support_trendline is not None
 
