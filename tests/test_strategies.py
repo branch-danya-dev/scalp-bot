@@ -95,6 +95,7 @@ def buy_flow(price: float = 100.10) -> list[TradeTick]:
 
 def test_weak_level_rejection_support_can_produce_long() -> None:
     strategy = WeakLevelRejectionStrategy()
+    strategy.staged_entries_enabled = True
     book = OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)])
     decision = strategy.evaluate(
         weak_support_rejection_candles(),
@@ -912,6 +913,7 @@ def test_weak_level_test_remains_pinned_through_selector_gap() -> None:
 
 def test_weak_level_sweep_then_live_reclaim_can_confirm() -> None:
     strategy = WeakLevelRejectionStrategy()
+    strategy.staged_entries_enabled = True
     rows = weak_support_rejection_candles()
     start = 20_000_000
     sweep_only = [
