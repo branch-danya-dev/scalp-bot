@@ -299,6 +299,12 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
                         "classification": "supportive",
                         "score": 0.88,
                     },
+                    "decisionContext": {
+                        "schemaVersion": 1,
+                        "htfBias": "bullish",
+                        "localRegime": "bullish_trend",
+                        "executionReady": True,
+                    },
                 },
             },
             "market": {
@@ -379,6 +385,9 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
     assert diagnostics["entryLiquidityAlignmentBySide"]["long"]["supportive"] == 1
     assert diagnostics["entryLiquidityScoreSamples"] == 1
     assert diagnostics["averageEntryLiquidityAlignmentScore"] == 0.88
+    assert diagnostics["entryLocalRegimeCounts"]["bullish_trend"] == 1
+    assert diagnostics["entryHtfBiasCounts"]["bullish"] == 1
+    assert diagnostics["entryExecutionReadyCounts"]["true"] == 1
     assert diagnostics["tradesClosed"] == 1
     assert diagnostics["grossPnl"] == 10.0
     assert diagnostics["fees"] == 1.5
