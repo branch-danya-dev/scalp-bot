@@ -260,6 +260,13 @@ class PaperBroker:
             return False, "portfolio exposure budget exhausted"
         if self.available_risk_usd <= 0:
             return False, "portfolio risk budget exhausted"
+        economics = self.staged_add_economics(plan)
+        if not bool(economics.get("allowed")):
+            return (
+                False,
+                "staged_add_economics: "
+                + str(economics.get("reason")),
+            )
         return True, "allowed"
 
     def staged_add_economics(
