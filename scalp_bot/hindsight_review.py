@@ -60,6 +60,39 @@ def _row_ts(row: dict) -> float:
     return float(raw) if isinstance(raw, (int, float)) else 0.0
 
 
+def _run_window(rows: list[dict]) -> tuple[float | None, float | None]:
+    started = None
+    stopped = None
+    for row in rows:
+        event = str(row.get("event") or "")
+        ts = _row_ts(row)
+        payload = row.get("payload") or {}
+        if event == "bot_started":
+            started = ts
+            stopped = None
+        elif started is not None and event == "run_summary":
+            raw = payload.get("stoppedAt")
+            stopped = float(raw) if isinstance(raw, (int, float)) else ts
+        elif started is not None and event == "bot_stopped" and stopped is None:
+            stopped = ts
+    return started, stopped
+
+
+def _session_cost_policy(rows: list[dict]) -> tuple[float, float]:
+    taker = DEFAULT_TAKER_FEE_RATE
+    slippage = DEFAULT_SLIPPAGE_BPS
+    for row in rows:
+        if row.get("event") != "bot_started":
+            continue
+        payload = row.get("payload") or {}
+        config = payload.get("config") or {}
+        if isinstance(config.get("takerFeeRate"), (int, float)):
+            taker = float(config["takerFeeRate"])
+        if isinstance(config.get("slippageBps"), (int, float)):
+            slippage = float(config["slippageBps"])
+    return taker, slippage
+
+
 def _frame_price(row: dict) -> float | None:
     payload = row.get("payload") or {}
     direct = payload.get("lastPrice")
@@ -85,7 +118,12 @@ def _frame_price(row: dict) -> float | None:
     return None
 
 
-def _price_segments(rows: list[dict]) -> dict[str, list[list[PricePoint]]]:
+def _price_segments(
+    rows: list[dict],
+    *,
+    run_start: float | None,
+    run_end: float | None,
+) -> dict[str, list[list[PricePoint]]]:
     by_symbol: dict[str, list[list[PricePoint]]] = defaultdict(list)
     current: dict[str, list[PricePoint]] = {}
     saw_lifecycle: set[str] = set()
@@ -111,6 +149,12 @@ def _price_segments(rows: list[dict]) -> dict[str, list[list[PricePoint]]]:
         if event not in {"research_frame", "market_frame"}:
             continue
 
+        ts = _row_ts(row)
+        if run_start is not None and ts < run_start:
+            continue
+        if run_end is not None and ts > run_end:
+            continue
+
         price = _frame_price(row)
         if price is None:
             continue
@@ -127,7 +171,6 @@ def _price_segments(rows: list[dict]) -> dict[str, list[list[PricePoint]]]:
                 segment = by_symbol[symbol][-1]
             current[symbol] = segment
 
-        ts = _row_ts(row)
         if segment and ts == segment[-1].ts:
             segment[-1] = PricePoint(ts=ts, price=price)
         elif not segment or ts > segment[-1].ts:
@@ -736,17 +779,36 @@ def _bot_comparison(
 def analyze_hindsight_opportunities(
     rows: list[dict],
     *,
-    taker_fee_rate: float = DEFAULT_TAKER_FEE_RATE,
-    slippage_bps: float = DEFAULT_SLIPPAGE_BPS,
+    taker_fee_rate: float | None = None,
+    slippage_bps: float | None = None,
     minimum_net_move_pct: float = DEFAULT_MIN_NET_MOVE_PCT,
     reversal_pct: float = DEFAULT_REVERSAL_PCT,
     entry_window_fraction: float = DEFAULT_ENTRY_WINDOW_FRACTION,
     exit_window_fraction: float = DEFAULT_EXIT_WINDOW_FRACTION,
 ) -> dict[str, Any]:
-    cost_pct = max(0.0, taker_fee_rate) * 2.0 + max(0.0, slippage_bps) * 2.0 / 10_000
+    run_start, run_end = _run_window(rows)
+    session_taker, session_slippage = _session_cost_policy(rows)
+    resolved_taker = (
+        session_taker
+        if taker_fee_rate is None
+        else float(taker_fee_rate)
+    )
+    resolved_slippage = (
+        session_slippage
+        if slippage_bps is None
+        else float(slippage_bps)
+    )
+    cost_pct = (
+        max(0.0, resolved_taker) * 2.0
+        + max(0.0, resolved_slippage) * 2.0 / 10_000
+    )
     gross_required_pct = cost_pct + max(0.0, minimum_net_move_pct)
     reversal = max(0.0001, reversal_pct)
-    segments = _price_segments(rows)
+    segments = _price_segments(
+        rows,
+        run_start=run_start,
+        run_end=run_end,
+    )
     decisions = _decision_index(rows)
     trades = _trade_pairs(rows)
 
@@ -805,6 +867,10 @@ def analyze_hindsight_opportunities(
     return {
         "schemaVersion": 1,
         "policy": {
+            "runStartTs": run_start,
+            "runEndTs": run_end,
+            "takerFeeRate": resolved_taker,
+            "slippageBps": resolved_slippage,
             "priceSource": (
                 "recorded research/market-frame lastPrice; candle close fallback. "
                 "Strategy decisions are not used to discover opportunities."
