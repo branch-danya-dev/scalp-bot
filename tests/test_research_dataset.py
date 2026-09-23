@@ -532,13 +532,13 @@ def test_research_pack_contains_normalized_tables_and_report(tmp_path):
             ).decode("utf-8").splitlines()
             if line.strip()
         ]
+        stability = json.loads(
+            archive.read("stability-validation.json")
+        )
 
     assert cross["summary"]["sessions"] == 1
     assert manifest["summary"]["closedTrades"] == 1
     assert "stabilityValidation" in cross
-    stability = json.loads(
-        archive.read("stability-validation.json")
-    )
     assert stability["policy"]["livePolicyEnforcement"] == "disabled"
     assert manifest["files"]["stabilityValidation"] == "stability-validation.json"
     assert trades[0]["sessionId"] == cross["sessions"][0]["sessionId"]
