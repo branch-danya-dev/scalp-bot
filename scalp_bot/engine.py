@@ -737,6 +737,11 @@ class TradingEngine:
                 if enabled
             ],
             "evidenceOnlyStrategies": ["orderbook_density"],
+            "tradeableStrategies": [
+                key
+                for key, enabled in self.strategy_enabled.items()
+                if enabled and key != "orderbook_density"
+            ],
             "confirmedCandleStaleSeconds": (
                 self.config.confirmed_candle_stale_seconds
             ),
@@ -762,6 +767,9 @@ class TradingEngine:
         if key not in self.strategy_enabled:
             raise KeyError(key)
         self.strategy_enabled[key] = enabled
+        if key == "orderbook_density" and not enabled:
+            for session in self.sessions.values():
+                session.liquidity_evidence = None
         self._emit("strategy_toggle", None, {"strategy": key, "enabled": enabled})
 
     async def _scanner_loop(self) -> None:
