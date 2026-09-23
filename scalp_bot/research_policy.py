@@ -50,6 +50,21 @@ def _stable_id(prefix: str, value: Any, length: int = 16) -> str:
     return f"{prefix}-{_sha256_bytes(_canonical_bytes(value))[:length]}"
 
 
+def _policy_fingerprint_payload(
+    manifest: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "policyId": manifest.get("policyId"),
+        "version": manifest.get("version"),
+        "allowEnforce": bool(
+            manifest.get("allowEnforce")
+        ),
+        "source": manifest.get("source") or {},
+        "rollback": manifest.get("rollback") or {},
+        "rules": manifest.get("rules") or [],
+    }
+
+
 def _read_stability_source(
     source_path: str | Path,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -448,6 +463,14 @@ def create_policy_manifest(
             "Unknown candidate ids: "
             + ", ".join(unknown)
         )
+    if (
+        previous_policy is not None
+        and int(version)
+        <= int(previous_policy.get("version") or 0)
+    ):
+        raise ValueError(
+            "New policy version must be greater than previous policy version"
+        )
     rules = [
         _rule_from_candidate(by_id[candidate_id])
         for candidate_id in selected_ids
@@ -498,16 +521,9 @@ def create_policy_manifest(
         "rules": rules,
     }
     manifest["policyFingerprint"] = _sha256_bytes(
-        _canonical_bytes({
-            "policyId": manifest["policyId"],
-            "version": manifest["version"],
-            "allowEnforce": manifest[
-                "allowEnforce"
-            ],
-            "source": manifest["source"],
-            "rollback": manifest["rollback"],
-            "rules": manifest["rules"],
-        })
+        _canonical_bytes(
+            _policy_fingerprint_payload(manifest)
+        )
     )
     _validate_policy_manifest(manifest)
     return manifest
@@ -595,6 +611,22 @@ def _validate_policy_manifest(
                 raise ValueError(
                     f"Policy exact scope lacks {key}"
                 )
+
+    fingerprint = str(
+        manifest.get("policyFingerprint") or ""
+    )
+    if fingerprint:
+        expected = _sha256_bytes(
+            _canonical_bytes(
+                _policy_fingerprint_payload(
+                    manifest
+                )
+            )
+        )
+        if fingerprint != expected:
+            raise ValueError(
+                "Research policy fingerprint mismatch"
+            )
 
 
 def _mode(value: str | PolicyMode) -> PolicyMode:
