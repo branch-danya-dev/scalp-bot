@@ -489,3 +489,64 @@ def test_rejection_countertrend_signal_is_observed_but_not_tradeable() -> None:
     assert decision.action == Action.WAIT
     assert decision.details["trendAligned"] is False
     assert decision.details["rejectedAction"] == "long"
+
+
+
+def test_breakout_armed_hypothesis_pins_market_object_until_fire(
+    monkeypatch,
+) -> None:
+    strategy = LevelBreakoutStrategy()
+    strategy._pressure_score = lambda *args, **kwargs: (
+        3,
+        {"fixtureBaseScore": 3},
+    )
+    rows = mature_breakout_candles()
+    market = OrderBook(
+        bids=[(99.99, 50)],
+        asks=[(100.01, 50)],
+    )
+    structure = mature_structure()
+
+    armed = strategy.evaluate(
+        rows,
+        market,
+        Trend.UP,
+        symbol="PINNEDBREAKUSDT",
+        trades=aggressive_buy_flow(),
+        structure=structure,
+        observed_at_ms=30_010_000,
+    )
+
+    assert armed.action == Action.WAIT
+    assert armed.details["state"] == "armed"
+    prepared = armed.details["preparedOpportunity"]
+    assert prepared["pinned"] is True
+    pinned_level = prepared["watchedLevel"]
+
+    def selector_must_not_run(*args, **kwargs):
+        raise AssertionError(
+            "ARMED fast path must reuse the prepared zone"
+        )
+
+    monkeypatch.setattr(
+        strategy,
+        "_select_zone",
+        selector_must_not_run,
+    )
+
+    still_armed = strategy.evaluate(
+        rows,
+        market,
+        Trend.UP,
+        symbol="PINNEDBREAKUSDT",
+        trades=aggressive_buy_flow(),
+        structure=structure,
+        observed_at_ms=30_010_200,
+    )
+
+    assert still_armed.action == Action.WAIT
+    assert still_armed.details["state"] == "armed"
+    assert (
+        still_armed.details["preparedOpportunity"]["watchedLevel"]
+        == pytest.approx(pinned_level)
+    )
