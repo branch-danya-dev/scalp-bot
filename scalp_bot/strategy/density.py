@@ -52,7 +52,7 @@ class DensityWallState:
 
 class DensityBounceStrategy(Strategy):
     key = "orderbook_density"
-    label = "Отскок от свежей плотности"
+    label = "Ликвидность стакана (evidence)"
 
     strength_multiple = 4.0
     min_wall_notional_usd = 25_000.0
