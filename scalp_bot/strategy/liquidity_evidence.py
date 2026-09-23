@@ -282,8 +282,14 @@ def build_liquidity_evidence(
         decision.action.value
         if decision.action in {Action.LONG, Action.SHORT}
         else (
-            str(details.get("shadowAction"))
-            if details.get("shadowAction") in {"long", "short"}
+            str(
+                details.get("shadowAction")
+                or details.get("evidenceAction")
+            )
+            if (
+                details.get("shadowAction") in {"long", "short"}
+                or details.get("evidenceAction") in {"long", "short"}
+            )
             else None
         )
     )
