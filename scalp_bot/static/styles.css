@@ -333,7 +333,7 @@
 }
 .opportunity-summary {
   display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(125px,1fr));
   gap:7px;
   margin-bottom:12px;
 }
@@ -390,6 +390,20 @@
 }
 .opportunity-row.early_exit_review {
   border-color:rgba(175,82,222,.30);
+}
+.opportunity-market-moves {
+  margin-top:14px;
+}
+.opportunity-market-moves h3 {
+  font-size:12px;
+  margin:0 0 9px;
+}
+.opportunity-row.market_move_undetected {
+  border-color:rgba(255,59,48,.35);
+  background:rgba(255,59,48,.025);
+}
+.opportunity-row.market_move_detected {
+  border-color:rgba(0,122,255,.22);
 }
 @media(max-width:900px) {
   .opportunity-summary {grid-template-columns:repeat(2,minmax(0,1fr));}
