@@ -43,6 +43,8 @@ function applyChartPrecision(value) {
   candleSeries.applyOptions({priceFormat:{type:"price", precision, minMove:10 ** -precision}});
 }
 const pct = value => value == null ? "—" : `${(Number(value) * 100).toFixed(2)}%`;
+const bps = value => value == null ? "—" : `${(Number(value) * 10_000).toFixed(1)} bps`;
+const clock = value => value == null ? "—" : new Date(Number(value) * 1000).toLocaleTimeString();
 function duration(seconds) {
   const total = Math.max(0, Math.floor(Number(seconds) || 0));
   const h = String(Math.floor(total / 3600)).padStart(2, "0");
@@ -725,11 +727,15 @@ function renderPosition(position) {
   const pnlClass = position.unrealized_pnl >= 0 ? "positive" : "negative";
   const phase = position.partial_taken ? "РАННЕР" : "ПОЛНАЯ ПОЗИЦИЯ";
   box.innerHTML = `<strong>${sideLabel(position.side)} ${position.symbol} · ${phase}</strong>
-    <span>остаток ${money(position.notional)}</span>
-    <span>вход ${price(position.entry)}</span><span>стоп ${price(position.stop)}</span><span>цель ${price(position.target)}</span>
+    <span>вход ${price(position.entry)} → сейчас ${price(position.last_price)}</span>
+    <span>движение ${bps(position.current_move_pct)} · ${pct(position.current_move_pct)}</span>
+    <span>первый тейк план ${bps(position.planned_first_take_move_pct)}</span>
+    <span>стоп ${price(position.stop)} · цель ${price(position.target)}</span>
     <span class="${pnlClass}">открытый PnL ${money(position.unrealized_pnl)}</span>
-    <span>зафиксировано ${money(position.realized_net_usd)}</span>
-    <span>MAE ${Number(position.mae_r || 0).toFixed(2)}R</span><span>MFE ${Number(position.mfe_r || 0).toFixed(2)}R</span>`;
+    <span>комиссия начислена ${money(position.fees_committed_usd)} · если закрыть сейчас ≈ ${money(position.estimated_total_fees_if_close_now_usd)}</span>
+    <span>MFE ${bps(position.max_favorable_move_pct)} @ ${clock(position.mfe_at)}</span>
+    <span>MAE ${bps(position.max_adverse_move_pct)} @ ${clock(position.mae_at)}</span>
+    <span>зафиксировано ${money(position.realized_net_usd)} · остаток ${money(position.notional)}</span>`;
 }
 
 function reviewClassLabel(value) {
@@ -832,7 +838,7 @@ function timelineText(row) {
     return `${strategyLabel(trace.strategy || payload.strategy)} · ${stateLabel(trace.state || payload.details?.state)}${objectText}${waiting ? " · ждём: " + waiting : ""}`;
   }
   if (row.event === "trade_opened") return "Позиция открыта";
-  if (row.event === "partial_take") return `Частичная фиксация · ${money(payload.netPnl)}`;
+  if (row.event === "partial_take") return `Частичная фиксация · ${payload.moveBps == null ? "—" : Number(payload.moveBps).toFixed(1) + " bps"} · комиссия ${money(payload.fees)} · net ${money(payload.netPnl)}`;
   if (row.event === "trade_closed") return `${reasonText(payload.reason || "closed")} · ${money(payload.netPnl)}`;
   if (row.event === "risk_reject") return `Отклонено риском · ${reasonText(payload.reason)}`;
   if (row.event === "setup_blocked") return `Сетап заблокирован · ${reasonText(payload.reason)}`;
@@ -926,7 +932,10 @@ function renderTradeReviewDetail(reviewId, review) {
       <span><small>Net</small><strong class="${Number(summary.netPnl || 0) >= 0 ? "positive" : "negative"}">${money(summary.netPnl)}</strong></span>
       <span><small>Gross</small><strong>${money(summary.grossPnl)}</strong></span>
       <span><small>Комиссии</small><strong>${money(summary.fees)}</strong></span>
-      <span><small>MAE / MFE</small><strong>${Number(summary.maeR || 0).toFixed(2)}R / ${Number(summary.mfeR || 0).toFixed(2)}R</strong></span>
+      <span><small>Движение вход→выход</small><strong>${summary.exitMoveBps == null ? "—" : Number(summary.exitMoveBps).toFixed(1) + " bps"}</strong></span>
+      <span><small>Первый тейк план</small><strong>${bps(summary.plannedFirstTakeMovePct)}</strong></span>
+      <span><small>MFE</small><strong>${summary.maxFavorableMoveBps == null ? "—" : Number(summary.maxFavorableMoveBps).toFixed(1) + " bps"} @ ${clock(summary.mfeAt)}</strong></span>
+      <span><small>MAE</small><strong>${summary.maxAdverseMoveBps == null ? "—" : Number(summary.maxAdverseMoveBps).toFixed(1) + " bps"} @ ${clock(summary.maeAt)}</strong></span>
       <span><small>Длительность</small><strong>${duration(summary.durationSeconds)}</strong></span>
       <span><small>Notional</small><strong>${money(summary.originalNotional)}</strong></span>
       <span><small>Winner cost share</small><strong>${economics.winnerCostShare == null ? "—" : (Number(economics.winnerCostShare) * 100).toFixed(1) + "%"}</strong></span>
@@ -1056,8 +1065,10 @@ function renderTrades(rows) {
       </div>
       <div class="trade-card-metrics">
         <span><small>Вход → выход</small>${price(trade.entry)} → ${price(trade.exit)}</span>
-        <span><small>MAE</small>${money(trade.maeUsd)} · ${Number(trade.maeR || 0).toFixed(2)}R</span>
-        <span><small>MFE</small>${money(trade.mfeUsd)} · ${Number(trade.mfeR || 0).toFixed(2)}R</span>
+        <span><small>Движение</small>${trade.exitMoveBps == null ? "—" : Number(trade.exitMoveBps).toFixed(1) + " bps"} · ${pct(trade.exitMovePct)}</span>
+        <span><small>Первый тейк план</small>${bps(trade.plannedFirstTakeMovePct)}</span>
+        <span><small>MFE</small>${trade.maxFavorableMoveBps == null ? "—" : Number(trade.maxFavorableMoveBps).toFixed(1) + " bps"} @ ${clock(trade.mfeAt)}</span>
+        <span><small>MAE</small>${trade.maxAdverseMoveBps == null ? "—" : Number(trade.maxAdverseMoveBps).toFixed(1) + " bps"} @ ${clock(trade.maeAt)}</span>
         <span><small>Комиссии</small>${money(trade.fees)}</span>
         <span><small>Причина выхода</small>${reasonText(trade.reason)}</span>
       </div>
