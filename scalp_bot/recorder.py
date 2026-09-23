@@ -468,12 +468,23 @@ class SessionRecorder:
         horizon_seconds: float = 120.0,
     ) -> dict:
         from .opportunity_review import analyze_session_rows
+        from .performance_matrix import (
+            build_strategy_side_regime_report,
+        )
 
         path = self._session_path(name)
-        return analyze_session_rows(
-            self._read_rows(path),
+        rows = self._read_rows(path)
+        report = analyze_session_rows(
+            rows,
             horizon_seconds=horizon_seconds,
         )
+        report["strategySideRegimePerformance"] = (
+            build_strategy_side_regime_report(
+                rows,
+                hindsight=report.get("hindsight"),
+            )
+        )
+        return report
 
 
     @staticmethod
