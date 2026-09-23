@@ -21,6 +21,8 @@ FOCUS_WINDOWS = {
     "risk_reject": (5.0, 15.0),
     "setup_blocked": (5.0, 15.0),
     "arbiter_blocked": (5.0, 15.0),
+    "research_policy_shadow": (5.0, 15.0),
+    "research_policy_blocked": (5.0, 15.0),
     "economic_shadow": (5.0, 10.0),
     "entry_freshness_changed": (5.0, 10.0),
     "strategy_error": (5.0, 10.0),
