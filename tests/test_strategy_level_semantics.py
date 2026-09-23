@@ -326,6 +326,7 @@ def test_rejection_shared_level_requires_fresh_lifecycle() -> None:
 
 def test_rejection_shared_generation_is_used_only_once() -> None:
     strategy = WeakLevelRejectionStrategy()
+    strategy.staged_entries_enabled = True
     rows = rejection_candles()
     book = OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)])
     structure = young_support()
@@ -426,6 +427,7 @@ def test_breakout_records_level_flow_on_entry() -> None:
 
 def test_rejection_far_global_flow_cannot_upgrade_absorption_probe_to_reaction() -> None:
     strategy = WeakLevelRejectionStrategy()
+    strategy.staged_entries_enabled = True
     decision = strategy.evaluate(
         rejection_candles(),
         OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)]),
@@ -463,6 +465,7 @@ def test_rejection_far_global_flow_cannot_upgrade_absorption_probe_to_reaction()
 
 def test_rejection_records_level_flow_on_entry() -> None:
     strategy = WeakLevelRejectionStrategy()
+    strategy.staged_entries_enabled = True
     decision = strategy.evaluate(
         rejection_candles(),
         OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)]),
@@ -479,6 +482,7 @@ def test_rejection_records_level_flow_on_entry() -> None:
 
 def test_rejection_countertrend_signal_is_observed_but_not_tradeable() -> None:
     strategy = WeakLevelRejectionStrategy()
+    strategy.staged_entries_enabled = True
     decision = strategy.evaluate(
         rejection_candles(),
         OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)]),
