@@ -9,6 +9,7 @@ from scalp_bot.strategy.market_context import (
     build_execution_context,
     build_structure_context,
 )
+from scalp_bot.strategy.pre_state import FormingCandleContext
 from scalp_bot.strategy.regime import LocalRegime
 from scalp_bot.strategy.structure import (
     MarketStructure,
@@ -67,6 +68,37 @@ def make_engine(tmp_path) -> TradingEngine:
 def close_engine(engine: TradingEngine) -> None:
     asyncio.run(engine.rest.close())
 
+
+
+
+def forming_context(
+    observed_at_ms: int,
+    *,
+    velocity: float,
+    progress: float,
+) -> FormingCandleContext:
+    return FormingCandleContext(
+        start_ms=60_000,
+        observed_at_ms=observed_at_ms,
+        age_seconds=progress * 60.0,
+        progress_ratio=progress,
+        open=100.0,
+        high=100.10,
+        low=99.95,
+        close=100.05,
+        volume=50.0,
+        turnover=5_002.5,
+        body_pct=0.0005,
+        range_pct=0.0015,
+        body_to_range=1 / 3,
+        upper_wick_pct=0.0005,
+        lower_wick_pct=0.0005,
+        close_position=2 / 3,
+        volume_pace_ratio=1.2,
+        range_expansion_ratio=1.1,
+        velocity_bps_per_second=velocity,
+        direction=Trend.UP,
+    )
 
 def test_engine_tracks_local_impulse_separately_from_legacy_htf_trend(tmp_path) -> None:
     engine = make_engine(tmp_path)
@@ -568,5 +600,132 @@ def test_new_confirmed_candle_invalidates_live_fast_path_cache(
         assert session.static_analysis_key != first_key
         assert session.static_analysis_rebuilds == 2
         assert session.last_analysis_mode == "static_rebuild"
+    finally:
+        close_engine(engine)
+
+
+
+def test_market_context_minor_churn_is_throttled_and_compact(
+    tmp_path,
+) -> None:
+    engine = TradingEngine(
+        Settings(
+            session_dir=str(tmp_path),
+            confirmed_candle_stale_seconds=0,
+            market_context_event_interval_seconds=10.0,
+        )
+    )
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            last_price=100.0,
+        )
+        session.forming_candle_context = forming_context(
+            100_000,
+            velocity=0.5,
+            progress=0.10,
+        )
+
+        engine._commit_market_context(
+            session,
+            observed_at_ms=100_000,
+        )
+        first = [
+            row
+            for row in engine.events
+            if row["event"] == "market_context_changed"
+        ]
+        assert len(first) == 1
+        assert first[0]["payload"]["marketContext"]["compact"] is True
+
+        # Forming-candle micro changes alter the full context fingerprint but
+        # are not a semantic regime/structure transition.
+        session.forming_candle_context = forming_context(
+            100_200,
+            velocity=0.8,
+            progress=0.11,
+        )
+        engine._commit_market_context(
+            session,
+            observed_at_ms=100_200,
+        )
+        assert len([
+            row
+            for row in engine.events
+            if row["event"] == "market_context_changed"
+        ]) == 1
+        assert session.market_context_changes_suppressed == 1
+
+        # Once the telemetry interval elapses, the latest compact context is
+        # emitted together with how many intermediate changes were omitted.
+        session.forming_candle_context = forming_context(
+            110_100,
+            velocity=1.1,
+            progress=0.28,
+        )
+        engine._commit_market_context(
+            session,
+            observed_at_ms=110_100,
+        )
+        rows = [
+            row
+            for row in engine.events
+            if row["event"] == "market_context_changed"
+        ]
+        assert len(rows) == 2
+        latest = rows[0]["payload"]
+        assert latest["semanticChanged"] is False
+        assert latest[
+            "suppressedChangesSinceLastEvent"
+        ] == 1
+        compact = latest["marketContext"]
+        assert compact["compact"] is True
+        assert "horizons" not in (
+            compact.get("flowContext") or {}
+        )
+        assert session.market_context_events_emitted == 2
+    finally:
+        close_engine(engine)
+
+
+def test_market_context_semantic_change_bypasses_throttle(
+    tmp_path,
+) -> None:
+    engine = TradingEngine(
+        Settings(
+            session_dir=str(tmp_path),
+            confirmed_candle_stale_seconds=0,
+            market_context_event_interval_seconds=60.0,
+        )
+    )
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            last_price=100.0,
+            trend=Trend.FLAT,
+        )
+        engine._commit_market_context(
+            session,
+            observed_at_ms=100_000,
+        )
+
+        session.trend = Trend.UP
+        engine._commit_market_context(
+            session,
+            observed_at_ms=100_100,
+        )
+
+        rows = [
+            row
+            for row in engine.events
+            if row["event"] == "market_context_changed"
+        ]
+        assert len(rows) == 2
+        assert rows[0]["payload"]["semanticChanged"] is True
+        assert (
+            rows[0]["payload"]["marketContext"]["legacyTrend"]
+            == "up"
+        )
+        assert session.market_context_changes_suppressed == 0
     finally:
         close_engine(engine)
