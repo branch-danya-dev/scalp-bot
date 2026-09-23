@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 class TrendPullbackStage(StrEnum):
     SEARCH = "search"
     PULLBACK = "pullback"
+    ARMED = "armed"
     TEST = "test"
     RECLAIM = "reclaim"
     CONTINUATION = "continuation"
@@ -39,6 +40,9 @@ class TrendPullbackState:
     test_extreme: float = 0.0
     reclaim_level: float = 0.0
     reclaim_price: float = 0.0
+    armed_at: float = 0.0
+    armed_price: float = 0.0
+    reclaim_at: float = 0.0
     used_anchors: set[tuple] = field(default_factory=set)
 
 
@@ -223,7 +227,17 @@ class TrendStructureStrategy(Strategy):
                 )
             )
 
-        return recent_aligned and level_confirmed, flow, local.public()
+        effort_without_result = bool(
+            flow.get("effortWithoutResult5s")
+        )
+        flow["trendContinuationEffortWithoutResult"] = (
+            effort_without_result
+        )
+        return (
+            recent_aligned
+            and level_confirmed
+            and not effort_without_result
+        ), flow, local.public()
 
     @staticmethod
     def _visuals(line: "TrendLine") -> dict:
@@ -343,6 +357,9 @@ class TrendStructureStrategy(Strategy):
             state.test_extreme = 0.0
             state.reclaim_level = 0.0
             state.reclaim_price = 0.0
+            state.armed_at = 0.0
+            state.armed_price = 0.0
+            state.reclaim_at = 0.0
         state.trend = playbook_trend
 
         visuals = self._visuals(line)
