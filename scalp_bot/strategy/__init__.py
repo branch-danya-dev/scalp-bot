@@ -36,6 +36,10 @@ from .market_context import (
     build_execution_context,
     build_structure_context,
 )
+from .pre_state import (
+    FormingCandleContext,
+    build_forming_candle_context,
+)
 from .playbook_context import (
     DirectionPlan,
     EntryContextAssessment,
@@ -108,6 +112,8 @@ __all__ = [
     "StructureContext",
     "build_execution_context",
     "build_structure_context",
+    "FormingCandleContext",
+    "build_forming_candle_context",
     "DirectionPlan",
     "EntryContextAssessment",
     "PlaybookKind",
