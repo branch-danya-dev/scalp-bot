@@ -187,6 +187,8 @@ def _feature_snapshot(decision: dict, anchor_price: float) -> dict[str, Any]:
     flow_alignment = mapping("flowAlignment")
     liquidity_evidence = mapping("liquidityEvidence")
     liquidity_alignment = mapping("liquidityAlignment")
+    decision_context = mapping("decisionContext")
+    entry_freshness = mapping("entryFreshness")
     horizons = (
         multi_flow.get("horizons")
         if isinstance(multi_flow.get("horizons"), dict)
@@ -214,6 +216,23 @@ def _feature_snapshot(decision: dict, anchor_price: float) -> dict[str, Any]:
     fields = {
         "confidence": decision.get("confidence"),
         "setupQuality": details.get("setupQuality"),
+        "contextHtfBias": decision_context.get("htfBias"),
+        "contextLocalRegime": decision_context.get("localRegime"),
+        "contextLocalDirection": decision_context.get("localDirection"),
+        "contextExecutionReady": decision_context.get("executionReady"),
+        "contextSpreadPct": decision_context.get("spreadPct"),
+        "contextTop5DepthUsd": decision_context.get("top5DepthUsd"),
+        "contextNearestSupportDistancePct": decision_context.get(
+            "nearestSupportDistancePct"
+        ),
+        "contextNearestResistanceDistancePct": decision_context.get(
+            "nearestResistanceDistancePct"
+        ),
+        "entryFreshnessClass": entry_freshness.get("classification"),
+        "entryMoveSpentRatio": entry_freshness.get("moveSpentRatio"),
+        "entryConfirmationAgeSeconds": entry_freshness.get(
+            "confirmationAgeSeconds"
+        ),
         "pressureScore": details.get("pressureScore"),
         "flowParticipationConfirmed": flow.get("participationConfirmed"),
         "flowImbalance5s": flow.get("imbalance5s"),

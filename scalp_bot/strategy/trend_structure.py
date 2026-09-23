@@ -12,6 +12,7 @@ from .flow import flow_at_level
 from .liquidity import find_liquidity_targets
 
 if TYPE_CHECKING:
+    from .market_context import MarketContext
     from .structure import MarketStructure, TrendLine
 
 
@@ -264,6 +265,7 @@ class TrendStructureStrategy(Strategy):
         symbol: str = "",
         trades: list[TradeTick] | None = None,
         structure: "MarketStructure | None" = None,
+        market_context: "MarketContext | None" = None,
         observed_at_ms: int | None = None,
     ) -> StrategyDecision:
         state = self._states.setdefault(symbol, TrendPullbackState())

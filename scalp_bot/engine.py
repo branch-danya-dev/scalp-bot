@@ -23,10 +23,13 @@ from .strategy import (
     LocalRegimeSnapshot,
     MultiHorizonFlowContext,
     LiquidityEvidence,
+    MarketContext,
     MarketStructure,
     Strategy,
+    build_execution_context,
     build_liquidity_evidence,
     build_market_structure,
+    build_structure_context,
     build_multi_horizon_flow_context,
     classify_context_trend,
     classify_entry_freshness,
@@ -67,6 +70,7 @@ class ActiveSymbolSession:
     local_regime: LocalRegimeSnapshot | None = None
     flow_context: MultiHorizonFlowContext | None = None
     liquidity_evidence: LiquidityEvidence | None = None
+    market_context: MarketContext | None = None
     market_context_fingerprint: tuple | None = None
     entry_freshness_anchors: dict[str, dict] = field(default_factory=dict)
     entry_freshness_fingerprints: dict[str, tuple] = field(default_factory=dict)
@@ -407,7 +411,12 @@ class ActiveSymbolSession:
         }
 
     def market_context_public(self) -> dict:
+        if self.market_context is not None:
+            return self.market_context.public()
         return {
+            "schemaVersion": 1,
+            "symbol": self.symbol,
+            "lastPrice": self.last_price,
             "legacyTrend": self.trend.value,
             "htfBias": (
                 self.htf_bias.public()
@@ -429,6 +438,8 @@ class ActiveSymbolSession:
                 if self.liquidity_evidence is not None
                 else None
             ),
+            "structureContext": None,
+            "executionContext": None,
         }
 
     def market_snapshot(self) -> dict:
@@ -1018,20 +1029,18 @@ class TradingEngine:
         )
         session.last_price = candles[-1].close if candles else 0
         closed_1m = [x for x in session.candles if x.confirmed]
-        session.trend = classify_context_trend(
-            session.context_15m,
-            session.context_1h,
+        self._refresh_market_context(
+            session,
+            closed_1m=closed_1m,
+            closed_5m=session.context_5m,
+            closed_15m=session.context_15m,
+            closed_1h=session.context_1h,
+            commit=False,
         )
-        session.htf_bias = classify_htf_bias(
-            session.context_15m,
-            session.context_1h,
-        )
-        session.local_regime = classify_local_regime(
-            closed_1m,
-            session.context_5m,
-        )
-        session.market_context_fingerprint = self._market_context_fingerprint(
-            session
+        self._commit_market_context(
+            session,
+            observed_at_ms=int(now * 1000),
+            emit=False,
         )
         self.sessions[symbol] = session
         self._emit(
@@ -1339,10 +1348,39 @@ class TradingEngine:
         closed_1h = [x for x in session.context_1h if x.confirmed]
         if not closed_1m:
             return
+
+        now = time()
+        now_ms = int(now * 1000)
+        self._refresh_market_context(
+            session,
+            closed_1m=closed_1m,
+            closed_5m=closed_5m,
+            closed_15m=closed_15m,
+            closed_1h=closed_1h,
+            commit=False,
+            observed_at_ms=now_ms,
+        )
+
+        trade_flow = compute_trade_flow(
+            list(session.trades),
+            now_ms,
+        )
+        book_flow = session.book_flow_snapshot(now_ms)
+        session.flow_context = build_multi_horizon_flow_context(
+            trade_flow,
+            book_flow,
+            observed_at_ms=now_ms,
+        )
+
         if not session.confirmed_candle_is_fresh(
             self.config.confirmed_candle_stale_seconds,
+            now,
         ):
-            age = session.confirmed_candle_age_seconds()
+            self._commit_market_context(
+                session,
+                observed_at_ms=now_ms,
+            )
+            age = session.confirmed_candle_age_seconds(now)
             for key in self.strategies:
                 if not self.strategy_enabled.get(key, False):
                     continue
@@ -1358,18 +1396,16 @@ class TradingEngine:
                         "staleAfterSeconds": (
                             self.config.confirmed_candle_stale_seconds
                         ),
+                        "evidenceOnly": (
+                            key == "orderbook_density"
+                        ),
                     },
                 )
+                self._annotate_decision_context(session, decision)
                 session.decisions[key] = decision
                 self._record_decision_if_changed(session, decision)
             return
-        self._refresh_market_context(
-            session,
-            closed_1m=closed_1m,
-            closed_5m=closed_5m,
-            closed_15m=closed_15m,
-            closed_1h=closed_1h,
-        )
+
         reference_price = session.orderbook.mid or session.last_price
         session.structure = build_market_structure(
             closed_1m,
@@ -1382,34 +1418,27 @@ class TradingEngine:
             session.structure,
             closed_1m,
             reference_price,
-            int(time() * 1000),
-        )
-        now = time()
-        now_ms = int(now * 1000)
-        trade_flow = compute_trade_flow(
-            list(session.trades),
             now_ms,
         )
-        book_flow = session.book_flow_snapshot(now_ms)
-        session.flow_context = build_multi_horizon_flow_context(
-            trade_flow,
-            book_flow,
-            observed_at_ms=now_ms,
-        )
-        book_fresh = session.book_is_fresh(now)
-        if not self.strategy_enabled.get("orderbook_density", False):
-            session.liquidity_evidence = None
 
-        strategy_items = list(self.strategies.items())
-        strategy_items.sort(
-            key=lambda item: 0 if item[0] == "orderbook_density" else 1
+        # Density is the liquidity provider, so the preliminary context passed
+        # into it deliberately excludes the previous cycle's liquidity state.
+        session.liquidity_evidence = None
+        self._commit_market_context(
+            session,
+            observed_at_ms=now_ms,
+            emit=False,
         )
-        for key, strategy in strategy_items:
-            if not self.strategy_enabled[key]:
-                continue
-            if key == "orderbook_density" and not book_fresh:
-                decision = StrategyDecision(
-                    strategy=key,
+
+        density_decision: StrategyDecision | None = None
+        density = self.strategies.get("orderbook_density")
+        if (
+            density is not None
+            and self.strategy_enabled.get("orderbook_density", False)
+        ):
+            if not session.book_is_fresh(now):
+                raw_density = StrategyDecision(
+                    strategy="orderbook_density",
                     action=Action.WAIT,
                     reasons=[
                         "Стакан не синхронизирован или устарел; liquidity evidence не обновляется"
@@ -1421,14 +1450,82 @@ class TradingEngine:
                         "evidenceOnly": True,
                     },
                 )
-                session.liquidity_evidence = build_liquidity_evidence(
-                    decision
-                )
-                decision.details["liquidityEvidence"] = (
-                    session.liquidity_evidence.public()
-                )
-                session.decisions[key] = decision
-                self._record_decision_if_changed(session, decision)
+            else:
+                try:
+                    raw_density = density.evaluate(
+                        closed_1m,
+                        session.orderbook,
+                        session.trend,
+                        symbol=session.symbol,
+                        trades=list(session.trades),
+                        structure=session.structure,
+                        market_context=session.market_context,
+                        observed_at_ms=now_ms,
+                    )
+                except Exception as exc:
+                    error = f"{type(exc).__name__}: {exc}"
+                    previous = session.decisions.get(
+                        "orderbook_density"
+                    )
+                    if (
+                        previous is None
+                        or previous.details.get("error") != error
+                    ):
+                        self._emit(
+                            "strategy_error",
+                            session.symbol,
+                            {
+                                "strategy": "orderbook_density",
+                                "error": error,
+                            },
+                            snapshot=True,
+                        )
+                    raw_density = StrategyDecision(
+                        strategy="orderbook_density",
+                        action=Action.WAIT,
+                        reasons=[f"Ошибка стратегии: {error}"],
+                        details={
+                            "state": "error",
+                            "error": error,
+                            "evidenceOnly": True,
+                        },
+                    )
+
+            self._annotate_flow_context(
+                session,
+                raw_density,
+            )
+            session.liquidity_evidence = build_liquidity_evidence(
+                raw_density
+            )
+            raw_density.details["liquidityEvidence"] = (
+                session.liquidity_evidence.public()
+            )
+            density_decision = self._density_as_evidence_only(
+                raw_density
+            )
+
+        # This is the canonical context shared by all tradeable playbooks.
+        self._commit_market_context(
+            session,
+            observed_at_ms=now_ms,
+        )
+
+        if density_decision is not None:
+            self._annotate_decision_context(
+                session,
+                density_decision,
+            )
+            session.decisions["orderbook_density"] = density_decision
+            self._record_decision_if_changed(
+                session,
+                density_decision,
+            )
+
+        for key, strategy in self.strategies.items():
+            if key == "orderbook_density":
+                continue
+            if not self.strategy_enabled.get(key, False):
                 continue
             try:
                 decision = strategy.evaluate(
@@ -1438,7 +1535,8 @@ class TradingEngine:
                     symbol=session.symbol,
                     trades=list(session.trades),
                     structure=session.structure,
-                    observed_at_ms=int(now * 1000),
+                    market_context=session.market_context,
+                    observed_at_ms=now_ms,
                 )
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"
@@ -1456,23 +1554,11 @@ class TradingEngine:
                     reasons=[f"Ошибка стратегии: {error}"],
                     details={"state": "error", "error": error},
                 )
+
             self._annotate_flow_context(
                 session,
                 decision,
             )
-
-            if key == "orderbook_density":
-                session.liquidity_evidence = build_liquidity_evidence(
-                    decision
-                )
-                decision.details["liquidityEvidence"] = (
-                    session.liquidity_evidence.public()
-                )
-                decision = self._density_as_evidence_only(decision)
-                session.decisions[key] = decision
-                self._record_decision_if_changed(session, decision)
-                continue
-
             self._annotate_liquidity_evidence(
                 session,
                 decision,
@@ -1482,12 +1568,24 @@ class TradingEngine:
                 decision,
                 observed_at=now,
             )
+            self._annotate_decision_context(
+                session,
+                decision,
+            )
+
             if decision.tradeable:
-                decision.setup_id = self._resolve_setup_id(session, decision)
+                decision.setup_id = self._resolve_setup_id(
+                    session,
+                    decision,
+                )
                 session.last_signal_at = now
                 session.nontradeable_since.pop(key, None)
             else:
-                self._observe_wait_for_rearm(session, key, now)
+                self._observe_wait_for_rearm(
+                    session,
+                    key,
+                    now,
+                )
 
             session.decisions[key] = decision
             self._record_decision_if_changed(session, decision)
@@ -1495,18 +1593,83 @@ class TradingEngine:
         self._maybe_strategy_invalidation(session)
 
     @staticmethod
-    def _market_context_fingerprint(
+    def _trade_buffer_seconds(
         session: ActiveSymbolSession,
-    ) -> tuple:
-        htf = session.htf_bias
-        local = session.local_regime
-        return (
-            session.trend.value,
-            htf.bias.value if htf is not None else None,
-            htf.alignment if htf is not None else None,
-            local.regime.value if local is not None else None,
-            local.direction.value if local is not None else None,
-            local.parent_direction.value if local is not None else None,
+    ) -> float:
+        if len(session.trades) < 2:
+            return 0.0
+        return max(
+            0.0,
+            (session.trades[-1].ts_ms - session.trades[0].ts_ms)
+            / 1000,
+        )
+
+    def _build_market_context(
+        self,
+        session: ActiveSymbolSession,
+        *,
+        observed_at_ms: int,
+    ) -> MarketContext:
+        observed_at = observed_at_ms / 1000
+        reference_price = (
+            session.orderbook.mid
+            or session.last_price
+            or 0.0
+        )
+        execution = build_execution_context(
+            book=session.orderbook,
+            book_fresh=session.book_is_fresh(observed_at),
+            book_synced=session.book_synced,
+            book_age_seconds=session.book_age_seconds(observed_at),
+            candle_fresh=session.confirmed_candle_is_fresh(
+                session.confirmed_candle_stale_after_seconds,
+                observed_at,
+            ),
+            candle_age_seconds=session.confirmed_candle_age_seconds(
+                observed_at
+            ),
+            trade_buffer_seconds=self._trade_buffer_seconds(session),
+        )
+        return MarketContext(
+            symbol=session.symbol,
+            observed_at_ms=observed_at_ms,
+            last_price=session.last_price,
+            legacy_trend=session.trend,
+            htf_bias=session.htf_bias,
+            local_regime=session.local_regime,
+            flow=session.flow_context,
+            liquidity=session.liquidity_evidence,
+            structure=build_structure_context(
+                session.structure,
+                float(reference_price),
+            ),
+            execution=execution,
+        )
+
+    def _commit_market_context(
+        self,
+        session: ActiveSymbolSession,
+        *,
+        observed_at_ms: int,
+        emit: bool = True,
+    ) -> None:
+        context = self._build_market_context(
+            session,
+            observed_at_ms=observed_at_ms,
+        )
+        fingerprint = context.fingerprint()
+        previous = session.market_context_fingerprint
+        session.market_context = context
+        session.market_context_fingerprint = fingerprint
+        if not emit or previous == fingerprint:
+            return
+        self._emit(
+            "market_context_changed",
+            session.symbol,
+            {
+                "previousFingerprint": list(previous) if previous else None,
+                "marketContext": context.public(),
+            },
         )
 
     def _refresh_market_context(
@@ -1517,6 +1680,8 @@ class TradingEngine:
         closed_5m: list[Candle],
         closed_15m: list[Candle],
         closed_1h: list[Candle],
+        commit: bool = True,
+        observed_at_ms: int | None = None,
     ) -> None:
         session.trend = classify_context_trend(
             closed_15m,
@@ -1530,19 +1695,15 @@ class TradingEngine:
             closed_1m,
             closed_5m,
         )
-        fingerprint = self._market_context_fingerprint(session)
-        if session.market_context_fingerprint == fingerprint:
-            return
-        previous = session.market_context_fingerprint
-        session.market_context_fingerprint = fingerprint
-        self._emit(
-            "market_context_changed",
-            session.symbol,
-            {
-                "previousFingerprint": list(previous) if previous else None,
-                "marketContext": session.market_context_public(),
-            },
-        )
+        if commit:
+            self._commit_market_context(
+                session,
+                observed_at_ms=(
+                    int(time() * 1000)
+                    if observed_at_ms is None
+                    else observed_at_ms
+                ),
+            )
 
     @staticmethod
     def _density_as_evidence_only(
@@ -1598,6 +1759,94 @@ class TradingEngine:
         alignment = context.alignment_for(decision.action)
         if alignment is not None:
             decision.details["flowAlignment"] = alignment.public()
+
+    @staticmethod
+    def _annotate_decision_context(
+        session: ActiveSymbolSession,
+        decision: StrategyDecision,
+    ) -> None:
+        context = session.market_context
+        if context is None:
+            return
+
+        effective_action = decision.action
+        if effective_action == Action.WAIT:
+            shadow = str(
+                (decision.details or {}).get("shadowAction")
+                or ""
+            )
+            if shadow in {"long", "short"}:
+                effective_action = Action(shadow)
+
+        flow_alignment = context.flow_alignment_for(
+            effective_action
+        )
+        liquidity_alignment = context.liquidity_alignment_for(
+            effective_action
+        )
+        structure = context.structure
+
+        decision.details["decisionContext"] = {
+            "schemaVersion": 1,
+            "marketObservedAtMs": context.observed_at_ms,
+            "marketContextFingerprint": list(
+                context.fingerprint()
+            ),
+            "legacyTrend": context.legacy_trend.value,
+            "htfBias": (
+                context.htf_bias.bias.value
+                if context.htf_bias is not None
+                else None
+            ),
+            "localRegime": (
+                context.local_regime.regime.value
+                if context.local_regime is not None
+                else None
+            ),
+            "localDirection": (
+                context.local_regime.direction.value
+                if context.local_regime is not None
+                else None
+            ),
+            "flowAlignment": (
+                flow_alignment.public()
+                if flow_alignment is not None
+                else None
+            ),
+            "liquidityState": (
+                context.liquidity.state.value
+                if context.liquidity is not None
+                else None
+            ),
+            "liquidityAlignment": (
+                liquidity_alignment.public()
+                if liquidity_alignment is not None
+                else None
+            ),
+            "entryFreshness": (
+                decision.details.get("entryFreshness")
+                if isinstance(
+                    decision.details.get("entryFreshness"),
+                    dict,
+                )
+                else None
+            ),
+            "executionReady": context.execution.ready,
+            "spreadPct": context.execution.spread_pct,
+            "top5DepthUsd": (
+                context.execution.top5_depth_usd
+            ),
+            "nearestSupportDistancePct": (
+                structure.support_distance_pct
+                if structure is not None
+                else None
+            ),
+            "nearestResistanceDistancePct": (
+                structure.resistance_distance_pct
+                if structure is not None
+                else None
+            ),
+        }
 
     @staticmethod
     def _freshness_object_key(

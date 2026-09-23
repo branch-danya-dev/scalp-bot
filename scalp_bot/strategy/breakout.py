@@ -10,6 +10,7 @@ from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTic
 from .base import Strategy
 
 if TYPE_CHECKING:
+    from .market_context import MarketContext
     from .structure import MarketStructure
 from .common import (
     LevelKind,
@@ -279,6 +280,7 @@ class LevelBreakoutStrategy(Strategy):
         symbol: str = "",
         trades: list[TradeTick] | None = None,
         structure: "MarketStructure | None" = None,
+        market_context: "MarketContext | None" = None,
         observed_at_ms: int | None = None,
     ) -> StrategyDecision:
         if len(candles) < 60 or trend == Trend.FLAT or not symbol:

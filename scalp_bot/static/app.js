@@ -420,7 +420,18 @@ function renderSymbolMeta(market) {
   const liquidityText = liquidity.state
     ? `${liquidityStateLabel(liquidity.state)}${liquidity.directionalBias && liquidity.directionalBias !== "flat" ? "→" + trendLabel(liquidity.directionalBias) : ""}`
     : "—";
-  const contextText = ` · HTF ${htfBiasLabel(htf.bias)} · локально: ${localRegimeLabel(local.regime)} · flow: ${dominantFlow} · liq: ${liquidityText}`;
+  const execution = context.executionContext || {};
+  const executionText = execution.ready === true
+    ? "exec ok"
+    : execution.ready === false
+      ? "exec stale"
+      : "exec —";
+  const structure = context.structureContext || {};
+  const nearest = [];
+  if (structure.supportDistancePct != null) nearest.push(`S ${(Number(structure.supportDistancePct) * 10000).toFixed(0)}bps`);
+  if (structure.resistanceDistancePct != null) nearest.push(`R ${(Number(structure.resistanceDistancePct) * 10000).toFixed(0)}bps`);
+  const structureText = nearest.length ? nearest.join("/") : "S/R —";
+  const contextText = ` · HTF ${htfBiasLabel(htf.bias)} · локально: ${localRegimeLabel(local.regime)} · flow: ${dominantFlow} · liq: ${liquidityText} · ${executionText} · ${structureText}`;
   $("symbolMeta").textContent = `${selectedChartTimeframe} · ${barState} · цена ${price(market.lastPrice)}${gapText} · 24ч ${pct(profile.change_24h)} · оборот ${compact(profile.turnover_24h)} · ${corr} · ${trades24h} · активность ${Number(profile.activity_score || 0).toFixed(0)}${contextText}${flowText}`;
 }
 
@@ -627,6 +638,10 @@ function renderDecisions(decisions) {
     const actionText = decision.details?.evidenceOnly
       ? "EVIDENCE"
       : actionLabel(decision.action);
+    const decisionContext = decision.details?.decisionContext || trace.evidence?.decisionContext || {};
+    const contextSnapshotText = decisionContext.localRegime
+      ? ` · ctx <b>${localRegimeLabel(decisionContext.localRegime)}</b>${decisionContext.executionReady === false ? " · exec stale" : ""}`
+      : "";
     return `<article class="decision-card">
       <div class="decision-card-head">
         <div>
@@ -636,7 +651,7 @@ function renderDecisions(decisions) {
         <time>${observed}</time>
       </div>
       <div class="decision-object">${traceObjectText(trace.object)}</div>
-      <div class="decision-context">Тренд: <b>${trendLabel(trace.trend)}</b> · уверенность ${Number(trace.confidence || 0).toFixed(2)}${flowText}${liquidityText}</div>
+      <div class="decision-context">Тренд: <b>${trendLabel(trace.trend)}</b> · уверенность ${Number(trace.confidence || 0).toFixed(2)}${flowText}${liquidityText}${contextSnapshotText}</div>
       <div class="trace-tags">${confirmed || '<span class="trace-tag">нет подтверждений</span>'}</div>
       ${waiting ? `<div class="decision-wait"><small>Чего ждём</small><ul>${waiting}</ul></div>` : ""}
     </article>`;

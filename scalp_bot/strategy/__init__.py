@@ -29,6 +29,13 @@ from .liquidity_evidence import (
     LiquidityEvidenceState,
     build_liquidity_evidence,
 )
+from .market_context import (
+    ExecutionContext,
+    MarketContext,
+    StructureContext,
+    build_execution_context,
+    build_structure_context,
+)
 from .regime import (
     HTFBias,
     HTFBiasSnapshot,
@@ -77,6 +84,11 @@ __all__ = [
     "LiquidityEvidence",
     "LiquidityEvidenceState",
     "build_liquidity_evidence",
+    "ExecutionContext",
+    "MarketContext",
+    "StructureContext",
+    "build_execution_context",
+    "build_structure_context",
     "HTFBias",
     "HTFBiasSnapshot",
     "LocalRegime",
