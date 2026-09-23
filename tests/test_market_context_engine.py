@@ -223,6 +223,7 @@ class CaptureStrategy:
         self.key = key
         self.label = key
         self.seen_contexts = []
+        self.seen_candle_counts = []
 
     def evaluate(
         self,
@@ -237,6 +238,7 @@ class CaptureStrategy:
         observed_at_ms=None,
     ):
         self.seen_contexts.append(market_context)
+        self.seen_candle_counts.append(len(candles))
         return StrategyDecision(
             strategy=self.key,
             action=Action.WAIT,
@@ -299,6 +301,58 @@ def test_tradeable_playbooks_receive_same_canonical_market_context(tmp_path) -> 
         assert public["structureContext"] is not None
         assert public["executionContext"]["bookFresh"] is True
         assert public["flowContext"] is not None
+    finally:
+        close_engine(engine)
+
+
+def test_engine_exposes_forming_candle_without_passing_it_as_confirmed_structure(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        strategy = CaptureStrategy("trend_structure")
+        engine.strategies = {strategy.key: strategy}
+        engine.strategy_enabled = {strategy.key: True}
+
+        closed = flat_rows(80, 60_000)
+        forming = Candle(
+            start_ms=80 * 60_000,
+            open=100.0,
+            high=100.30,
+            low=99.95,
+            close=100.25,
+            volume=150.0,
+            turnover=150.0 * 100.25,
+            confirmed=False,
+        )
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[*closed, forming],
+            context_5m=flat_rows(80, 5 * 60_000),
+            context_15m=flat_rows(80, 15 * 60_000),
+            context_1h=flat_rows(80, 60 * 60_000),
+            orderbook=OrderBook(
+                bids=[(100.24, 100.0)],
+                asks=[(100.26, 100.0)],
+            ),
+            last_price=100.25,
+            last_market_at=time.time(),
+            last_book_at=time.time(),
+            book_synced=True,
+            confirmed_candle_stale_after_seconds=0,
+        )
+        engine.sessions[session.symbol] = session
+
+        asyncio.run(engine._evaluate(session))
+
+        assert strategy.seen_candle_counts == [80]
+        assert strategy.seen_contexts[0] is session.market_context
+        assert session.market_context is not None
+        assert session.market_context.forming_candle is not None
+        assert session.market_context.forming_candle.close == pytest.approx(
+            100.25
+        )
+        assert session.market_context.public()["formingCandle"]["close"] == pytest.approx(
+            100.25
+        )
     finally:
         close_engine(engine)
 
