@@ -56,7 +56,7 @@ function duration(seconds) {
 const STRATEGY_LABELS = {
   trend_structure: "Трендовый откат",
   weak_level_rejection: "Отбой от уровня",
-  orderbook_density: "Плотность в стакане",
+  orderbook_density: "Ликвидность стакана",
   level_breakout: "Пробой уровня",
 };
 const STATE_LABELS = {
@@ -149,6 +149,27 @@ function flowAlignmentLabel(value) {
     opposed:"против сделки",
     insufficient_data:"мало данных",
   })[String(value || "insufficient_data")] || String(value || "—").replaceAll("_", " ");
+}
+function liquidityStateLabel(value) {
+  return ({
+    none:"нет wall",
+    tracking:"отслеживается",
+    absorbing:"поглощение",
+    replenishing:"пополнение",
+    defended:"защищена",
+    consumed:"съедается",
+    removed:"снята",
+    lost_significance:"потеряла значимость",
+    unknown:"неизвестно",
+  })[String(value || "unknown")] || String(value || "—").replaceAll("_", " ");
+}
+function liquidityAlignmentLabel(value) {
+  return ({
+    supportive:"поддерживает сделку",
+    opposed:"против сделки",
+    neutral:"нейтрально",
+    unknown:"неизвестно",
+  })[String(value || "unknown")] || String(value || "—").replaceAll("_", " ");
 }
 function sideLabel(value) { return SIDE_LABELS[String(value || "").toLowerCase()] || String(value || "—").toUpperCase(); }
 function actionLabel(value) { return ACTION_LABELS[String(value || "wait")] || String(value || "—").toUpperCase(); }
@@ -395,7 +416,11 @@ function renderSymbolMeta(market) {
   const dominantFlow = multiFlow.dominantDirection
     ? trendLabel(multiFlow.dominantDirection)
     : "—";
-  const contextText = ` · HTF ${htfBiasLabel(htf.bias)} · локально: ${localRegimeLabel(local.regime)} · flow: ${dominantFlow}`;
+  const liquidity = context.liquidityEvidence || {};
+  const liquidityText = liquidity.state
+    ? `${liquidityStateLabel(liquidity.state)}${liquidity.directionalBias && liquidity.directionalBias !== "flat" ? "→" + trendLabel(liquidity.directionalBias) : ""}`
+    : "—";
+  const contextText = ` · HTF ${htfBiasLabel(htf.bias)} · локально: ${localRegimeLabel(local.regime)} · flow: ${dominantFlow} · liq: ${liquidityText}`;
   $("symbolMeta").textContent = `${selectedChartTimeframe} · ${barState} · цена ${price(market.lastPrice)}${gapText} · 24ч ${pct(profile.change_24h)} · оборот ${compact(profile.turnover_24h)} · ${corr} · ${trades24h} · активность ${Number(profile.activity_score || 0).toFixed(0)}${contextText}${flowText}`;
 }
 
@@ -594,16 +619,24 @@ function renderDecisions(decisions) {
     const flowText = flowAlignment
       ? ` · flow <b>${flowAlignmentLabel(flowAlignment.classification)}</b>${flowAlignment.score == null ? "" : " (" + Number(flowAlignment.score).toFixed(2) + ")"}`
       : "";
+    const liquidityAlignment = decision.details?.liquidityAlignment || trace.evidence?.liquidityAlignment;
+    const liquidityEvidence = decision.details?.liquidityEvidence || trace.evidence?.liquidityEvidence;
+    const liquidityText = liquidityEvidence
+      ? ` · liq <b>${liquidityStateLabel(liquidityEvidence.state)}</b>${liquidityAlignment ? " · " + liquidityAlignmentLabel(liquidityAlignment.classification) : ""}`
+      : "";
+    const actionText = decision.details?.evidenceOnly
+      ? "EVIDENCE"
+      : actionLabel(decision.action);
     return `<article class="decision-card">
       <div class="decision-card-head">
         <div>
           <strong>${strategyLabel(decision.strategy)}</strong>
-          <span>${actionLabel(decision.action)} · ${stateLabel(state)}</span>
+          <span>${actionText} · ${stateLabel(state)}</span>
         </div>
         <time>${observed}</time>
       </div>
       <div class="decision-object">${traceObjectText(trace.object)}</div>
-      <div class="decision-context">Тренд: <b>${trendLabel(trace.trend)}</b> · уверенность ${Number(trace.confidence || 0).toFixed(2)}${flowText}</div>
+      <div class="decision-context">Тренд: <b>${trendLabel(trace.trend)}</b> · уверенность ${Number(trace.confidence || 0).toFixed(2)}${flowText}${liquidityText}</div>
       <div class="trace-tags">${confirmed || '<span class="trace-tag">нет подтверждений</span>'}</div>
       ${waiting ? `<div class="decision-wait"><small>Чего ждём</small><ul>${waiting}</ul></div>` : ""}
     </article>`;
@@ -614,7 +647,7 @@ function eventText(event) {
   const payload = event.payload || {};
   if (event.event === "entry_pending") return `PostOnly @ ${price(payload.pending?.limitPrice ?? payload.plan?.market_entry)} · ${money(payload.plan?.notional)}`;
   if (event.event === "entry_cancelled") return `${reasonText(payload.reason)} · ${price(payload.limitPrice)}`;
-  if (event.event === "trade_opened") { const fa = payload.plan?.strategy_details?.flowAlignment; return `${sideLabel(payload.plan?.side)} · ${money(payload.plan?.notional)} · net на цели ${money(payload.plan?.net_at_target ?? payload.plan?.expected_net_profit)} · качество ${Number(payload.opportunityQuality ?? 0).toFixed(2)}${fa ? " · flow " + flowAlignmentLabel(fa.classification) : ""}`; }
+  if (event.event === "trade_opened") { const details = payload.plan?.strategy_details || {}; const fa = details.flowAlignment; const la = details.liquidityAlignment; return `${sideLabel(payload.plan?.side)} · ${money(payload.plan?.notional)} · net на цели ${money(payload.plan?.net_at_target ?? payload.plan?.expected_net_profit)} · качество ${Number(payload.opportunityQuality ?? 0).toFixed(2)}${fa ? " · flow " + flowAlignmentLabel(fa.classification) : ""}${la ? " · liq " + liquidityAlignmentLabel(la.classification) : ""}`; }
   if (event.event === "partial_take") return `частичная фиксация ${money(payload.netPnl)} · осталось ${money(payload.remainingNotional)} · стоп→${price(payload.newStop)}`;
   if (event.event === "trade_closed") return `${reasonText(payload.reason)} · ${payload.exitMoveBps == null ? "—" : Number(payload.exitMoveBps).toFixed(1) + " bps"} · комиссия ${money(payload.fees)} · net ${money(payload.netPnl)}`;
   if (event.event === "risk_reject") {
