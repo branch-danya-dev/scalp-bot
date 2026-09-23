@@ -2088,6 +2088,14 @@ class TradingEngine:
         freshness_public = freshness.public()
         decision.details["opportunityFreshness"] = freshness_public
         decision.details["entryFreshness"] = freshness_public
+        if (
+            decision.tradeable
+            and freshness.confirmation_age_seconds is not None
+        ):
+            decision.details["armToFireSeconds"] = (
+                freshness.confirmation_age_seconds
+            )
+            decision.details["causalTriggerSource"] = freshness.source
 
         fingerprint = (
             object_key,
