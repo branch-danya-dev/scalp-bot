@@ -97,6 +97,7 @@ def _market_object(decision: StrategyDecision) -> dict[str, Any]:
 def _confirmed_facts(details: dict[str, Any]) -> list[str]:
     checks = [
         ("trendAligned", "trend direction aligned"),
+        ("contextAligned", "playbook context aligned"),
         ("flowConfirmed", "flow confirmed"),
         ("pullbackDirectional", "directional pullback observed"),
         ("absorptionObserved", "absorption observed"),
@@ -138,6 +139,8 @@ def _evidence(details: dict[str, Any]) -> dict[str, Any]:
         "liquidityEvidence",
         "liquidityAlignment",
         "decisionContext",
+        "playbookContext",
+        "entryContextAssessment",
     )
     return {
         key: details[key]

@@ -188,6 +188,8 @@ def _feature_snapshot(decision: dict, anchor_price: float) -> dict[str, Any]:
     liquidity_evidence = mapping("liquidityEvidence")
     liquidity_alignment = mapping("liquidityAlignment")
     decision_context = mapping("decisionContext")
+    playbook_context = mapping("playbookContext")
+    entry_context = mapping("entryContextAssessment")
     entry_freshness = mapping("entryFreshness")
     horizons = (
         multi_flow.get("horizons")
@@ -218,6 +220,15 @@ def _feature_snapshot(decision: dict, anchor_price: float) -> dict[str, Any]:
         "setupQuality": details.get("setupQuality"),
         "contextHtfBias": decision_context.get("htfBias"),
         "contextLocalRegime": decision_context.get("localRegime"),
+        "playbookContextSource": playbook_context.get("source"),
+        "playbookPrimaryDirection": playbook_context.get(
+            "primaryDirection"
+        ),
+        "playbookAllowedDirections": playbook_context.get(
+            "allowedDirections"
+        ),
+        "entryContextAllowed": entry_context.get("allowed"),
+        "entryContextBlockers": entry_context.get("blockers"),
         "contextLocalDirection": decision_context.get("localDirection"),
         "contextExecutionReady": decision_context.get("executionReady"),
         "contextSpreadPct": decision_context.get("spreadPct"),

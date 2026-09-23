@@ -25,6 +25,12 @@ from .common import (
 )
 from .flow import flow_at_level, flow_beyond_level
 from .liquidity import find_liquidity_targets
+from .playbook_context import (
+    PlaybookKind,
+    assess_entry_context,
+    position_context_supported,
+    rejection_direction_plan,
+)
 
 
 class RejectionStage(StrEnum):
@@ -121,8 +127,17 @@ class WeakLevelRejectionStrategy(Strategy):
         structural_level=None,
         observed_at_ms: int | None = None,
         generation_id_override: str | None = None,
+        market_context: "MarketContext | None" = None,
     ) -> StrategyDecision:
         state = self._states.setdefault(symbol, RejectionWatchState())
+        context_plan = rejection_direction_plan(
+            market_context,
+            trend,
+        )
+        context_details = {
+            "playbookContext": context_plan.public(),
+            "legacyTrend": trend.value,
+        }
         generation_id = (
             generation_id_override
             or (
@@ -326,25 +341,36 @@ class WeakLevelRejectionStrategy(Strategy):
                 },
             )
 
-        expected_action = Action.LONG if trend == Trend.UP else Action.SHORT
-        if action != expected_action:
+        entry_context = assess_entry_context(
+            PlaybookKind.LEVEL_REJECTION,
+            action,
+            market_context,
+            trend,
+        )
+        if not entry_context.allowed:
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
-                ["Отбой подтверждён, но направлен против HTF тренда; контртрендовый вход запрещён"],
+                [
+                    "Отбой подтверждён, но MarketContext не разрешает этот rejection-вход",
+                    *entry_context.blockers,
+                ],
                 0.48,
                 zone.center,
                 visuals=visuals,
                 details={
                     "state": state.stage.value,
+                    **context_details,
                     "zone": zone.public(),
                     "flow": flow,
                     "levelFlow": level_flow.public(),
                     "roundLevel": round_level,
                     "weakLevel": True,
                     "levelGeneration": generation_id,
+                    "contextAligned": False,
                     "trendAligned": False,
                     "rejectedAction": action.value,
+                    "entryContextAssessment": entry_context.public(),
                 },
             )
 
@@ -374,7 +400,11 @@ class WeakLevelRejectionStrategy(Strategy):
                 },
             )
 
-        mode = "trend_following"
+        mode = (
+            "range_rejection"
+            if context_plan.source == "range_two_sided"
+            else "trend_following"
+        )
         allow_runner = True
         target_r = 1.6
         reaction_target = (
@@ -447,7 +477,7 @@ class WeakLevelRejectionStrategy(Strategy):
                 f"Слабый уровень: {approaches} отдельных подход(а), без длительной проторговки",
                 "Попытка пробоя не удержалась, цена вернулась за границу зоны",
                 "Поток непосредственно у уровня подтвердил разворот/поглощение",
-                "Отскок подтверждён в направлении HTF тренда",
+                "Отскок разрешён локальным playbook-контекстом",
             ],
             confidence=quality,
             watched_level=zone.center,
@@ -465,6 +495,8 @@ class WeakLevelRejectionStrategy(Strategy):
                 "roundLevel": round_level,
                 "weakLevel": True,
                 "levelGeneration": generation_id,
+                **context_details,
+                "entryContextAssessment": entry_context.public(),
                 "levelLifecycle": (
                     structural_level.public()
                     if structural_level is not None
@@ -499,7 +531,7 @@ class WeakLevelRejectionStrategy(Strategy):
                     "flowStrength": flow_strength,
                     "absorptionAtLevel": absorption_quality,
                     "roundConfluence": round_level is not None,
-                    "trendAligned": allow_runner,
+                    "contextAligned": entry_context.allowed,
                 },
             },
         )
@@ -515,6 +547,7 @@ class WeakLevelRejectionStrategy(Strategy):
         trend: Trend,
         last_price: float,
         book: OrderBook | None = None,
+        market_context: "MarketContext | None" = None,
         observed_at_ms: int | None = None,
     ) -> str | None:
         zone = (
@@ -556,8 +589,15 @@ class WeakLevelRejectionStrategy(Strategy):
         if unrealized_pnl >= 0:
             return None
         mode = str(strategy_details.get("tradeMode") or "")
-        expected = Trend.UP if side == Side.LONG else Trend.DOWN
-        if mode == "trend_following" and trend != expected:
+        if (
+            mode in {"trend_following", "range_rejection"}
+            and not position_context_supported(
+                PlaybookKind.LEVEL_REJECTION,
+                side,
+                market_context,
+                trend,
+            )
+        ):
             return "weak_level_context_lost"
         return None
 
@@ -573,14 +613,26 @@ class WeakLevelRejectionStrategy(Strategy):
         market_context: "MarketContext | None" = None,
         observed_at_ms: int | None = None,
     ) -> StrategyDecision:
-        if len(candles) < 40 or trend == Trend.FLAT or not symbol:
+        context_plan = rejection_direction_plan(
+            market_context,
+            trend,
+        )
+        if (
+            len(candles) < 40
+            or not symbol
+            or not context_plan.allowed_directions
+        ):
             if symbol:
                 self.reset(symbol)
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
-                ["Нужен читаемый тренд и локальная история уровня"],
-                details={"state": RejectionStage.SEARCH.value},
+                ["MarketContext пока не разрешает level-rejection playbook"],
+                details={
+                    "state": RejectionStage.SEARCH.value,
+                    "playbookContext": context_plan.public(),
+                    "legacyTrend": trend.value,
+                },
             )
 
         price = book.mid or candles[-1].close
@@ -615,6 +667,7 @@ class WeakLevelRejectionStrategy(Strategy):
                 None,
                 observed_at_ms=observed_at_ms,
                 generation_id_override=state.pinned_generation_id,
+                market_context=market_context,
             )
         if state.pinned_zone is not None and (
             now > state.pinned_until
@@ -667,17 +720,39 @@ class WeakLevelRejectionStrategy(Strategy):
         else:
             resistance = self._select_weak_zone(candles, price, "resistance")
             support = self._select_weak_zone(candles, price, "support")
-        choices = [zone for zone in (resistance, support) if zone is not None]
-        if not choices:
+        allowed_kinds = set()
+        if Trend.UP in context_plan.allowed_directions:
+            allowed_kinds.add("support")
+        if Trend.DOWN in context_plan.allowed_directions:
+            allowed_kinds.add("resistance")
+        all_choices = [
+            zone
+            for zone in (resistance, support)
+            if zone is not None
+        ]
+        allowed_choices = [
+            zone
+            for zone in all_choices
+            if zone.kind in allowed_kinds
+        ]
+        if not all_choices:
             state.stage = RejectionStage.SEARCH
             state.zone_key = None
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
                 ["Рядом нет молодого слабонаторгованного уровня"],
-                details={"state": RejectionStage.SEARCH.value},
+                details={
+                    "state": RejectionStage.SEARCH.value,
+                    "playbookContext": context_plan.public(),
+                    "legacyTrend": trend.value,
+                },
             )
 
+        # Prefer a context-allowed level, but keep observing a nearby
+        # counter-context rejection when no allowed alternative exists.
+        # This preserves research visibility without making it tradeable.
+        choices = allowed_choices or all_choices
         zone = min(choices, key=lambda item: abs(item.center - price))
         structural_level = None
         if structure is not None:
@@ -703,4 +778,5 @@ class WeakLevelRejectionStrategy(Strategy):
             structure,
             structural_level,
             observed_at_ms=observed_at_ms,
+            market_context=market_context,
         )

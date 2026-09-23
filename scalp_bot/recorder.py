@@ -558,6 +558,10 @@ class SessionRecorder:
                     "riskRejectedSetupKeys": set(),
                     "stateCounts": {},
                     "riskRejectReasons": {},
+                    "playbookContextSourceCounts": {},
+                    "playbookDirectionCounts": {},
+                    "entryContextBlockedUpdates": 0,
+                    "entryContextBlockerCounts": {},
                     "entryPending": 0,
                     "entryCancelled": 0,
                     "tradesOpened": 0,
@@ -656,6 +660,60 @@ class SessionRecorder:
                     )
                     states = item_diag["stateCounts"]
                     states[state] = states.get(state, 0) + 1
+                    playbook_context = (
+                        details.get("playbookContext")
+                        if isinstance(details, dict)
+                        else None
+                    )
+                    if isinstance(playbook_context, dict):
+                        source = str(
+                            playbook_context.get("source")
+                            or "unknown"
+                        )
+                        source_counts = item_diag[
+                            "playbookContextSourceCounts"
+                        ]
+                        source_counts[source] = (
+                            source_counts.get(source, 0) + 1
+                        )
+                        direction = str(
+                            playbook_context.get(
+                                "primaryDirection"
+                            )
+                            or "flat"
+                        )
+                        direction_counts = item_diag[
+                            "playbookDirectionCounts"
+                        ]
+                        direction_counts[direction] = (
+                            direction_counts.get(direction, 0) + 1
+                        )
+
+                    entry_context = (
+                        details.get("entryContextAssessment")
+                        if isinstance(details, dict)
+                        else None
+                    )
+                    if (
+                        isinstance(entry_context, dict)
+                        and entry_context.get("allowed") is False
+                    ):
+                        item_diag["entryContextBlockedUpdates"] += 1
+                        blocker_counts = item_diag[
+                            "entryContextBlockerCounts"
+                        ]
+                        for blocker in (
+                            entry_context.get("blockers") or []
+                        ):
+                            key_blocker = str(blocker)
+                            blocker_counts[key_blocker] = (
+                                blocker_counts.get(
+                                    key_blocker,
+                                    0,
+                                )
+                                + 1
+                            )
+
                     if action in {"long", "short"}:
                         item_diag["tradeableDecisionUpdates"] += 1
                         item_diag["tradeableSetupKeys"].add(

@@ -10,6 +10,12 @@ from .base import Strategy
 from .common import compute_trade_flow
 from .flow import flow_at_level
 from .liquidity import find_liquidity_targets
+from .playbook_context import (
+    PlaybookKind,
+    assess_entry_context,
+    continuation_direction_plan,
+    position_context_supported,
+)
 
 if TYPE_CHECKING:
     from .market_context import MarketContext
@@ -249,10 +255,18 @@ class TrendStructureStrategy(Strategy):
         trend: Trend,
         last_price: float,
         book: OrderBook | None = None,
+        market_context: "MarketContext | None" = None,
         observed_at_ms: int | None = None,
     ) -> str | None:
-        expected = Trend.UP if side == Side.LONG else Trend.DOWN
-        if unrealized_pnl < 0 and trend != expected:
+        if (
+            unrealized_pnl < 0
+            and not position_context_supported(
+                PlaybookKind.TREND_CONTINUATION,
+                side,
+                market_context,
+                trend,
+            )
+        ):
             return "trend_structure_context_lost"
         return None
 
@@ -270,21 +284,34 @@ class TrendStructureStrategy(Strategy):
     ) -> StrategyDecision:
         state = self._states.setdefault(symbol, TrendPullbackState())
         trades = trades or []
+        context_plan = continuation_direction_plan(
+            market_context,
+            trend,
+        )
+        playbook_trend = context_plan.primary_direction
 
-        if len(candles) < 40 or trend == Trend.FLAT or structure is None:
-            if state.trend != trend:
+        if (
+            len(candles) < 40
+            or playbook_trend == Trend.FLAT
+            or structure is None
+        ):
+            if state.trend != playbook_trend:
                 state.stage = TrendPullbackStage.SEARCH
                 state.anchor_key = None
                 state.used_anchors.clear()
-            state.trend = trend
+            state.trend = playbook_trend
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
-                ["Нет подтверждённого трендового контекста"],
-                details={"state": state.stage.value},
+                ["Локальный MarketContext пока не даёт трендовый continuation playbook"],
+                details={
+                    "state": state.stage.value,
+                    "playbookContext": context_plan.public(),
+                    "legacyTrend": trend.value,
+                },
             )
 
-        long_side = trend == Trend.UP
+        long_side = playbook_trend == Trend.UP
         kind = "support" if long_side else "resistance"
         line = structure.trendline(kind)
         slope_aligned = (
@@ -297,7 +324,7 @@ class TrendStructureStrategy(Strategy):
         if line is None or line.touches < 3 or not slope_aligned:
             state.stage = TrendPullbackStage.SEARCH
             state.anchor_key = None
-            state.trend = trend
+            state.trend = playbook_trend
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
@@ -306,8 +333,8 @@ class TrendStructureStrategy(Strategy):
             )
 
         anchor = self._anchor_key(line)
-        if state.trend != trend:
-            state = TrendPullbackState(trend=trend)
+        if state.trend != playbook_trend:
+            state = TrendPullbackState(trend=playbook_trend)
             self._states[symbol] = state
         if state.anchor_key != anchor:
             state.stage = TrendPullbackStage.SEARCH
@@ -316,7 +343,7 @@ class TrendStructureStrategy(Strategy):
             state.test_extreme = 0.0
             state.reclaim_level = 0.0
             state.reclaim_price = 0.0
-        state.trend = trend
+        state.trend = playbook_trend
 
         visuals = self._visuals(line)
         price = book.mid or candles[-1].close
@@ -345,6 +372,9 @@ class TrendStructureStrategy(Strategy):
             "deepBreakPct": self.deep_break_pct,
             "pullbackDirectional": directional,
             "pullbackCharacter": pullback_character,
+            "playbookContext": context_plan.public(),
+            "playbookTrend": playbook_trend.value,
+            "legacyTrend": trend.value,
         }
 
         if anchor in state.used_anchors:
@@ -601,6 +631,34 @@ class TrendStructureStrategy(Strategy):
                 )
 
             action = Action.LONG if long_side else Action.SHORT
+            entry_context = assess_entry_context(
+                PlaybookKind.TREND_CONTINUATION,
+                action,
+                market_context,
+                trend,
+            )
+            if not entry_context.allowed:
+                return StrategyDecision(
+                    self.key,
+                    Action.WAIT,
+                    [
+                        "Continuation подтверждён локально, но MarketContext блокирует вход",
+                        *entry_context.blockers,
+                    ],
+                    0.55,
+                    state.test_line_price or projected,
+                    visuals=visuals,
+                    details={
+                        **common_details,
+                        "state": state.stage.value,
+                        "continued": continued,
+                        "flowConfirmed": flow_ok,
+                        "flow": flow,
+                        "levelFlow": level_flow,
+                        "entryContextAssessment": entry_context.public(),
+                    },
+                )
+
             buffer = max(price * 0.0008, abs(price - (state.test_line_price or projected)) * 0.10)
             if long_side:
                 stop = min(
@@ -671,7 +729,7 @@ class TrendStructureStrategy(Strategy):
                 strategy=self.key,
                 action=action,
                 reasons=[
-                    "HTF тренд подтверждён",
+                    "Локальный continuation-контекст подтверждён MarketContext",
                     "Состоялся направленный pullback к подтверждённой трендовой опоре",
                     "Цена вернула micro structure после теста",
                     "Trade flow подтвердил возврат инициативы по тренду",
@@ -692,6 +750,7 @@ class TrendStructureStrategy(Strategy):
                     "flowConfirmed": True,
                     "flow": flow,
                     "levelFlow": level_flow,
+                    "entryContextAssessment": entry_context.public(),
                     "targetR": target_r,
                     "nearestObstacle": (
                         nearest_obstacle.public()

@@ -36,6 +36,16 @@ from .market_context import (
     build_execution_context,
     build_structure_context,
 )
+from .playbook_context import (
+    DirectionPlan,
+    EntryContextAssessment,
+    PlaybookKind,
+    assess_entry_context,
+    breakout_direction_plan,
+    continuation_direction_plan,
+    position_context_supported,
+    rejection_direction_plan,
+)
 from .regime import (
     HTFBias,
     HTFBiasSnapshot,
@@ -89,6 +99,14 @@ __all__ = [
     "StructureContext",
     "build_execution_context",
     "build_structure_context",
+    "DirectionPlan",
+    "EntryContextAssessment",
+    "PlaybookKind",
+    "assess_entry_context",
+    "breakout_direction_plan",
+    "continuation_direction_plan",
+    "position_context_supported",
+    "rejection_direction_plan",
     "HTFBias",
     "HTFBiasSnapshot",
     "LocalRegime",
