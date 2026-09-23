@@ -83,7 +83,21 @@ class RiskEngine:
         if stop_pct <= 0 or target_pct <= 0:
             return RiskResult(False, "invalid stop or target distance")
 
-        structural_risk_budget = balance * self.config.risk_fraction
+        requested_risk_scale = (
+            (decision.details or {}).get("riskScale", 1.0)
+        )
+        risk_scale = (
+            float(requested_risk_scale)
+            if isinstance(requested_risk_scale, (int, float))
+            else 1.0
+        )
+        risk_scale = max(0.25, min(risk_scale, 1.25))
+        base_structural_risk_budget = (
+            balance * self.config.risk_fraction
+        )
+        structural_risk_budget = (
+            base_structural_risk_budget * risk_scale
+        )
         trade_all_in_cap_usd = (
             balance * self.config.max_trade_all_in_loss_fraction
         )
@@ -410,7 +424,12 @@ class RiskEngine:
 
         economic_diagnostics = {
             "riskBudgetUsd": structural_risk_budget,
+            "baseStructuralRiskBudgetUsd": base_structural_risk_budget,
             "structuralRiskBudgetUsd": structural_risk_budget,
+            "riskScale": risk_scale,
+            "riskScaleSource": (
+                (decision.details or {}).get("riskScaleSource")
+            ),
             "tradeAllInLossCapUsd": trade_all_in_cap_usd,
             "riskSizingBasis": "structural_stop_with_all_in_cap",
             "notionalByRiskUsd": notional_by_structural_risk,
