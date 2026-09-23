@@ -557,6 +557,13 @@ class SessionRecorder:
                     "entryFreshnessCounts": {},
                     "entryMoveSpentTotal": 0.0,
                     "entryMoveSpentSamples": 0,
+                    "entryFlowAlignmentCounts": {},
+                    "entryFlowAlignmentBySide": {
+                        "long": {},
+                        "short": {},
+                    },
+                    "entryFlowScoreTotal": 0.0,
+                    "entryFlowScoreSamples": 0,
                     "tradesClosed": 0,
                     "wins": 0,
                     "losses": 0,
@@ -697,6 +704,37 @@ class SessionRecorder:
                             item_diag["entryMoveSpentTotal"] += float(spent)
                             item_diag["entryMoveSpentSamples"] += 1
 
+                    flow_alignment = (
+                        strategy_details.get("flowAlignment")
+                        if isinstance(strategy_details, dict)
+                        else None
+                    )
+                    if isinstance(flow_alignment, dict):
+                        flow_class = str(
+                            flow_alignment.get("classification")
+                            or "unknown"
+                        )
+                        flow_counts = item_diag[
+                            "entryFlowAlignmentCounts"
+                        ]
+                        flow_counts[flow_class] = (
+                            flow_counts.get(flow_class, 0) + 1
+                        )
+                        side = str(plan.get("side") or "")
+                        side_counts = item_diag[
+                            "entryFlowAlignmentBySide"
+                        ].get(side)
+                        if isinstance(side_counts, dict):
+                            side_counts[flow_class] = (
+                                side_counts.get(flow_class, 0) + 1
+                            )
+                        flow_score = flow_alignment.get("score")
+                        if isinstance(flow_score, (int, float)):
+                            item_diag["entryFlowScoreTotal"] += float(
+                                flow_score
+                            )
+                            item_diag["entryFlowScoreSamples"] += 1
+
             if event == "trade_closed":
                 strategy = str(payload.get("strategy") or "")
                 if strategy:
@@ -836,8 +874,16 @@ class SessionRecorder:
             rejected_keys = item.pop("riskRejectedSetupKeys")
             move_spent_total = float(item.pop("entryMoveSpentTotal"))
             move_spent_samples = int(item.pop("entryMoveSpentSamples"))
+            flow_score_total = float(item.pop("entryFlowScoreTotal"))
+            flow_score_samples = int(item.pop("entryFlowScoreSamples"))
             strategy_report[strategy] = {
                 **item,
+                "averageEntryFlowAlignmentScore": (
+                    flow_score_total / flow_score_samples
+                    if flow_score_samples > 0
+                    else None
+                ),
+                "entryFlowScoreSamples": flow_score_samples,
                 "averageEntryMoveSpentRatio": (
                     move_spent_total / move_spent_samples
                     if move_spent_samples > 0
