@@ -171,7 +171,7 @@ def _recent_metrics(
     candles_1m: list[Candle],
     *,
     recent_bars: int = 6,
-) -> tuple[float, float, float, float]:
+) -> tuple[float, float, float, float, float]:
     recent = candles_1m[-min(recent_bars, len(candles_1m)):]
     if not recent:
         return 0.0, 0.0, 0.0, 0.0
