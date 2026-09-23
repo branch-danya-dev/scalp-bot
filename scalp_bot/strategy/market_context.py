@@ -219,39 +219,13 @@ def build_structure_context(
     if structure is None or reference_price <= 0:
         return None
 
-    supports = [
-        level
-        for level in structure.levels
-        if level.kind == "support"
-        and level.center <= reference_price
-    ]
-    resistances = [
-        level
-        for level in structure.levels
-        if level.kind == "resistance"
-        and level.center >= reference_price
-    ]
-    nearest_support = (
-        min(
-            supports,
-            key=lambda level: (
-                abs(reference_price - level.center),
-                -level.score,
-            ),
-        )
-        if supports
-        else None
+    nearest_support = structure.nearest_directional(
+        reference_price,
+        "support",
     )
-    nearest_resistance = (
-        min(
-            resistances,
-            key=lambda level: (
-                abs(level.center - reference_price),
-                -level.score,
-            ),
-        )
-        if resistances
-        else None
+    nearest_resistance = structure.nearest_directional(
+        reference_price,
+        "resistance",
     )
     support_distance = (
         abs(reference_price - nearest_support.center)
