@@ -580,3 +580,56 @@ def test_activity_is_only_late_tiebreak_after_shared_semantic_dimensions() -> No
     assert hot.liquidity_priority == quiet.liquidity_priority
     assert hot.freshness_priority == quiet.freshness_priority
     assert hot.net_reward_risk == quiet.net_reward_risk
+
+
+
+def test_breakout_overlap_with_day_high_is_not_own_level_exemption() -> None:
+    day_high = mature_level(
+        "day_high",
+        100.05,
+        100.05,
+        generation="DAY:H",
+    )
+    ctx = context(resistance=day_high)
+    trade = decision(
+        "level_breakout",
+        Action.LONG,
+        entry=100.0,
+        stop=99.50,
+        target=101.0,
+        watched_level=100.0,
+        details={
+            "state": "impulse",
+            "zone": {
+                "kind": "resistance",
+                "low": 99.95,
+                "high": 100.10,
+            },
+            "levelLifecycle": {
+                "generation_id": "R:own:g1",
+            },
+            "opportunityFreshness": {
+                "classification": "fresh",
+            },
+            "flowAlignment": {
+                "classification": "strongly_aligned",
+            },
+            "liquidityAlignment": {
+                "classification": "supportive",
+            },
+        },
+    )
+
+    assessment = assess_candidate(trade, ctx)
+
+    assert (
+        assessment.structural_path.own_breakout_level_exempted
+        is False
+    )
+    assert (
+        assessment.structural_path.obstacle_before_first_take
+        is True
+    )
+    assert assessment.structural_path.risk_scale == pytest.approx(
+        0.65
+    )
