@@ -60,6 +60,7 @@ ENTRY_FRESHNESS_TRIGGER_STATES = {
 }
 ENTRY_FRESHNESS_RESET_STATES = {
     "search",
+    "found",
     "stale_book",
     "stale_candle",
     "error",
