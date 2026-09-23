@@ -396,13 +396,13 @@ class DensityBounceStrategy(Strategy):
         structure: "MarketStructure | None" = None,
         observed_at_ms: int | None = None,
     ) -> StrategyDecision:
-        if not candles or not book.bids or not book.asks or trend == Trend.FLAT or not symbol:
+        if not candles or not book.bids or not book.asks or not symbol:
             if symbol:
                 self.reset(symbol)
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
-                ["Нужен читаемый тренд, стакан и активная монета"],
+                ["Нужны стакан, свечная история и активная монета"],
                 details={"state": DensityStage.SEARCH.value},
             )
 
@@ -585,6 +585,16 @@ class DensityBounceStrategy(Strategy):
                 and remaining_ratio < 0.85
             )
         )
+        consumption_cause: list[str] = []
+        if remaining_ratio < self.min_remaining_ratio:
+            consumption_cause.append("remaining_ratio")
+        if depletion_rate > self.max_depletion_per_second:
+            consumption_cause.append("depletion_rate")
+        if (
+            attack_ratio >= self.max_consumption_attack_ratio
+            and remaining_ratio < 0.85
+        ):
+            consumption_cause.append("aggressive_attack")
 
         invalidation_buffer = max(0.0004, book.spread_pct * 2.0)
         if state.side == "ask":
@@ -617,6 +627,9 @@ class DensityBounceStrategy(Strategy):
             "replenishmentRatio": replenishment_ratio,
             "absorptionObserved": absorption,
             "wallPresent": wall_present,
+            "lostSignificance": lost_significance,
+            "consuming": consuming,
+            "consumptionCause": consumption_cause,
             "flow": flow,
             "positionInvalidated": position_invalidated,
             "distancePct": distance_pct,
@@ -648,7 +661,10 @@ class DensityBounceStrategy(Strategy):
                 state,
                 "После подтверждённого отбоя wall снята; управляем позицией по цене и потоку",
                 confidence=0.55,
-                details=shared,
+                details={
+                    **shared,
+                    "reason": "wall_removed_after_defense",
+                },
             )
 
         if state.defended_at <= 0 and lost_significance:
@@ -675,7 +691,10 @@ class DensityBounceStrategy(Strategy):
             return self._wait(
                 state,
                 "Плотность реально съедают — отскок не торгуем",
-                details=shared,
+                details={
+                    **shared,
+                    "reason": "wall_consumed_before_defense",
+                },
             )
 
         age = now - state.first_seen
@@ -778,6 +797,19 @@ class DensityBounceStrategy(Strategy):
         state.stage = DensityStage.DEFENDED
         if state.defended_at <= 0:
             state.defended_at = now
+
+        if trend == Trend.FLAT:
+            state.stage = DensityStage.DEFENDED
+            return self._wait(
+                state,
+                "Wall защищена; HTF нейтрален, используем событие только как liquidity evidence",
+                confidence=0.55,
+                details={
+                    **shared,
+                    "trendAligned": None,
+                    "evidenceAction": action.value,
+                },
+            )
 
         expected_action = Action.LONG if trend == Trend.UP else Action.SHORT
         if action != expected_action:
