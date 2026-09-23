@@ -179,12 +179,16 @@ def _session_identity(
         ),
         "runStartTs": start_ts,
         "runEndTs": end_ts,
-        "eventCount": (
+    }
+    # Analysis packs contain compacted event streams, so their event count
+    # legitimately differs from the raw source. Use eventCount only as a
+    # fallback when the run window is unavailable.
+    if start_ts is None and end_ts is None:
+        material["eventCountFallback"] = (
             session.get("eventCount")
             if isinstance(session, dict)
             else None
-        ),
-    }
+        )
     digest = hashlib.sha256(
         json.dumps(
             material,
