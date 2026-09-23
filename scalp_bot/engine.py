@@ -25,6 +25,8 @@ from .strategy import (
     LiquidityEvidence,
     MarketContext,
     MarketStructure,
+    SelectionPriority,
+    SemanticCandidateAssessment,
     Strategy,
     build_execution_context,
     build_liquidity_evidence,
@@ -36,6 +38,9 @@ from .strategy import (
     classify_htf_bias,
     classify_local_regime,
     compute_trade_flow,
+    assess_candidate,
+    assess_session_candidates,
+    build_selection_priority,
 )
 
 
@@ -101,6 +106,9 @@ class ActiveSymbolSession:
     last_risk_fingerprint: tuple | None = None
     last_blocked_fingerprint: tuple | None = None
     last_economic_shadow_fingerprint: tuple | None = None
+    arbiter_block_fingerprints: dict[str, tuple] = field(
+        default_factory=dict
+    )
 
     def book_age_seconds(self, now: float | None = None) -> float | None:
         if self.last_book_at <= 0:
@@ -513,7 +521,8 @@ class ActiveSymbolSession:
 
 @dataclass(slots=True)
 class Opportunity:
-    score: float
+    priority: SelectionPriority
+    arbitration: SemanticCandidateAssessment
     session: ActiveSymbolSession
     decision: StrategyDecision
     plan: object
@@ -2074,7 +2083,10 @@ class TradingEngine:
                 event.get("symbol"),
                 event,
             )
-        candidate_map = {item.symbol: item for item in self.candidates}
+        candidate_map = {
+            item.symbol: item
+            for item in self.candidates
+        }
 
         for session in self.sessions.values():
             if (
@@ -2096,23 +2108,72 @@ class TradingEngine:
             ):
                 continue
 
+            planned: list[tuple[
+                StrategyDecision,
+                object,
+                SemanticCandidateAssessment,
+                int,
+                float,
+            ]] = []
+
             for decision in session.decisions.values():
                 if decision.strategy == "orderbook_density":
                     continue
-                if not decision.tradeable or not self.strategy_enabled.get(decision.strategy, False):
+                if (
+                    not decision.tradeable
+                    or not self.strategy_enabled.get(
+                        decision.strategy,
+                        False,
+                    )
+                ):
                     continue
 
-                setup_id = self._resolve_setup_id(session, decision)
+                setup_id = self._resolve_setup_id(
+                    session,
+                    decision,
+                )
                 decision.setup_id = setup_id
 
-                blocked_reason = self._setup_blocked_reason(session, decision.strategy, setup_id, now)
+                base_assessment = assess_candidate(
+                    decision,
+                    session.market_context,
+                    partial_take_at_r=(
+                        self.config.partial_take_at_r
+                    ),
+                    partial_take_enabled=(
+                        self.config.partial_take_enabled
+                    ),
+                )
+                decision.details["semanticArbitration"] = (
+                    base_assessment.public()
+                )
+                if not base_assessment.allowed:
+                    self._record_arbiter_blocked(
+                        session,
+                        decision,
+                        base_assessment,
+                    )
+                    continue
+
+                blocked_reason = self._setup_blocked_reason(
+                    session,
+                    decision.strategy,
+                    setup_id,
+                    now,
+                )
                 if blocked_reason:
-                    self._record_setup_blocked(session, decision, blocked_reason)
+                    self._record_setup_blocked(
+                        session,
+                        decision,
+                        blocked_reason,
+                    )
                     continue
 
                 expectancy_snapshot = self.expectancy.snapshot(
                     decision.strategy,
-                    min_samples=self.config.strategy_expectancy_min_samples,
+                    min_samples=(
+                        self.config.strategy_expectancy_min_samples
+                    ),
                     minimum_expectancy_r=minimum_expectancy_r(
                         self.config,
                         decision.strategy,
@@ -2133,13 +2194,27 @@ class TradingEngine:
                         ),
                         diagnostics={
                             "expectancy": expectancy_snapshot,
+                            "semanticArbitration": (
+                                base_assessment.public()
+                            ),
                         },
                     )
                     continue
 
-                allowed, portfolio_reason = self.broker.can_open(session.symbol)
+                allowed, portfolio_reason = (
+                    self.broker.can_open(session.symbol)
+                )
                 if not allowed:
-                    self._risk_reject_if_changed(session, decision, portfolio_reason)
+                    self._risk_reject_if_changed(
+                        session,
+                        decision,
+                        portfolio_reason,
+                        diagnostics={
+                            "semanticArbitration": (
+                                base_assessment.public()
+                            ),
+                        },
+                    )
                     continue
 
                 result = self.risk.build_plan(
@@ -2152,21 +2227,37 @@ class TradingEngine:
                     setup_id=setup_id,
                 )
                 if not result.allowed or result.plan is None:
+                    diagnostics = dict(
+                        result.diagnostics or {}
+                    )
+                    diagnostics["semanticArbitration"] = (
+                        base_assessment.public()
+                    )
                     self._risk_reject_if_changed(
                         session,
                         decision,
                         result.reason,
-                        diagnostics=result.diagnostics,
+                        diagnostics=diagnostics,
                     )
                     continue
 
                 economics = (
-                    result.plan.strategy_details.get("economics")
-                    if isinstance(result.plan.strategy_details, dict)
+                    result.plan.strategy_details.get(
+                        "economics"
+                    )
+                    if isinstance(
+                        result.plan.strategy_details,
+                        dict,
+                    )
                     else None
                 )
                 shadow_reasons = (
-                    tuple(economics.get("shadowRejectReasons") or [])
+                    tuple(
+                        economics.get(
+                            "shadowRejectReasons"
+                        )
+                        or []
+                    )
                     if isinstance(economics, dict)
                     else ()
                 )
@@ -2176,50 +2267,164 @@ class TradingEngine:
                     shadow_reasons,
                 )
                 if shadow_reasons:
-                    if session.last_economic_shadow_fingerprint != shadow_fingerprint:
-                        session.last_economic_shadow_fingerprint = shadow_fingerprint
+                    if (
+                        session.last_economic_shadow_fingerprint
+                        != shadow_fingerprint
+                    ):
+                        session.last_economic_shadow_fingerprint = (
+                            shadow_fingerprint
+                        )
                         self._emit(
                             "economic_shadow",
                             session.symbol,
                             {
                                 "strategy": decision.strategy,
                                 "setupId": setup_id,
-                                "shadowRejectReasons": list(shadow_reasons),
+                                "shadowRejectReasons": list(
+                                    shadow_reasons
+                                ),
                                 "economics": economics,
                                 "decision": decision.public(),
+                                "semanticArbitration": (
+                                    base_assessment.public()
+                                ),
                             },
                             snapshot=True,
                         )
                 else:
-                    session.last_economic_shadow_fingerprint = None
+                    session.last_economic_shadow_fingerprint = (
+                        None
+                    )
 
-                candidate = candidate_map.get(session.symbol)
-                rank = candidate.activity_rank if candidate and candidate.activity_rank else 99
-                score = self._opportunity_score(
-                    decision,
-                    rank,
-                    candidate.activity_score if candidate else 0.0,
+                scanner_candidate = candidate_map.get(
+                    session.symbol
                 )
+                activity_rank = (
+                    scanner_candidate.activity_rank
+                    if (
+                        scanner_candidate
+                        and scanner_candidate.activity_rank
+                    )
+                    else 99
+                )
+                activity_score = (
+                    scanner_candidate.activity_score
+                    if scanner_candidate
+                    else 0.0
+                )
+                planned.append(
+                    (
+                        decision,
+                        result.plan,
+                        base_assessment,
+                        int(activity_rank),
+                        float(activity_score),
+                    )
+                )
+
+            if not planned:
+                continue
+
+            final_assessments = assess_session_candidates(
+                [row[0] for row in planned],
+                session.market_context,
+                partial_take_at_r=(
+                    self.config.partial_take_at_r
+                ),
+                partial_take_enabled=(
+                    self.config.partial_take_enabled
+                ),
+            )
+            for (
+                decision,
+                plan,
+                base_assessment,
+                activity_rank,
+                activity_score,
+            ) in planned:
+                assessment = final_assessments.get(
+                    decision.strategy,
+                    base_assessment,
+                )
+                decision.details["semanticArbitration"] = (
+                    assessment.public()
+                )
+                if not assessment.allowed:
+                    self._record_arbiter_blocked(
+                        session,
+                        decision,
+                        assessment,
+                    )
+                    continue
+
+                session.arbiter_block_fingerprints.pop(
+                    decision.strategy,
+                    None,
+                )
+                plan.strategy_details[
+                    "semanticArbitration"
+                ] = assessment.public()
+                priority = build_selection_priority(
+                    assessment,
+                    plan,
+                    activity_rank=activity_rank,
+                    activity_score=activity_score,
+                )
+                plan.strategy_details[
+                    "selectionPriority"
+                ] = priority.public()
                 opportunities.append(
                     Opportunity(
-                        score=score,
+                        priority=priority,
+                        arbitration=assessment,
                         session=session,
                         decision=decision,
-                        plan=result.plan,
+                        plan=plan,
                     )
                 )
 
         if not opportunities:
             return
 
-        best = max(opportunities, key=lambda item: item.score)
-        allowed, reason = self.broker.can_open(best.session.symbol)
+        best = max(
+            opportunities,
+            key=lambda item: item.priority.key(),
+        )
+        allowed, reason = self.broker.can_open(
+            best.session.symbol
+        )
         if not allowed:
-            self._risk_reject_if_changed(best.session, best.decision, reason)
+            self._risk_reject_if_changed(
+                best.session,
+                best.decision,
+                reason,
+                diagnostics={
+                    "semanticArbitration": (
+                        best.arbitration.public()
+                    ),
+                    "selectionPriority": (
+                        best.priority.public()
+                    ),
+                },
+            )
             return
 
         best.session.last_risk_fingerprint = None
         best.session.last_blocked_fingerprint = None
+        selection_payload = {
+            "semanticArbitration": (
+                best.arbitration.public()
+            ),
+            "selectionPriority": best.priority.public(),
+            "playbookSetupQuality": float(
+                best.decision.details.get(
+                    "setupQuality",
+                    best.decision.confidence,
+                )
+                or 0.0
+            ),
+        }
+
         if best.plan.entry_mode == "maker_limit":
             pending = self.broker.place_pending(
                 best.plan,
@@ -2237,26 +2442,26 @@ class TradingEngine:
                     "pending": pending.public(),
                     "reasons": best.decision.reasons,
                     "visuals": best.decision.visuals,
-                    "opportunityScore": best.score,
-                    "opportunityQuality": float(
-                        best.decision.details.get(
-                            "setupQuality",
-                            best.decision.confidence,
-                        ) or 0.0
-                    ),
+                    **selection_payload,
                 },
                 snapshot=True,
             )
             return
 
         best.session.last_trade_at = now
-        position = self.broker.open(best.plan, best.session.orderbook)
+        position = self.broker.open(
+            best.plan,
+            best.session.orderbook,
+        )
         self._record_opened_position(
             best.session,
             best.decision,
             best.plan.public(),
             position.public(),
-            opportunity_score=best.score,
+            semantic_arbitration=(
+                best.arbitration.public()
+            ),
+            selection_priority=best.priority.public(),
         )
 
     def _record_opened_position(
