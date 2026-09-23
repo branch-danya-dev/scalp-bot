@@ -37,6 +37,7 @@ class BreakoutStage(StrEnum):
     FOUND = "found"
     APPROACH = "approach"
     PRESSURE = "pressure"
+    ARMED = "armed"
     BREAK = "break"
     IMPULSE = "impulse"
 
@@ -46,6 +47,9 @@ class BreakoutWatchState:
     zone_key: tuple[str, str, float] | None = None
     stage: BreakoutStage = BreakoutStage.SEARCH
     used_generations: set[tuple[str, str, float]] = field(default_factory=set)
+    armed_at: float = 0.0
+    armed_until: float = 0.0
+    armed_price: float = 0.0
     break_started_at: float = 0.0
 
 
@@ -59,6 +63,8 @@ class LevelBreakoutStrategy(Strategy):
     max_stop_pct = 0.006
     max_zone_distance_pct = 0.012
     min_pressure_score = 3
+    pressure_hysteresis_seconds = 10.0
+    pressure_hysteresis_score_margin = 1
     min_break_hold_seconds = 3.0
     minimum_target_r = 1.25
 
@@ -418,6 +424,9 @@ class LevelBreakoutStrategy(Strategy):
         if state.zone_key != generation:
             state.zone_key = generation
             state.stage = BreakoutStage.FOUND
+            state.armed_at = 0.0
+            state.armed_until = 0.0
+            state.armed_price = 0.0
             state.break_started_at = 0.0
         visuals = zone_visual(zone, "breakout zone")
         flow = compute_trade_flow(trades, observed_at_ms)
@@ -484,10 +493,48 @@ class LevelBreakoutStrategy(Strategy):
                 },
             )
 
-        state.stage = (
-            BreakoutStage.PRESSURE
-            if pressure_score >= self.min_pressure_score
-            else BreakoutStage.APPROACH
+        market_now = (
+            observed_at_ms / 1000
+            if observed_at_ms is not None
+            else (
+                trades[-1].ts_ms / 1000
+                if trades
+                else candles[-1].start_ms / 1000 + 60.0
+            )
+        )
+        pressure_ready = pressure_score >= self.min_pressure_score
+        arm_active = (
+            state.armed_at > 0
+            and market_now <= state.armed_until
+        )
+        hysteresis_floor = max(
+            0,
+            self.min_pressure_score
+            - self.pressure_hysteresis_score_margin,
+        )
+        if pressure_ready:
+            if not arm_active:
+                state.armed_at = market_now
+                state.armed_price = price
+            state.armed_until = max(
+                state.armed_until,
+                market_now + self.pressure_hysteresis_seconds,
+            )
+            state.stage = BreakoutStage.ARMED
+            arm_active = True
+        elif arm_active and pressure_score >= hysteresis_floor:
+            state.stage = BreakoutStage.ARMED
+        else:
+            state.stage = BreakoutStage.APPROACH
+
+        opportunity_arm = (
+            {
+                "observedAtMs": int(state.armed_at * 1000),
+                "price": state.armed_price,
+                "source": "breakout_pressure_armed",
+            }
+            if state.armed_at > 0 and arm_active
+            else None
         )
         break_buffer = max(0.00015, book.spread_pct * 1.5)
         broke = (
@@ -503,8 +550,8 @@ class LevelBreakoutStrategy(Strategy):
                 Action.WAIT,
                 [
                     (
-                        "Цена у зрелого уровня, давление на пробой сформировано"
-                        if state.stage == BreakoutStage.PRESSURE
+                        "Breakout hypothesis ARMED: давление сохранено с hysteresis"
+                        if state.stage == BreakoutStage.ARMED
                         else "Цена у зрелого уровня, но давления пока недостаточно"
                     )
                 ],
@@ -518,6 +565,8 @@ class LevelBreakoutStrategy(Strategy):
                     "zoneGeneration": generation,
                     "pressureScore": pressure_score,
                     "pressure": pressure,
+                    "pressureHysteresisActive": arm_active,
+                    "opportunityArm": opportunity_arm,
                     "flow": flow,
                     "levelFlow": level_flow.public(),
                 },
@@ -546,8 +595,23 @@ class LevelBreakoutStrategy(Strategy):
                 else acceptance_flow.price_response_pct <= 0.0001
             )
         )
-        if pressure_score < self.min_pressure_score or not aligned_after_break:
-            state.break_started_at = 0.0
+        pressure_supported = (
+            pressure_ready
+            or (
+                arm_active
+                and pressure_score >= hysteresis_floor
+            )
+        )
+        flow_supported = (
+            aligned_after_break
+            or (
+                state.break_started_at > 0
+                and arm_active
+            )
+        )
+        if not pressure_supported or not flow_supported:
+            if not arm_active:
+                state.break_started_at = 0.0
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
@@ -566,14 +630,11 @@ class LevelBreakoutStrategy(Strategy):
                     "levelFlow": level_flow.public(),
                     "acceptanceFlow": acceptance_flow.public(),
                     "acceptanceBoundary": acceptance_boundary,
+                    "pressureHysteresisActive": arm_active,
+                    "opportunityArm": opportunity_arm,
                 },
             )
 
-        market_now = (
-            observed_at_ms / 1000
-            if observed_at_ms is not None
-            else trades[-1].ts_ms / 1000
-        )
         if state.break_started_at <= 0:
             state.break_started_at = market_now
         held_seconds = max(
@@ -775,6 +836,8 @@ class LevelBreakoutStrategy(Strategy):
                 "entryContextAssessment": entry_context.public(),
                 "acceptanceBoundary": acceptance_boundary,
                 "pressure": pressure,
+                "pressureHysteresisActive": arm_active,
+                "opportunityArm": opportunity_arm,
                 "pressureScore": pressure_score,
                 "breakHoldSeconds": max(
                     0.0,
