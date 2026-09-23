@@ -108,6 +108,61 @@ def test_weak_level_rejection_support_can_produce_long() -> None:
     assert decision.details["allowRunner"] is True
 
 
+def rejection_absorption_only_flow() -> list[TradeTick]:
+    start = 20_000_000
+    rows = [
+        TradeTick(start + i * 200, 100.00, 4, "Sell")
+        for i in range(10)
+    ]
+    rows.append(
+        TradeTick(start + 2_200, 99.95, 2, "Sell")
+    )
+    return rows
+
+
+def test_weak_rejection_stages_absorption_probe_then_flow_add() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    book = OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)])
+    rows = weak_support_rejection_candles()
+
+    probe = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="STAGEDREJECTUSDT",
+        trades=rejection_absorption_only_flow(),
+    )
+    assert probe.action == Action.LONG
+    assert probe.details["state"] == "reject"
+    assert probe.details["attackAbsorbed"] is True
+    assert probe.details["flowReversed"] is False
+    assert probe.details["stagedEntry"]["phase"] == "probe"
+
+    strategy.mark_opened("STAGEDREJECTUSDT", probe)
+    add = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="STAGEDREJECTUSDT",
+        trades=buy_flow(),
+    )
+    assert add.action == Action.LONG
+    assert add.details["state"] == "reaction"
+    assert add.details["flowReversed"] is True
+    assert add.details["stagedEntry"]["phase"] == "add"
+
+    strategy.mark_opened("STAGEDREJECTUSDT", add)
+    consumed = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="STAGEDREJECTUSDT",
+        trades=buy_flow(),
+    )
+    assert consumed.action == Action.WAIT
+    assert consumed.details["alreadyUsed"] is True
+
+
 def test_weak_level_rejection_requires_actual_trade_beyond_zone() -> None:
     strategy = WeakLevelRejectionStrategy()
     rows = weak_support_rejection_candles()
@@ -159,40 +214,52 @@ def aggressive_buy_flow() -> list[TradeTick]:
     return rows
 
 
-def test_breakout_requires_mature_zone_hold_and_actual_open_before_consumed() -> None:
+def test_breakout_stages_probe_before_hold_then_adds_after_confirmation() -> None:
     strategy = LevelBreakoutStrategy()
     book = OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)])
-    first = strategy.evaluate(
+    probe = strategy.evaluate(
         mature_breakout_candles(),
         book,
         Trend.UP,
         symbol="TESTUSDT",
         trades=aggressive_buy_flow(),
     )
-    assert first.action == Action.WAIT
-    assert first.details["zone"]["touches"] >= 5
-    assert first.details["requiredBreakHoldSeconds"] == 3.0
+    assert probe.action == Action.LONG
+    assert probe.details["zone"]["touches"] >= 5
+    assert probe.details["state"] == "break"
+    assert probe.details["stagedEntry"]["phase"] == "probe"
+    assert probe.details["stagedEntry"]["riskFraction"] == pytest.approx(
+        strategy.probe_risk_fraction
+    )
+    assert probe.details["requiredBreakHoldSeconds"] == 3.0
+
+    strategy.mark_opened("TESTUSDT", probe)
+    waiting = strategy.evaluate(
+        mature_breakout_candles(),
+        book,
+        Trend.UP,
+        symbol="TESTUSDT",
+        trades=aggressive_buy_flow(),
+    )
+    assert waiting.action == Action.WAIT
+    assert waiting.details["probeOpened"] is True
 
     strategy._states["TESTUSDT"].break_started_at -= 4
-    entry = strategy.evaluate(
+    add = strategy.evaluate(
         mature_breakout_candles(),
         book,
         Trend.UP,
         symbol="TESTUSDT",
         trades=aggressive_buy_flow(),
     )
-    assert entry.action == Action.LONG
-
-    still_available = strategy.evaluate(
-        mature_breakout_candles(),
-        book,
-        Trend.UP,
-        symbol="TESTUSDT",
-        trades=aggressive_buy_flow(),
+    assert add.action == Action.LONG
+    assert add.details["state"] == "impulse"
+    assert add.details["stagedEntry"]["phase"] == "add"
+    assert add.details["stagedEntry"]["riskFraction"] == pytest.approx(
+        1.0 - strategy.probe_risk_fraction
     )
-    assert still_available.action == Action.LONG
 
-    strategy.mark_opened("TESTUSDT", entry)
+    strategy.mark_opened("TESTUSDT", add)
     consumed = strategy.evaluate(
         mature_breakout_candles(),
         book,
