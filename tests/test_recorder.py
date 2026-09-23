@@ -654,3 +654,231 @@ def test_session_report_aggregates_research_policy_audit(tmp_path) -> None:
         "rule-flow": 1,
         "rule-rr": 1,
     }
+
+
+
+def test_session_report_tracks_staged_adds_and_fast_path_runtime(
+    tmp_path,
+) -> None:
+    recorder = SessionRecorder(str(tmp_path))
+    probe_leg = {
+        "phase": "probe",
+        "notional": 300.0,
+        "fill": 100.0,
+        "plan": {
+            "expected_net_loss": 4.0,
+            "expected_net_profit": 4.0,
+        },
+    }
+    add_leg = {
+        "phase": "add",
+        "notional": 700.0,
+        "fill": 100.285714,
+        "plan": {
+            "expected_net_loss": 6.0,
+            "expected_net_profit": 8.0,
+        },
+    }
+    probe_details = {
+        "stagedEntry": {
+            "phase": "probe",
+            "riskFraction": 0.35,
+        },
+        "preparedOpportunity": {
+            "preparedAtMs": 10_000,
+        },
+        "fireTrigger": {
+            "observedAtMs": 10_500,
+        },
+        "decisionContext": {
+            "localRegime": "bullish_trend",
+            "htfBias": "bullish",
+            "executionReady": True,
+            "analysisRuntime": {
+                "mode": "live_fast_path",
+            },
+        },
+        "entryFreshness": {
+            "classification": "fresh",
+            "moveSpentRatio": 0.10,
+            "confirmationAgeSeconds": 0.5,
+        },
+        "flowAlignment": {
+            "classification": "strongly_aligned",
+            "score": 0.8,
+        },
+        "liquidityAlignment": {
+            "classification": "supportive",
+            "score": 0.7,
+        },
+    }
+    recorder.record(
+        "trade_opened",
+        "AAAUSDT",
+        {
+            "plan": {
+                "strategy": "level_breakout",
+                "side": "long",
+                "setup_id": "staged-report-1",
+                "market_entry": 100.0,
+                "expected_net_loss": 4.0,
+                "expected_net_profit": 4.0,
+                "strategy_details": probe_details,
+            },
+            "position": {
+                "side": "long",
+                "entry": 100.0,
+                "setup_id": "staged-report-1",
+                "entry_legs": [probe_leg],
+            },
+            "market": {
+                "candles": [{
+                    "time": 1,
+                    "open": 100.0,
+                    "high": 100.1,
+                    "low": 99.9,
+                    "close": 100.0,
+                }],
+                "orderbook": {
+                    "bids": [[99.99, 1, 99.99]],
+                    "asks": [[100.01, 1, 100.01]],
+                },
+                "analysisRuntime": {
+                    "mode": "live_fast_path",
+                },
+            },
+        },
+    )
+    add_details = {
+        **probe_details,
+        "stagedEntry": {
+            "phase": "add",
+            "riskFraction": 0.65,
+        },
+        "fireTrigger": {
+            "observedAtMs": 20_000,
+        },
+    }
+    recorder.record(
+        "position_added",
+        "AAAUSDT",
+        {
+            "plan": {
+                "strategy": "level_breakout",
+                "side": "long",
+                "setup_id": "staged-report-1",
+                "expected_net_loss": 6.0,
+                "expected_net_profit": 8.0,
+                "strategy_details": add_details,
+            },
+            "position": {
+                "side": "long",
+                "entry": 100.2,
+                "setup_id": "staged-report-1",
+                "entry_legs": [probe_leg, add_leg],
+            },
+            "market": {
+                "candles": [{
+                    "time": 2,
+                    "open": 100.0,
+                    "high": 100.4,
+                    "low": 99.95,
+                    "close": 100.2,
+                }],
+                "orderbook": {
+                    "bids": [[100.19, 1, 100.19]],
+                    "asks": [[100.21, 1, 100.21]],
+                },
+                "analysisRuntime": {
+                    "mode": "live_fast_path",
+                },
+            },
+        },
+    )
+    recorder.record(
+        "research_frame",
+        "AAAUSDT",
+        {
+            "lastPrice": 100.3,
+            "analysisRuntime": {
+                "mode": "live_fast_path",
+                "staticAnalysisRebuilds": 1,
+                "liveFastPathReuses": 4,
+            },
+            "marketContext": {
+                "legacyTrend": "up",
+                "executionContext": {"ready": True},
+            },
+            "orderbook": {
+                "bids": [[100.29, 1, 100.29]],
+                "asks": [[100.31, 1, 100.31]],
+            },
+        },
+    )
+    recorder.record(
+        "trade_closed",
+        "AAAUSDT",
+        {
+            "strategy": "level_breakout",
+            "side": "long",
+            "setupId": "staged-report-1",
+            "entry": 100.2,
+            "exit": 100.8,
+            "initialStop": 99.5,
+            "target": 101.0,
+            "originalNotional": 1000.0,
+            "entryLegs": [probe_leg, add_leg],
+            "scaleInCount": 1,
+            "strategyDetails": add_details,
+            "initialRiskUsd": 10.0,
+            "grossPnl": 6.0,
+            "fees": 1.0,
+            "netPnl": 5.0,
+            "mfeR": 1.2,
+            "maeR": 0.2,
+            "reason": "target",
+            "partialTaken": False,
+            "market": {
+                "candles": [{
+                    "time": 3,
+                    "open": 100.3,
+                    "high": 100.9,
+                    "low": 100.2,
+                    "close": 100.8,
+                }],
+                "orderbook": {
+                    "bids": [[100.79, 1, 100.79]],
+                    "asks": [[100.81, 1, 100.81]],
+                },
+                "analysisRuntime": {
+                    "mode": "live_fast_path",
+                },
+            },
+        },
+    )
+
+    report = recorder.session_report()
+
+    trade = report["strategySideRegimePerformance"]["trades"][0]
+    assert trade["scaleInCount"] == 1
+    assert len(trade["entryLegs"]) == 2
+    assert trade["plannedAllInLossUsd"] == pytest.approx(10.0)
+    assert trade["plannedNetRewardRisk"] == pytest.approx(1.2)
+    assert trade["realizedAllInR"] == pytest.approx(0.5)
+
+    review = report["tradeReviews"][0]
+    assert review["summary"]["scaleInCount"] == 1
+    assert len(review["summary"]["entryLegs"]) == 2
+    assert any(
+        row["event"] == "position_added"
+        for row in review["timeline"]
+    )
+
+    diagnostics = report["strategyDiagnostics"]["level_breakout"]
+    assert diagnostics["tradesOpened"] == 1
+    assert diagnostics["positionAdds"] == 1
+    assert (
+        report["marketContextDiagnostics"]["frameCounts"]
+        ["analysisMode"]["live_fast_path"]
+        == 1
+    )
