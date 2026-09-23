@@ -1290,16 +1290,16 @@ def test_arbiter_uses_pending_maker_entry_for_tradeable_playbook_and_fills_after
             last_book_at=now,
             book_synced=True,
         )
-        session.decisions["trend_structure"] = StrategyDecision(
-            strategy="trend_structure",
+        session.decisions["weak_level_rejection"] = StrategyDecision(
+            strategy="weak_level_rejection",
             action=Action.LONG,
-            reasons=["trend continuation"],
+            reasons=["confirmed rejection"],
             confidence=0.9,
             entry=100.0,
             stop=99.5,
             target=101.0,
-            setup_id="trend-passive-1",
-            details={"allowRunner": True, "state": "continuation"},
+            setup_id="rejection-passive-1",
+            details={"allowRunner": True, "state": "reaction"},
         )
         engine.sessions = {session.symbol: session}
         engine.candidates = [
@@ -1320,7 +1320,7 @@ def test_arbiter_uses_pending_maker_entry_for_tradeable_playbook_and_fills_after
         assert "AAAUSDT" not in engine.broker.pending_entries
         assert "AAAUSDT" in engine.broker.positions
         assert any(event["event"] == "trade_opened" for event in engine.events)
-        assert engine.strategy_stats["trend_structure"]["tradesOpened"] == 1
+        assert engine.strategy_stats["weak_level_rejection"]["tradesOpened"] == 1
     finally:
         close_rest(engine)
 
