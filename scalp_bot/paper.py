@@ -6,7 +6,13 @@ from typing import Any
 
 from .config import Settings
 from .domain import OrderBook, Side, TradePlan
-from .execution import execution_profile, fee_rate, slippage_rate
+from .execution import (
+    apply_entry_slippage,
+    apply_exit_slippage,
+    execution_profile,
+    fee_rate,
+    slippage_rate,
+)
 from .strategy_policy import no_follow_through_seconds, partial_take_fraction
 
 
@@ -821,7 +827,11 @@ class PaperBroker:
             raise RuntimeError("insufficient visible entry depth")
         profile = execution_profile(plan.strategy)
         slip = slippage_rate(self.config, profile.entry)
-        fill = raw * (1 + slip if plan.side == Side.LONG else 1 - slip)
+        fill = apply_entry_slippage(
+            raw,
+            plan.side,
+            slip,
+        )
         fee = plan.notional * fee_rate(
             self.config,
             profile.entry,
@@ -859,10 +869,10 @@ class PaperBroker:
             )
         profile = execution_profile(plan.strategy)
         slip = slippage_rate(self.config, profile.entry)
-        fill = raw * (
-            1 + slip
-            if plan.side == Side.LONG
-            else 1 - slip
+        fill = apply_entry_slippage(
+            raw,
+            plan.side,
+            slip,
         )
         fee = plan.notional * fee_rate(
             self.config,
@@ -961,9 +971,21 @@ class PaperBroker:
                 else None
             ),
         )
+        economics = (
+            pos.strategy_details.get("economics")
+            if isinstance(pos.strategy_details, dict)
+            else None
+        )
+        partial_planned = (
+            bool(economics.get("partialPlanned"))
+            if isinstance(economics, dict)
+            and "partialPlanned" in economics
+            else True
+        )
         if (
             self.config.partial_take_enabled
             and allow_runner
+            and partial_planned
             and not pos.partial_taken
             and partial_triggered
         ):
@@ -1169,6 +1191,11 @@ class PaperBroker:
         )
         if not isinstance(economics, dict):
             return 0.0
+        planned_required = economics.get(
+            "partialRequiredNetUsd"
+        )
+        if isinstance(planned_required, (int, float)):
+            return max(0.0, float(planned_required))
         if not bool(
             economics.get("minimumNetProfitGateEnabled", True)
         ):
@@ -1382,10 +1409,10 @@ class PaperBroker:
             self.config,
             exit_mode,
         )
-        fill = raw * (
-            1 - slip
-            if pos.side == Side.LONG
-            else 1 + slip
+        fill = apply_exit_slippage(
+            raw,
+            pos.side,
+            slip,
         )
         direction = 1 if pos.side == Side.LONG else -1
         gross = (

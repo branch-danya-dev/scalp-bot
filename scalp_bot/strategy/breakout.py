@@ -73,7 +73,9 @@ class LevelBreakoutStrategy(Strategy):
     pressure_hysteresis_seconds = 10.0
     pressure_hysteresis_score_margin = 1
     min_break_hold_seconds = 3.0
-    minimum_target_r = 1.25
+    # With taker entry + maker exit, 1.25R cannot produce a 1:1 net payoff
+    # for ordinary scalp stops. Require room for roughly 2R before costs.
+    minimum_target_r = 2.0
     # Stage 18: raw breakouts are observation states, not entries. Production
     # keeps breakout scale-in off until retest/hold shows positive edge.
     staged_entries_enabled = False

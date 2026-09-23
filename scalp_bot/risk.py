@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from .config import Settings
 from .domain import OrderBook, Side, StrategyDecision, TradePlan
 from .execution import (
+    apply_entry_slippage,
     execution_profile,
     fee_rate,
     preferred_entry_mode,
@@ -50,14 +51,26 @@ class RiskEngine:
             self.config,
             decision.strategy,
         )
+        entry_slippage_rate = slippage_rate(
+            self.config,
+            entry_mode,
+        )
         if entry_mode == "maker_limit":
-            market_entry = float(
+            raw_market_entry = float(
                 min(setup_entry, book.best_bid)
                 if side == Side.LONG
                 else max(setup_entry, book.best_ask)
             )
         else:
-            market_entry = float(book.executable_entry(side) or 0)
+            raw_market_entry = float(
+                book.executable_entry(side) or 0
+            )
+        market_entry = apply_entry_slippage(
+            raw_market_entry,
+            side,
+            entry_slippage_rate,
+        )
+        best_raw_entry = raw_market_entry
         stop = float(decision.stop)
         target = float(decision.target)
         if market_entry <= 0:
@@ -93,7 +106,10 @@ class RiskEngine:
             if isinstance(requested_risk_scale, (int, float))
             else 1.0
         )
-        risk_scale = max(0.25, min(risk_scale, 1.25))
+        # Stage 19B allows semantic evidence to de-risk a setup, but never to
+        # lever it above the configured base risk until positive expectancy is
+        # proven from paper data.
+        risk_scale = max(0.25, min(risk_scale, 1.0))
         staged_entry = (
             (decision.details or {}).get("stagedEntry")
             if isinstance(
@@ -156,10 +172,6 @@ class RiskEngine:
             self.config,
             execution.partial_exit,
         )
-        entry_slippage_rate = slippage_rate(
-            self.config,
-            entry_mode,
-        )
         target_exit_slippage_rate = slippage_rate(
             self.config,
             execution.target_exit,
@@ -175,13 +187,11 @@ class RiskEngine:
         target_cost_pct = (
             entry_fee_rate
             + target_exit_fee_rate
-            + entry_slippage_rate
             + target_exit_slippage_rate
         )
         stop_cost_pct = (
             entry_fee_rate
             + stop_exit_fee_rate
-            + entry_slippage_rate
             + stop_exit_slippage_rate
         )
         round_trip_cost_pct = stop_cost_pct
@@ -227,18 +237,20 @@ class RiskEngine:
         if notional <= 0:
             return RiskResult(False, "portfolio exposure budget exhausted")
 
-        best_entry = market_entry
         if entry_mode == "maker_limit":
-            depth_entry = market_entry
+            raw_depth_entry = raw_market_entry
             visible_entry_depth = notional
         else:
-            depth_entry, visible_entry_depth = book.entry_vwap(
-                side,
-                notional,
+            raw_depth_entry, visible_entry_depth = (
+                book.entry_vwap(
+                    side,
+                    notional,
+                )
             )
             if (
-                depth_entry is None
-                or visible_entry_depth + max(1e-9, notional * 1e-9)
+                raw_depth_entry is None
+                or visible_entry_depth
+                + max(1e-9, notional * 1e-9)
                 < notional
             ):
                 return RiskResult(
@@ -248,7 +260,11 @@ class RiskEngine:
                         f"{visible_entry_depth:.2f} < {notional:.2f} USD"
                     ),
                 )
-        market_entry = depth_entry
+        market_entry = apply_entry_slippage(
+            float(raw_depth_entry),
+            side,
+            entry_slippage_rate,
+        )
         if side == Side.LONG:
             entry_drift = (market_entry - setup_entry) / setup_entry
             if market_entry <= stop:
@@ -298,23 +314,30 @@ class RiskEngine:
         if depth_sized_notional < notional:
             notional = depth_sized_notional
             if entry_mode == "maker_limit":
-                depth_entry = market_entry
+                raw_depth_entry = raw_market_entry
                 visible_entry_depth = notional
             else:
-                depth_entry, visible_entry_depth = book.entry_vwap(
-                    side,
-                    notional,
+                raw_depth_entry, visible_entry_depth = (
+                    book.entry_vwap(
+                        side,
+                        notional,
+                    )
                 )
                 if (
-                    depth_entry is None
-                    or visible_entry_depth + max(1e-9, notional * 1e-9)
+                    raw_depth_entry is None
+                    or visible_entry_depth
+                    + max(1e-9, notional * 1e-9)
                     < notional
                 ):
                     return RiskResult(
                         False,
                         "insufficient visible entry depth after risk sizing",
                     )
-            market_entry = depth_entry
+            market_entry = apply_entry_slippage(
+                float(raw_depth_entry),
+                side,
+                entry_slippage_rate,
+            )
             if side == Side.LONG:
                 entry_drift = (market_entry - setup_entry) / setup_entry
                 target_pct = (target - market_entry) / market_entry
@@ -325,24 +348,48 @@ class RiskEngine:
             all_in_loss_pct = stop_pct + round_trip_cost_pct
 
         entry_depth_impact_bps = (
-            max(0.0, (market_entry - best_entry) / best_entry * 10_000)
+            max(
+                0.0,
+                (
+                    float(raw_depth_entry)
+                    - best_raw_entry
+                )
+                / best_raw_entry
+                * 10_000,
+            )
             if side == Side.LONG
-            else max(0.0, (best_entry - market_entry) / best_entry * 10_000)
+            else max(
+                0.0,
+                (
+                    best_raw_entry
+                    - float(raw_depth_entry)
+                )
+                / best_raw_entry
+                * 10_000,
+            )
         )
 
         target_fee_cost = notional * (
             entry_fee_rate + target_exit_fee_rate
         )
-        target_slippage_cost = notional * (
-            entry_slippage_rate + target_exit_slippage_rate
+        target_slippage_cost = (
+            notional * target_exit_slippage_rate
         )
         stop_fee_cost = notional * (
             entry_fee_rate + stop_exit_fee_rate
         )
-        stop_slippage_cost = notional * (
-            entry_slippage_rate + stop_exit_slippage_rate
+        stop_slippage_cost = (
+            notional * stop_exit_slippage_rate
         )
         stop_estimated_costs = stop_fee_cost + stop_slippage_cost
+
+        required_net_profit = max(
+            self.config.min_net_profit_usd,
+            balance * max(
+                0.0,
+                self.config.min_net_profit_equity_fraction,
+            ),
+        )
 
         # Price the same lifecycle that paper execution will actually use.
         # Known runner strategies can realize a partial at 1R and then carry
@@ -364,13 +411,38 @@ class RiskEngine:
             0.0,
             self.config.partial_take_at_r,
         )
-        partial_enabled = (
+        partial_candidate = (
             profile_is_known
             and self.config.partial_take_enabled
             and allow_runner
             and 0.0 < partial_fraction < 1.0
             and target_pct > partial_move_pct
         )
+        partial_leg_net_pct = (
+            partial_move_pct
+            - entry_fee_rate
+            - partial_exit_fee_rate
+            - partial_exit_slippage_rate
+        )
+        partial_net_at_trigger_usd = (
+            notional
+            * partial_fraction
+            * partial_leg_net_pct
+            if partial_candidate
+            else 0.0
+        )
+        partial_required_net_usd = (
+            required_net_profit
+            if self.config.enforce_min_net_profit_gate
+            else 0.0
+        )
+        partial_economic_ready = (
+            partial_candidate
+            and partial_net_at_trigger_usd
+            >= partial_required_net_usd
+            and partial_net_at_trigger_usd > 0
+        )
+        partial_enabled = partial_economic_ready
         target_source = str(decision.details.get("targetSource") or "")
         structural_liquidity_target = (
             target_source == "liquidity"
@@ -395,8 +467,7 @@ class RiskEngine:
                 + runner_fraction * target_exit_fee_rate
             )
             lifecycle_slippage_pct = (
-                entry_slippage_rate
-                + partial_fraction * partial_exit_slippage_rate
+                partial_fraction * partial_exit_slippage_rate
                 + runner_fraction * target_exit_slippage_rate
             )
         else:
@@ -404,7 +475,7 @@ class RiskEngine:
             lifecycle_gross_pct = target_pct
             lifecycle_fee_pct = entry_fee_rate + target_exit_fee_rate
             lifecycle_slippage_pct = (
-                entry_slippage_rate + target_exit_slippage_rate
+                target_exit_slippage_rate
             )
 
         lifecycle_cost_pct = lifecycle_fee_pct + lifecycle_slippage_pct
@@ -425,21 +496,43 @@ class RiskEngine:
             "0.30%": first_take_move_pct >= 0.0030,
         }
         lifecycle_fee_cost = notional * lifecycle_fee_pct
-        lifecycle_slippage_cost = notional * lifecycle_slippage_pct
-        estimated_costs = lifecycle_fee_cost + lifecycle_slippage_cost
+        lifecycle_slippage_cost = (
+            notional * lifecycle_slippage_pct
+        )
+        estimated_costs = (
+            lifecycle_fee_cost
+            + lifecycle_slippage_cost
+        )
         fee_cost = lifecycle_fee_cost
         slippage_cost = lifecycle_slippage_cost
+        embedded_entry_slippage_usd = (
+            notional * entry_slippage_rate
+        )
         gross_profit = notional * lifecycle_gross_pct
         gross_loss = notional * stop_pct
         expected_net = gross_profit - estimated_costs
         all_in_net_loss = gross_loss + stop_estimated_costs
+        winner_total_friction_usd = (
+            estimated_costs
+            + embedded_entry_slippage_usd
+        )
+        stop_total_friction_usd = (
+            stop_estimated_costs
+            + embedded_entry_slippage_usd
+        )
         winner_cost_share = (
-            estimated_costs / gross_profit
-            if gross_profit > 0
+            winner_total_friction_usd
+            / (
+                gross_profit
+                + embedded_entry_slippage_usd
+            )
+            if gross_profit
+            + embedded_entry_slippage_usd
+            > 0
             else float("inf")
         )
         stop_cost_share = (
-            stop_estimated_costs / gross_loss
+            stop_total_friction_usd / gross_loss
             if gross_loss > 0
             else float("inf")
         )
@@ -449,13 +542,6 @@ class RiskEngine:
         expected_net_loss = all_in_net_loss
         net_rr = expected_net / all_in_net_loss if all_in_net_loss > 0 else 0.0
 
-        required_net_profit = max(
-            self.config.min_net_profit_usd,
-            balance * max(
-                0.0,
-                self.config.min_net_profit_equity_fraction,
-            ),
-        )
         minimum_net_reward = (
             all_in_net_loss * self.config.min_net_reward_risk
         )
@@ -504,6 +590,12 @@ class RiskEngine:
             "effectiveLeverage": notional / balance if balance else 0.0,
             "setupEntry": setup_entry,
             "marketEntry": market_entry,
+            "rawExecutableEntry": float(raw_depth_entry),
+            "expectedEntryFill": market_entry,
+            "entrySlippageEmbeddedInFill": True,
+            "embeddedEntrySlippageUsd": (
+                embedded_entry_slippage_usd
+            ),
             "stop": stop,
             "target": target,
             "stopDistancePct": stop_pct,
@@ -517,8 +609,28 @@ class RiskEngine:
             "stopCostShare": stop_cost_share,
             "maximumStopCostShare": self.config.max_stop_cost_share,
             "stopCostShareGateEnabled": self.config.enforce_stop_cost_share_gate,
-            "partialFraction": partial_fraction if partial_enabled else 0.0,
-            "partialMovePct": partial_move_pct if partial_enabled else None,
+            "partialCandidate": partial_candidate,
+            "partialPlanned": partial_enabled,
+            "configuredPartialFraction": partial_fraction,
+            "partialFraction": (
+                partial_fraction
+                if partial_enabled
+                else 0.0
+            ),
+            "partialMovePct": (
+                partial_move_pct
+                if partial_candidate
+                else None
+            ),
+            "partialNetAtTriggerUsd": (
+                partial_net_at_trigger_usd
+            ),
+            "partialRequiredNetUsd": (
+                partial_required_net_usd
+            ),
+            "partialEconomicReady": (
+                partial_economic_ready
+            ),
             "firstTakeMovePct": first_take_move_pct,
             "minimumFirstTakeMovePct": self.config.min_first_take_move_pct,
             "firstTakeMoveGateEnabled": self.config.enforce_min_first_take_move_gate,
@@ -545,6 +657,12 @@ class RiskEngine:
             "allInLossPct": all_in_loss_pct,
             "targetEstimatedCostsUsd": estimated_costs,
             "stopEstimatedCostsUsd": stop_estimated_costs,
+            "winnerTotalFrictionUsd": (
+                winner_total_friction_usd
+            ),
+            "stopTotalFrictionUsd": (
+                stop_total_friction_usd
+            ),
             "entrySpreadPct": max(book.spread_pct, 0.0),
             "entryDepthImpactBps": entry_depth_impact_bps,
             "visibleEntryDepthUsd": visible_entry_depth,

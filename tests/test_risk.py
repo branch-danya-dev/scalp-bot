@@ -221,7 +221,7 @@ def scalp_settings(**overrides) -> Settings:
     return Settings(**values)
 
 
-def test_controlled_risk_scale_increases_structural_budget_but_keeps_hard_cap() -> None:
+def test_requested_positive_risk_scale_is_capped_at_base_risk() -> None:
     trade = decision(100.60, stop=99.80)
     trade.details["riskScale"] = 1.20
     trade.details["riskScaleSource"] = "test"
@@ -237,11 +237,10 @@ def test_controlled_risk_scale_increases_structural_budget_but_keeps_hard_cap() 
 
     assert result.allowed
     assert result.plan is not None
-    assert result.plan.notional == pytest.approx(3000)
     economics = result.plan.strategy_details["economics"]
     assert economics["baseStructuralRiskBudgetUsd"] == pytest.approx(5.0)
-    assert economics["structuralRiskBudgetUsd"] == pytest.approx(6.0)
-    assert economics["riskScale"] == pytest.approx(1.20)
+    assert economics["structuralRiskBudgetUsd"] == pytest.approx(5.0)
+    assert economics["riskScale"] == pytest.approx(1.0)
     hard_cap = 1000 * scalp_settings().max_trade_all_in_loss_fraction
     assert result.plan.expected_net_loss <= hard_cap + 1e-9
 
@@ -382,19 +381,33 @@ def test_trade_passes_when_net_target_exceeds_all_in_loss_by_required_ratio() ->
 
     assert result.allowed
     assert result.plan is not None
-    assert result.plan.notional == pytest.approx(5000)
-    assert result.plan.expected_net_profit == pytest.approx(15.75)
-    assert result.plan.expected_net_loss == pytest.approx(11.5)
     assert result.plan.net_reward_risk >= 1.15
     economics = result.plan.strategy_details["economics"]
+    expected_structural_notional = (
+        economics["structuralRiskBudgetUsd"]
+        / economics["stopDistancePct"]
+    )
+    assert result.plan.notional == pytest.approx(
+        expected_structural_notional
+    )
+    assert economics["structuralLossAtStopUsd"] == pytest.approx(5.0)
+    assert result.plan.expected_net_loss == pytest.approx(
+        economics["allInNetLossUsd"]
+    )
+    assert result.plan.expected_net_profit == pytest.approx(
+        economics["netAtTargetUsd"]
+    )
     assert economics["payoffGateEnabled"] is True
     assert economics["requiredNetRewardRisk"] == pytest.approx(1.15)
-    assert economics["allInNetLossUsd"] == pytest.approx(11.5)
-    assert economics["plannedAllInLossUsd"] == pytest.approx(11.5)
+    assert economics["plannedAllInLossUsd"] == pytest.approx(
+        economics["allInNetLossUsd"]
+    )
     assert economics["structuralRiskBudgetUsd"] == pytest.approx(5.0)
     assert economics["tradeAllInLossCapUsd"] == pytest.approx(12.5)
     assert economics["riskSizingBasis"] == "structural_stop_with_all_in_cap"
-    assert economics["notionalByStructuralRiskUsd"] == pytest.approx(5000)
+    assert economics["notionalByStructuralRiskUsd"] == pytest.approx(
+        expected_structural_notional
+    )
     assert economics["netRewardRiskRatio"] == pytest.approx(
         result.plan.net_reward_risk
     )
@@ -405,7 +418,7 @@ def test_trade_passes_when_net_target_exceeds_all_in_loss_by_required_ratio() ->
 def test_exact_net_reward_risk_boundary_is_accepted() -> None:
     result = RiskEngine(economic_settings()).build_plan(
         "BTCUSDT",
-        decision(100.3495, stop=99.90),
+        decision(100.34953, stop=99.90),
         1000,
         book(99.99, 100.00),
         10_000,
@@ -414,9 +427,8 @@ def test_exact_net_reward_risk_boundary_is_accepted() -> None:
 
     assert result.allowed
     assert result.plan is not None
-    assert result.plan.expected_net_loss == pytest.approx(11.5)
-    assert result.plan.expected_net_profit == pytest.approx(13.225)
-    assert result.plan.expected_net_profit == pytest.approx(
+    assert result.plan.net_reward_risk >= 1.15
+    assert result.plan.expected_net_profit >= (
         result.plan.expected_net_loss * 1.15
     )
 
@@ -424,7 +436,7 @@ def test_exact_net_reward_risk_boundary_is_accepted() -> None:
 def test_net_reward_risk_just_below_boundary_is_rejected() -> None:
     result = RiskEngine(economic_settings()).build_plan(
         "BTCUSDT",
-        decision(100.34948, stop=99.90),
+        decision(100.34950, stop=99.90),
         1000,
         book(99.99, 100.00),
         10_000,
@@ -494,10 +506,16 @@ def test_executable_spread_is_not_subtracted_twice() -> None:
 
     assert result.allowed
     assert result.plan is not None
+    economics = result.plan.strategy_details["economics"]
+    # Entry slippage is embedded in expectedEntryFill. Only fees/exit
+    # slippage remain in TradePlan.estimated_costs.
     assert result.plan.estimated_costs == pytest.approx(
+        result.plan.notional * 0.00075
+    )
+    assert economics["winnerTotalFrictionUsd"] == pytest.approx(
         result.plan.notional * 0.00085
     )
-    economics = result.plan.strategy_details["economics"]
+    assert economics["entrySlippageEmbeddedInFill"] is True
     assert economics["entrySpreadPct"] == pytest.approx(0.0010005, rel=1e-3)
     assert economics["spreadCostDoubleCounted"] is False
 
@@ -521,9 +539,14 @@ def test_structural_risk_fraction_sizes_stop_while_costs_use_separate_cap() -> N
     assert result.allowed
     assert result.plan is not None
     economics = result.plan.strategy_details["economics"]
-    assert result.plan.notional == pytest.approx(5000)
+    assert result.plan.notional == pytest.approx(
+        economics["structuralRiskBudgetUsd"]
+        / economics["stopDistancePct"]
+    )
     assert economics["structuralLossAtStopUsd"] == pytest.approx(5.0)
-    assert result.plan.expected_net_loss == pytest.approx(11.5)
+    assert result.plan.expected_net_loss == pytest.approx(
+        economics["allInNetLossUsd"]
+    )
     assert result.plan.expected_net_loss <= 12.5 + 1e-9
     assert result.plan.max_loss_usd == pytest.approx(result.plan.expected_net_loss)
     assert economics["riskSizingBasis"] == "structural_stop_with_all_in_cap"
@@ -545,7 +568,11 @@ def test_second_tight_stop_trade_is_scaled_by_remaining_all_in_risk() -> None:
     )
     assert first.allowed
     assert first.plan is not None
-    assert first.plan.notional == pytest.approx(5000)
+    first_economics = first.plan.strategy_details["economics"]
+    assert first.plan.notional == pytest.approx(
+        first_economics["structuralRiskBudgetUsd"]
+        / first_economics["stopDistancePct"]
+    )
     broker.open(first.plan, market)
 
     remaining_risk = broker.available_risk_usd
@@ -799,15 +826,30 @@ def test_breakout_economics_prices_actual_partial_runner_lifecycle() -> None:
     assert result.allowed
     assert result.plan is not None
     economics = result.plan.strategy_details["economics"]
+    assert economics["partialPlanned"] is True
     assert economics["partialFraction"] == pytest.approx(0.30)
     assert economics["runnerFraction"] == pytest.approx(0.70)
-    assert economics["runnerTargetPct"] == pytest.approx(0.0025)
-    assert economics["lifecycleGrossPct"] == pytest.approx(0.00205)
-    assert economics["lifecycleCostPct"] == pytest.approx(0.00085)
-    assert result.plan.expected_gross_profit == pytest.approx(10.25)
-    assert result.plan.estimated_costs == pytest.approx(4.25)
-    assert result.plan.expected_net_profit == pytest.approx(6.0)
-    assert economics["legacyGrossAtFinalTargetUsd"] == pytest.approx(10.0)
+    assert economics["runnerTargetPct"] == pytest.approx(
+        economics["stopDistancePct"] * 2.5
+    )
+    assert economics["lifecycleGrossPct"] == pytest.approx(
+        0.30 * economics["partialMovePct"]
+        + 0.70 * economics["runnerTargetPct"]
+    )
+    assert economics["lifecycleCostPct"] == pytest.approx(0.00075)
+    assert result.plan.expected_gross_profit == pytest.approx(
+        result.plan.notional * economics["lifecycleGrossPct"]
+    )
+    assert result.plan.estimated_costs == pytest.approx(
+        result.plan.notional * economics["lifecycleCostPct"]
+    )
+    assert result.plan.expected_net_profit == pytest.approx(
+        result.plan.expected_gross_profit
+        - result.plan.estimated_costs
+    )
+    assert economics["legacyGrossAtFinalTargetUsd"] == pytest.approx(
+        result.plan.notional * economics["targetMovePct"]
+    )
 
 
 def test_winner_cost_share_gate_blocks_fee_dominated_breakout() -> None:
@@ -1127,3 +1169,71 @@ def test_absolute_net_rr_floor_cannot_be_disabled_by_research_profile() -> None:
     assert result.diagnostics[
         "absoluteMinimumNetRewardRisk"
     ] == pytest.approx(1.0)
+
+
+
+def test_taker_plan_geometry_uses_slippage_adjusted_expected_fill() -> None:
+    cfg = scalp_settings(
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=1.0,
+        absolute_min_net_reward_risk=0.0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        decision(101.0, entry=100.0, stop=99.5),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        100,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    economics = result.plan.strategy_details["economics"]
+    assert economics["rawExecutableEntry"] == pytest.approx(100.0)
+    assert economics["expectedEntryFill"] == pytest.approx(100.01)
+    assert result.plan.market_entry == pytest.approx(100.01)
+    assert economics["entrySlippageEmbeddedInFill"] is True
+    assert economics["entrySlippageRate"] == pytest.approx(0.0001)
+
+
+def test_partial_is_not_planned_when_partial_leg_cannot_clear_min_net() -> None:
+    cfg = scalp_settings(
+        min_net_profit_usd=1.0,
+        min_net_profit_equity_fraction=0.0,
+        enforce_min_net_profit_gate=True,
+        partial_take_enabled=True,
+        partial_take_at_r=1.0,
+        breakout_partial_take_fraction=0.30,
+        taker_fee_rate=0.00055,
+        maker_fee_rate=0.00020,
+        slippage_bps=1.0,
+        absolute_min_net_reward_risk=0.0,
+    )
+    trade = StrategyDecision(
+        strategy="level_breakout",
+        action=Action.LONG,
+        reasons=["small stop"],
+        entry=100.0,
+        stop=99.90,
+        target=100.60,
+        details={"allowRunner": True},
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        trade,
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        100,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    economics = result.plan.strategy_details["economics"]
+    assert economics["partialCandidate"] is True
+    assert economics["partialPlanned"] is False
+    assert economics["partialNetAtTriggerUsd"] < 1.0
+    assert economics["partialFraction"] == 0.0
+    assert economics["runnerFraction"] == 1.0

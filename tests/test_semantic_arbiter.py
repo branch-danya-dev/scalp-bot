@@ -369,7 +369,12 @@ def test_fresh_high_quality_breakout_gets_bounded_risk_scale() -> None:
     assessment = assess_candidate(trade, ctx)
 
     assert assessment.allowed is True
-    assert assessment.risk_scale == 1.20
+    assert assessment.risk_scale == 1.0
+    assert any(
+        "positive risk scaling is disabled"
+        in reason
+        for reason in assessment.reasons
+    )
 
 
 def test_trend_strategy_never_receives_aggressive_risk_scale() -> None:

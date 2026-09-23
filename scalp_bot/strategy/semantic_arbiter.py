@@ -473,16 +473,14 @@ def _raw_assessment(
         and flow_class in {"strongly_aligned", "aligned"}
         and liquidity_class != "opposed"
     ):
-        if decision.strategy == "level_breakout":
-            risk_scale = 1.20
-        elif decision.strategy == "weak_level_rejection":
-            risk_scale = 1.10
+        reasons.append(
+            "fresh aligned evidence is recorded, but positive risk scaling "
+            "is disabled until the playbook proves positive expectancy"
+        )
 
-    # The failed 0/8 trend sample must prove itself before it can receive
-    # increased structural risk.
-    if decision.strategy == "trend_structure":
-        risk_scale = min(risk_scale, 1.0)
-    risk_scale = max(0.0, min(risk_scale, 1.25))
+    # Stage 19B: evidence may reduce risk, never increase it. The previous
+    # +20%/+10% sizing amplified false breakouts before edge was established.
+    risk_scale = max(0.0, min(risk_scale, 1.0))
 
     reasons.extend(structural_path.reasons)
     if flow_class:

@@ -1091,3 +1091,41 @@ def test_maker_partial_does_not_fill_on_book_only_touch() -> None:
     )
     assert events
     assert events[0]["event"] == "partial_take"
+
+
+
+def test_paper_does_not_take_partial_when_plan_marks_it_unprofitable() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        maker_fill_confirmation_bps=0,
+        partial_take_enabled=True,
+        partial_take_at_r=1.0,
+        breakout_partial_take_fraction=0.30,
+        no_follow_through_seconds=999,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("NOPARTUSDT", Side.LONG, 1000)
+    p.strategy = "level_breakout"
+    p.strategy_details = {
+        "allowRunner": True,
+        "economics": {
+            "partialPlanned": False,
+            "partialRequiredNetUsd": 1.0,
+        },
+    }
+    broker.open(p, book(99.99, 100.00))
+
+    events = broker.mark(
+        "NOPARTUSDT",
+        100.60,
+        book(100.60, 100.61),
+        trade_price=100.60,
+    )
+
+    assert not any(
+        event["event"] == "partial_take"
+        for event in events
+    )
+    assert broker.positions["NOPARTUSDT"].partial_taken is False
