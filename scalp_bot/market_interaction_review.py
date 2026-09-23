@@ -12,7 +12,7 @@ DEFAULT_MAX_SHARED_LEVEL_DISTANCE_PCT = 0.006
 TRACKED_STATES = {
     "trend_structure": {"pullback", "test", "reclaim", "continuation"},
     "weak_level_rejection": {"approach", "test", "reject", "reaction"},
-    "orderbook_density": {"approach", "test", "defended", "reaction"},
+    "orderbook_density": {"approach", "test", "defended", "reaction", "exhausted"},
     "level_breakout": {"approach", "pressure", "break", "impulse"},
 }
 
@@ -152,6 +152,17 @@ def _hypothesis_side(decision: dict) -> str | None:
         return None
 
     if strategy == "orderbook_density":
+        liquidity = details.get("liquidityEvidence") or {}
+        if isinstance(liquidity, dict):
+            directional_bias = str(
+                liquidity.get("directionalBias") or ""
+            )
+            if directional_bias == "up":
+                return "long"
+            if directional_bias == "down":
+                return "short"
+            if directional_bias == "flat":
+                return None
         wall_side = str(details.get("wallSide") or obj.get("side") or "")
         if wall_side == "ask":
             return "short"
