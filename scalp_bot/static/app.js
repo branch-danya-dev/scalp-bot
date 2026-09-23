@@ -16,7 +16,7 @@ let strategyEventFilter = "all";
 let eventTypeFilter = "all";
 let selectedReviewSession = "current";
 let lastLiveClosedTrades = [];
-const expandedTradeReviewIds = new Set();
+let selectedTradeReviewId = null;
 const tradeReviewCache = new Map();
 
 const $ = id => document.getElementById(id);
@@ -632,8 +632,7 @@ function renderEvents(rows) {
 async function loadReviewSession(sessionName) {
   const nextSession = sessionName || "current";
   if (nextSession !== selectedReviewSession) {
-    for (const reviewId of reviewCharts.keys()) destroyReviewChart(reviewId);
-    expandedTradeReviewIds.clear();
+    closeTradeReview();
     tradeReviewCache.clear();
   }
   selectedReviewSession = nextSession;
@@ -783,11 +782,19 @@ async function loadOpportunityReview() {
 
 function reviewSummaryFor(trade) {
   if (trade.reviewId) return trade;
-  return tradeReviewSummaries.find(review =>
+  const matches = tradeReviewSummaries.filter(review =>
     review.symbol === trade.symbol
     && review.setupId === trade.setupId
     && review.strategy === trade.strategy
-  ) || null;
+  );
+  if (!matches.length) return null;
+  const closedAt = Number(trade.closedAt || 0);
+  if (!closedAt) return matches[matches.length - 1];
+  return matches.slice().sort(
+    (left, right) =>
+      Math.abs(Number(left.closedAt || 0) - closedAt)
+      - Math.abs(Number(right.closedAt || 0) - closedAt)
+  )[0];
 }
 
 function timelineText(row) {
@@ -817,13 +824,93 @@ function destroyReviewChart(reviewId) {
   reviewCharts.delete(reviewId);
 }
 
+function closeTradeReview() {
+  for (const reviewId of Array.from(reviewCharts.keys())) {
+    destroyReviewChart(reviewId);
+  }
+  selectedTradeReviewId = null;
+  const inspector = $("tradeReviewInspector");
+  const root = $("tradeReviewInspectorContent");
+  if (inspector) inspector.classList.add("hidden");
+  if (root) root.innerHTML = "";
+  const rows = selectedReviewSession === "current"
+    ? lastLiveClosedTrades
+    : tradeReviewSummaries;
+  if (rows?.length) renderTrades(rows);
+}
+
+function reviewBookRows(rows, side) {
+  if (!rows?.length) return '<div class="empty-row">Нет уровней.</div>';
+  return rows.slice(0, 8).map(row => {
+    const notional = Number(row[2] ?? (Number(row[0]) * Number(row[1])));
+    return `<div class="review-book-row ${side}">
+      <span>${price(row[0])}</span>
+      <span>${compact(row[1])}</span>
+      <strong>${money(notional)}</strong>
+    </div>`;
+  }).join("");
+}
+
+function reviewSnapshotHtml(label, snapshot) {
+  if (!snapshot) {
+    return `<section class="review-snapshot"><h3>${label}</h3><div class="empty-row">Snapshot отсутствует.</div></section>`;
+  }
+  const book = snapshot.orderbook || {};
+  const flow = snapshot.tradeFlow || {};
+  const bookFlow = snapshot.bookFlow || {};
+  const health = snapshot.bookHealth || {};
+  const candleHealth = snapshot.candleHealth || {};
+  const density = snapshot.densityContext || {};
+  return `<section class="review-snapshot">
+    <h3>${label}</h3>
+    <div class="review-snapshot-metrics">
+      <span><small>Цена</small>${price(snapshot.lastPrice)}</span>
+      <span><small>Спред</small>${pct(book.spreadPct)}</span>
+      <span><small>Стакан</small>${health.fresh === false ? "STALE" : "fresh"} · ${health.bidLevels ?? "—"}/${health.askLevels ?? "—"}</span>
+      <span><small>1m история</small>${candleHealth.ageSeconds == null ? "—" : Number(candleHealth.ageSeconds).toFixed(1) + "s"}</span>
+      <span><small>Flow 5s</small>${Number(flow.imbalance5s || 0).toFixed(3)} · ${flow.tradeCount5s ?? 0} trades</span>
+      <span><small>CVD 5s</small>${money(flow.cvd5s || 0)}</span>
+      <span><small>OFI 5s</small>${money(bookFlow.bestLevelOfiUsd5s || 0)}</span>
+      <span><small>Top-5 depth</small>${money(bookFlow.top5DepthUsd || 0)}</span>
+      <span><small>Density</small>${density.state ? stateLabel(density.state) : "—"}${density.wallPrice ? " @ " + price(density.wallPrice) : ""}</span>
+    </div>
+    <div class="review-book-grid">
+      <div><div class="review-subtitle">ASK</div>${reviewBookRows(book.asks || [], "ask")}</div>
+      <div><div class="review-subtitle">BID</div>${reviewBookRows(book.bids || [], "bid")}</div>
+    </div>
+  </section>`;
+}
+
 function renderTradeReviewDetail(reviewId, review) {
-  const root = document.querySelector(`[data-review-detail="${CSS.escape(reviewId)}"]`);
-  if (!root) return;
+  if (selectedTradeReviewId !== reviewId) return;
+  const inspector = $("tradeReviewInspector");
+  const root = $("tradeReviewInspectorContent");
+  if (!inspector || !root) return;
+
+  for (const existingId of Array.from(reviewCharts.keys())) {
+    if (existingId !== reviewId) destroyReviewChart(existingId);
+  }
   destroyReviewChart(reviewId);
+
+  inspector.classList.remove("hidden");
   const summary = review.summary || {};
   const details = review.strategyDetails || {};
+  const economics = details.economics || review.plan?.strategy_details?.economics || {};
+  const plan = review.plan || {};
+  $("tradeReviewInspectorMeta").textContent =
+    `${summary.symbol || "—"} · ${strategyLabel(summary.strategy)} · ${reasonText(summary.reason)}`;
+
   root.innerHTML = `
+    <div class="review-summary-metrics">
+      <span><small>Net</small><strong class="${Number(summary.netPnl || 0) >= 0 ? "positive" : "negative"}">${money(summary.netPnl)}</strong></span>
+      <span><small>Gross</small><strong>${money(summary.grossPnl)}</strong></span>
+      <span><small>Комиссии</small><strong>${money(summary.fees)}</strong></span>
+      <span><small>MAE / MFE</small><strong>${Number(summary.maeR || 0).toFixed(2)}R / ${Number(summary.mfeR || 0).toFixed(2)}R</strong></span>
+      <span><small>Длительность</small><strong>${duration(summary.durationSeconds)}</strong></span>
+      <span><small>Notional</small><strong>${money(summary.originalNotional)}</strong></span>
+      <span><small>Winner cost share</small><strong>${economics.winnerCostShare == null ? "—" : (Number(economics.winnerCostShare) * 100).toFixed(1) + "%"}</strong></span>
+      <span><small>Плановый net R:R</small><strong>${economics.netRewardRisk == null ? "—" : Number(economics.netRewardRisk).toFixed(2)}</strong></span>
+    </div>
     <div class="review-grid">
       <div class="review-chart" data-review-chart="${reviewId}"></div>
       <div class="review-timeline">
@@ -840,16 +927,23 @@ function renderTradeReviewDetail(reviewId, review) {
     <div class="review-context">
       <div><b>Стратегия:</b> ${strategyLabel(summary.strategy)}</div>
       <div><b>Сетап:</b> ${summary.setupId || "—"}</div>
+      <div><b>Вход:</b> ${price(summary.entry)} · <b>выход:</b> ${price(summary.exit)}</div>
+      <div><b>Стоп:</b> ${price(summary.initialStop)} · <b>цель:</b> ${price(summary.target)}</div>
       <div><b>Источник цели:</b> ${marketObjectLabel(details.targetSource || "—")}</div>
-      <div><b>Исполнение:</b> ${details.economics?.executionProfile?.entry || "—"} → ${details.economics?.executionProfile?.target_exit || "—"}</div>
+      <div><b>Исполнение:</b> ${economics.executionProfile?.entry || plan.entry_mode || "—"} → ${economics.executionProfile?.target_exit || "—"}</div>
+      <div><b>Lifecycle cost:</b> ${economics.lifecycleCostPct == null ? "—" : pct(economics.lifecycleCostPct)}</div>
       <div><b>Выход:</b> ${reasonText(summary.reason)}</div>
+    </div>
+    <div class="review-snapshots">
+      ${reviewSnapshotHtml("На входе", review.openSnapshot)}
+      ${reviewSnapshotHtml("На выходе", review.closeSnapshot)}
     </div>`;
 
   const chartRoot = root.querySelector("[data-review-chart]");
   if (!chartRoot || !window.LightweightCharts) return;
   const mini = LightweightCharts.createChart(chartRoot, {
     autoSize:true,
-    height:300,
+    height:340,
     layout:{background:{color:"transparent"}, textColor:"#6e6e73"},
     grid:{vertLines:{color:"#f1f1f3"}, horzLines:{color:"#f1f1f3"}},
     rightPriceScale:{borderVisible:false},
@@ -882,40 +976,45 @@ function renderTradeReviewDetail(reviewId, review) {
 }
 
 async function loadTradeReviewDetail(reviewId) {
-  const detail = document.querySelector(`[data-review-detail="${CSS.escape(reviewId)}"]`);
-  if (!detail || !expandedTradeReviewIds.has(reviewId)) return;
+  if (!reviewId || selectedTradeReviewId !== reviewId) return;
+  const inspector = $("tradeReviewInspector");
+  const root = $("tradeReviewInspectorContent");
+  if (!inspector || !root) return;
+  inspector.classList.remove("hidden");
+
   const cached = tradeReviewCache.get(reviewId);
   if (cached) {
     renderTradeReviewDetail(reviewId, cached);
     return;
   }
-  detail.innerHTML = '<div class="empty-row">Загрузка разбора сделки…</div>';
+  root.innerHTML = '<div class="empty-row">Загрузка разбора сделки…</div>';
   try {
     const sessionQuery = selectedReviewSession === "current"
       ? ""
       : `?session=${encodeURIComponent(selectedReviewSession)}`;
     const review = await api(`/api/reviews/trades/${encodeURIComponent(reviewId)}${sessionQuery}`);
     tradeReviewCache.set(reviewId, review);
-    if (expandedTradeReviewIds.has(reviewId)) renderTradeReviewDetail(reviewId, review);
+    if (selectedTradeReviewId === reviewId) {
+      renderTradeReviewDetail(reviewId, review);
+    }
   } catch (error) {
-    if (expandedTradeReviewIds.has(reviewId)) {
-      detail.innerHTML = `<div class="review-error">${String(error.message || error)}</div>`;
+    if (selectedTradeReviewId === reviewId) {
+      root.innerHTML = `<div class="review-error">${String(error.message || error)}</div>`;
     }
   }
 }
 
 async function openTradeReview(reviewId) {
-  const detail = document.querySelector(`[data-review-detail="${CSS.escape(reviewId)}"]`);
-  if (!detail) return;
-  if (expandedTradeReviewIds.has(reviewId)) {
-    expandedTradeReviewIds.delete(reviewId);
-    detail.classList.add("hidden");
-    destroyReviewChart(reviewId);
-    return;
-  }
-  expandedTradeReviewIds.add(reviewId);
-  detail.classList.remove("hidden");
+  if (!reviewId) return;
+  selectedTradeReviewId = reviewId;
+  const inspector = $("tradeReviewInspector");
+  if (inspector) inspector.classList.remove("hidden");
+  const rows = selectedReviewSession === "current"
+    ? lastLiveClosedTrades
+    : tradeReviewSummaries;
+  renderTrades(rows);
   await loadTradeReviewDetail(reviewId);
+  inspector?.scrollIntoView({behavior:"smooth", block:"start"});
 }
 
 function renderTrades(rows) {
@@ -927,10 +1026,11 @@ function renderTrades(rows) {
   root.innerHTML = rows.slice().reverse().map(trade => {
     const netClass = trade.netPnl >= 0 ? "positive" : "negative";
     const review = reviewSummaryFor(trade);
+    const selected = review && review.reviewId === selectedTradeReviewId;
     const reviewButton = review
-      ? `<button class="button secondary review-open" data-open-review="${review.reviewId}">Разбор сделки</button>`
+      ? `<button class="button secondary review-open ${selected ? "active" : ""}" data-open-review="${review.reviewId}">${selected ? "Разбор открыт" : "Разбор сделки"}</button>`
       : '<span class="review-pending">Разбор формируется</span>';
-    return `<article class="trade-card">
+    return `<article class="trade-card ${selected ? "review-selected" : ""}">
       <div class="trade-card-head">
         <div>
           <strong>${trade.symbol} · ${sideLabel(trade.side)}</strong>
@@ -946,17 +1046,11 @@ function renderTrades(rows) {
         <span><small>Причина выхода</small>${reasonText(trade.reason)}</span>
       </div>
       <div class="trade-card-actions">${reviewButton}</div>
-      ${review ? `<div class="trade-review-detail ${expandedTradeReviewIds.has(review.reviewId) ? "" : "hidden"}" data-review-detail="${review.reviewId}"></div>` : ""}
     </article>`;
   }).join("");
   document.querySelectorAll("[data-open-review]").forEach(button => {
     button.onclick = () => openTradeReview(button.dataset.openReview);
   });
-  for (const reviewId of expandedTradeReviewIds) {
-    if (document.querySelector(`[data-review-detail="${CSS.escape(reviewId)}"]`)) {
-      loadTradeReviewDetail(reviewId);
-    }
-  }
 }
 
 function render(data) {
@@ -1101,5 +1195,7 @@ bindEventFilters();
 bindReviewSessions();
 const opportunityButton = $("opportunityRefresh");
 if (opportunityButton) opportunityButton.onclick = loadOpportunityReview;
+const tradeReviewClose = $("tradeReviewClose");
+if (tradeReviewClose) tradeReviewClose.onclick = closeTradeReview;
 refresh();
 setInterval(refresh, 900);
