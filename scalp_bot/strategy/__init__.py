@@ -10,6 +10,14 @@ from .common import (
 from .density import DensityBounceStrategy, DensityStage
 from .liquidity import LiquidityTarget, find_liquidity_target
 from .lifecycle import LevelLifecycleTracker
+from .regime import (
+    HTFBias,
+    HTFBiasSnapshot,
+    LocalRegime,
+    LocalRegimeSnapshot,
+    classify_htf_bias,
+    classify_local_regime,
+)
 from .structure import MarketStructure, StructuralLevel, TrendLine, build_market_structure
 from .trend_structure import TrendStructureStrategy
 from .weak_level_rejection import RejectionStage, WeakLevelRejectionStrategy
@@ -37,6 +45,12 @@ __all__ = [
     "LiquidityTarget",
     "find_liquidity_target",
     "LevelLifecycleTracker",
+    "HTFBias",
+    "HTFBiasSnapshot",
+    "LocalRegime",
+    "LocalRegimeSnapshot",
+    "classify_htf_bias",
+    "classify_local_regime",
     "MarketStructure",
     "StructuralLevel",
     "TrendLine",
