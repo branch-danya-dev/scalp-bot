@@ -269,6 +269,9 @@ def _session_meta(
             or 0
         ),
         "generatedAt": report.get("generatedAt"),
+        "eventRowsAvailable": bool(
+            source.get("rows")
+        ),
     }
 
 
@@ -909,6 +912,12 @@ def aggregate_research_sources(
                 "labels. They are never fed back into live "
                 "features inside the source session."
             ),
+            "eventCoverageWarning": (
+                "Arbiter-block event aggregation is complete only "
+                "for sources with raw/session-analysis rows. "
+                "Standalone session reports do not contain the "
+                "individual arbiter_blocked events."
+            ),
         },
         "summary": {
             "sessions": len(sessions),
@@ -924,6 +933,14 @@ def aggregate_research_sources(
             ),
             "arbiterBlocks": len(
                 arbiter_blocks
+            ),
+            "sessionsWithEventRows": sum(
+                bool(row.get("eventRowsAvailable"))
+                for row in sessions
+            ),
+            "sessionsWithoutEventRows": sum(
+                not bool(row.get("eventRowsAvailable"))
+                for row in sessions
             ),
             "runLabels": sorted({
                 str(row.get("runLabel") or "")
