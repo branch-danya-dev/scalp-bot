@@ -578,7 +578,14 @@ function eventText(event) {
   if (event.event === "setup_blocked") return `${strategyLabel(payload.strategy)}: ${reasonText(payload.reason)}`;
   if (event.event === "setup_consumed") return `${strategyLabel(payload.strategy)}: сетап использован`;
   if (event.event === "setup_rearmed") return `${strategyLabel(payload.strategy)}: переактивирован`;
-  if (event.event === "decision") return `${strategyLabel(payload.strategy)}: ${(payload.reasons || []).map(reasonText).join(" · ")}`;
+  if (event.event === "decision") {
+    const details = payload.details || {};
+    const metrics = [];
+    if (details.distancePct != null) metrics.push(`до опоры ${(Number(details.distancePct) * 10000).toFixed(1)} bps`);
+    if (details.testDistancePct != null) metrics.push(`test ${(Number(details.testDistancePct) * 10000).toFixed(1)} bps`);
+    if (details.deepPenetrationPct != null) metrics.push(`penetration ${(Number(details.deepPenetrationPct) * 10000).toFixed(1)} bps`);
+    return `${strategyLabel(payload.strategy)} · ${stateLabel(details.state)}: ${(payload.reasons || []).map(reasonText).join(" · ")}${metrics.length ? " · " + metrics.join(" · ") : ""}`;
+  }
   if (event.event === "symbol_activated") return "монета стала активной";
   if (event.event === "symbol_deactivated") return reasonText(payload.reason || "deactivated");
   if (event.event === "run_summary") return `${reasonText(payload.reason)} · прошло ${duration(payload.elapsedSeconds)} · PnL ${money(payload.realizedPnl)} · сделок ${payload.closedTrades}`;
