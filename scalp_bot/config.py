@@ -81,6 +81,7 @@ class Settings(BaseSettings):
     # Breakout scale-in is disabled after the Stage 17 smoke: the add leg
     # amplified false breakdowns. Rejection keeps staged entry support.
     breakout_staged_entries_enabled: bool = False
+    weak_level_rejection_staged_entries_enabled: bool = False
     breakout_probe_risk_fraction: float = 0.35
     weak_level_rejection_probe_risk_fraction: float = 0.30
     breakout_retest_tolerance_bps: float = 3.0
