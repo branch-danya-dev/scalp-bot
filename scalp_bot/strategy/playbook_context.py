@@ -364,7 +364,7 @@ def rejection_direction_plan(
         allowed_directions=directions,
         primary_direction=(
             directions[0]
-            if len(directions) == 1
+            if directions
             else Trend.FLAT
         ),
         source=source,
