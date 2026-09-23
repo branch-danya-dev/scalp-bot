@@ -2319,3 +2319,151 @@ def test_arbiter_does_not_treat_orphaned_add_as_new_entry(tmp_path) -> None:
         assert "AAAUSDT" not in engine.broker.positions
     finally:
         close_rest(engine)
+
+
+
+def test_pending_maker_entry_is_cancelled_when_setup_invalidates(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        passive_entry_enabled=True,
+    )
+    try:
+        pending_plan = plan("AAAUSDT")
+        pending_plan.strategy = "weak_level_rejection"
+        pending_plan.entry_mode = "maker_limit"
+        pending_plan.setup_id = "reject:g1"
+        engine.broker.place_pending(pending_plan)
+
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100.0,
+        )
+        session.decisions["weak_level_rejection"] = (
+            StrategyDecision(
+                strategy="weak_level_rejection",
+                action=Action.WAIT,
+                reasons=["failed break no longer valid"],
+                details={"state": "search"},
+            )
+        )
+
+        engine._validate_pending_entry(session)
+
+        assert "AAAUSDT" not in engine.broker.pending_entries
+        cancelled = next(
+            row
+            for row in engine.events
+            if row["event"] == "entry_cancelled"
+        )
+        assert cancelled["payload"]["reason"] == (
+            "setup_invalidated:setup_no_longer_tradeable"
+        )
+    finally:
+        close_rest(engine)
+
+
+def test_pending_maker_entry_survives_same_fresh_setup(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        passive_entry_enabled=True,
+    )
+    try:
+        pending_plan = plan("AAAUSDT")
+        pending_plan.strategy = "weak_level_rejection"
+        pending_plan.entry_mode = "maker_limit"
+        pending_plan.setup_id = "reject:g1"
+        engine.broker.place_pending(pending_plan)
+
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100.0,
+        )
+        session.decisions["weak_level_rejection"] = (
+            StrategyDecision(
+                strategy="weak_level_rejection",
+                action=Action.LONG,
+                reasons=["same rejection remains valid"],
+                entry=100.0,
+                stop=99.5,
+                target=101.0,
+                setup_id="reject:g1",
+                details={
+                    "state": "reject",
+                    "opportunityFreshness": {
+                        "classification": "fresh",
+                    },
+                    "entryContextAssessment": {
+                        "allowed": True,
+                    },
+                },
+            )
+        )
+
+        engine._validate_pending_entry(session)
+
+        assert "AAAUSDT" in engine.broker.pending_entries
+        assert not any(
+            row["event"] == "entry_cancelled"
+            for row in engine.events
+        )
+    finally:
+        close_rest(engine)
+
+
+def test_pending_maker_entry_cancels_when_freshness_turns_late(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        passive_entry_enabled=True,
+    )
+    try:
+        pending_plan = plan("AAAUSDT")
+        pending_plan.strategy = "weak_level_rejection"
+        pending_plan.entry_mode = "maker_limit"
+        pending_plan.setup_id = "reject:g1"
+        engine.broker.place_pending(pending_plan)
+
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100.0,
+        )
+        session.decisions["weak_level_rejection"] = (
+            StrategyDecision(
+                strategy="weak_level_rejection",
+                action=Action.LONG,
+                reasons=["same setup but edge aged"],
+                entry=100.0,
+                stop=99.5,
+                target=101.0,
+                setup_id="reject:g1",
+                details={
+                    "state": "reject",
+                    "opportunityFreshness": {
+                        "classification": "late",
+                    },
+                },
+            )
+        )
+
+        engine._validate_pending_entry(session)
+
+        assert "AAAUSDT" not in engine.broker.pending_entries
+        assert any(
+            row["event"] == "entry_cancelled"
+            and row["payload"]["reason"]
+            == "setup_invalidated:setup_freshness_late"
+            for row in engine.events
+        )
+    finally:
+        close_rest(engine)
