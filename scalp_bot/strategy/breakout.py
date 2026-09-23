@@ -24,6 +24,12 @@ from .common import (
 )
 from .flow import flow_at_level, flow_beyond_level
 from .liquidity import find_liquidity_targets
+from .playbook_context import (
+    PlaybookKind,
+    assess_entry_context,
+    breakout_direction_plan,
+    position_context_supported,
+)
 
 
 class BreakoutStage(StrEnum):
@@ -267,8 +273,12 @@ class LevelBreakoutStrategy(Strategy):
                 strategy_details.pop(key, None)
         if unrealized_pnl >= 0:
             return None
-        expected = Trend.UP if side == Side.LONG else Trend.DOWN
-        if trend != expected:
+        if not position_context_supported(
+            PlaybookKind.LEVEL_BREAKOUT,
+            side,
+            market_context,
+            trend,
+        ):
             return "breakout_context_lost"
         return None
 
@@ -284,51 +294,109 @@ class LevelBreakoutStrategy(Strategy):
         market_context: "MarketContext | None" = None,
         observed_at_ms: int | None = None,
     ) -> StrategyDecision:
-        if len(candles) < 60 or trend == Trend.FLAT or not symbol:
+        context_plan = breakout_direction_plan(
+            market_context,
+            trend,
+        )
+        if (
+            len(candles) < 60
+            or not symbol
+            or not context_plan.allowed_directions
+        ):
             if symbol:
                 self.reset(symbol)
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
-                ["Нет направленного контекста для пробоя"],
-                details={"state": BreakoutStage.SEARCH.value},
+                ["MarketContext пока не даёт направление для breakout playbook"],
+                details={
+                    "state": BreakoutStage.SEARCH.value,
+                    "playbookContext": context_plan.public(),
+                    "legacyTrend": trend.value,
+                },
             )
 
         state = self._states.setdefault(symbol, BreakoutWatchState())
         trades = trades or []
         price = book.mid or candles[-1].close
-        long_side = trend == Trend.UP
-        zone_kind: LevelKind = "resistance" if long_side else "support"
-        if structure is not None:
-            structural = [
-                level
-                for level in structure.levels
-                if level.kind == zone_kind
-                and level.touches >= self.min_zone_touches
-                and level.distinct_approaches >= self.min_distinct_approaches
-                and level.reaction_pct >= typical_range_pct(candles) * 0.45
-                and level.volume_ratio >= 0.80
-                and level.lifecycle == "worked"
-            ]
-            zones = [level.as_zone() for level in structural]
-        else:
-            zones = detect_level_zones(
-                candles,
-                zone_kind,
-                min_touches=self.min_zone_touches,
-            )
-            zones = [zone for zone in zones if self._mature(zone, candles)]
-        zone = self._select_zone(zones, price, long_side=long_side)
 
-        if zone is None:
+        candidates: list[
+            tuple[float, Trend, LevelZone, list]
+        ] = []
+        for direction in context_plan.allowed_directions:
+            long_candidate = direction == Trend.UP
+            zone_kind: LevelKind = (
+                "resistance"
+                if long_candidate
+                else "support"
+            )
+            if structure is not None:
+                structural_rows = [
+                    level
+                    for level in structure.levels
+                    if level.kind == zone_kind
+                    and level.touches >= self.min_zone_touches
+                    and level.distinct_approaches >= self.min_distinct_approaches
+                    and level.reaction_pct
+                    >= typical_range_pct(candles) * 0.45
+                    and level.volume_ratio >= 0.80
+                    and level.lifecycle == "worked"
+                ]
+                zones = [
+                    level.as_zone()
+                    for level in structural_rows
+                ]
+            else:
+                structural_rows = []
+                zones = detect_level_zones(
+                    candles,
+                    zone_kind,
+                    min_touches=self.min_zone_touches,
+                )
+                zones = [
+                    zone
+                    for zone in zones
+                    if self._mature(zone, candles)
+                ]
+            candidate_zone = self._select_zone(
+                zones,
+                price,
+                long_side=long_candidate,
+            )
+            if candidate_zone is not None:
+                candidates.append(
+                    (
+                        abs(candidate_zone.center - price),
+                        direction,
+                        candidate_zone,
+                        structural_rows,
+                    )
+                )
+
+        if not candidates:
             state.stage = BreakoutStage.SEARCH
             state.zone_key = None
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
-                ["Зрелая наторгованная зона для пробоя рядом не найдена"],
-                details={"state": state.stage.value},
+                ["Зрелая наторгованная зона для разрешённого breakout-направления рядом не найдена"],
+                details={
+                    "state": state.stage.value,
+                    "playbookContext": context_plan.public(),
+                    "legacyTrend": trend.value,
+                },
             )
+
+        _, playbook_trend, zone, structural = min(
+            candidates,
+            key=lambda row: row[0],
+        )
+        long_side = playbook_trend == Trend.UP
+        context_details = {
+            "playbookContext": context_plan.public(),
+            "playbookTrend": playbook_trend.value,
+            "legacyTrend": trend.value,
+        }
 
         generation = self._generation(zone)
         if structure is not None:
