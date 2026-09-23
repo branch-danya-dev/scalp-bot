@@ -419,6 +419,7 @@ class ActiveSymbolSession:
                         decision,
                         self.trend,
                         now_ms,
+                        market_context=self.market_context_public(),
                     ),
                 }
                 for key, decision in self.decisions.items()
@@ -2038,10 +2039,12 @@ class TradingEngine:
                 stats["waitDecisions"] += 1
         observed_at_ms = int(time() * 1000)
         payload = decision.public()
+        payload["marketContext"] = session.market_context_public()
         payload["trace"] = build_decision_trace(
             decision,
             session.trend,
             observed_at_ms,
+            market_context=session.market_context_public(),
         )
         self._emit("decision", session.symbol, payload)
 
