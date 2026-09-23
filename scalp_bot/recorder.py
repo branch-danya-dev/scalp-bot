@@ -463,6 +463,32 @@ class SessionRecorder:
 
 
     @staticmethod
+    def _compact_market_snapshot(
+        snapshot: dict | None,
+        *,
+        book_depth: int = 10,
+    ) -> dict | None:
+        if not isinstance(snapshot, dict):
+            return None
+        book = snapshot.get("orderbook") or {}
+        return {
+            "lastPrice": snapshot.get("lastPrice"),
+            "trend": snapshot.get("trend"),
+            "orderbook": {
+                "bids": list(book.get("bids") or [])[:book_depth],
+                "asks": list(book.get("asks") or [])[:book_depth],
+                "bestBid": book.get("bestBid"),
+                "bestAsk": book.get("bestAsk"),
+                "spreadPct": book.get("spreadPct"),
+            },
+            "bookHealth": snapshot.get("bookHealth"),
+            "candleHealth": snapshot.get("candleHealth"),
+            "tradeFlow": snapshot.get("tradeFlow"),
+            "bookFlow": snapshot.get("bookFlow"),
+            "densityContext": snapshot.get("densityContext"),
+        }
+
+    @staticmethod
     def _compact_closed_trade(row: dict) -> dict:
         payload = dict(row.get("payload") or {})
         payload.pop("market", None)
@@ -490,6 +516,49 @@ class SessionRecorder:
         run_summary: dict | None = None
         chart_candles: dict[str, dict[int, dict]] = {}
         coverage: dict[str, dict] = {}
+        strategy_diagnostics: dict[str, dict] = {}
+
+        def strategy_diag(strategy: str) -> dict:
+            return strategy_diagnostics.setdefault(
+                strategy,
+                {
+                    "decisionUpdates": 0,
+                    "tradeableDecisionUpdates": 0,
+                    "waitDecisionUpdates": 0,
+                    "tradeableSetupKeys": set(),
+                    "riskRejectUpdates": 0,
+                    "riskRejectedSetupKeys": set(),
+                    "stateCounts": {},
+                    "riskRejectReasons": {},
+                    "entryPending": 0,
+                    "entryCancelled": 0,
+                    "tradesOpened": 0,
+                    "tradesClosed": 0,
+                    "wins": 0,
+                    "losses": 0,
+                    "grossPnl": 0.0,
+                    "fees": 0.0,
+                    "netPnl": 0.0,
+                },
+            )
+
+        def setup_key(
+            symbol: str,
+            strategy: str,
+            payload: dict,
+        ) -> str:
+            setup_id = (
+                payload.get("setup_id")
+                or payload.get("setupId")
+            )
+            if setup_id:
+                return f"{symbol}:{setup_id}"
+            return (
+                f"{symbol}:{strategy}:"
+                f"{payload.get('entry')}:"
+                f"{payload.get('stop')}:"
+                f"{payload.get('target')}"
+            )
 
         def symbol_coverage(symbol: str) -> dict:
             return coverage.setdefault(
@@ -523,6 +592,83 @@ class SessionRecorder:
             ts = cls._row_ts(row)
             payload = row.get("payload") or {}
             symbol = str(row.get("symbol") or "")
+
+            if event == "decision":
+                strategy = str(payload.get("strategy") or "")
+                if strategy:
+                    item_diag = strategy_diag(strategy)
+                    item_diag["decisionUpdates"] += 1
+                    action = str(payload.get("action") or "")
+                    details = payload.get("details") or {}
+                    trace = payload.get("trace") or {}
+                    state = str(
+                        details.get("state")
+                        or trace.get("state")
+                        or "unknown"
+                    )
+                    states = item_diag["stateCounts"]
+                    states[state] = states.get(state, 0) + 1
+                    if action in {"long", "short"}:
+                        item_diag["tradeableDecisionUpdates"] += 1
+                        item_diag["tradeableSetupKeys"].add(
+                            setup_key(symbol, strategy, payload)
+                        )
+                    else:
+                        item_diag["waitDecisionUpdates"] += 1
+
+            if event == "risk_reject":
+                strategy = str(payload.get("strategy") or "")
+                if strategy:
+                    item_diag = strategy_diag(strategy)
+                    item_diag["riskRejectUpdates"] += 1
+                    decision = payload.get("decision") or {}
+                    item_diag["riskRejectedSetupKeys"].add(
+                        setup_key(symbol, strategy, decision)
+                    )
+                    reason = str(payload.get("reason") or "unknown")
+                    reasons = item_diag["riskRejectReasons"]
+                    reasons[reason] = reasons.get(reason, 0) + 1
+
+            if event in {"entry_pending", "entry_cancelled"}:
+                strategy = str(
+                    payload.get("strategy")
+                    or (payload.get("plan") or {}).get("strategy")
+                    or ""
+                )
+                if strategy:
+                    key = (
+                        "entryPending"
+                        if event == "entry_pending"
+                        else "entryCancelled"
+                    )
+                    strategy_diag(strategy)[key] += 1
+
+            if event == "trade_opened":
+                strategy = str(
+                    (payload.get("plan") or {}).get("strategy")
+                    or payload.get("strategy")
+                    or ""
+                )
+                if strategy:
+                    strategy_diag(strategy)["tradesOpened"] += 1
+
+            if event == "trade_closed":
+                strategy = str(payload.get("strategy") or "")
+                if strategy:
+                    item_diag = strategy_diag(strategy)
+                    net = float(payload.get("netPnl") or 0.0)
+                    item_diag["tradesClosed"] += 1
+                    item_diag["grossPnl"] += float(
+                        payload.get("grossPnl") or 0.0
+                    )
+                    item_diag["fees"] += float(
+                        payload.get("fees") or 0.0
+                    )
+                    item_diag["netPnl"] += net
+                    if net > 0:
+                        item_diag["wins"] += 1
+                    elif net < 0:
+                        item_diag["losses"] += 1
 
             if event == "run_summary":
                 run_summary = dict(payload)
@@ -589,6 +735,12 @@ class SessionRecorder:
                 "strategyDetails": review["strategyDetails"],
                 "candles": review["candles"],
                 "timeline": review["timeline"],
+                "openSnapshot": cls._compact_market_snapshot(
+                    review.get("openSnapshot")
+                ),
+                "closeSnapshot": cls._compact_market_snapshot(
+                    review.get("closeSnapshot")
+                ),
             }
             for review in trade_reviews
         ]
@@ -606,6 +758,18 @@ class SessionRecorder:
                 "chartCandles": [candle_map[key] for key in sorted(candle_map)],
             }
 
+        strategy_report = {}
+        for strategy, item in strategy_diagnostics.items():
+            tradeable_keys = item.pop("tradeableSetupKeys")
+            rejected_keys = item.pop("riskRejectedSetupKeys")
+            strategy_report[strategy] = {
+                **item,
+                "uniqueTradeableSetups": len(tradeable_keys),
+                "uniqueRiskRejectedSetups": len(rejected_keys),
+                "tradeableSetupKeys": sorted(tradeable_keys),
+                "riskRejectedSetupKeys": sorted(rejected_keys),
+            }
+
         return {
             "schemaVersion": 1,
             "generatedAt": datetime.now(UTC).isoformat(),
@@ -617,6 +781,7 @@ class SessionRecorder:
             },
             "runSummary": run_summary,
             "postRunOpportunity": opportunity,
+            "strategyDiagnostics": strategy_report,
             "closedTrades": closed_trades,
             "tradeReviews": compact_reviews,
             "coins": {
