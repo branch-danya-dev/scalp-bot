@@ -59,6 +59,36 @@ def test_entry_freshness_classifies_move_spent_ratio() -> None:
     assert freshness.confirmation_age_seconds == 6.0
 
 
+def test_opportunity_age_can_mark_low_drift_breakout_exhausted() -> None:
+    decision = tradeable(
+        "level_breakout",
+        action=Action.SHORT,
+        entry=99.95,
+        stop=100.4,
+        target=99.0,
+        state="impulse",
+        details={"expectedImpulsePct": 0.01},
+    )
+
+    freshness = classify_entry_freshness(
+        decision,
+        trigger_price=100.0,
+        trigger_ts=100.0,
+        current_price=99.95,
+        observed_ts=283.8,
+        source="pressure_state",
+    )
+
+    assert freshness.move_spent_ratio < 0.1
+    assert freshness.time_spent_ratio > 1.5
+    assert freshness.effective_spent_ratio == freshness.time_spent_ratio
+    assert freshness.classification == EntryFreshnessClass.EXHAUSTED
+    assert any(
+        "elapsed opportunity age" in reason
+        for reason in freshness.reasons
+    )
+
+
 def test_entry_freshness_marks_exhausted_setup() -> None:
     decision = tradeable(
         "level_breakout",
