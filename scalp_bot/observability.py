@@ -133,6 +133,8 @@ def _evidence(details: dict[str, Any]) -> dict[str, Any]:
         "remainingRatio",
         "strengthMultiple",
         "entryFreshness",
+        "multiHorizonFlow",
+        "flowAlignment",
     )
     return {
         key: details[key]
