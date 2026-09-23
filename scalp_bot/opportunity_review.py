@@ -398,21 +398,27 @@ def _latest_decisions_before(
     rows: list[dict],
     *,
     symbol: str,
-    start_ts: float,
     end_ts: float,
 ) -> list[dict]:
     latest: dict[str, dict] = {}
     for row in rows:
-        if row.get("event") != "decision" or row.get("symbol") != symbol:
+        if row.get("symbol") != symbol:
             continue
         ts = _row_ts(row)
-        if ts < start_ts or ts > end_ts:
+        if ts > end_ts:
+            break
+        event = str(row.get("event") or "")
+        if event in {"symbol_activated", "symbol_deactivated"}:
+            latest.clear()
+            continue
+        if event != "decision":
             continue
         payload = row.get("payload") or {}
         strategy = str(payload.get("strategy") or "")
         if strategy:
             latest[strategy] = {
                 "ts": ts,
+                "ageSeconds": max(0.0, end_ts - ts),
                 "strategy": strategy,
                 "state": _decision_state(payload),
                 "action": payload.get("action"),
@@ -437,7 +443,6 @@ def _classify_move_visibility(
     latest = _latest_decisions_before(
         rows,
         symbol=symbol,
-        start_ts=window_start,
         end_ts=threshold_ts,
     )
 
