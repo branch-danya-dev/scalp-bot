@@ -3634,6 +3634,16 @@ class TradingEngine:
                                 "opportunityArm"
                             )
                         ),
+                        "preparedOpportunity": (
+                            decision.details.get(
+                                "preparedOpportunity"
+                            )
+                        ),
+                        "fireTrigger": (
+                            decision.details.get(
+                                "fireTrigger"
+                            )
+                        ),
                         "opportunityFreshness": (
                             decision.details.get(
                                 "opportunityFreshness"
