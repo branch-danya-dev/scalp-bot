@@ -174,6 +174,42 @@ def test_weak_rejection_stages_absorption_probe_then_flow_add() -> None:
     assert consumed.details["alreadyUsed"] is True
 
 
+def test_stage18_rejection_enters_early_absorption_without_late_add() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    strategy.staged_entries_enabled = False
+    book = OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)])
+    rows = weak_support_rejection_candles()
+
+    early = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="EARLYREJECTUSDT",
+        trades=rejection_absorption_only_flow(),
+    )
+    assert early.action == Action.LONG
+    assert early.details["state"] == "reject"
+    assert early.details["stagedEntry"]["phase"] == "full"
+    assert early.details["stagedEntry"]["riskFraction"] == pytest.approx(1.0)
+    assert (
+        early.details["fireTrigger"]["source"]
+        == "rejection_absorption_fire"
+    )
+
+    late_strategy = WeakLevelRejectionStrategy()
+    late_strategy.staged_entries_enabled = False
+    late = late_strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="LATEREJECTUSDT",
+        trades=buy_flow(),
+    )
+    assert late.action == Action.WAIT
+    assert late.details["state"] == "reaction"
+    assert late.details["lateReactionObserved"] is True
+
+
 def test_weak_level_rejection_requires_actual_trade_beyond_zone() -> None:
     strategy = WeakLevelRejectionStrategy()
     rows = weak_support_rejection_candles()
@@ -256,7 +292,7 @@ def test_breakout_stages_probe_before_hold_then_adds_after_confirmation() -> Non
     assert waiting.action == Action.WAIT
     assert waiting.details["probeOpened"] is True
 
-    strategy._states["TESTUSDT"].break_started_at -= 4
+    strategy._states["TESTUSDT"].break_started_at -= strategy.hold_without_retest_seconds + 1
     add = strategy.evaluate(
         mature_breakout_candles(),
         book,
@@ -792,7 +828,7 @@ def test_breakout_uses_near_liquidity_as_obstacle_not_forced_final_target(monkey
         trades=aggressive_buy_flow(),
     )
     assert first.action == Action.WAIT
-    strategy._states["LADDERUSDT"].break_started_at -= 4
+    strategy._states["LADDERUSDT"].break_started_at -= strategy.hold_without_retest_seconds + 1
     decision = strategy.evaluate(
         rows,
         market,
@@ -805,9 +841,11 @@ def test_breakout_uses_near_liquidity_as_obstacle_not_forced_final_target(monkey
     assert decision.target == pytest.approx(100.80)
     assert decision.details["targetSource"] == "liquidity_ladder"
     assert decision.details["targetRiskMultipleGross"] >= strategy.minimum_target_r
-    assert decision.details["stopSource"] == "breakout_reacceptance_buffer"
-    assert decision.stop > decision.details["zone"]["low"]
-    assert decision.stop < decision.details["zone"]["high"]
+    assert decision.details["stopSource"] == "hard_beyond_breakout_zone"
+    assert decision.details["softInvalidation"] == (
+        "sustained_reacceptance_inside_zone"
+    )
+    assert decision.stop < decision.details["zone"]["low"]
 
 
 
