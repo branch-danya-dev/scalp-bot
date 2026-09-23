@@ -34,16 +34,36 @@ def candles_from_closes(
     return rows
 
 
-def structured_closes(direction: Trend, cycles: int = 8) -> list[float]:
-    rows: list[float] = []
+def structured_candles(
+    direction: Trend,
+    *,
+    interval_ms: int,
+    cycles: int = 8,
+) -> list[Candle]:
+    rows: list[Candle] = []
     pattern = [0.0, 0.7, 1.4, 0.9, 0.35, 1.0]
+    index = 0
     for cycle in range(cycles):
         drift = cycle * 0.8
         for value in pattern:
-            if direction == Trend.UP:
-                rows.append(100.0 + drift + value)
-            else:
-                rows.append(100.0 - drift - value)
+            center = (
+                100.0 + drift + value
+                if direction == Trend.UP
+                else 100.0 - drift - value
+            )
+            rows.append(
+                Candle(
+                    start_ms=index * interval_ms,
+                    open=center,
+                    high=center + 0.08,
+                    low=center - 0.08,
+                    close=center,
+                    volume=100.0,
+                    turnover=center * 100.0,
+                    confirmed=True,
+                )
+            )
+            index += 1
     return rows
 
 
@@ -61,8 +81,8 @@ def flat_candles(count: int, *, interval_ms: int) -> list[Candle]:
 
 def test_htf_bias_keeps_1h_direction_when_15m_is_flat() -> None:
     context_15m = flat_candles(48, interval_ms=15 * 60_000)
-    context_1h = candles_from_closes(
-        structured_closes(Trend.UP),
+    context_1h = structured_candles(
+        Trend.UP,
         interval_ms=60 * 60_000,
     )
 
@@ -78,12 +98,12 @@ def test_htf_bias_keeps_1h_direction_when_15m_is_flat() -> None:
 
 
 def test_htf_conflict_is_neutral_instead_of_directional() -> None:
-    context_15m = candles_from_closes(
-        structured_closes(Trend.UP),
+    context_15m = structured_candles(
+        Trend.UP,
         interval_ms=15 * 60_000,
     )
-    context_1h = candles_from_closes(
-        structured_closes(Trend.DOWN),
+    context_1h = structured_candles(
+        Trend.DOWN,
         interval_ms=60 * 60_000,
     )
 
@@ -136,8 +156,8 @@ def test_local_bearish_impulse_overrides_bullish_parent_structure() -> None:
         [*baseline, *recent],
         range_pad=0.025,
     )
-    candles_5m = candles_from_closes(
-        structured_closes(Trend.UP),
+    candles_5m = structured_candles(
+        Trend.UP,
         interval_ms=5 * 60_000,
     )
 
