@@ -23,6 +23,12 @@ TRADEABLE_PLAYBOOKS = {
     "level_breakout",
 }
 
+SOURCE_RANK = {
+    "session_report": 1,
+    "analysis_pack": 2,
+    "raw_session": 3,
+}
+
 TABLE_FILES = {
     "sessions": "sessions.jsonl",
     "trades": "trades.jsonl",
@@ -798,13 +804,46 @@ def aggregate_research_sources(
         records = _session_records(source)
         session_id = records["meta"]["sessionId"]
         if session_id in loaded:
-            duplicate_sources.append({
-                "sessionId": session_id,
-                "kept": loaded[session_id][
-                    "meta"
-                ]["sourcePath"],
-                "ignored": str(path),
-            })
+            existing = loaded[session_id]
+            existing_rank = SOURCE_RANK.get(
+                str(
+                    existing["meta"].get(
+                        "sourceKind"
+                    )
+                    or ""
+                ),
+                0,
+            )
+            incoming_rank = SOURCE_RANK.get(
+                str(
+                    records["meta"].get(
+                        "sourceKind"
+                    )
+                    or ""
+                ),
+                0,
+            )
+            if incoming_rank > existing_rank:
+                duplicate_sources.append({
+                    "sessionId": session_id,
+                    "kept": records["meta"][
+                        "sourcePath"
+                    ],
+                    "ignored": existing["meta"][
+                        "sourcePath"
+                    ],
+                    "reason": "richer_source_replaced_existing",
+                })
+                loaded[session_id] = records
+            else:
+                duplicate_sources.append({
+                    "sessionId": session_id,
+                    "kept": existing["meta"][
+                        "sourcePath"
+                    ],
+                    "ignored": str(path),
+                    "reason": "duplicate_or_lower_fidelity_source",
+                })
             continue
         loaded[session_id] = records
 
