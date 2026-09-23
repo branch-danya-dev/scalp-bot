@@ -359,3 +359,79 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
     saved = json.loads(output.read_text(encoding="utf-8"))
     assert saved["session"]["file"] == recorder.path.name
     assert saved["closedTrades"][0]["symbol"] == "AAAUSDT"
+
+
+
+def test_current_trade_review_never_rescans_session_file(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    recorder = SessionRecorder(str(tmp_path))
+    recorder.record(
+        "decision",
+        "AAAUSDT",
+        {
+            "strategy": "trend_structure",
+            "action": "wait",
+            "reasons": ["pre-roll"],
+        },
+    )
+    recorder.record(
+        "trade_opened",
+        "AAAUSDT",
+        {
+            "plan": {
+                "strategy": "trend_structure",
+                "side": "long",
+                "setup_id": "live-cache-1",
+            },
+            "market": {
+                "orderbook": {
+                    "bids": [[99.9, 1, 99.9]],
+                    "asks": [[100.1, 1, 100.1]],
+                },
+            },
+        },
+    )
+    recorder.record(
+        "research_frame",
+        "AAAUSDT",
+        {
+            "lastPrice": 100.2,
+            "orderbook": {
+                "bids": [[100.1, 1, 100.1]],
+                "asks": [[100.3, 1, 100.3]],
+            },
+        },
+    )
+    recorder.record(
+        "trade_closed",
+        "AAAUSDT",
+        {
+            "strategy": "trend_structure",
+            "side": "long",
+            "setupId": "live-cache-1",
+            "netPnl": 1.5,
+            "grossPnl": 2.0,
+            "fees": 0.5,
+            "market": {
+                "orderbook": {
+                    "bids": [[100.2, 1, 100.2]],
+                    "asks": [[100.4, 1, 100.4]],
+                },
+            },
+        },
+    )
+
+    def fail_read(_path):
+        raise AssertionError("current trade review must not read raw JSONL")
+
+    monkeypatch.setattr(recorder, "_read_rows", fail_read)
+
+    summaries = recorder.trade_review_summaries()
+    assert len(summaries) == 1
+    detail = recorder.trade_review(summaries[0]["reviewId"])
+    assert detail["summary"]["netPnl"] == 1.5
+    assert detail["openSnapshot"]["orderbook"]["bids"]
+    assert detail["closeSnapshot"]["orderbook"]["asks"]
+    assert detail["frames"]
