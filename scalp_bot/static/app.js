@@ -92,7 +92,7 @@ const EVENT_LABELS = {
   startup_scan_error:"Ошибка стартового сканера", scanner_error:"Ошибка сканера",
   symbol_bootstrap_error:"Ошибка загрузки рынка", context_error:"Ошибка контекста",
   strategy_error:"Ошибка стратегии", candle_resync:"1m история восстановлена",
-  market_context_changed:"Рыночный режим изменился",
+  market_context_changed:"Рыночный режим изменился", entry_freshness_changed:"Свежесть входа изменилась",
 };
 const TRACE_PHRASES = {
   "confirmed trend structure and a valid trendline":"подтверждённая структура тренда и валидная трендовая линия",
@@ -131,6 +131,15 @@ function stateLabel(value) { return STATE_LABELS[String(value || "unknown")] || 
 function trendLabel(value) { return TREND_LABELS[String(value || "flat")] || String(value || "—").toUpperCase(); }
 function htfBiasLabel(value) { return HTF_BIAS_LABELS[String(value || "neutral")] || String(value || "—").replaceAll("_", " "); }
 function localRegimeLabel(value) { return LOCAL_REGIME_LABELS[String(value || "unclear")] || String(value || "—").replaceAll("_", " "); }
+function entryFreshnessLabel(value) {
+  return ({
+    fresh:"свежий",
+    acceptable:"допустимый",
+    late:"поздний",
+    exhausted:"импульс исчерпан",
+    unknown:"нет оценки",
+  })[String(value || "unknown")] || String(value || "—").replaceAll("_", " ");
+}
 function sideLabel(value) { return SIDE_LABELS[String(value || "").toLowerCase()] || String(value || "—").toUpperCase(); }
 function actionLabel(value) { return ACTION_LABELS[String(value || "wait")] || String(value || "—").toUpperCase(); }
 function eventLabel(value) { return EVENT_LABELS[value] || String(value || "").replaceAll("_", " "); }
@@ -960,7 +969,11 @@ function timelineText(row) {
         ? ` ${price(object.low)}–${price(object.high)}`
         : "";
     const waiting = (trace.waitingFor || []).slice(0, 2).map(translatePhrase).join(" · ");
-    return `${strategyLabel(trace.strategy || payload.strategy)} · ${stateLabel(trace.state || payload.details?.state)}${objectText}${waiting ? " · ждём: " + waiting : ""}`;
+    const freshness = payload.details?.entryFreshness || trace.evidence?.entryFreshness;
+    const freshnessText = freshness
+      ? ` · вход ${entryFreshnessLabel(freshness.classification)}${freshness.moveSpentRatio == null ? "" : " · spent " + (Number(freshness.moveSpentRatio) * 100).toFixed(0) + "%"}${freshness.confirmationAgeSeconds == null ? "" : " · age " + Number(freshness.confirmationAgeSeconds).toFixed(1) + "с"}`
+      : "";
+    return `${strategyLabel(trace.strategy || payload.strategy)} · ${stateLabel(trace.state || payload.details?.state)}${objectText}${freshnessText}${waiting ? " · ждём: " + waiting : ""}`;
   }
   if (row.event === "trade_opened") {
     const position = payload.position || {};
@@ -970,6 +983,10 @@ function timelineText(row) {
   if (row.event === "trade_closed") return `${reasonText(payload.reason || "closed")} · движение ${payload.exitMoveBps == null ? "—" : Number(payload.exitMoveBps).toFixed(1) + " bps"} · комиссия ${money(payload.fees)} · net ${money(payload.netPnl)}`;
   if (row.event === "risk_reject") return `Отклонено риском · ${reasonText(payload.reason)}`;
   if (row.event === "setup_blocked") return `Сетап заблокирован · ${reasonText(payload.reason)}`;
+  if (row.event === "entry_freshness_changed") {
+    const freshness = payload.entryFreshness || {};
+    return `Свежесть входа: ${entryFreshnessLabel(freshness.classification)}${freshness.moveSpentRatio == null ? "" : " · spent " + (Number(freshness.moveSpentRatio) * 100).toFixed(0) + "%"}${freshness.confirmationAgeSeconds == null ? "" : " · age " + Number(freshness.confirmationAgeSeconds).toFixed(1) + "с"}`;
+  }
   return row.event.replaceAll("_", " ");
 }
 

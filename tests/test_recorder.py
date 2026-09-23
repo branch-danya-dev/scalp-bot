@@ -286,6 +286,12 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
                 "market_entry": 100.0,
                 "stop": 99.0,
                 "target": 101.0,
+                "strategy_details": {
+                    "entryFreshness": {
+                        "classification": "late",
+                        "moveSpentRatio": 0.62,
+                    },
+                },
             },
             "market": {
                 "candles": [
@@ -354,6 +360,9 @@ def test_session_report_includes_opportunities_books_charts_coins_and_closed_tra
     assert diagnostics["uniqueTradeableSetups"] == 1
     assert diagnostics["uniqueRiskRejectedSetups"] == 1
     assert diagnostics["tradesOpened"] == 1
+    assert diagnostics["entryFreshnessCounts"]["late"] == 1
+    assert diagnostics["entryMoveSpentSamples"] == 1
+    assert diagnostics["averageEntryMoveSpentRatio"] == 0.62
     assert diagnostics["tradesClosed"] == 1
     assert diagnostics["grossPnl"] == 10.0
     assert diagnostics["fees"] == 1.5

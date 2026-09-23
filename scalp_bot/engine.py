@@ -25,6 +25,7 @@ from .strategy import (
     Strategy,
     build_market_structure,
     classify_context_trend,
+    classify_entry_freshness,
     classify_htf_bias,
     classify_local_regime,
     compute_trade_flow,
@@ -32,6 +33,20 @@ from .strategy import (
 
 
 ACTIVE_SETUP_STATES = {"found", "persisting", "approach", "pressure", "test", "defended", "reject", "reaction", "break", "impulse"}
+
+ENTRY_FRESHNESS_TRIGGER_STATES = {
+    "trend_structure": {"reclaim"},
+    "weak_level_rejection": {"reject"},
+    "orderbook_density": {"defended"},
+    "level_breakout": {"break"},
+}
+ENTRY_FRESHNESS_RESET_STATES = {
+    "search",
+    "found",
+    "stale_book",
+    "stale_candle",
+    "error",
+}
 
 
 @dataclass(slots=True)
@@ -48,6 +63,8 @@ class ActiveSymbolSession:
     htf_bias: HTFBiasSnapshot | None = None
     local_regime: LocalRegimeSnapshot | None = None
     market_context_fingerprint: tuple | None = None
+    entry_freshness_anchors: dict[str, dict] = field(default_factory=dict)
+    entry_freshness_fingerprints: dict[str, tuple] = field(default_factory=dict)
     structure: MarketStructure | None = None
     decisions: dict[str, StrategyDecision] = field(default_factory=dict)
     decision_fingerprints: dict[str, tuple] = field(default_factory=dict)
@@ -1380,6 +1397,11 @@ class TradingEngine:
                     reasons=[f"Ошибка стратегии: {error}"],
                     details={"state": "error", "error": error},
                 )
+            self._annotate_entry_freshness(
+                session,
+                decision,
+                observed_at=now,
+            )
             if decision.tradeable:
                 decision.setup_id = self._resolve_setup_id(session, decision)
                 session.last_signal_at = now
@@ -1439,6 +1461,179 @@ class TradingEngine:
             {
                 "previousFingerprint": list(previous) if previous else None,
                 "marketContext": session.market_context_public(),
+            },
+        )
+
+    @staticmethod
+    def _freshness_object_key(
+        decision: StrategyDecision,
+    ) -> tuple:
+        details = decision.details or {}
+        for key in (
+            "zoneGeneration",
+            "levelGeneration",
+            "trendlineAnchor",
+        ):
+            value = details.get(key)
+            if value is not None:
+                if isinstance(value, (list, tuple)):
+                    value = tuple(value)
+                return (decision.strategy, key, str(value))
+
+        zone = details.get("zone")
+        if isinstance(zone, dict):
+            low = zone.get("low")
+            high = zone.get("high")
+            if low is not None and high is not None:
+                return (
+                    decision.strategy,
+                    "zone",
+                    round(float(low), 8),
+                    round(float(high), 8),
+                )
+
+        wall_price = details.get("wallPrice")
+        if wall_price is not None:
+            return (
+                decision.strategy,
+                "wall",
+                str(details.get("wallSide") or ""),
+                round(float(wall_price), 8),
+            )
+
+        return (
+            decision.strategy,
+            "watched",
+            round(float(decision.watched_level or 0.0), 8),
+        )
+
+    @staticmethod
+    def _freshness_fallback_trigger_price(
+        decision: StrategyDecision,
+    ) -> tuple[float | None, str]:
+        details = decision.details or {}
+        if decision.strategy == "trend_structure":
+            value = details.get("reclaimPrice")
+            if isinstance(value, (int, float)) and value > 0:
+                return float(value), "reclaim_price"
+
+        if decision.strategy == "level_breakout":
+            value = details.get("acceptanceBoundary")
+            if isinstance(value, (int, float)) and value > 0:
+                return float(value), "breakout_boundary"
+
+        if decision.strategy == "weak_level_rejection":
+            zone = details.get("zone")
+            if isinstance(zone, dict):
+                if decision.action == Action.LONG:
+                    value = zone.get("high")
+                else:
+                    value = zone.get("low")
+                if isinstance(value, (int, float)) and value > 0:
+                    return float(value), "rejection_boundary"
+
+        if decision.strategy == "orderbook_density":
+            value = details.get("wallPrice")
+            if isinstance(value, (int, float)) and value > 0:
+                return float(value), "density_wall"
+
+        if decision.watched_level is not None and decision.watched_level > 0:
+            return float(decision.watched_level), "watched_level"
+        return None, "unknown"
+
+    def _annotate_entry_freshness(
+        self,
+        session: ActiveSymbolSession,
+        decision: StrategyDecision,
+        *,
+        observed_at: float,
+    ) -> None:
+        state = str((decision.details or {}).get("state") or "")
+        strategy = decision.strategy
+        object_key = self._freshness_object_key(decision)
+        anchor = session.entry_freshness_anchors.get(strategy)
+
+        if state in ENTRY_FRESHNESS_RESET_STATES:
+            session.entry_freshness_anchors.pop(strategy, None)
+            session.entry_freshness_fingerprints.pop(strategy, None)
+            return
+
+        if state in ENTRY_FRESHNESS_TRIGGER_STATES.get(strategy, set()):
+            if anchor is None or anchor.get("objectKey") != object_key:
+                trigger_price = (
+                    session.orderbook.mid
+                    or session.last_price
+                    or decision.watched_level
+                )
+                if trigger_price and trigger_price > 0:
+                    anchor = {
+                        "objectKey": object_key,
+                        "triggerPrice": float(trigger_price),
+                        "triggerTs": float(observed_at),
+                        "source": f"{state}_state",
+                    }
+                    session.entry_freshness_anchors[strategy] = anchor
+
+        if not decision.tradeable:
+            return
+
+        anchor = session.entry_freshness_anchors.get(strategy)
+        if anchor is None or anchor.get("objectKey") != object_key:
+            trigger_price, source = self._freshness_fallback_trigger_price(
+                decision
+            )
+            anchor = {
+                "objectKey": object_key,
+                "triggerPrice": trigger_price,
+                "triggerTs": None,
+                "source": source,
+            }
+            session.entry_freshness_anchors[strategy] = anchor
+
+        current_price = (
+            decision.entry
+            or session.orderbook.mid
+            or session.last_price
+            or 0.0
+        )
+        freshness = classify_entry_freshness(
+            decision,
+            trigger_price=anchor.get("triggerPrice"),
+            trigger_ts=anchor.get("triggerTs"),
+            current_price=float(current_price or 0.0),
+            observed_ts=observed_at,
+            source=str(anchor.get("source") or "unknown"),
+        )
+        decision.details["entryFreshness"] = freshness.public()
+
+        fingerprint = (
+            object_key,
+            freshness.classification.value,
+            (
+                round(float(freshness.move_spent_ratio), 1)
+                if freshness.move_spent_ratio is not None
+                else None
+            ),
+        )
+        if session.entry_freshness_fingerprints.get(strategy) == fingerprint:
+            return
+        session.entry_freshness_fingerprints[strategy] = fingerprint
+        self._emit(
+            "entry_freshness_changed",
+            session.symbol,
+            {
+                "strategy": strategy,
+                "setupId": (
+                    decision.setup_id
+                    or (
+                        self._resolve_setup_id(session, decision)
+                        if decision.tradeable
+                        else None
+                    )
+                ),
+                "state": state,
+                "entryFreshness": freshness.public(),
+                "decision": decision.public(),
             },
         )
 

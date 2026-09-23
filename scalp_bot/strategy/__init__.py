@@ -10,6 +10,11 @@ from .common import (
 from .density import DensityBounceStrategy, DensityStage
 from .liquidity import LiquidityTarget, find_liquidity_target
 from .lifecycle import LevelLifecycleTracker
+from .freshness import (
+    EntryFreshness,
+    EntryFreshnessClass,
+    classify_entry_freshness,
+)
 from .regime import (
     HTFBias,
     HTFBiasSnapshot,
@@ -45,6 +50,9 @@ __all__ = [
     "LiquidityTarget",
     "find_liquidity_target",
     "LevelLifecycleTracker",
+    "EntryFreshness",
+    "EntryFreshnessClass",
+    "classify_entry_freshness",
     "HTFBias",
     "HTFBiasSnapshot",
     "LocalRegime",
