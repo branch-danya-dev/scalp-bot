@@ -554,6 +554,9 @@ class SessionRecorder:
                     "entryPending": 0,
                     "entryCancelled": 0,
                     "tradesOpened": 0,
+                    "entryFreshnessCounts": {},
+                    "entryMoveSpentTotal": 0.0,
+                    "entryMoveSpentSamples": 0,
                     "tradesClosed": 0,
                     "wins": 0,
                     "losses": 0,
@@ -665,13 +668,34 @@ class SessionRecorder:
                     strategy_diag(strategy)[key] += 1
 
             if event == "trade_opened":
+                plan = payload.get("plan") or {}
                 strategy = str(
-                    (payload.get("plan") or {}).get("strategy")
+                    plan.get("strategy")
                     or payload.get("strategy")
                     or ""
                 )
                 if strategy:
-                    strategy_diag(strategy)["tradesOpened"] += 1
+                    item_diag = strategy_diag(strategy)
+                    item_diag["tradesOpened"] += 1
+                    strategy_details = plan.get("strategy_details") or {}
+                    freshness = (
+                        strategy_details.get("entryFreshness")
+                        if isinstance(strategy_details, dict)
+                        else None
+                    )
+                    if isinstance(freshness, dict):
+                        freshness_class = str(
+                            freshness.get("classification")
+                            or "unknown"
+                        )
+                        counts = item_diag["entryFreshnessCounts"]
+                        counts[freshness_class] = (
+                            counts.get(freshness_class, 0) + 1
+                        )
+                        spent = freshness.get("moveSpentRatio")
+                        if isinstance(spent, (int, float)):
+                            item_diag["entryMoveSpentTotal"] += float(spent)
+                            item_diag["entryMoveSpentSamples"] += 1
 
             if event == "trade_closed":
                 strategy = str(payload.get("strategy") or "")
@@ -810,8 +834,16 @@ class SessionRecorder:
         for strategy, item in strategy_diagnostics.items():
             tradeable_keys = item.pop("tradeableSetupKeys")
             rejected_keys = item.pop("riskRejectedSetupKeys")
+            move_spent_total = float(item.pop("entryMoveSpentTotal"))
+            move_spent_samples = int(item.pop("entryMoveSpentSamples"))
             strategy_report[strategy] = {
                 **item,
+                "averageEntryMoveSpentRatio": (
+                    move_spent_total / move_spent_samples
+                    if move_spent_samples > 0
+                    else None
+                ),
+                "entryMoveSpentSamples": move_spent_samples,
                 "uniqueTradeableSetups": len(tradeable_keys),
                 "uniqueRiskRejectedSetups": len(rejected_keys),
                 "tradeableSetupKeys": sorted(tradeable_keys),
