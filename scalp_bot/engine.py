@@ -23,10 +23,13 @@ from .strategy import (
     LocalRegimeSnapshot,
     MultiHorizonFlowContext,
     LiquidityEvidence,
+    MarketContext,
     MarketStructure,
     Strategy,
+    build_execution_context,
     build_liquidity_evidence,
     build_market_structure,
+    build_structure_context,
     build_multi_horizon_flow_context,
     classify_context_trend,
     classify_entry_freshness,
@@ -67,6 +70,7 @@ class ActiveSymbolSession:
     local_regime: LocalRegimeSnapshot | None = None
     flow_context: MultiHorizonFlowContext | None = None
     liquidity_evidence: LiquidityEvidence | None = None
+    market_context: MarketContext | None = None
     market_context_fingerprint: tuple | None = None
     entry_freshness_anchors: dict[str, dict] = field(default_factory=dict)
     entry_freshness_fingerprints: dict[str, tuple] = field(default_factory=dict)
@@ -407,7 +411,12 @@ class ActiveSymbolSession:
         }
 
     def market_context_public(self) -> dict:
+        if self.market_context is not None:
+            return self.market_context.public()
         return {
+            "schemaVersion": 1,
+            "symbol": self.symbol,
+            "lastPrice": self.last_price,
             "legacyTrend": self.trend.value,
             "htfBias": (
                 self.htf_bias.public()
@@ -429,6 +438,8 @@ class ActiveSymbolSession:
                 if self.liquidity_evidence is not None
                 else None
             ),
+            "structureContext": None,
+            "executionContext": None,
         }
 
     def market_snapshot(self) -> dict:
