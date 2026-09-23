@@ -770,29 +770,105 @@ function marketMoveStrategyText(row) {
   }).join(" · ");
 }
 
+function hindsightBotLabel(value) {
+  return ({
+    missed:"Бот пропустил",
+    wrong_direction:"Бот торговал против движения",
+    traded:"Позиция открыта в рабочем окне",
+    late_entry:"Поздний вход",
+    early_exit:"Ранний выход",
+    late_entry_early_exit:"Поздний вход и ранний выход",
+  })[value] || value || "—";
+}
+
+function hindsightStrategyFitText(row) {
+  const fit = row.strategyFit || {};
+  const strategies = fit.strategies || [];
+  const useful = strategies
+    .filter(item => item.fit !== "unaware")
+    .map(item => {
+      const states = (item.alignedStatesSeen || item.opposedStatesSeen || [])
+        .map(stateLabel)
+        .join("→");
+      return `${strategyLabel(item.strategy)}: ${states || item.fit}`;
+    });
+  if (useful.length) return useful.join(" · ");
+  return "ни одна текущая стратегия не описала раннюю фазу движения";
+}
+
 function renderOpportunityReview(report) {
   const root = $("opportunityReview");
   if (!root) return;
+
   const summary = report.summary || {};
+  const hindsight = report.hindsight || {};
+  const hindsightSummary = hindsight.summary || {};
+  const hindsightRows = (hindsight.opportunities || [])
+    .slice()
+    .sort((left, right) => Number(right.estimatedNetMovePct || 0) - Number(left.estimatedNetMovePct || 0))
+    .slice(0, 40);
+
   const candidateRows = (report.candidates || [])
     .filter(row => ["missed_target_first", "correct_reject_candidate", "ambiguous"].includes(row.classification))
-    .slice(0, 30);
+    .slice(0, 20);
   const exitRows = (report.earlyExits || [])
     .filter(row => row.classification === "early_exit_review")
     .slice(0, 20);
-  const marketMoveRows = (report.marketMoves || []).slice(0, 30);
 
   root.innerHTML = `
     <div class="opportunity-summary">
-      <span><small>Отклонено</small>${summary.rejectedCandidates || 0}</span>
-      <span class="warn"><small>Сначала цель</small>${summary.missedTargetFirst || 0}</span>
-      <span class="good"><small>Сначала стоп</small>${summary.correctRejectCandidates || 0}</span>
-      <span><small>Неоднозначно</small>${summary.ambiguous || 0}</span>
-      <span class="warn"><small>Ранние выходы</small>${summary.earlyExitReviews || 0}</span>
-      <span><small>Движения ≥20 bps</small>${summary.significantMarketMoves || 0}</span>
-      <span class="warn"><small>Не замечены</small>${summary.undetectedMarketMoves || 0}</span>
-      <span><small>Видели без входа</small>${(summary.observedNotTradeableMarketMoves || 0) + (summary.detectedNotExecutedMarketMoves || 0)}</span>
-      <span class="good"><small>Проторгованы</small>${summary.tradedMarketMoves || 0}</span>
+      <span><small>Возможности рынка</small>${hindsightSummary.opportunities || 0}</span>
+      <span class="warn"><small>Пропущено ботом</small>${hindsightSummary.botMissed || 0}</span>
+      <span class="good"><small>Покрыто стратегиями</small>${hindsightSummary.mappedToExistingStrategy || 0}</span>
+      <span class="warn"><small>Нет подходящей стратегии</small>${hindsightSummary.unmappedToExistingStrategy || 0}</span>
+      <span><small>Поздние входы</small>${hindsightSummary.botLateEntry || 0}</span>
+      <span><small>Ранние выходы</small>${hindsightSummary.botEarlyExit || 0}</span>
+    </div>
+
+    <div class="opportunity-oracle">
+      <div class="opportunity-oracle-head">
+        <div>
+          <h3>Hindsight-возможности по фактическому графику</h3>
+          <small>Сначала находятся прибыльные движения рынка с учётом оценочных издержек. Решения стратегий используются только после этого — для диагностики и обучения.</small>
+        </div>
+        <small>минимум net ${pct(hindsight.policy?.minimumNetMovePct)} · оценочные round-trip costs ${bps(hindsight.policy?.estimatedRoundTripCostPct)}</small>
+      </div>
+      <div class="opportunity-list">
+        ${hindsightRows.map(row => {
+          const bot = row.botComparison || {};
+          const fit = row.strategyFit || {};
+          const netBps = Number(row.estimatedNetMovePct || 0) * 10000;
+          const grossBps = Number(row.grossMovePct || 0) * 10000;
+          const side = String(row.side || "").toUpperCase();
+          const cls = bot.classification === "missed" || bot.classification === "wrong_direction"
+            ? "market_move_undetected"
+            : "market_move_detected";
+          const playbook = fit.closestPlaybook
+            ? strategyLabel(fit.closestPlaybook)
+            : "нет соответствия";
+          return `<div class="opportunity-row hindsight-opportunity ${cls}">
+            <div>
+              <strong>${row.symbol} · ${side}</strong>
+              <span>${clock(row.oracleEntryTs)} → ${clock(row.oracleExitTs)}</span>
+              <small>oracle ${price(row.oracleEntryPrice)} → ${price(row.oracleExitPrice)}</small>
+            </div>
+            <div>
+              <span>${hindsightBotLabel(bot.classification)}</span>
+              <small>ближайший playbook: ${playbook}</small>
+              <small>${hindsightStrategyFitText(row)}</small>
+            </div>
+            <div>
+              <span>gross ${grossBps.toFixed(1)} bps · net≈${netBps.toFixed(1)} bps</span>
+              <small>окно входа до ${clock(row.entryWindowEndTs)} · окно выхода с ${clock(row.exitWindowStartTs)}</small>
+            </div>
+          </div>`;
+        }).join("") || '<div class="empty-row">В записанном интервале не найдено движений, проходящих cost-aware критерий прибыльной возможности.</div>'}
+      </div>
+    </div>
+
+    <div class="opportunity-diagnostics-title">
+      <h3>Диагностика уже принятых решений бота</h3>
+      <small>Вторичный слой: отклонённые входы и выходы анализируются отдельно от поиска возможностей рынка.</small>
     </div>
     <div class="opportunity-columns">
       <div>
@@ -813,30 +889,6 @@ function renderOpportunityReview(report) {
             <div><span>${reviewClassLabel(row.classification)}</span><small>MFE после выхода ${row.postExitMfeR == null ? "—" : Number(row.postExitMfeR).toFixed(2) + "R"}</small></div>
           </div>`).join("") || '<div class="empty-row">Нет ранних выходов, требующих проверки.</div>'}
         </div>
-      </div>
-    </div>
-    <div class="opportunity-market-moves">
-      <h3>Независимо найденные движения рынка</h3>
-      <div class="opportunity-list">
-        ${marketMoveRows.map(row => {
-          const moveBps = Number(row.maxMovePct || 0) * 10000;
-          const side = String(row.side || "").toUpperCase();
-          const cls = row.visibility === "undetected" ? "market_move_undetected" : "market_move_detected";
-          return `<div class="opportunity-row ${cls}">
-            <div>
-              <strong>${row.symbol} · ${side}</strong>
-              <span>${clock(row.startTs)} → ${clock(row.extremeTs)}</span>
-            </div>
-            <div>
-              <span>${marketMoveVisibilityLabel(row.visibility)}</span>
-              <small>${marketMoveStrategyText(row)}</small>
-            </div>
-            <div>
-              <span>ход ${moveBps.toFixed(1)} bps</span>
-              <small>порог за ${Number(row.secondsToThreshold || 0).toFixed(1)}с · ${price(row.startPrice)} → ${price(row.extremePrice)}</small>
-            </div>
-          </div>`;
-        }).join("") || '<div class="empty-row">В записи не найдено направленных движений выше исследовательского порога.</div>'}
       </div>
     </div>
   `;
