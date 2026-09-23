@@ -85,7 +85,7 @@ const EVENT_LABELS = {
   decision:"Решение", entry_pending:"Лимитный вход ожидает", entry_cancelled:"Лимитный вход отменён",
   trade_opened:"Вход", partial_take:"Частичная фиксация",
   trade_closed:"Выход", risk_reject:"Отклонено риском", economic_shadow:"Экономика (shadow)",
-  setup_blocked:"Сетап заблокирован", setup_consumed:"Сетап использован",
+  setup_blocked:"Сетап заблокирован", arbiter_blocked:"Арбитр заблокировал", setup_consumed:"Сетап использован",
   setup_rearmed:"Сетап переактивирован", symbol_activated:"Монета активирована",
   symbol_deactivated:"Монета исключена", run_summary:"Итог прогона",
   bot_started:"Прогон запущен", bot_stopped:"Прогон остановлен",
@@ -208,6 +208,9 @@ function reasonText(value) {
   if (text === "passive_fill_exposure_budget") return "PostOnly fill отменён: исчерпан лимит экспозиции";
   if (text === "passive_fill_risk_budget") return "PostOnly fill отменён: исчерпан лимит риска";
   if (text.includes("economic_gate: insufficient_net_reward_risk")) return text.replace("economic_gate: insufficient_net_reward_risk:", "Экономика: недостаточный net R:R:");
+  if (text === "mature_structural_obstacle_before_first_take") return "Зрелый структурный уровень перекрывает путь до первого тейка";
+  if (text === "opposing_playbook_conflict") return "Противоположные playbook одновременно дают исполнимые сигналы";
+  if (text === "execution_context_not_ready") return "Контекст исполнения не готов";
   if (text === "setup consumed") return "сетап использован";
   if (text === "rearmed") return "переактивирован";
   if (text === "deactivated") return "исключена из наблюдения";
@@ -668,9 +671,19 @@ function renderDecisions(decisions) {
 
 function eventText(event) {
   const payload = event.payload || {};
-  if (event.event === "entry_pending") return `PostOnly @ ${price(payload.pending?.limitPrice ?? payload.plan?.market_entry)} · ${money(payload.plan?.notional)}`;
+  if (event.event === "entry_pending") {
+    const arb = payload.semanticArbitration || {};
+    return `PostOnly @ ${price(payload.pending?.limitPrice ?? payload.plan?.market_entry)} · ${money(payload.plan?.notional)}${Number(arb.confluenceCount || 0) ? " · confluence +" + Number(arb.confluenceCount) : ""}`;
+  }
   if (event.event === "entry_cancelled") return `${reasonText(payload.reason)} · ${price(payload.limitPrice)}`;
-  if (event.event === "trade_opened") { const details = payload.plan?.strategy_details || {}; const fa = details.flowAlignment; const la = details.liquidityAlignment; return `${sideLabel(payload.plan?.side)} · ${money(payload.plan?.notional)} · net на цели ${money(payload.plan?.net_at_target ?? payload.plan?.expected_net_profit)} · качество ${Number(payload.opportunityQuality ?? 0).toFixed(2)}${fa ? " · flow " + flowAlignmentLabel(fa.classification) : ""}${la ? " · liq " + liquidityAlignmentLabel(la.classification) : ""}`; }
+  if (event.event === "trade_opened") {
+    const details = payload.plan?.strategy_details || {};
+    const fa = details.flowAlignment;
+    const la = details.liquidityAlignment;
+    const arb = payload.semanticArbitration || details.semanticArbitration || {};
+    const confluence = Number(arb.confluenceCount || 0);
+    return `${sideLabel(payload.plan?.side)} · ${money(payload.plan?.notional)} · net на цели ${money(payload.plan?.net_at_target ?? payload.plan?.expected_net_profit)} · playbook quality ${Number(payload.playbookSetupQuality ?? 0).toFixed(2)}${confluence ? " · confluence +" + confluence : ""}${fa ? " · flow " + flowAlignmentLabel(fa.classification) : ""}${la ? " · liq " + liquidityAlignmentLabel(la.classification) : ""}`;
+  }
   if (event.event === "partial_take") return `частичная фиксация ${money(payload.netPnl)} · осталось ${money(payload.remainingNotional)} · стоп→${price(payload.newStop)}`;
   if (event.event === "trade_closed") return `${reasonText(payload.reason)} · ${payload.exitMoveBps == null ? "—" : Number(payload.exitMoveBps).toFixed(1) + " bps"} · комиссия ${money(payload.fees)} · net ${money(payload.netPnl)}`;
   if (event.event === "risk_reject") {
@@ -682,6 +695,11 @@ function eventText(event) {
   }
   if (event.event === "economic_shadow") return `наблюдение: ${(payload.shadowRejectReasons || []).map(reasonText).join(", ")}`;
   if (event.event === "setup_blocked") return `${strategyLabel(payload.strategy)}: ${reasonText(payload.reason)}`;
+  if (event.event === "arbiter_blocked") {
+    const blockers = (payload.blockers || []).map(reasonText).join(", ");
+    const conflicts = (payload.conflictingStrategies || []).map(strategyLabel).join(", ");
+    return `${strategyLabel(payload.strategy)}: ${blockers || "semantic veto"}${conflicts ? " · конфликт: " + conflicts : ""}`;
+  }
   if (event.event === "setup_consumed") return `${strategyLabel(payload.strategy)}: сетап использован`;
   if (event.event === "setup_rearmed") return `${strategyLabel(payload.strategy)}: переактивирован`;
   if (event.event === "decision") {
