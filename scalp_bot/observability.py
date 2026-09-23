@@ -135,6 +135,8 @@ def _evidence(details: dict[str, Any]) -> dict[str, Any]:
         "entryFreshness",
         "multiHorizonFlow",
         "flowAlignment",
+        "liquidityEvidence",
+        "liquidityAlignment",
     )
     return {
         key: details[key]
