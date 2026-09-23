@@ -467,6 +467,9 @@ class SessionRecorder:
         *,
         horizon_seconds: float = 120.0,
     ) -> dict:
+        from .economic_calibration import (
+            build_conditional_economic_calibration,
+        )
         from .opportunity_review import analyze_session_rows
         from .performance_matrix import (
             build_strategy_side_regime_report,
@@ -478,10 +481,16 @@ class SessionRecorder:
             rows,
             horizon_seconds=horizon_seconds,
         )
+        performance = build_strategy_side_regime_report(
+            rows,
+            hindsight=report.get("hindsight"),
+        )
         report["strategySideRegimePerformance"] = (
-            build_strategy_side_regime_report(
-                rows,
-                hindsight=report.get("hindsight"),
+            performance
+        )
+        report["conditionalEconomicCalibration"] = (
+            build_conditional_economic_calibration(
+                performance.get("trades") or [],
             )
         )
         return report
@@ -532,6 +541,9 @@ class SessionRecorder:
         *,
         horizon_seconds: float = 120.0,
     ) -> dict:
+        from .economic_calibration import (
+            build_conditional_economic_calibration,
+        )
         from .market_interaction_review import analyze_market_interactions
         from .opportunity_review import analyze_session_rows
         from .performance_matrix import (
@@ -1134,6 +1146,11 @@ class SessionRecorder:
                 else None
             ),
         )
+        economic_calibration = (
+            build_conditional_economic_calibration(
+                performance_matrix.get("trades") or [],
+            )
+        )
         market_interactions = analyze_market_interactions(rows)
         latest_scanner = scanner_history[-1] if scanner_history else {}
 
@@ -1197,6 +1214,7 @@ class SessionRecorder:
             "runSummary": run_summary,
             "postRunOpportunity": opportunity,
             "strategySideRegimePerformance": performance_matrix,
+            "conditionalEconomicCalibration": economic_calibration,
             "marketInteractionResearch": market_interactions,
             "strategyDiagnostics": strategy_report,
             "marketContextDiagnostics": {
