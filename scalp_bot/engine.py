@@ -102,6 +102,7 @@ class ActiveSymbolSession:
     market_context_semantic_fingerprint: tuple | None = None
     last_market_context_event_at: float = 0.0
     market_context_changes_suppressed: int = 0
+    market_context_changes_pending: int = 0
     market_context_events_emitted: int = 0
     entry_freshness_anchors: dict[str, dict] = field(default_factory=dict)
     entry_freshness_fingerprints: dict[str, tuple] = field(default_factory=dict)
@@ -2185,12 +2186,13 @@ class TradingEngine:
 
         if not semantic_changed and not interval_elapsed:
             session.market_context_changes_suppressed += 1
+            session.market_context_changes_pending += 1
             return
 
         suppressed = (
-            session.market_context_changes_suppressed
+            session.market_context_changes_pending
         )
-        session.market_context_changes_suppressed = 0
+        session.market_context_changes_pending = 0
         session.last_market_context_event_at = observed_at
         session.market_context_events_emitted += 1
         self._emit(
