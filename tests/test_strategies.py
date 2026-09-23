@@ -761,6 +761,7 @@ def test_breakout_uses_near_liquidity_as_obstacle_not_forced_final_target(monkey
     from scalp_bot.strategy.liquidity import LiquidityTarget
 
     strategy = LevelBreakoutStrategy()
+    strategy.staged_entries_enabled = False
     rows = mature_breakout_candles()
     market = OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)])
     monkeypatch.setattr(
