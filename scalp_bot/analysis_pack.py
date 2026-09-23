@@ -89,6 +89,7 @@ def _compact_frame_payload(payload: dict, book_depth: int) -> dict:
     return {
         "lastPrice": payload.get("lastPrice"),
         "trend": payload.get("trend"),
+        "marketContext": payload.get("marketContext"),
         "candle": payload.get("candle"),
         "orderbook": _trim_book(payload.get("orderbook"), book_depth),
         "bookHealth": payload.get("bookHealth"),
@@ -221,6 +222,7 @@ def build_analysis_pack(
                         "focus": is_focus,
                         "lastPrice": payload.get("lastPrice"),
                         "trend": payload.get("trend"),
+                        "marketContext": payload.get("marketContext"),
                         "orderbook": _trim_book(book, depth),
                         "bookHealth": payload.get("bookHealth"),
                         "tradeFlow": payload.get("tradeFlow"),

@@ -488,6 +488,7 @@ class SessionRecorder:
         return {
             "lastPrice": snapshot.get("lastPrice"),
             "trend": snapshot.get("trend"),
+            "marketContext": snapshot.get("marketContext"),
             "orderbook": {
                 "bids": list(book.get("bids") or [])[:book_depth],
                 "asks": list(book.get("asks") or [])[:book_depth],
@@ -532,6 +533,11 @@ class SessionRecorder:
         chart_candles: dict[str, dict[int, dict]] = {}
         coverage: dict[str, dict] = {}
         strategy_diagnostics: dict[str, dict] = {}
+        market_context_counts = {
+            "legacyTrend": {},
+            "htfBias": {},
+            "localRegime": {},
+        }
 
         def strategy_diag(strategy: str) -> dict:
             return strategy_diagnostics.setdefault(
@@ -728,6 +734,32 @@ class SessionRecorder:
                 key = "marketFrames" if event == "market_frame" else "researchFrames"
                 item[key] += 1
                 remember_candle(symbol, payload.get("candle"))
+                market_context = payload.get("marketContext") or {}
+                if isinstance(market_context, dict):
+                    legacy = str(
+                        market_context.get("legacyTrend")
+                        or payload.get("trend")
+                        or "unknown"
+                    )
+                    htf = market_context.get("htfBias") or {}
+                    local = market_context.get("localRegime") or {}
+                    htf_key = (
+                        str(htf.get("bias") or "unknown")
+                        if isinstance(htf, dict)
+                        else "unknown"
+                    )
+                    local_key = (
+                        str(local.get("regime") or "unknown")
+                        if isinstance(local, dict)
+                        else "unknown"
+                    )
+                    for bucket_name, value in (
+                        ("legacyTrend", legacy),
+                        ("htfBias", htf_key),
+                        ("localRegime", local_key),
+                    ):
+                        bucket = market_context_counts[bucket_name]
+                        bucket[value] = bucket.get(value, 0) + 1
                 book = payload.get("orderbook") or {}
                 bids = book.get("bids") or []
                 asks = book.get("asks") or []
@@ -799,6 +831,9 @@ class SessionRecorder:
             "postRunOpportunity": opportunity,
             "marketInteractionResearch": market_interactions,
             "strategyDiagnostics": strategy_report,
+            "marketContextDiagnostics": {
+                "frameCounts": market_context_counts,
+            },
             "closedTrades": closed_trades,
             "tradeReviews": compact_reviews,
             "coins": {

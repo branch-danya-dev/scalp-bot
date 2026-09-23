@@ -19,10 +19,14 @@ from .strategy.lifecycle import LevelLifecycleTracker
 from .strategy.structure import aggregate_candles
 from .strategy import (
     DEFAULT_STRATEGIES,
+    HTFBiasSnapshot,
+    LocalRegimeSnapshot,
     MarketStructure,
     Strategy,
     build_market_structure,
     classify_context_trend,
+    classify_htf_bias,
+    classify_local_regime,
     compute_trade_flow,
 )
 
@@ -39,7 +43,11 @@ class ActiveSymbolSession:
     context_1h: list[Candle] = field(default_factory=list)
     orderbook: OrderBook = field(default_factory=OrderBook)
     last_price: float = 0.0
+    # Legacy strategy direction remains unchanged during Stage 1.
     trend: Trend = Trend.FLAT
+    htf_bias: HTFBiasSnapshot | None = None
+    local_regime: LocalRegimeSnapshot | None = None
+    market_context_fingerprint: tuple | None = None
     structure: MarketStructure | None = None
     decisions: dict[str, StrategyDecision] = field(default_factory=dict)
     decision_fingerprints: dict[str, tuple] = field(default_factory=dict)
@@ -366,12 +374,28 @@ class ActiveSymbolSession:
             "focusLevels": focus,
         }
 
+    def market_context_public(self) -> dict:
+        return {
+            "legacyTrend": self.trend.value,
+            "htfBias": (
+                self.htf_bias.public()
+                if self.htf_bias is not None
+                else None
+            ),
+            "localRegime": (
+                self.local_regime.public()
+                if self.local_regime is not None
+                else None
+            ),
+        }
+
     def market_snapshot(self) -> dict:
         now_ms = int(time() * 1000)
         return {
             "symbol": self.symbol,
             "lastPrice": self.last_price,
             "trend": self.trend.value,
+            "marketContext": self.market_context_public(),
             "candles": [x.public() for x in self.candles[-240:]],
             "chartSeries": self.chart_series(now_ms),
             "orderbook": self.orderbook.public(50),
@@ -395,6 +419,7 @@ class ActiveSymbolSession:
                         decision,
                         self.trend,
                         now_ms,
+                        market_context=self.market_context_public(),
                     ),
                 }
                 for key, decision in self.decisions.items()
@@ -411,6 +436,7 @@ class ActiveSymbolSession:
         return {
             "lastPrice": self.last_price,
             "trend": self.trend.value,
+            "marketContext": self.market_context_public(),
             "candle": self.candles[-1].public() if self.candles else None,
             "orderbook": self.orderbook.public(book_depth),
             "bookHealth": self.book_health(),
@@ -940,9 +966,21 @@ class TradingEngine:
             last_ranked_at=now,
         )
         session.last_price = candles[-1].close if candles else 0
+        closed_1m = [x for x in session.candles if x.confirmed]
         session.trend = classify_context_trend(
             session.context_15m,
             session.context_1h,
+        )
+        session.htf_bias = classify_htf_bias(
+            session.context_15m,
+            session.context_1h,
+        )
+        session.local_regime = classify_local_regime(
+            closed_1m,
+            session.context_5m,
+        )
+        session.market_context_fingerprint = self._market_context_fingerprint(
+            session
         )
         self.sessions[symbol] = session
         self._emit(
@@ -1048,9 +1086,15 @@ class TradingEngine:
                     session.context_5m = [x for x in context_5m if x.confirmed]
                     session.context_15m = [x for x in context_15m if x.confirmed]
                     session.context_1h = [x for x in context_1h if x.confirmed]
-                    session.trend = classify_context_trend(
-                        session.context_15m,
-                        session.context_1h,
+                    self._refresh_market_context(
+                        session,
+                        closed_1m=[
+                            x for x in session.candles
+                            if x.confirmed
+                        ],
+                        closed_5m=session.context_5m,
+                        closed_15m=session.context_15m,
+                        closed_1h=session.context_1h,
                     )
             except asyncio.CancelledError:
                 raise
@@ -1268,9 +1312,12 @@ class TradingEngine:
                 session.decisions[key] = decision
                 self._record_decision_if_changed(session, decision)
             return
-        session.trend = classify_context_trend(
-            closed_15m,
-            closed_1h,
+        self._refresh_market_context(
+            session,
+            closed_1m=closed_1m,
+            closed_5m=closed_5m,
+            closed_15m=closed_15m,
+            closed_1h=closed_1h,
         )
         reference_price = session.orderbook.mid or session.last_price
         session.structure = build_market_structure(
@@ -1344,6 +1391,56 @@ class TradingEngine:
             self._record_decision_if_changed(session, decision)
 
         self._maybe_strategy_invalidation(session)
+
+    @staticmethod
+    def _market_context_fingerprint(
+        session: ActiveSymbolSession,
+    ) -> tuple:
+        htf = session.htf_bias
+        local = session.local_regime
+        return (
+            session.trend.value,
+            htf.bias.value if htf is not None else None,
+            htf.alignment if htf is not None else None,
+            local.regime.value if local is not None else None,
+            local.direction.value if local is not None else None,
+            local.parent_direction.value if local is not None else None,
+        )
+
+    def _refresh_market_context(
+        self,
+        session: ActiveSymbolSession,
+        *,
+        closed_1m: list[Candle],
+        closed_5m: list[Candle],
+        closed_15m: list[Candle],
+        closed_1h: list[Candle],
+    ) -> None:
+        session.trend = classify_context_trend(
+            closed_15m,
+            closed_1h,
+        )
+        session.htf_bias = classify_htf_bias(
+            closed_15m,
+            closed_1h,
+        )
+        session.local_regime = classify_local_regime(
+            closed_1m,
+            closed_5m,
+        )
+        fingerprint = self._market_context_fingerprint(session)
+        if session.market_context_fingerprint == fingerprint:
+            return
+        previous = session.market_context_fingerprint
+        session.market_context_fingerprint = fingerprint
+        self._emit(
+            "market_context_changed",
+            session.symbol,
+            {
+                "previousFingerprint": list(previous) if previous else None,
+                "marketContext": session.market_context_public(),
+            },
+        )
 
     def _observe_wait_for_rearm(self, session: ActiveSymbolSession, strategy: str, now: float) -> None:
         if strategy not in session.consumed_setups:
@@ -1948,10 +2045,12 @@ class TradingEngine:
                 stats["waitDecisions"] += 1
         observed_at_ms = int(time() * 1000)
         payload = decision.public()
+        payload["marketContext"] = session.market_context_public()
         payload["trace"] = build_decision_trace(
             decision,
             session.trend,
             observed_at_ms,
+            market_context=session.market_context_public(),
         )
         self._emit("decision", session.symbol, payload)
 
@@ -1994,6 +2093,16 @@ class TradingEngine:
                     "tradeCount24h": candidate.trade_count_24h if candidate else None,
                     "lastPrice": session.last_price,
                     "trend": session.trend.value,
+                    "htfBias": (
+                        session.htf_bias.bias.value
+                        if session.htf_bias is not None
+                        else None
+                    ),
+                    "localRegime": (
+                        session.local_regime.regime.value
+                        if session.local_regime is not None
+                        else None
+                    ),
                     "position": position.public() if position else None,
                     "activeAgeSeconds": now - session.activated_at,
                     "marketAgeSeconds": now - session.last_market_at if session.last_market_at > 0 else None,

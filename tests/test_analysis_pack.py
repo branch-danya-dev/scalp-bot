@@ -70,6 +70,23 @@ def test_analysis_pack_keeps_events_candles_reports_and_sampled_books(tmp_path):
             write_row(fh, float(second), "research_frame", "AAAUSDT", {
                 "lastPrice": 100.0 + second / 10,
                 "trend": "up",
+                "marketContext": {
+                    "legacyTrend": "up",
+                    "htfBias": {
+                        "bias": "bullish",
+                        "strength": 0.7,
+                        "trend15m": "up",
+                        "trend1h": "flat",
+                        "alignment": "15m_only",
+                        "legacyTrend": "up",
+                    },
+                    "localRegime": {
+                        "regime": "bullish_impulse",
+                        "direction": "up",
+                        "parent_direction": "up",
+                        "strength": 0.9,
+                    },
+                },
                 "candle": {
                     "time": second,
                     "open": 100.0,
@@ -117,6 +134,9 @@ def test_analysis_pack_keeps_events_candles_reports_and_sampled_books(tmp_path):
     assert manifest["source"]["sizeBytes"] > output.stat().st_size
     assert report["postRunOpportunity"]["summary"]["rejectedCandidates"] == 1
     assert report["marketInteractionResearch"]["summary"]["checkpoints"] == 1
+    assert report["marketContextDiagnostics"]["frameCounts"]["htfBias"]["bullish"] > 0
+    assert report["marketContextDiagnostics"]["frameCounts"]["localRegime"]["bullish_impulse"] > 0
+    assert '"marketContext"' in compact
     assert manifest["compaction"]["interactionDecisionFocusStates"]["level_breakout"] == [
         "break",
         "impulse",
