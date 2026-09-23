@@ -2184,6 +2184,15 @@ class TradingEngine:
                     )
                     continue
 
+                policy_pre = self._evaluate_research_policy(
+                    session,
+                    decision,
+                    phase="pre_plan",
+                    arbitration=base_assessment,
+                )
+                if policy_pre.blocked:
+                    continue
+
                 blocked_reason = self._setup_blocked_reason(
                     session,
                     decision.strategy,
@@ -2325,6 +2334,16 @@ class TradingEngine:
                         None
                     )
 
+                policy_post = self._evaluate_research_policy(
+                    session,
+                    decision,
+                    phase="post_plan",
+                    plan=result.plan,
+                    arbitration=base_assessment,
+                )
+                if policy_post.blocked:
+                    continue
+
                 scanner_candidate = candidate_map.get(
                     session.symbol
                 )
@@ -2384,6 +2403,16 @@ class TradingEngine:
                         decision,
                         assessment,
                     )
+                    continue
+
+                policy_final = self._evaluate_research_policy(
+                    session,
+                    decision,
+                    phase="final",
+                    plan=plan,
+                    arbitration=assessment,
+                )
+                if policy_final.blocked:
                     continue
 
                 session.arbiter_block_fingerprints.pop(
