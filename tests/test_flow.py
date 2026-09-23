@@ -1,3 +1,4 @@
+import pytest
 from collections import deque
 
 from scalp_bot.domain import TradeTick
@@ -220,3 +221,27 @@ def test_flow_beyond_level_does_not_count_boundary_print() -> None:
     )
 
     assert flow.trade_count == 0
+
+
+
+def test_trade_flow_exposes_multi_horizon_imbalances_and_counts() -> None:
+    now = 100_000
+    rows = [
+        TradeTick(now - 50_000, 100, 1, "Sell"),
+        TradeTick(now - 12_000, 100, 2, "Sell"),
+        TradeTick(now - 3_000, 100, 3, "Buy"),
+        TradeTick(now - 2_000, 100, 2, "Buy"),
+        TradeTick(now - 1_000, 100, 1, "Buy"),
+    ]
+
+    flow = compute_trade_flow(rows, now)
+
+    assert flow["tradeCount5s"] == 3
+    assert flow["tradeCount15s"] == 4
+    assert flow["tradeCount60s"] == 5
+    assert flow["notional5s"] == 600
+    assert flow["notional15s"] == 800
+    assert flow["notional60s"] == 900
+    assert flow["imbalance5s"] == 1.0
+    assert flow["imbalance15s"] == 0.5
+    assert flow["imbalance60s"] == pytest.approx(300 / 900)
