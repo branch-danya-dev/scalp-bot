@@ -71,6 +71,12 @@ class Settings(BaseSettings):
     density_enabled: bool = True
     breakout_enabled: bool = True
 
+    # Stage 15: staged entries let fast, high-quality market evidence open a
+    # bounded probe and reserve the remaining setup risk for confirmation.
+    staged_entries_enabled: bool = True
+    breakout_probe_risk_fraction: float = 0.35
+    weak_level_rejection_probe_risk_fraction: float = 0.30
+
     strategy_expectancy_min_samples: int = 30
     enforce_strategy_expectancy_gate: bool = False
     # Stage 9 research-only readiness guards. These values do not block
