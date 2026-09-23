@@ -9,6 +9,11 @@ from .common import detect_level_zones, swing_highs, swing_lows, typical_range_p
 if TYPE_CHECKING:
     from .structure import MarketStructure
 
+from .structure import (
+    RESISTANCE_LEVEL_KINDS,
+    SUPPORT_LEVEL_KINDS,
+)
+
 
 @dataclass(slots=True)
 class LiquidityTarget:
@@ -46,11 +51,9 @@ def find_liquidity_targets(
     if structure is not None:
         for level in structure.levels:
             if action == Action.LONG:
-                eligible_kind = level.kind in {
-                    "resistance",
-                    "day_high",
-                    "previous_day_high",
-                }
+                eligible_kind = (
+                    level.kind in RESISTANCE_LEVEL_KINDS
+                )
                 target_price = (
                     level.low
                     if level.kind == "resistance"
@@ -58,11 +61,9 @@ def find_liquidity_targets(
                 )
                 distance = (target_price - entry) / entry
             else:
-                eligible_kind = level.kind in {
-                    "support",
-                    "day_low",
-                    "previous_day_low",
-                }
+                eligible_kind = (
+                    level.kind in SUPPORT_LEVEL_KINDS
+                )
                 target_price = (
                     level.high
                     if level.kind == "support"

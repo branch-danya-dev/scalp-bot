@@ -200,6 +200,31 @@ def _zone_overlaps_level(
     )
 
 
+def _decision_owns_level(
+    decision: StrategyDecision,
+    level: StructuralLevel,
+) -> bool:
+    details = decision.details or {}
+    lifecycle = details.get("levelLifecycle")
+    if isinstance(lifecycle, dict):
+        decision_generation = lifecycle.get("generation_id")
+        if (
+            decision_generation
+            and level.generation_id
+        ):
+            return (
+                str(decision_generation)
+                == str(level.generation_id)
+            )
+
+    # Fallback only for ordinary detector zones that predate exact generation
+    # telemetry. Day/previous-day references are separate market objects and
+    # must never be exempted merely because they overlap a breakout zone.
+    if level.kind not in {"support", "resistance"}:
+        return False
+    return _zone_overlaps_level(decision, level)
+
+
 def assess_structural_path(
     decision: StrategyDecision,
     context: MarketContext | None,
@@ -303,7 +328,7 @@ def assess_structural_path(
         decision.strategy == "level_breakout"
         and str((decision.details or {}).get("state") or "")
         in {"break", "impulse"}
-        and _zone_overlaps_level(decision, obstacle)
+        and _decision_owns_level(decision, obstacle)
     )
 
     managed_breakout_obstacle = (
