@@ -47,10 +47,20 @@ class Position:
     mae_at: float | None = None
     partial_taken_at: float | None = None
     estimated_exit_fee_usd: float = 0.0
+    initial_risk_budget_usd: float = 0.0
+    entry_legs: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def initial_risk_usd(self) -> float:
-        return self.original_notional * abs(self.entry - self.initial_stop) / self.entry
+        if self.initial_risk_budget_usd > 0:
+            return self.initial_risk_budget_usd
+        return (
+            self.original_notional
+            * abs(self.entry - self.initial_stop)
+            / self.entry
+            if self.entry > 0
+            else 0.0
+        )
 
     @property
     def current_risk_usd(self) -> float:
@@ -127,6 +137,7 @@ class PendingEntry:
     created_at: float
     expires_at: float
     min_trade_ts_ms: int | None = None
+    position_action: str = "open"
 
     def public(self) -> dict:
         return {
@@ -141,6 +152,7 @@ class PendingEntry:
             "expiresAt": self.expires_at,
             "minTradeTsMs": self.min_trade_ts_ms,
             "entryMode": self.plan.entry_mode,
+            "positionAction": self.position_action,
         }
 
 
@@ -220,12 +232,47 @@ class PaperBroker:
             return False, "portfolio risk budget exhausted"
         return True, "allowed"
 
+    def can_add(self, plan: TradePlan) -> tuple[bool, str]:
+        pos = self.positions.get(plan.symbol)
+        if pos is None:
+            return False, "no open position for staged add"
+        if plan.symbol in self.pending_entries:
+            return False, "symbol already has a pending entry"
+        if pos.strategy != plan.strategy:
+            return False, "staged add strategy does not match open position"
+        if pos.side != plan.side:
+            return False, "staged add side does not match open position"
+        if pos.setup_id != plan.setup_id:
+            return False, "staged add setup does not match open position"
+        if pos.partial_taken:
+            return False, "cannot add after partial take"
+        if (
+            self.config.enforce_session_loss_limit
+            and self.config.max_daily_loss_fraction > 0
+            and self.total_pnl
+            <= -(
+                self.start_balance
+                * self.config.max_daily_loss_fraction
+            )
+        ):
+            return False, "session loss limit reached"
+        if self.available_notional <= 0:
+            return False, "portfolio exposure budget exhausted"
+        if self.available_risk_usd <= 0:
+            return False, "portfolio risk budget exhausted"
+        return True, "allowed"
+
     def _position_from_fill(
         self,
         plan: TradePlan,
         fill: float,
         entry_fee: float,
     ) -> Position:
+        structural_risk_usd = (
+            plan.notional * abs(fill - plan.stop) / fill
+            if fill > 0
+            else 0.0
+        )
         position = Position(
             symbol=plan.symbol,
             strategy=plan.strategy,
@@ -243,9 +290,84 @@ class PaperBroker:
             last_price=fill,
             setup_id=plan.setup_id,
             strategy_details=dict(plan.strategy_details),
+            initial_risk_budget_usd=structural_risk_usd,
+            entry_legs=[{
+                "phase": str(
+                    (
+                        plan.strategy_details.get("stagedEntry")
+                        or {}
+                    ).get("phase") or "full"
+                ),
+                "notional": plan.notional,
+                "fill": fill,
+                "entryFeeUsd": entry_fee,
+                "structuralRiskUsd": structural_risk_usd,
+                "addedAt": time(),
+                "plan": plan.public(),
+            }],
         )
         self.positions[plan.symbol] = position
         return position
+
+    def _add_to_position_from_fill(
+        self,
+        plan: TradePlan,
+        fill: float,
+        entry_fee: float,
+    ) -> Position:
+        pos = self.positions.get(plan.symbol)
+        if pos is None:
+            raise RuntimeError("no open position for staged add")
+        previous_notional = pos.notional
+        combined_notional = previous_notional + plan.notional
+        if combined_notional <= 0:
+            raise RuntimeError("invalid combined staged position size")
+
+        weighted_entry = (
+            pos.entry * previous_notional
+            + fill * plan.notional
+        ) / combined_notional
+        incremental_structural_risk = (
+            plan.notional * abs(fill - plan.stop) / fill
+            if fill > 0
+            else 0.0
+        )
+
+        pos.original_notional += plan.notional
+        pos.notional = combined_notional
+        pos.entry = weighted_entry
+        pos.entry_fee_remaining += entry_fee
+        pos.entry_fee_total_usd += entry_fee
+        pos.last_price = fill
+        pos.initial_risk_budget_usd += (
+            incremental_structural_risk
+        )
+
+        # A confirmation leg may tighten invalidation, but never widens the
+        # risk of the already-open probe.
+        if pos.side == Side.LONG:
+            pos.stop = max(pos.stop, plan.stop)
+        else:
+            pos.stop = min(pos.stop, plan.stop)
+
+        merged_details = dict(pos.strategy_details)
+        merged_details.update(plan.strategy_details)
+        pos.strategy_details = merged_details
+        pos.entry_legs.append({
+            "phase": str(
+                (
+                    plan.strategy_details.get("stagedEntry")
+                    or {}
+                ).get("phase") or "add"
+            ),
+            "notional": plan.notional,
+            "fill": fill,
+            "entryFeeUsd": entry_fee,
+            "structuralRiskUsd": incremental_structural_risk,
+            "addedAt": time(),
+            "plan": plan.public(),
+        })
+        return pos
 
     def place_pending(
         self,
@@ -269,6 +391,40 @@ class PaperBroker:
             created_at=now,
             expires_at=now + max(0.1, self.config.passive_entry_timeout_seconds),
             min_trade_ts_ms=min_trade_ts_ms,
+        )
+        self.pending_entries[plan.symbol] = pending
+        return pending
+
+    def place_pending_add(
+        self,
+        plan: TradePlan,
+        *,
+        min_trade_ts_ms: int | None = None,
+    ) -> PendingEntry:
+        if plan.entry_mode != "maker_limit":
+            raise RuntimeError(
+                "pending staged add requires maker_limit plan"
+            )
+        allowed, reason = self.can_add(plan)
+        if not allowed:
+            raise RuntimeError(reason)
+        if plan.notional > self.available_notional + 1e-9:
+            raise RuntimeError(
+                "staged add exceeds remaining portfolio exposure budget"
+            )
+        if plan.expected_net_loss > self.available_risk_usd + 1e-9:
+            raise RuntimeError(
+                "staged add exceeds remaining all-in portfolio risk budget"
+            )
+        now = time()
+        pending = PendingEntry(
+            plan=plan,
+            limit_price=plan.market_entry,
+            created_at=now,
+            expires_at=now
+            + max(0.1, self.config.passive_entry_timeout_seconds),
+            min_trade_ts_ms=min_trade_ts_ms,
+            position_action="add",
         )
         self.pending_entries[plan.symbol] = pending
         return pending
@@ -328,7 +484,11 @@ class PaperBroker:
         if not filled:
             return []
         del self.pending_entries[symbol]
-        allowed, reason = self.can_open(symbol)
+        is_add = pending.position_action == "add"
+        if is_add:
+            allowed, reason = self.can_add(pending.plan)
+        else:
+            allowed, reason = self.can_open(symbol)
         if not allowed:
             return [{
                 "event": "entry_cancelled",
@@ -337,6 +497,7 @@ class PaperBroker:
                 "setupId": pending.plan.setup_id,
                 "reason": f"passive_fill_blocked: {reason}",
                 "limitPrice": pending.limit_price,
+                "positionAction": pending.position_action,
             }]
         if pending.plan.notional > self.available_notional + 1e-9:
             return [{
@@ -346,6 +507,7 @@ class PaperBroker:
                 "setupId": pending.plan.setup_id,
                 "reason": "passive_fill_exposure_budget",
                 "limitPrice": pending.limit_price,
+                "positionAction": pending.position_action,
             }]
         if pending.plan.expected_net_loss > self.available_risk_usd + 1e-9:
             return [{
@@ -355,13 +517,28 @@ class PaperBroker:
                 "setupId": pending.plan.setup_id,
                 "reason": "passive_fill_risk_budget",
                 "limitPrice": pending.limit_price,
+                "positionAction": pending.position_action,
             }]
-        fee = pending.plan.notional * fee_rate(self.config, "maker_limit")
-        position = self._position_from_fill(
-            pending.plan, pending.limit_price, fee
+        fee = pending.plan.notional * fee_rate(
+            self.config,
+            "maker_limit",
         )
+        if is_add:
+            position = self._add_to_position_from_fill(
+                pending.plan,
+                pending.limit_price,
+                fee,
+            )
+            event_type = "entry_added"
+        else:
+            position = self._position_from_fill(
+                pending.plan,
+                pending.limit_price,
+                fee,
+            )
+            event_type = "entry_filled"
         return [{
-            "event": "entry_filled",
+            "event": event_type,
             "symbol": symbol,
             "strategy": pending.plan.strategy,
             "setupId": pending.plan.setup_id,
@@ -369,6 +546,7 @@ class PaperBroker:
             "position": position.public(),
             "limitPrice": pending.limit_price,
             "fillModel": "trade_through",
+            "positionAction": pending.position_action,
         }]
 
     def cancel_all_pending(self, reason: str) -> list[dict]:
@@ -415,6 +593,52 @@ class PaperBroker:
             profile.entry,
         )
         return self._position_from_fill(plan, fill, fee)
+
+    def add(self, plan: TradePlan, book: OrderBook) -> Position:
+        if plan.entry_mode == "maker_limit":
+            raise RuntimeError(
+                "maker_limit staged add must be placed as pending entry"
+            )
+        allowed, reason = self.can_add(plan)
+        if not allowed:
+            raise RuntimeError(reason)
+        if plan.notional > self.available_notional + 1e-9:
+            raise RuntimeError(
+                "staged add exceeds remaining portfolio exposure budget"
+            )
+        if plan.expected_net_loss > self.available_risk_usd + 1e-9:
+            raise RuntimeError(
+                "staged add exceeds remaining all-in portfolio risk budget"
+            )
+        raw, visible_depth = book.entry_vwap(
+            plan.side,
+            plan.notional,
+        )
+        if (
+            raw is None
+            or visible_depth
+            + max(1e-9, plan.notional * 1e-9)
+            < plan.notional
+        ):
+            raise RuntimeError(
+                "insufficient visible entry depth for staged add"
+            )
+        profile = execution_profile(plan.strategy)
+        slip = slippage_rate(self.config, profile.entry)
+        fill = raw * (
+            1 + slip
+            if plan.side == Side.LONG
+            else 1 - slip
+        )
+        fee = plan.notional * fee_rate(
+            self.config,
+            profile.entry,
+        )
+        return self._add_to_position_from_fill(
+            plan,
+            fill,
+            fee,
+        )
 
     def mark(self, symbol: str, last_price: float, book: OrderBook) -> list[dict]:
         pos = self.positions.get(symbol)
@@ -555,6 +779,8 @@ class PaperBroker:
             "stop": pos.stop,
             "target": pos.target,
             "originalNotional": pos.original_notional,
+            "entryLegs": list(pos.entry_legs),
+            "scaleInCount": max(0, len(pos.entry_legs) - 1),
             "grossPnl": pos.realized_gross_usd,
             "fees": pos.fees_paid_usd,
             "entryFeeUsd": pos.entry_fee_total_usd,
@@ -587,8 +813,18 @@ class PaperBroker:
         del self.positions[symbol]
         return trade
 
+    @staticmethod
+    def _initial_risk_distance(pos: Position) -> float:
+        if pos.original_notional <= 0 or pos.entry <= 0:
+            return abs(pos.entry - pos.initial_stop)
+        return (
+            pos.initial_risk_usd
+            / pos.original_notional
+            * pos.entry
+        )
+
     def _partial_limit_price(self, pos: Position) -> float:
-        risk_distance = abs(pos.entry - pos.initial_stop)
+        risk_distance = self._initial_risk_distance(pos)
         multiple = max(0.0, self.config.partial_take_at_r)
         if pos.side == Side.LONG:
             return pos.entry + risk_distance * multiple
@@ -701,7 +937,7 @@ class PaperBroker:
         pos.partial_required_net_usd = required_net
         pos.partial_economic_ready = True
 
-        risk_distance = abs(pos.entry - pos.initial_stop)
+        risk_distance = self._initial_risk_distance(pos)
         runner_stop = self._runner_breakeven_stop(pos)
         target_source = str(
             pos.strategy_details.get("targetSource") or ""
