@@ -28,12 +28,14 @@ from .strategy import (
     LocalRegimeSnapshot,
     MultiHorizonFlowContext,
     LiquidityEvidence,
+    FormingCandleContext,
     MarketContext,
     MarketStructure,
     SelectionPriority,
     SemanticCandidateAssessment,
     Strategy,
     build_execution_context,
+    build_forming_candle_context,
     build_liquidity_evidence,
     build_market_structure,
     build_structure_context,
@@ -49,12 +51,12 @@ from .strategy import (
 )
 
 
-ACTIVE_SETUP_STATES = {"found", "persisting", "approach", "pressure", "test", "defended", "reject", "reaction", "break", "impulse"}
+ACTIVE_SETUP_STATES = {"found", "persisting", "approach", "pressure", "armed", "test", "defended", "reject", "reaction", "break", "impulse"}
 
 ENTRY_FRESHNESS_TRIGGER_STATES = {
-    "trend_structure": {"reclaim"},
-    "weak_level_rejection": {"reject"},
-    "level_breakout": {"break"},
+    "trend_structure": {"pullback", "armed", "test", "reclaim"},
+    "weak_level_rejection": {"test", "reject"},
+    "level_breakout": {"pressure", "armed", "break"},
 }
 ENTRY_FRESHNESS_RESET_STATES = {
     "search",
@@ -80,6 +82,7 @@ class ActiveSymbolSession:
     local_regime: LocalRegimeSnapshot | None = None
     flow_context: MultiHorizonFlowContext | None = None
     liquidity_evidence: LiquidityEvidence | None = None
+    forming_candle_context: FormingCandleContext | None = None
     market_context: MarketContext | None = None
     market_context_fingerprint: tuple | None = None
     entry_freshness_anchors: dict[str, dict] = field(default_factory=dict)
@@ -1391,6 +1394,16 @@ class TradingEngine:
 
         now = time()
         now_ms = int(now * 1000)
+        forming_1m = max(
+            (candle for candle in session.candles if not candle.confirmed),
+            key=lambda candle: candle.start_ms,
+            default=None,
+        )
+        session.forming_candle_context = build_forming_candle_context(
+            forming_1m,
+            closed_1m,
+            observed_at_ms=now_ms,
+        )
         self._refresh_market_context(
             session,
             closed_1m=closed_1m,
@@ -1684,6 +1697,7 @@ class TradingEngine:
                 float(reference_price),
             ),
             execution=execution,
+            forming_candle=session.forming_candle_context,
         )
 
     def _commit_market_context(
@@ -1871,6 +1885,19 @@ class TradingEngine:
                 )
                 else None
             ),
+            "opportunityFreshness": (
+                decision.details.get("opportunityFreshness")
+                if isinstance(
+                    decision.details.get("opportunityFreshness"),
+                    dict,
+                )
+                else None
+            ),
+            "formingCandle": (
+                context.forming_candle.public()
+                if context.forming_candle is not None
+                else None
+            ),
             "executionReady": context.execution.ready,
             "spreadPct": context.execution.spread_pct,
             "top5DepthUsd": (
@@ -1982,19 +2009,49 @@ class TradingEngine:
             session.entry_freshness_fingerprints.pop(strategy, None)
             return
 
-        if state in ENTRY_FRESHNESS_TRIGGER_STATES.get(strategy, set()):
+        details = decision.details or {}
+        opportunity_arm = details.get("opportunityArm")
+        trigger_state = state in ENTRY_FRESHNESS_TRIGGER_STATES.get(
+            strategy,
+            set(),
+        )
+        if trigger_state or isinstance(opportunity_arm, dict):
             if anchor is None or anchor.get("objectKey") != object_key:
+                arm_price = (
+                    opportunity_arm.get("price")
+                    if isinstance(opportunity_arm, dict)
+                    else None
+                )
                 trigger_price = (
-                    session.orderbook.mid
-                    or session.last_price
-                    or decision.watched_level
+                    float(arm_price)
+                    if isinstance(arm_price, (int, float)) and arm_price > 0
+                    else (
+                        session.orderbook.mid
+                        or session.last_price
+                        or decision.watched_level
+                    )
+                )
+                arm_ms = (
+                    opportunity_arm.get("observedAtMs")
+                    if isinstance(opportunity_arm, dict)
+                    else None
+                )
+                trigger_ts = (
+                    float(arm_ms) / 1000
+                    if isinstance(arm_ms, (int, float)) and arm_ms > 0
+                    else float(observed_at)
+                )
+                arm_source = (
+                    str(opportunity_arm.get("source") or "opportunity_arm")
+                    if isinstance(opportunity_arm, dict)
+                    else f"{state}_state"
                 )
                 if trigger_price and trigger_price > 0:
                     anchor = {
                         "objectKey": object_key,
                         "triggerPrice": float(trigger_price),
-                        "triggerTs": float(observed_at),
-                        "source": f"{state}_state",
+                        "triggerTs": trigger_ts,
+                        "source": arm_source,
                     }
                     session.entry_freshness_anchors[strategy] = anchor
 
@@ -2028,14 +2085,24 @@ class TradingEngine:
             observed_ts=observed_at,
             source=str(anchor.get("source") or "unknown"),
         )
-        decision.details["entryFreshness"] = freshness.public()
+        freshness_public = freshness.public()
+        decision.details["opportunityFreshness"] = freshness_public
+        decision.details["entryFreshness"] = freshness_public
+        if (
+            decision.tradeable
+            and freshness.confirmation_age_seconds is not None
+        ):
+            decision.details["armToFireSeconds"] = (
+                freshness.confirmation_age_seconds
+            )
+            decision.details["causalTriggerSource"] = freshness.source
 
         fingerprint = (
             object_key,
             freshness.classification.value,
             (
-                round(float(freshness.move_spent_ratio), 1)
-                if freshness.move_spent_ratio is not None
+                round(float(freshness.effective_spent_ratio), 1)
+                if freshness.effective_spent_ratio is not None
                 else None
             ),
         )
@@ -2056,7 +2123,8 @@ class TradingEngine:
                     )
                 ),
                 "state": state,
-                "entryFreshness": freshness.public(),
+                "entryFreshness": freshness_public,
+                "opportunityFreshness": freshness_public,
                 "decision": decision.public(),
             },
         )
@@ -2177,6 +2245,12 @@ class TradingEngine:
                 )
                 decision.details["semanticArbitration"] = (
                     base_assessment.public()
+                )
+                decision.details["riskScale"] = (
+                    base_assessment.risk_scale
+                )
+                decision.details["riskScaleSource"] = (
+                    "semantic_arbiter_stage13"
                 )
                 if not base_assessment.allowed:
                     self._record_arbiter_blocked(

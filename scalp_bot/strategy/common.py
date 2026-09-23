@@ -287,6 +287,11 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
             "cvd5s": 0.0,
             "cvd15s": 0.0,
             "cvd60s": 0.0,
+            "priceMove5sPct": 0.0,
+            "priceMove15sPct": 0.0,
+            "priceMove60sPct": 0.0,
+            "priceResponseEfficiency5s": 0.0,
+            "effortWithoutResult5s": False,
         }
     if now_ms is None:
         now_ms = trades[-1].ts_ms
@@ -309,6 +314,11 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
             if trade.side.lower() == "sell"
         )
         total = buy + sell
+        price_move = (
+            (rows[-1].price - rows[0].price) / rows[0].price
+            if len(rows) >= 2 and rows[0].price > 0
+            else 0.0
+        )
         return {
             "rows": rows,
             "buy": buy,
@@ -319,6 +329,7 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
                 if total > 0
                 else 0.0
             ),
+            "priceMovePct": price_move,
         }
 
     recent = window_stats(5)
@@ -371,6 +382,20 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
     )
 
     latest_age_ms = max(0, now_ms - trades[-1].ts_ms)
+    response_efficiency_5s = (
+        abs(recent["priceMovePct"])
+        / max(abs(recent["imbalance"]), 0.01)
+    )
+    effort_without_result_5s = (
+        baseline_ready
+        and len(recent["rows"]) >= 3
+        and abs(recent["imbalance"]) >= 0.15
+        and acceleration >= 1.0
+        and (
+            recent["priceMovePct"] * recent["imbalance"] <= 0
+            or abs(recent["priceMovePct"]) < 0.00003
+        )
+    )
     return {
         "buyNotional5s": recent["buy"],
         "sellNotional5s": recent["sell"],
@@ -398,6 +423,11 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
         "cvd5s": recent["buy"] - recent["sell"],
         "cvd15s": medium["buy"] - medium["sell"],
         "cvd60s": long["buy"] - long["sell"],
+        "priceMove5sPct": recent["priceMovePct"],
+        "priceMove15sPct": medium["priceMovePct"],
+        "priceMove60sPct": long["priceMovePct"],
+        "priceResponseEfficiency5s": response_efficiency_5s,
+        "effortWithoutResult5s": effort_without_result_5s,
     }
 
 def bullish_rejection(candle: Candle) -> bool:

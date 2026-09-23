@@ -6,6 +6,7 @@ from typing import Any
 from ..domain import Action, OrderBook, Trend
 from .flow_context import MultiHorizonFlowContext
 from .liquidity_evidence import LiquidityEvidence
+from .pre_state import FormingCandleContext
 from .regime import HTFBiasSnapshot, LocalRegimeSnapshot
 from .structure import MarketStructure, StructuralLevel, TrendLine
 
@@ -101,6 +102,7 @@ class MarketContext:
     liquidity: LiquidityEvidence | None
     structure: StructureContext | None
     execution: ExecutionContext
+    forming_candle: FormingCandleContext | None = None
 
     def flow_alignment_for(self, action: Action):
         if self.flow is None:
@@ -162,6 +164,11 @@ class MarketContext:
             ),
             self.execution.book_fresh,
             self.execution.candle_fresh,
+            (
+                self.forming_candle.fingerprint()
+                if self.forming_candle is not None
+                else None
+            ),
         )
 
     def public(self) -> dict[str, Any]:
@@ -197,6 +204,11 @@ class MarketContext:
                 else None
             ),
             "executionContext": self.execution.public(),
+            "formingCandle": (
+                self.forming_candle.public()
+                if self.forming_candle is not None
+                else None
+            ),
         }
 
 

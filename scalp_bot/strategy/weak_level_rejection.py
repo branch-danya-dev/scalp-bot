@@ -51,6 +51,8 @@ class RejectionWatchState:
     pinned_generation_id: str | None = None
     pinned_until: float = 0.0
     swept: bool = False
+    armed_at: float = 0.0
+    armed_price: float = 0.0
 
 
 class WeakLevelRejectionStrategy(Strategy):
@@ -78,6 +80,8 @@ class WeakLevelRejectionStrategy(Strategy):
             state.pinned_generation_id = None
             state.pinned_until = 0.0
             state.swept = False
+            state.armed_at = 0.0
+            state.armed_price = 0.0
 
     @staticmethod
     def _key(zone: LevelZone) -> tuple[str, float, float, int]:
@@ -163,6 +167,8 @@ class WeakLevelRejectionStrategy(Strategy):
             state.pinned_generation_id = None
             state.pinned_until = 0.0
             state.swept = False
+            state.armed_at = 0.0
+            state.armed_price = 0.0
 
         if generation_id in state.used_generations:
             return StrategyDecision(
@@ -181,6 +187,13 @@ class WeakLevelRejectionStrategy(Strategy):
 
         last = candles[-1]
         price = book.mid or last.close
+        forming = (
+            market_context.forming_candle
+            if market_context is not None
+            else None
+        )
+        live_high = forming.high if forming is not None else last.high
+        live_low = forming.low if forming is not None else last.low
         flow = compute_trade_flow(trades, observed_at_ms)
         level_tolerance = max(
             zone.width_pct * 1.5,
@@ -204,7 +217,25 @@ class WeakLevelRejectionStrategy(Strategy):
         visuals = zone_visual(zone, "weak rejection zone")
         range_abs = typical_range_abs(candles)
 
-        if not approach_is_directional(candles, zone.kind):
+        forming_approach = (
+            forming is not None
+            and (
+                (
+                    zone.kind == "resistance"
+                    and forming.body_pct > 0
+                    and forming.close_position >= 0.55
+                )
+                or (
+                    zone.kind == "support"
+                    and forming.body_pct < 0
+                    and forming.close_position <= 0.45
+                )
+            )
+        )
+        if (
+            not approach_is_directional(candles, zone.kind)
+            and not forming_approach
+        ):
             state.stage = RejectionStage.FOUND
             return StrategyDecision(
                 self.key,
@@ -227,7 +258,7 @@ class WeakLevelRejectionStrategy(Strategy):
         buffer = max(range_abs * 0.20, price * 0.00015)
 
         if zone.kind == "resistance":
-            tested = last.high >= zone.low
+            tested = live_high >= zone.low
             breakout_flow = flow_beyond_level(
                 trades,
                 zone.high,
@@ -236,7 +267,7 @@ class WeakLevelRejectionStrategy(Strategy):
                 now_ms=observed_at_ms,
             )
             sweep_observed = (
-                last.high > zone.high
+                live_high > zone.high
                 or breakout_flow.trade_count > 0
             )
             if sweep_observed:
@@ -257,7 +288,7 @@ class WeakLevelRejectionStrategy(Strategy):
             stop = stop_anchor + buffer
             risk = stop - price
         else:
-            tested = last.low <= zone.high
+            tested = live_low <= zone.high
             breakout_flow = flow_beyond_level(
                 trades,
                 zone.low,
@@ -266,7 +297,7 @@ class WeakLevelRejectionStrategy(Strategy):
                 now_ms=observed_at_ms,
             )
             sweep_observed = (
-                last.low < zone.low
+                live_low < zone.low
                 or breakout_flow.trade_count > 0
             )
             if sweep_observed:
@@ -295,6 +326,19 @@ class WeakLevelRejectionStrategy(Strategy):
                 state.pinned_until,
                 now + self.test_pin_seconds,
             )
+            if state.armed_at <= 0:
+                state.armed_at = now
+                state.armed_price = price
+
+        opportunity_arm = (
+            {
+                "observedAtMs": int(state.armed_at * 1000),
+                "price": state.armed_price,
+                "source": "rejection_live_test_armed",
+            }
+            if state.armed_at > 0
+            else None
+        )
 
         if not (tested and failed_break):
             return StrategyDecision(
@@ -316,6 +360,12 @@ class WeakLevelRejectionStrategy(Strategy):
                     "sweepObserved": state.swept,
                     "reclaimed": failed_break,
                     "pinnedUntil": state.pinned_until or None,
+                    "formingCandle": (
+                        forming.public()
+                        if forming is not None
+                        else None
+                    ),
+                    "opportunityArm": opportunity_arm,
                 },
             )
 
@@ -338,6 +388,12 @@ class WeakLevelRejectionStrategy(Strategy):
                     "roundLevel": round_level,
                     "weakLevel": True,
                     "levelGeneration": generation_id,
+                    "formingCandle": (
+                        forming.public()
+                        if forming is not None
+                        else None
+                    ),
+                    "opportunityArm": opportunity_arm,
                 },
             )
 
@@ -495,6 +551,12 @@ class WeakLevelRejectionStrategy(Strategy):
                 "roundLevel": round_level,
                 "weakLevel": True,
                 "levelGeneration": generation_id,
+                "formingCandle": (
+                    forming.public()
+                    if forming is not None
+                    else None
+                ),
+                "opportunityArm": opportunity_arm,
                 **context_details,
                 "entryContextAssessment": entry_context.public(),
                 "levelLifecycle": (
@@ -678,6 +740,8 @@ class WeakLevelRejectionStrategy(Strategy):
             state.pinned_generation_id = None
             state.pinned_until = 0.0
             state.swept = False
+            state.armed_at = 0.0
+            state.armed_price = 0.0
             state.stage = RejectionStage.SEARCH
             state.zone_key = None
 
@@ -738,6 +802,8 @@ class WeakLevelRejectionStrategy(Strategy):
         if not all_choices:
             state.stage = RejectionStage.SEARCH
             state.zone_key = None
+            state.armed_at = 0.0
+            state.armed_price = 0.0
             return StrategyDecision(
                 self.key,
                 Action.WAIT,

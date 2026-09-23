@@ -218,6 +218,31 @@ def scalp_settings(**overrides) -> Settings:
     return Settings(**values)
 
 
+def test_controlled_risk_scale_increases_structural_budget_but_keeps_hard_cap() -> None:
+    trade = decision(100.60, stop=99.80)
+    trade.details["riskScale"] = 1.20
+    trade.details["riskScaleSource"] = "test"
+
+    result = RiskEngine(scalp_settings()).build_plan(
+        "BTCUSDT",
+        trade,
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.notional == pytest.approx(3000)
+    economics = result.plan.strategy_details["economics"]
+    assert economics["baseStructuralRiskBudgetUsd"] == pytest.approx(5.0)
+    assert economics["structuralRiskBudgetUsd"] == pytest.approx(6.0)
+    assert economics["riskScale"] == pytest.approx(1.20)
+    hard_cap = 1000 * scalp_settings().max_trade_all_in_loss_fraction
+    assert result.plan.expected_net_loss <= hard_cap + 1e-9
+
+
 def test_tight_stop_scales_position_to_five_x() -> None:
     result = RiskEngine(scalp_settings()).build_plan(
         "BTCUSDT",

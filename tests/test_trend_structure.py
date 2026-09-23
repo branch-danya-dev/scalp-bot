@@ -78,7 +78,12 @@ def buy_flow() -> list[TradeTick]:
         for i in range(7)
     ]
     rows += [
-        TradeTick(100_000 + i * 100, 100.0, 10, "Buy")
+        TradeTick(
+            100_000 + i * 100,
+            100.0 + i * 0.005,
+            10,
+            "Buy",
+        )
         for i in range(6)
     ]
     return rows
@@ -90,7 +95,12 @@ def sell_flow() -> list[TradeTick]:
         for i in range(7)
     ]
     rows += [
-        TradeTick(100_000 + i * 100, 100.0, 10, "Sell")
+        TradeTick(
+            100_000 + i * 100,
+            100.0 - i * 0.005,
+            10,
+            "Sell",
+        )
         for i in range(6)
     ]
     return rows
@@ -123,9 +133,10 @@ def test_touch_and_rejection_do_not_create_immediate_long_entry() -> None:
     )
 
     assert decision.action == Action.WAIT
-    assert decision.details["state"] == "test"
+    assert decision.details["state"] == "armed"
     assert 100.0 < decision.details["reclaimLevel"] < 100.1
     assert decision.details["reclaimDistanceBps"] <= 5.0
+    assert decision.details["opportunityArm"]["source"] == "trendline_live_test_armed"
 
 
 def test_reclaim_without_trade_flow_is_still_wait() -> None:
@@ -156,7 +167,7 @@ def test_reclaim_without_trade_flow_is_still_wait() -> None:
     assert decision.details["flowConfirmed"] is False
 
 
-def test_long_entry_requires_test_reclaim_flow_and_follow_through() -> None:
+def test_long_entry_requires_test_reclaim_flow_and_price_response() -> None:
     strategy = TrendStructureStrategy()
     candles = long_pullback_candles()
     market_structure = structure("support")
@@ -171,7 +182,7 @@ def test_long_entry_requires_test_reclaim_flow_and_follow_through() -> None:
         structure=market_structure,
     )
     assert first.action == Action.WAIT
-    assert first.details["state"] == "test"
+    assert first.details["state"] == "armed"
 
     reclaim = strategy.evaluate(
         candles,
@@ -235,7 +246,7 @@ def test_short_entry_uses_symmetric_confirmation_sequence() -> None:
         structure=market_structure,
     )
     assert first.action == Action.WAIT
-    assert first.details["state"] == "test"
+    assert first.details["state"] == "armed"
 
     reclaim = strategy.evaluate(
         candles,
@@ -258,6 +269,39 @@ def test_short_entry_uses_symmetric_confirmation_sequence() -> None:
     )
     assert entry.action == Action.SHORT
     assert entry.stop > entry.entry
+
+
+def test_aggressive_flow_without_price_response_does_not_confirm_reclaim() -> None:
+    strategy = TrendStructureStrategy()
+    candles = long_pullback_candles()
+    market_structure = structure("support")
+    stalled_flow = buy_flow()
+    for row in stalled_flow[-6:]:
+        row.price = 100.0
+
+    first = strategy.evaluate(
+        candles,
+        book(100.09, 100.11),
+        Trend.UP,
+        symbol="ABSORBUSDT",
+        trades=stalled_flow,
+        structure=market_structure,
+    )
+    assert first.details["state"] == "armed"
+
+    stalled = strategy.evaluate(
+        candles,
+        book(100.69, 100.71),
+        Trend.UP,
+        symbol="ABSORBUSDT",
+        trades=stalled_flow,
+        structure=market_structure,
+    )
+
+    assert stalled.action == Action.WAIT
+    assert stalled.details["state"] == "test"
+    assert stalled.details["flowConfirmed"] is False
+    assert stalled.details["effortWithoutResult"] is True
 
 
 def test_uptrend_rejects_descending_support_trendline() -> None:
@@ -293,7 +337,7 @@ def test_stale_trade_flow_cannot_confirm_reclaim() -> None:
         structure=market_structure,
         observed_at_ms=last_trade_ms,
     )
-    assert first.details["state"] == "test"
+    assert first.details["state"] == "armed"
 
     stale = strategy.evaluate(
         candles,
@@ -350,7 +394,7 @@ def test_micro_reclaim_is_local_to_support_not_recent_three_bar_high() -> None:
     )
 
     assert decision.action == Action.WAIT
-    assert decision.details["state"] == "test"
+    assert decision.details["state"] == "armed"
     assert decision.details["reclaimLevel"] < 100.1
     assert decision.details["reclaimDistanceBps"] <= 5.0
 
@@ -372,7 +416,7 @@ def test_trend_pullback_accepts_25bps_test_zone() -> None:
     )
 
     assert decision.action == Action.WAIT
-    assert decision.details["state"] == "test"
+    assert decision.details["state"] == "armed"
     assert decision.details["testTolerancePct"] == 0.0025
 
 
@@ -392,7 +436,7 @@ def test_wick_through_trendline_becomes_test_when_close_reclaims() -> None:
     )
 
     assert decision.action == Action.WAIT
-    assert decision.details["state"] == "test"
+    assert decision.details["state"] == "armed"
     assert decision.details["sweptTrendline"] is True
     assert decision.details["deepPenetrationPct"] > strategy.deep_break_pct
     assert decision.details["closePenetrationPct"] <= strategy.deep_break_pct

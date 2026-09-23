@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 class TrendPullbackStage(StrEnum):
     SEARCH = "search"
     PULLBACK = "pullback"
+    ARMED = "armed"
     TEST = "test"
     RECLAIM = "reclaim"
     CONTINUATION = "continuation"
@@ -39,6 +40,9 @@ class TrendPullbackState:
     test_extreme: float = 0.0
     reclaim_level: float = 0.0
     reclaim_price: float = 0.0
+    armed_at: float = 0.0
+    armed_price: float = 0.0
+    reclaim_at: float = 0.0
     used_anchors: set[tuple] = field(default_factory=set)
 
 
@@ -223,7 +227,17 @@ class TrendStructureStrategy(Strategy):
                 )
             )
 
-        return recent_aligned and level_confirmed, flow, local.public()
+        effort_without_result = bool(
+            flow.get("effortWithoutResult5s")
+        )
+        flow["trendContinuationEffortWithoutResult"] = (
+            effort_without_result
+        )
+        return (
+            recent_aligned
+            and level_confirmed
+            and not effort_without_result
+        ), flow, local.public()
 
     @staticmethod
     def _visuals(line: "TrendLine") -> dict:
@@ -343,19 +357,43 @@ class TrendStructureStrategy(Strategy):
             state.test_extreme = 0.0
             state.reclaim_level = 0.0
             state.reclaim_price = 0.0
+            state.armed_at = 0.0
+            state.armed_price = 0.0
+            state.reclaim_at = 0.0
         state.trend = playbook_trend
 
         visuals = self._visuals(line)
         price = book.mid or candles[-1].close
         projected = line.current_price
         distance = abs(price - projected) / price if price > 0 else 999.0
-        directional = self._pullback_is_directional(
+        forming = (
+            market_context.forming_candle
+            if market_context is not None
+            else None
+        )
+        directional_closed = self._pullback_is_directional(
             candles,
             long_side=long_side,
         )
+        forming_pullback = (
+            forming is not None
+            and (
+                (
+                    long_side
+                    and forming.body_pct < 0
+                    and forming.close_position <= 0.55
+                )
+                or (
+                    not long_side
+                    and forming.body_pct > 0
+                    and forming.close_position >= 0.45
+                )
+            )
+        )
+        directional = directional_closed or forming_pullback
         pullback_character = self._pullback_character(
             candles,
-            directional=directional,
+            directional=directional_closed,
         )
 
         common_details = {
@@ -371,6 +409,13 @@ class TrendStructureStrategy(Strategy):
             "testTolerancePct": self.test_tolerance_pct,
             "deepBreakPct": self.deep_break_pct,
             "pullbackDirectional": directional,
+            "closedPullbackDirectional": directional_closed,
+            "formingPullbackDirectional": forming_pullback,
+            "formingCandle": (
+                forming.public()
+                if forming is not None
+                else None
+            ),
             "pullbackCharacter": pullback_character,
             "playbookContext": context_plan.public(),
             "playbookTrend": playbook_trend.value,
@@ -389,10 +434,15 @@ class TrendStructureStrategy(Strategy):
             )
 
         if (
-            state.stage in {TrendPullbackStage.SEARCH, TrendPullbackStage.PULLBACK}
+            state.stage in {
+                TrendPullbackStage.SEARCH,
+                TrendPullbackStage.PULLBACK,
+            }
             and pullback_character["aggressiveCountertrend"]
         ):
             state.stage = TrendPullbackStage.SEARCH
+            state.armed_at = 0.0
+            state.armed_price = 0.0
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
@@ -424,7 +474,10 @@ class TrendStructureStrategy(Strategy):
             state.stage = TrendPullbackStage.PULLBACK
 
         last = candles[-1]
-        test_price = last.low if long_side else last.high
+        live_high = forming.high if forming is not None else last.high
+        live_low = forming.low if forming is not None else last.low
+        live_close = forming.close if forming is not None else last.close
+        test_price = live_low if long_side else live_high
         test_distance = (
             abs(test_price - projected) / price
             if price > 0
@@ -440,6 +493,15 @@ class TrendStructureStrategy(Strategy):
             )
         )
         close_penetration_pct = (
+            max(0.0, (projected - live_close) / projected)
+            if long_side and projected > 0
+            else (
+                max(0.0, (live_close - projected) / projected)
+                if projected > 0
+                else 0.0
+            )
+        )
+        confirmed_close_penetration_pct = (
             max(0.0, (projected - last.close) / projected)
             if long_side and projected > 0
             else (
@@ -449,14 +511,20 @@ class TrendStructureStrategy(Strategy):
             )
         )
         swept_trendline = deep_penetration_pct > self.deep_break_pct
-        accepted_break = close_penetration_pct > self.deep_break_pct
+        # Forming candles may sweep and recover.  Only a confirmed close can
+        # permanently invalidate the trendline setup.
+        accepted_break = (
+            confirmed_close_penetration_pct > self.deep_break_pct
+        )
 
         if accepted_break:
             state.stage = TrendPullbackStage.SEARCH
+            state.armed_at = 0.0
+            state.armed_price = 0.0
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
-                ["Откат пробил трендовую опору слишком глубоко; setup сброшен"],
+                ["Подтверждённая свеча закрылась слишком глубоко за трендовой опорой; setup сброшен"],
                 0.30,
                 projected,
                 visuals=visuals,
@@ -469,7 +537,11 @@ class TrendStructureStrategy(Strategy):
                     "testDistancePct": test_distance,
                     "deepPenetrationPct": deep_penetration_pct,
                     "closePenetrationPct": close_penetration_pct,
+                    "confirmedClosePenetrationPct": (
+                        confirmed_close_penetration_pct
+                    ),
                     "lastClosedPrice": last.close,
+                    "liveClosePrice": live_close,
                 },
             )
 
@@ -481,7 +553,7 @@ class TrendStructureStrategy(Strategy):
                 return StrategyDecision(
                     self.key,
                     Action.WAIT,
-                    ["Откат идёт к подтверждённой опоре; ждём реальный тест"],
+                    ["Откат идёт к подтверждённой опоре; live pre-state ещё не дал реальный тест"],
                     0.50,
                     projected,
                     visuals=visuals,
@@ -492,10 +564,13 @@ class TrendStructureStrategy(Strategy):
                         "sweptTrendline": swept_trendline,
                         "deepPenetrationPct": deep_penetration_pct,
                         "closePenetrationPct": close_penetration_pct,
+                        "confirmedClosePenetrationPct": (
+                            confirmed_close_penetration_pct
+                        ),
                     },
                 )
 
-            state.stage = TrendPullbackStage.TEST
+            state.stage = TrendPullbackStage.ARMED
             state.test_line_price = projected
             state.test_extreme = test_price
             state.reclaim_level = self._micro_reclaim_level(
@@ -503,6 +578,12 @@ class TrendStructureStrategy(Strategy):
                 book,
                 long_side=long_side,
             )
+            state.armed_at = (
+                observed_at_ms / 1000
+                if observed_at_ms is not None
+                else last.start_ms / 1000 + 60.0
+            )
+            state.armed_price = price
             reclaim_distance_bps = (
                 abs(state.reclaim_level - projected)
                 / projected
@@ -510,11 +591,16 @@ class TrendStructureStrategy(Strategy):
                 if projected > 0
                 else 0.0
             )
+            opportunity_arm = {
+                "observedAtMs": int(state.armed_at * 1000),
+                "price": state.armed_price,
+                "source": "trendline_live_test_armed",
+            }
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
-                ["Опора протестирована; вход запрещён до micro reclaim и подтверждения потока"],
-                0.58,
+                ["Trend hypothesis ARMED по формирующейся 1m свече; ждём micro reclaim и качественный price response"],
+                0.60,
                 projected,
                 visuals=visuals,
                 details={
@@ -526,6 +612,10 @@ class TrendStructureStrategy(Strategy):
                     "sweptTrendline": swept_trendline,
                     "deepPenetrationPct": deep_penetration_pct,
                     "closePenetrationPct": close_penetration_pct,
+                    "confirmedClosePenetrationPct": (
+                        confirmed_close_penetration_pct
+                    ),
+                    "opportunityArm": opportunity_arm,
                 },
             )
 
@@ -537,17 +627,55 @@ class TrendStructureStrategy(Strategy):
             now_ms=observed_at_ms,
         )
 
-        if state.stage == TrendPullbackStage.TEST:
+        opportunity_arm = (
+            {
+                "observedAtMs": int(state.armed_at * 1000),
+                "price": state.armed_price,
+                "source": "trendline_live_test_armed",
+            }
+            if state.armed_at > 0
+            else None
+        )
+        forming_contradictory = (
+            forming is not None
+            and forming.age_seconds >= 1.0
+            and (
+                (
+                    long_side
+                    and forming.velocity_bps_per_second < 0
+                    and forming.close_position < 0.40
+                )
+                or (
+                    not long_side
+                    and forming.velocity_bps_per_second > 0
+                    and forming.close_position > 0.60
+                )
+            )
+        )
+
+        if state.stage in {
+            TrendPullbackStage.ARMED,
+            TrendPullbackStage.TEST,
+        }:
+            state.stage = TrendPullbackStage.TEST
             reclaimed = (
                 price > state.reclaim_level
                 if long_side
                 else price < state.reclaim_level
             )
-            if not (reclaimed and flow_ok):
+            response_ready = (
+                reclaimed
+                and flow_ok
+                and not forming_contradictory
+            )
+            if not response_ready:
                 return StrategyDecision(
                     self.key,
                     Action.WAIT,
-                    ["Тест состоялся; ждём micro reclaim и возврат инициативы по тренду"],
+                    [
+                        "Live test ARMED; ждём micro reclaim с price response, "
+                        "не похожим на exhaustion"
+                    ],
                     0.62,
                     state.test_line_price or projected,
                     visuals=visuals,
@@ -557,17 +685,29 @@ class TrendStructureStrategy(Strategy):
                         "reclaimLevel": state.reclaim_level,
                         "reclaimed": reclaimed,
                         "flowConfirmed": flow_ok,
+                        "formingContradictory": forming_contradictory,
+                        "effortWithoutResult": bool(
+                            flow.get(
+                                "trendContinuationEffortWithoutResult"
+                            )
+                        ),
+                        "opportunityArm": opportunity_arm,
                         "flow": flow,
                         "levelFlow": level_flow,
                     },
                 )
             state.stage = TrendPullbackStage.RECLAIM
             state.reclaim_price = price
+            state.reclaim_at = (
+                observed_at_ms / 1000
+                if observed_at_ms is not None
+                else state.armed_at
+            )
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
-                ["Micro reclaim подтверждён; ждём короткое продолжение импульса"],
-                0.70,
+                ["Micro reclaim подтверждён; проверяем удержание и качество response вместо chase за дополнительным импульсом"],
+                0.72,
                 state.test_line_price or projected,
                 visuals=visuals,
                 details={
@@ -576,6 +716,8 @@ class TrendStructureStrategy(Strategy):
                     "reclaimLevel": state.reclaim_level,
                     "reclaimPrice": state.reclaim_price,
                     "flowConfirmed": True,
+                    "formingContradictory": False,
+                    "opportunityArm": opportunity_arm,
                     "flow": flow,
                     "levelFlow": level_flow,
                 },
@@ -592,7 +734,7 @@ class TrendStructureStrategy(Strategy):
                 return StrategyDecision(
                     self.key,
                     Action.WAIT,
-                    ["Micro reclaim не удержан; возвращаемся к ожиданию подтверждения"],
+                    ["Micro reclaim не удержан; возвращаемся к ARMED/TEST без нового chase"],
                     0.50,
                     state.test_line_price or projected,
                     visuals=visuals,
@@ -600,31 +742,39 @@ class TrendStructureStrategy(Strategy):
                         **common_details,
                         "state": state.stage.value,
                         "reclaimLost": True,
+                        "opportunityArm": opportunity_arm,
                     },
                 )
 
-            continuation_pct = max(
-                self.continuation_bps / 10_000,
-                book.spread_pct * 2.0,
+            response_confirmed = (
+                flow_ok
+                and not forming_contradictory
+                and not bool(
+                    flow.get(
+                        "trendContinuationEffortWithoutResult"
+                    )
+                )
             )
-            continued = (
-                price >= state.reclaim_price * (1 + continuation_pct)
-                if long_side
-                else price <= state.reclaim_price * (1 - continuation_pct)
-            )
-            if not (continued and flow_ok):
+            if not response_confirmed:
                 return StrategyDecision(
                     self.key,
                     Action.WAIT,
-                    ["Reclaim удержан; ждём продолжение и сохранение потока"],
-                    0.68,
+                    ["Reclaim удержан, но price response/flow пока не подтверждают ранний continuation"],
+                    0.62,
                     state.test_line_price or projected,
                     visuals=visuals,
                     details={
                         **common_details,
                         "state": state.stage.value,
-                        "continued": continued,
+                        "responseConfirmed": False,
                         "flowConfirmed": flow_ok,
+                        "formingContradictory": forming_contradictory,
+                        "effortWithoutResult": bool(
+                            flow.get(
+                                "trendContinuationEffortWithoutResult"
+                            )
+                        ),
+                        "opportunityArm": opportunity_arm,
                         "flow": flow,
                         "levelFlow": level_flow,
                     },
@@ -651,7 +801,7 @@ class TrendStructureStrategy(Strategy):
                     details={
                         **common_details,
                         "state": state.stage.value,
-                        "continued": continued,
+                        "responseConfirmed": response_confirmed,
                         "flowConfirmed": flow_ok,
                         "flow": flow,
                         "levelFlow": level_flow,
@@ -733,7 +883,7 @@ class TrendStructureStrategy(Strategy):
                     "Состоялся направленный pullback к подтверждённой трендовой опоре",
                     "Цена вернула micro structure после теста",
                     "Trade flow подтвердил возврат инициативы по тренду",
-                    "После reclaim появился follow-through",
+                    "Reclaim удержался без effort-without-result / противоречащего pre-state",
                 ],
                 confidence=quality,
                 watched_level=state.test_line_price or projected,
@@ -748,6 +898,14 @@ class TrendStructureStrategy(Strategy):
                     "reclaimLevel": state.reclaim_level,
                     "reclaimPrice": state.reclaim_price,
                     "flowConfirmed": True,
+                    "responseConfirmed": response_confirmed,
+                    "formingContradictory": forming_contradictory,
+                    "effortWithoutResult": bool(
+                        flow.get(
+                            "trendContinuationEffortWithoutResult"
+                        )
+                    ),
+                    "opportunityArm": opportunity_arm,
                     "flow": flow,
                     "levelFlow": level_flow,
                     "entryContextAssessment": entry_context.public(),

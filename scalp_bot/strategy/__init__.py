@@ -13,7 +13,10 @@ from .lifecycle import LevelLifecycleTracker
 from .freshness import (
     EntryFreshness,
     EntryFreshnessClass,
+    OpportunityFreshness,
+    OpportunityFreshnessClass,
     classify_entry_freshness,
+    classify_opportunity_freshness,
 )
 from .flow_context import (
     FlowAlignment,
@@ -35,6 +38,10 @@ from .market_context import (
     StructureContext,
     build_execution_context,
     build_structure_context,
+)
+from .pre_state import (
+    FormingCandleContext,
+    build_forming_candle_context,
 )
 from .playbook_context import (
     DirectionPlan,
@@ -92,7 +99,10 @@ __all__ = [
     "LevelLifecycleTracker",
     "EntryFreshness",
     "EntryFreshnessClass",
+    "OpportunityFreshness",
+    "OpportunityFreshnessClass",
     "classify_entry_freshness",
+    "classify_opportunity_freshness",
     "FlowAlignment",
     "FlowAlignmentClass",
     "FlowHorizon",
@@ -108,6 +118,8 @@ __all__ = [
     "StructureContext",
     "build_execution_context",
     "build_structure_context",
+    "FormingCandleContext",
+    "build_forming_candle_context",
     "DirectionPlan",
     "EntryContextAssessment",
     "PlaybookKind",
