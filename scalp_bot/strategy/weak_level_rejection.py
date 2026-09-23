@@ -368,6 +368,7 @@ class WeakLevelRejectionStrategy(Strategy):
                     "weakLevel": True,
                     "levelGeneration": generation_id,
                     "contextAligned": False,
+                    "trendAligned": False,
                     "rejectedAction": action.value,
                     "entryContextAssessment": entry_context.public(),
                 },
