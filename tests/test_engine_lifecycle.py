@@ -6,6 +6,11 @@ from time import time
 from scalp_bot.config import Settings
 from scalp_bot.domain import Action, Candidate, Candle, OrderBook, Side, StrategyDecision, TradePlan, TradeTick, Trend
 from scalp_bot.engine import ActiveSymbolSession, TradingEngine
+from scalp_bot.research_policy import (
+    create_policy_manifest,
+    extract_policy_candidates,
+    write_policy_manifest,
+)
 from scalp_bot.strategy.market_context import (
     ExecutionContext,
     MarketContext,
@@ -63,6 +68,63 @@ def make_engine(tmp_path, **overrides) -> TradingEngine:
 
 def close_rest(engine: TradingEngine) -> None:
     asyncio.run(engine.rest.close())
+
+
+def policy_file(
+    tmp_path,
+    *,
+    allow_enforce: bool,
+) -> str:
+    stability = {
+        "featureEffects": [
+            {
+                "strategy": "trend_structure",
+                "side": "long",
+                "regime": "bullish_trend",
+                "dimension": "flowAlignment",
+                "value": "short_term_reversal",
+                "status": "stable_negative",
+                "validationCandidate": True,
+                "selectedSamples": 20,
+                "comparatorSamples": 20,
+                "sessionsWithSelectedValue": 5,
+                "pooledDeltaAllInR": -0.4,
+                "maxSessionSampleShare": 0.25,
+                "comparisonSessions": 5,
+                "medianSessionDeltaAllInR": -0.3,
+                "leaveOneSessionOutFolds": 5,
+                "leaveOneSessionOutSignAgreementRate": 1.0,
+            }
+        ],
+        "fixedNetRewardRiskThresholds": [],
+        "thresholdSelectionHoldout": [],
+    }
+    candidates = extract_policy_candidates(
+        stability
+    )
+    catalog = {
+        "source": {
+            "stabilitySha256": "test",
+        },
+        "candidates": candidates,
+    }
+    manifest = create_policy_manifest(
+        catalog,
+        [candidates[0]["candidateId"]],
+        version=1,
+        reason="engine integration test",
+        allow_enforce=allow_enforce,
+    )
+    path = tmp_path / (
+        "policy-enforce.json"
+        if allow_enforce
+        else "policy-shadow.json"
+    )
+    write_policy_manifest(
+        path,
+        manifest,
+    )
+    return str(path)
 
 
 def test_consumed_setup_is_blocked_until_wait_rearms_it(tmp_path) -> None:
@@ -165,6 +227,141 @@ def test_central_arbiter_uses_shared_priority_not_playbook_confidence(tmp_path) 
         # Semantic/economic dimensions are equal, so the later shared
         # activity-rank tie-break chooses BBB despite its lower setupQuality.
         assert set(engine.broker.positions) == {"BBBUSDT"}
+    finally:
+        close_rest(engine)
+
+
+def test_research_policy_shadow_audits_without_blocking_trade(tmp_path) -> None:
+    engine = make_engine(
+        tmp_path,
+        max_leverage=1,
+        risk_fraction=0.01,
+        research_policy_mode="shadow",
+        research_policy_file=policy_file(
+            tmp_path,
+            allow_enforce=False,
+        ),
+    )
+    try:
+        now = time()
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100,
+            last_market_at=now,
+            last_book_at=now,
+        )
+        session.decisions["trend_structure"] = StrategyDecision(
+            strategy="trend_structure",
+            action=Action.LONG,
+            reasons=["ready"],
+            confidence=0.8,
+            entry=100,
+            stop=99.5,
+            target=101,
+            watched_level=99.8,
+            setup_id="policy-shadow",
+            details={
+                "decisionContext": {
+                    "localRegime": "bullish_trend",
+                },
+                "flowAlignment": {
+                    "classification": "short_term_reversal",
+                },
+            },
+        )
+        engine.sessions = {"AAAUSDT": session}
+        engine.candidates = [
+            Candidate(
+                "AAAUSDT",
+                200_000_000,
+                0,
+                100,
+                activity_rank=1,
+            )
+        ]
+
+        engine._arbitrate_once()
+
+        assert set(engine.broker.positions) == {"AAAUSDT"}
+        events = [
+            event
+            for event in engine.events
+            if event["event"] == "research_policy_shadow"
+        ]
+        assert events
+        assessment = events[-1]["payload"]["assessment"]
+        assert assessment["wouldBlock"] is True
+        assert assessment["blocked"] is False
+        assert assessment["mode"] == "shadow"
+    finally:
+        close_rest(engine)
+
+
+def test_research_policy_enforce_blocks_exact_validated_context(tmp_path) -> None:
+    engine = make_engine(
+        tmp_path,
+        max_leverage=1,
+        risk_fraction=0.01,
+        research_policy_mode="enforce",
+        research_policy_file=policy_file(
+            tmp_path,
+            allow_enforce=True,
+        ),
+    )
+    try:
+        now = time()
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100,
+            last_market_at=now,
+            last_book_at=now,
+        )
+        session.decisions["trend_structure"] = StrategyDecision(
+            strategy="trend_structure",
+            action=Action.LONG,
+            reasons=["ready"],
+            confidence=0.8,
+            entry=100,
+            stop=99.5,
+            target=101,
+            watched_level=99.8,
+            setup_id="policy-enforce",
+            details={
+                "decisionContext": {
+                    "localRegime": "bullish_trend",
+                },
+                "flowAlignment": {
+                    "classification": "short_term_reversal",
+                },
+            },
+        )
+        engine.sessions = {"AAAUSDT": session}
+        engine.candidates = [
+            Candidate(
+                "AAAUSDT",
+                200_000_000,
+                0,
+                100,
+                activity_rank=1,
+            )
+        ]
+
+        engine._arbitrate_once()
+
+        assert not engine.broker.positions
+        events = [
+            event
+            for event in engine.events
+            if event["event"] == "research_policy_blocked"
+        ]
+        assert events
+        assessment = events[-1]["payload"]["assessment"]
+        assert assessment["blocked"] is True
+        assert assessment["mode"] == "enforce"
     finally:
         close_rest(engine)
 
