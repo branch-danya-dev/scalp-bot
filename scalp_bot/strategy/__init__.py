@@ -15,6 +15,13 @@ from .freshness import (
     EntryFreshnessClass,
     classify_entry_freshness,
 )
+from .flow_context import (
+    FlowAlignment,
+    FlowAlignmentClass,
+    FlowHorizon,
+    MultiHorizonFlowContext,
+    build_multi_horizon_flow_context,
+)
 from .regime import (
     HTFBias,
     HTFBiasSnapshot,
@@ -53,6 +60,11 @@ __all__ = [
     "EntryFreshness",
     "EntryFreshnessClass",
     "classify_entry_freshness",
+    "FlowAlignment",
+    "FlowAlignmentClass",
+    "FlowHorizon",
+    "MultiHorizonFlowContext",
+    "build_multi_horizon_flow_context",
     "HTFBias",
     "HTFBiasSnapshot",
     "LocalRegime",
