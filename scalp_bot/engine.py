@@ -1086,9 +1086,15 @@ class TradingEngine:
                     session.context_5m = [x for x in context_5m if x.confirmed]
                     session.context_15m = [x for x in context_15m if x.confirmed]
                     session.context_1h = [x for x in context_1h if x.confirmed]
-                    session.trend = classify_context_trend(
-                        session.context_15m,
-                        session.context_1h,
+                    self._refresh_market_context(
+                        session,
+                        closed_1m=[
+                            x for x in session.candles
+                            if x.confirmed
+                        ],
+                        closed_5m=session.context_5m,
+                        closed_15m=session.context_15m,
+                        closed_1h=session.context_1h,
                     )
             except asyncio.CancelledError:
                 raise
