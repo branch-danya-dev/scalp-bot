@@ -94,6 +94,54 @@ def main() -> None:
         help="Cross-session economic threshold-segment readiness.",
     )
     parser.add_argument(
+        "--min-validation-sessions",
+        type=int,
+        default=4,
+        help="Minimum comparable sessions for stability validation.",
+    )
+    parser.add_argument(
+        "--min-validation-session-samples",
+        type=int,
+        default=2,
+        help="Minimum selected/comparator samples inside one holdout session.",
+    )
+    parser.add_argument(
+        "--min-validation-train-samples",
+        type=int,
+        default=6,
+        help="Minimum selected/comparator samples in leave-one-session-out training folds.",
+    )
+    parser.add_argument(
+        "--min-interaction-resolved-per-session",
+        type=int,
+        default=2,
+        help="Minimum hypothesis/opposite resolved interaction checkpoints per session.",
+    )
+    parser.add_argument(
+        "--min-hindsight-opportunities-per-session",
+        type=int,
+        default=2,
+        help="Minimum hindsight opportunities per session for coverage stability.",
+    )
+    parser.add_argument(
+        "--validation-neutral-epsilon-r",
+        type=float,
+        default=0.05,
+        help="Absolute all-in-R effect treated as neutral.",
+    )
+    parser.add_argument(
+        "--validation-min-effect-r",
+        type=float,
+        default=0.10,
+        help="Minimum pooled/median all-in-R effect for a stable candidate.",
+    )
+    parser.add_argument(
+        "--validation-sign-agreement-rate",
+        type=float,
+        default=0.75,
+        help="Required leave-one-session-out sign agreement rate.",
+    )
+    parser.add_argument(
         "--output",
         help="Output ZIP path.",
     )
@@ -119,6 +167,38 @@ def main() -> None:
         raise SystemExit(
             "--min-segment-samples must be positive"
         )
+    if args.min_validation_sessions <= 0:
+        raise SystemExit(
+            "--min-validation-sessions must be positive"
+        )
+    if args.min_validation_session_samples <= 0:
+        raise SystemExit(
+            "--min-validation-session-samples must be positive"
+        )
+    if args.min_validation_train_samples <= 0:
+        raise SystemExit(
+            "--min-validation-train-samples must be positive"
+        )
+    if args.min_interaction_resolved_per_session <= 0:
+        raise SystemExit(
+            "--min-interaction-resolved-per-session must be positive"
+        )
+    if args.min_hindsight_opportunities_per_session <= 0:
+        raise SystemExit(
+            "--min-hindsight-opportunities-per-session must be positive"
+        )
+    if args.validation_neutral_epsilon_r < 0:
+        raise SystemExit(
+            "--validation-neutral-epsilon-r cannot be negative"
+        )
+    if args.validation_min_effect_r < 0:
+        raise SystemExit(
+            "--validation-min-effect-r cannot be negative"
+        )
+    if not 0 < args.validation_sign_agreement_rate <= 1:
+        raise SystemExit(
+            "--validation-sign-agreement-rate must be in (0, 1]"
+        )
 
     output = (
         Path(args.output)
@@ -141,6 +221,30 @@ def main() -> None:
         ),
         minimum_segment_samples=(
             args.min_segment_samples
+        ),
+        minimum_validation_sessions=(
+            args.min_validation_sessions
+        ),
+        minimum_validation_session_samples=(
+            args.min_validation_session_samples
+        ),
+        minimum_validation_train_samples=(
+            args.min_validation_train_samples
+        ),
+        minimum_interaction_resolved_per_session=(
+            args.min_interaction_resolved_per_session
+        ),
+        minimum_hindsight_opportunities_per_session=(
+            args.min_hindsight_opportunities_per_session
+        ),
+        validation_neutral_epsilon_r=(
+            args.validation_neutral_epsilon_r
+        ),
+        validation_minimum_effect_r=(
+            args.validation_min_effect_r
+        ),
+        validation_sign_agreement_rate=(
+            args.validation_sign_agreement_rate
         ),
     )
     size_mb = (
