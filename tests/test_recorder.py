@@ -567,3 +567,90 @@ def test_current_trade_review_never_rescans_session_file(
     assert detail["openSnapshot"]["orderbook"]["bids"]
     assert detail["closeSnapshot"]["orderbook"]["asks"]
     assert detail["frames"]
+
+
+
+def test_session_report_aggregates_research_policy_audit(tmp_path) -> None:
+    recorder = SessionRecorder(str(tmp_path))
+    policy = {
+        "mode": "shadow",
+        "active": True,
+        "policyId": "research-policy-test",
+        "version": 2,
+        "policyFingerprint": "abc",
+        "allowEnforce": False,
+        "rules": 1,
+    }
+    recorder.record(
+        "research_policy_activated",
+        None,
+        policy,
+    )
+    recorder.record(
+        "research_policy_shadow",
+        "AAAUSDT",
+        {
+            "strategy": "trend_structure",
+            "setupId": "setup-1",
+            "policy": policy,
+            "assessment": {
+                "policyId": "research-policy-test",
+                "policyVersion": 2,
+                "mode": "shadow",
+                "phase": "pre_plan",
+                "strategy": "trend_structure",
+                "side": "long",
+                "regime": "bullish_trend",
+                "matchedRuleIds": ["rule-flow"],
+                "wouldBlock": True,
+                "blocked": False,
+            },
+        },
+    )
+    recorder.record(
+        "research_policy_blocked",
+        "AAAUSDT",
+        {
+            "strategy": "trend_structure",
+            "setupId": "setup-2",
+            "policy": {
+                **policy,
+                "mode": "enforce",
+                "allowEnforce": True,
+            },
+            "assessment": {
+                "policyId": "research-policy-test",
+                "policyVersion": 2,
+                "mode": "enforce",
+                "phase": "post_plan",
+                "strategy": "trend_structure",
+                "side": "long",
+                "regime": "bullish_trend",
+                "matchedRuleIds": ["rule-rr"],
+                "wouldBlock": True,
+                "blocked": True,
+            },
+        },
+    )
+
+    report = recorder.session_report(
+        recorder.path.name
+    )
+
+    audit = report["researchPolicyAudit"]
+    assert len(audit["activations"]) == 1
+    assert audit["shadowMatches"] == 1
+    assert audit["blockedMatches"] == 1
+    assert audit["ruleMatchCounts"] == {
+        "rule-flow": 1,
+        "rule-rr": 1,
+    }
+    diagnostics = report["strategyDiagnostics"][
+        "trend_structure"
+    ]
+    assert diagnostics["researchPolicyShadowMatches"] == 1
+    assert diagnostics["researchPolicyBlockedMatches"] == 1
+    assert diagnostics["researchPolicyRuleMatchCounts"] == {
+        "rule-flow": 1,
+        "rule-rr": 1,
+    }

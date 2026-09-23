@@ -46,6 +46,8 @@ The generated ZIP contains:
 - `market-interactions.jsonl` — causal interaction checkpoints;
 - `arbiter-blocks.jsonl` — semantic veto events when event rows are available;
 - `cross-session-report.json` — cumulative metrics/hypothesis tables;
+- `stability-validation.json` — Stage 11 session holdout validation;
+- `policy-candidates.json` — Stage 12 candidates that passed supported Stage 11 promotion criteria;
 - `manifest.json` and `README.txt`.
 
 Every normalized record receives a stable dataset id plus:

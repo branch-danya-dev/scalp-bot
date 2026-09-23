@@ -78,6 +78,11 @@ class Settings(BaseSettings):
     # enough observations to be interpreted.
     economic_calibration_min_group_samples: int = 20
     economic_calibration_min_segment_samples: int = 8
+    # Stage 12 research-policy promotion is opt-in. "off" ignores any
+    # configured policy file, "shadow" records would-block matches, and
+    # "enforce" requires a manifest explicitly created with allowEnforce=true.
+    research_policy_mode: str = "off"
+    research_policy_file: str = ""
     trend_structure_min_expectancy_r: float = 0.0
     weak_level_rejection_min_expectancy_r: float = 0.0
     density_min_expectancy_r: float = 0.0

@@ -85,6 +85,9 @@ const EVENT_LABELS = {
   decision:"Решение", entry_pending:"Лимитный вход ожидает", entry_cancelled:"Лимитный вход отменён",
   trade_opened:"Вход", partial_take:"Частичная фиксация",
   trade_closed:"Выход", risk_reject:"Отклонено риском", economic_shadow:"Экономика (shadow)",
+  research_policy_activated:"Research policy активирована",
+  research_policy_shadow:"Research policy (shadow)",
+  research_policy_blocked:"Research policy заблокировала",
   setup_blocked:"Сетап заблокирован", arbiter_blocked:"Арбитр заблокировал", setup_consumed:"Сетап использован",
   setup_rearmed:"Сетап переактивирован", symbol_activated:"Монета активирована",
   symbol_deactivated:"Монета исключена", run_summary:"Итог прогона",
@@ -611,6 +614,8 @@ function renderStrategies(rows) {
         <span class="${netClass}"><small>Net PnL</small>${money(stats.netPnl || 0)}</span>
         <span><small>Уникальные отказы</small>${stats.uniqueRiskRejectedSetups ?? stats.riskRejects ?? 0}</span>
         <span title="Semantic veto: структура, конфликт playbook, readiness"><small>Arbiter blocks</small>${stats.arbiterBlockedUpdates ?? 0}</span>
+        <span title="Research policy в shadow-режиме: сколько входов она бы заблокировала"><small>Policy shadow</small>${stats.researchPolicyShadowMatches ?? 0}</span>
+        <span title="Research policy в enforce-режиме: фактические блокировки"><small>Policy blocks</small>${stats.researchPolicyBlockedMatches ?? 0}</span>
         <span title="Все изменения состояния/цены одного и того же сетапа"><small>Updates</small>${stats.decisionUpdates ?? stats.decisions ?? 0}</span>
       </div>
       ${funnel ? `<div class="strategy-funnel">${funnel}</div>` : ""}
@@ -713,6 +718,15 @@ function eventText(event) {
     return `${reasonText(payload.reason || "отклонено")}${economics}`;
   }
   if (event.event === "economic_shadow") return `наблюдение: ${(payload.shadowRejectReasons || []).map(reasonText).join(", ")}`;
+  if (event.event === "research_policy_activated") {
+    return `${payload.mode || "off"} · ${payload.policyId || "—"} v${payload.version ?? "—"} · rules ${payload.rules ?? 0}`;
+  }
+  if (event.event === "research_policy_shadow" || event.event === "research_policy_blocked") {
+    const assessment = payload.assessment || {};
+    const rules = (assessment.matchedRuleIds || []).join(", ");
+    const mode = assessment.mode || (event.event === "research_policy_blocked" ? "enforce" : "shadow");
+    return `${strategyLabel(payload.strategy)} · ${mode} · ${assessment.phase || "—"} · ${rules || "matched rule"}${(assessment.reasons || []).length ? " · " + assessment.reasons.join(" · ") : ""}`;
+  }
   if (event.event === "setup_blocked") return `${strategyLabel(payload.strategy)}: ${reasonText(payload.reason)}`;
   if (event.event === "arbiter_blocked") {
     const blockers = (payload.blockers || []).map(reasonText).join(", ");
@@ -773,7 +787,7 @@ function eventGroup(event) {
   if (event.event === "trade_opened" || event.event === "entry_pending") return "entry";
   if (event.event === "entry_cancelled") return "reject";
   if (event.event === "trade_closed" || event.event === "partial_take") return "exit";
-  if (event.event === "risk_reject" || event.event === "setup_blocked" || event.event === "economic_shadow") return "reject";
+  if (event.event === "risk_reject" || event.event === "setup_blocked" || event.event === "economic_shadow" || event.event === "research_policy_shadow" || event.event === "research_policy_blocked") return "reject";
   if (event.event === "decision") return "decision";
   return "system";
 }

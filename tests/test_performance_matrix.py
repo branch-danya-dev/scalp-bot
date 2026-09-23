@@ -23,6 +23,7 @@ def opened(
     winner_cost_share: float = 0.30,
     planned_all_in_loss: float = 5.0,
     first_take_move_pct: float = 0.003,
+    policy_assessments: list[dict] | None = None,
 ) -> dict:
     return {
         "ts": ts,
@@ -70,6 +71,9 @@ def opened(
                         "wouldFailFirstTakeMove": first_take_move_pct < 0.003,
                         "economicPolicy": "research_shadow",
                     },
+                    "researchPolicyAssessments": list(
+                        policy_assessments or []
+                    ),
                 },
             },
             "position": {
@@ -395,3 +399,55 @@ def test_unknown_entry_regime_is_retained_not_dropped() -> None:
     report = build_strategy_side_regime_report(rows)
 
     assert report["byStrategySideRegime"][0]["regime"] == "unknown"
+
+
+
+def test_pair_closed_trades_preserves_shadow_policy_assessments() -> None:
+    assessment = {
+        "policyId": "research-policy-1",
+        "policyVersion": 1,
+        "mode": "shadow",
+        "phase": "pre_plan",
+        "matchedRuleIds": ["rule-flow"],
+        "wouldBlock": True,
+        "blocked": False,
+    }
+    rows = [
+        opened(
+            10.0,
+            symbol="AAAUSDT",
+            strategy="trend_structure",
+            side="long",
+            setup_id="policy-1",
+            regime="bullish_trend",
+            net_rr=1.0,
+            freshness="fresh",
+            spent=0.1,
+            flow="short_term_reversal",
+            liquidity="neutral",
+            policy_assessments=[assessment],
+        ),
+        closed(
+            20.0,
+            symbol="AAAUSDT",
+            strategy="trend_structure",
+            side="long",
+            setup_id="policy-1",
+            gross=-1.0,
+            fees=0.5,
+            net=-1.5,
+            initial_risk=2.0,
+            mfe_r=0.1,
+            mae_r=0.8,
+        ),
+    ]
+
+    trades = pair_closed_trades(rows)
+
+    assert len(trades) == 1
+    trade = trades[0]
+    assert trade["researchPolicyWouldBlock"] is True
+    assert trade["researchPolicyMatchedRuleIds"] == ["rule-flow"]
+    assert trade["researchPolicyModes"] == ["shadow"]
+    assert trade["researchPolicyIds"] == ["research-policy-1"]
+    assert trade["researchPolicyAssessments"][0]["phase"] == "pre_plan"

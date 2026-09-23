@@ -15,6 +15,9 @@ from .economic_calibration import (
 )
 from .performance_matrix import pair_closed_trades
 from .recorder import SessionRecorder
+from .research_policy import (
+    extract_policy_candidates,
+)
 from .stability_validation import (
     build_stability_validation,
 )
@@ -589,6 +592,109 @@ def _feature_outcomes(
     return result
 
 
+def _policy_shadow_outcomes(
+    trades: list[dict],
+) -> list[dict]:
+    grouped: dict[tuple, list[dict]] = defaultdict(list)
+    rule_meta: dict[tuple, dict[str, Any]] = {}
+    for row in trades:
+        assessments = row.get(
+            "researchPolicyAssessments"
+        )
+        if not isinstance(assessments, list):
+            continue
+        for assessment in assessments:
+            if not isinstance(assessment, dict):
+                continue
+            if (
+                str(assessment.get("mode") or "")
+                != "shadow"
+                or not bool(
+                    assessment.get("wouldBlock")
+                )
+            ):
+                continue
+            policy_id = str(
+                assessment.get("policyId")
+                or "unknown"
+            )
+            policy_version = int(
+                assessment.get("policyVersion")
+                or 0
+            )
+            phase = str(
+                assessment.get("phase")
+                or "unknown"
+            )
+            matched_rules = (
+                assessment.get("matchedRules")
+                if isinstance(
+                    assessment.get("matchedRules"),
+                    list,
+                )
+                else []
+            )
+            by_rule = {
+                str(rule.get("ruleId") or ""): rule
+                for rule in matched_rules
+                if isinstance(rule, dict)
+            }
+            for rule_id in (
+                assessment.get("matchedRuleIds")
+                or []
+            ):
+                rule_key = str(rule_id)
+                key = (
+                    policy_id,
+                    policy_version,
+                    rule_key,
+                    str(row.get("strategy") or "unknown"),
+                    str(row.get("side") or "unknown"),
+                    str(row.get("regime") or "unknown"),
+                    phase,
+                )
+                grouped[key].append(row)
+                rule_meta[key] = (
+                    by_rule.get(rule_key)
+                    or {}
+                )
+
+    result = []
+    for key, rows in sorted(grouped.items()):
+        outcome = _trade_outcome_summary(rows)
+        expectancy = outcome.get(
+            "expectancyAllInR"
+        )
+        result.append({
+            "policyId": key[0],
+            "policyVersion": key[1],
+            "ruleId": key[2],
+            "strategy": key[3],
+            "side": key[4],
+            "regime": key[5],
+            "phase": key[6],
+            "rule": rule_meta.get(key) or {},
+            **outcome,
+            "zeroTradeCounterfactualNetImprovement": (
+                -float(
+                    outcome.get("netPnl")
+                    or 0.0
+                )
+            ),
+            "zeroTradeCounterfactualAllInRImprovementPerTrade": (
+                -float(expectancy)
+                if expectancy is not None
+                else None
+            ),
+            "counterfactualCaveat": (
+                "Assumes the matched trade becomes no-trade. "
+                "It does not simulate replacement opportunities "
+                "the arbiter might have selected instead."
+            ),
+        })
+    return result
+
+
 def _hindsight_coverage(
     opportunities: list[dict],
 ) -> list[dict]:
@@ -922,6 +1028,25 @@ def aggregate_research_sources(
             validation_threshold_consistency_rate
         ),
     )
+    stability_sha256 = hashlib.sha256(
+        json.dumps(
+            stability,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    policy_candidates = extract_policy_candidates(
+        stability,
+        source={
+            "sourceKind": "cross_session_dataset",
+            "stabilitySha256": stability_sha256,
+            "sessionIds": [
+                row["sessionId"]
+                for row in sessions
+            ],
+        },
+    )
 
     return {
         "schemaVersion": 1,
@@ -1025,10 +1150,34 @@ def aggregate_research_sources(
         "arbiterBlockSummary": (
             _arbiter_summary(arbiter_blocks)
         ),
+        "researchPolicyShadowOutcomes": (
+            _policy_shadow_outcomes(trades)
+        ),
         "conditionalEconomicCalibration": (
             calibration
         ),
         "stabilityValidation": stability,
+        "policyPromotionCandidates": {
+            "schemaVersion": 1,
+            "source": {
+                "sourceKind": "cross_session_dataset",
+                "stabilitySha256": stability_sha256,
+            },
+            "summary": {
+                "candidates": len(policy_candidates),
+                "featureBlockCandidates": sum(
+                    row.get("ruleType")
+                    == "block_feature_value"
+                    for row in policy_candidates
+                ),
+                "economicThresholdCandidates": sum(
+                    row.get("ruleType")
+                    == "min_net_reward_risk"
+                    for row in policy_candidates
+                ),
+            },
+            "candidates": policy_candidates,
+        },
         "tables": {
             "trades": trades,
             "hindsight": hindsight,
@@ -1105,6 +1254,7 @@ def write_research_dataset_pack(
         "files": {
             "report": "cross-session-report.json",
             "stabilityValidation": "stability-validation.json",
+            "policyCandidates": "policy-candidates.json",
             **TABLE_FILES,
         },
     }
@@ -1132,6 +1282,14 @@ def write_research_dataset_pack(
         (tmp / "stability-validation.json").write_text(
             json.dumps(
                 dataset.get("stabilityValidation") or {},
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        (tmp / "policy-candidates.json").write_text(
+            json.dumps(
+                dataset.get("policyPromotionCandidates") or {},
                 ensure_ascii=False,
                 indent=2,
             ),
@@ -1176,6 +1334,7 @@ def write_research_dataset_pack(
             "Cross-session research dataset for scalp-bot.\n\n"
             "cross-session-report.json: aggregate metrics and hypotheses.\n"
             "stability-validation.json: session holdout / leave-one-session-out validation.\n"
+            "policy-candidates.json: Stage 11 candidates eligible for explicit human promotion.\n"
             "sessions.jsonl: session provenance.\n"
             "trades.jsonl: normalized actual closed trades.\n"
             "hindsight-opportunities.jsonl: independent hindsight labels.\n"

@@ -67,6 +67,25 @@ def _extract_entry_features(strategy_details: dict) -> dict[str, Any]:
     economics = economics if isinstance(economics, dict) else {}
     decision_context = details.get("decisionContext")
     decision_context = decision_context if isinstance(decision_context, dict) else {}
+    policy_assessments = details.get(
+        "researchPolicyAssessments"
+    )
+    policy_assessments = (
+        [
+            dict(row)
+            for row in policy_assessments
+            if isinstance(row, dict)
+        ]
+        if isinstance(policy_assessments, list)
+        else []
+    )
+    policy_rule_ids = sorted({
+        str(rule_id)
+        for row in policy_assessments
+        for rule_id in (
+            row.get("matchedRuleIds") or []
+        )
+    })
     return {
         "regime": str(decision_context.get("localRegime") or "unknown"),
         "htfBias": str(decision_context.get("htfBias") or "unknown"),
@@ -128,6 +147,20 @@ def _extract_entry_features(strategy_details: dict) -> dict[str, Any]:
         "economicPolicy": str(
             economics.get("economicPolicy") or "unknown"
         ),
+        "researchPolicyAssessments": policy_assessments,
+        "researchPolicyMatchedRuleIds": policy_rule_ids,
+        "researchPolicyWouldBlock": any(
+            bool(row.get("wouldBlock"))
+            for row in policy_assessments
+        ),
+        "researchPolicyModes": sorted({
+            str(row.get("mode") or "unknown")
+            for row in policy_assessments
+        }),
+        "researchPolicyIds": sorted({
+            str(row.get("policyId") or "unknown")
+            for row in policy_assessments
+        }),
     }
 
 

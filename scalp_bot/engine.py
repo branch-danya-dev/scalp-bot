@@ -13,6 +13,11 @@ from .expectancy import StrategyExpectancyBook
 from .strategy_policy import minimum_expectancy_r
 from .observability import build_decision_trace
 from .recorder import SessionRecorder
+from .research_policy import (
+    PolicyAssessment,
+    PolicyMode,
+    ResearchPolicyRuntime,
+)
 from .risk import RiskEngine
 from .strategy.flow import best_level_ofi_usd, prune_trades
 from .strategy.lifecycle import LevelLifecycleTracker
@@ -107,6 +112,9 @@ class ActiveSymbolSession:
     last_blocked_fingerprint: tuple | None = None
     last_economic_shadow_fingerprint: tuple | None = None
     arbiter_block_fingerprints: dict[str, tuple] = field(
+        default_factory=dict
+    )
+    research_policy_fingerprints: dict[str, tuple] = field(
         default_factory=dict
     )
 
@@ -535,6 +543,10 @@ class TradingEngine:
         self.risk = RiskEngine(config)
         self.broker = PaperBroker(config)
         self.recorder = SessionRecorder(config.session_dir)
+        self.research_policy = ResearchPolicyRuntime.from_settings(
+            path=config.research_policy_file,
+            mode=config.research_policy_mode,
+        )
         self.strategies: dict[str, Strategy] = {x.key: x for x in DEFAULT_STRATEGIES}
         configured_strategy_state = {
             "trend_structure": config.trend_structure_enabled,
@@ -563,6 +575,8 @@ class TradingEngine:
                 "wins": 0,
                 "losses": 0,
                 "netPnl": 0.0,
+                "researchPolicyShadowMatches": 0,
+                "researchPolicyBlockedMatches": 0,
                 "stateCounts": {},
                 "sideRegime": {
                     "long": {},
@@ -686,6 +700,12 @@ class TradingEngine:
                     "config": self._run_config_snapshot(),
                 },
             )
+            if self.research_policy.active:
+                self._emit(
+                    "research_policy_activated",
+                    None,
+                    self.research_policy.public(),
+                )
             return
 
         self._stop_trading("bot_stop")
@@ -757,6 +777,7 @@ class TradingEngine:
             "economicCalibrationMinSegmentSamples": (
                 self.config.economic_calibration_min_segment_samples
             ),
+            "researchPolicy": self.research_policy.public(),
             "riskFraction": self.config.risk_fraction,
             "maxTradeAllInLossFraction": self.config.max_trade_all_in_loss_fraction,
             "maxTotalRiskFraction": self.config.max_total_risk_fraction,
@@ -2165,6 +2186,15 @@ class TradingEngine:
                     )
                     continue
 
+                policy_pre = self._evaluate_research_policy(
+                    session,
+                    decision,
+                    phase="pre_plan",
+                    arbitration=base_assessment,
+                )
+                if policy_pre.blocked:
+                    continue
+
                 blocked_reason = self._setup_blocked_reason(
                     session,
                     decision.strategy,
@@ -2306,6 +2336,16 @@ class TradingEngine:
                         None
                     )
 
+                policy_post = self._evaluate_research_policy(
+                    session,
+                    decision,
+                    phase="post_plan",
+                    plan=result.plan,
+                    arbitration=base_assessment,
+                )
+                if policy_post.blocked:
+                    continue
+
                 scanner_candidate = candidate_map.get(
                     session.symbol
                 )
@@ -2365,6 +2405,16 @@ class TradingEngine:
                         decision,
                         assessment,
                     )
+                    continue
+
+                policy_final = self._evaluate_research_policy(
+                    session,
+                    decision,
+                    phase="final",
+                    plan=plan,
+                    arbitration=assessment,
+                )
+                if policy_final.blocked:
                     continue
 
                 session.arbiter_block_fingerprints.pop(
@@ -2578,6 +2628,152 @@ class TradingEngine:
             },
             snapshot=True,
         )
+
+    @staticmethod
+    def _attach_research_policy_assessment(
+        decision: StrategyDecision,
+        assessment: PolicyAssessment,
+    ) -> None:
+        if not assessment.would_block:
+            return
+        existing = (
+            decision.details.get(
+                "researchPolicyAssessments"
+            )
+            if isinstance(decision.details, dict)
+            else None
+        )
+        rows = [
+            row
+            for row in (
+                existing
+                if isinstance(existing, list)
+                else []
+            )
+            if not (
+                isinstance(row, dict)
+                and row.get("phase")
+                == assessment.phase
+            )
+        ]
+        rows.append(assessment.public())
+        decision.details[
+            "researchPolicyAssessments"
+        ] = rows
+
+    @staticmethod
+    def _attach_plan_policy_assessment(
+        plan,
+        assessment: PolicyAssessment,
+    ) -> None:
+        if not assessment.would_block:
+            return
+        details = plan.strategy_details
+        existing = (
+            details.get(
+                "researchPolicyAssessments"
+            )
+            if isinstance(details, dict)
+            else None
+        )
+        rows = [
+            row
+            for row in (
+                existing
+                if isinstance(existing, list)
+                else []
+            )
+            if not (
+                isinstance(row, dict)
+                and row.get("phase")
+                == assessment.phase
+            )
+        ]
+        rows.append(assessment.public())
+        details["researchPolicyAssessments"] = rows
+
+    def _evaluate_research_policy(
+        self,
+        session: ActiveSymbolSession,
+        decision: StrategyDecision,
+        *,
+        phase: str,
+        plan=None,
+        arbitration: (
+            SemanticCandidateAssessment
+            | dict
+            | None
+        ) = None,
+    ) -> PolicyAssessment:
+        assessment = self.research_policy.evaluate(
+            decision,
+            session.market_context,
+            phase=phase,
+            plan=plan,
+            arbitration=arbitration,
+        )
+        if not assessment.would_block:
+            return assessment
+
+        self._attach_research_policy_assessment(
+            decision,
+            assessment,
+        )
+        if plan is not None:
+            self._attach_plan_policy_assessment(
+                plan,
+                assessment,
+            )
+
+        fingerprint = (
+            decision.setup_id,
+            assessment.policy_id,
+            assessment.policy_version,
+            assessment.phase,
+            assessment.mode.value,
+            assessment.matched_rule_ids,
+            assessment.blocked,
+        )
+        key = f"{decision.strategy}:{phase}"
+        if (
+            session.research_policy_fingerprints.get(
+                key
+            )
+            != fingerprint
+        ):
+            session.research_policy_fingerprints[
+                key
+            ] = fingerprint
+            event = (
+                "research_policy_blocked"
+                if assessment.blocked
+                else "research_policy_shadow"
+            )
+            stats = self.strategy_stats.get(
+                decision.strategy
+            )
+            if isinstance(stats, dict):
+                counter = (
+                    "researchPolicyBlockedMatches"
+                    if assessment.blocked
+                    else "researchPolicyShadowMatches"
+                )
+                stats[counter] = int(
+                    stats.get(counter) or 0
+                ) + 1
+            self._emit(
+                event,
+                session.symbol,
+                {
+                    "strategy": decision.strategy,
+                    "setupId": decision.setup_id,
+                    "assessment": assessment.public(),
+                    "policy": self.research_policy.public(),
+                    "decision": decision.public(),
+                },
+                snapshot=True,
+            )
+        return assessment
 
     def _setup_blocked_reason(
         self,

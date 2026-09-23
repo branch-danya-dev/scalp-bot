@@ -21,6 +21,7 @@ def trade(
     liquidity="supportive",
     confluence=0,
     rr=1.2,
+    policy_assessments=None,
 ):
     return {
         "strategy": strategy,
@@ -46,6 +47,9 @@ def trade(
         "wouldFailMinimumNetProfit": False,
         "wouldFailNetRewardRisk": rr < 1.15,
         "wouldFailFirstTakeMove": False,
+        "researchPolicyAssessments": list(
+            policy_assessments or []
+        ),
     }
 
 
@@ -513,6 +517,7 @@ def test_research_pack_contains_normalized_tables_and_report(tmp_path):
             "hindsight-opportunities.jsonl",
             "manifest.json",
             "market-interactions.jsonl",
+            "policy-candidates.json",
             "sessions.jsonl",
             "stability-validation.json",
             "trades.jsonl",
@@ -539,8 +544,10 @@ def test_research_pack_contains_normalized_tables_and_report(tmp_path):
     assert cross["summary"]["sessions"] == 1
     assert manifest["summary"]["closedTrades"] == 1
     assert "stabilityValidation" in cross
+    assert "policyPromotionCandidates" in cross
     assert stability["policy"]["livePolicyEnforcement"] == "disabled"
     assert manifest["files"]["stabilityValidation"] == "stability-validation.json"
+    assert manifest["files"]["policyCandidates"] == "policy-candidates.json"
     assert trades[0]["sessionId"] == cross["sessions"][0]["sessionId"]
 
 
@@ -608,5 +615,69 @@ def test_cross_session_dataset_embeds_stable_feature_validation(tmp_path):
     assert effect["status"] == "stable_negative"
     assert effect["leaveOneSessionOutSignAgreementRate"] == 1.0
     assert effect["livePolicyEligible"] is False
+    candidates = dataset["policyPromotionCandidates"]
+    promoted = [
+        row
+        for row in candidates["candidates"]
+        if (
+            row.get("ruleType") == "block_feature_value"
+            and row.get("dimension") == "flowAlignment"
+            and row.get("value") == "short_term_reversal"
+        )
+    ]
+    assert len(promoted) == 1
+    assert promoted[0]["validationStatus"] == "stable_negative"
+    assert candidates["summary"]["featureBlockCandidates"] >= 1
     assert dataset["policy"]["minimumValidationSessions"] == 4
     assert dataset["policy"]["validationThresholdConsistencyRate"] == 0.50
+
+
+
+def test_cross_session_shadow_policy_outcomes_use_actual_trade_results(tmp_path):
+    assessment = {
+        "policyId": "research-policy-1",
+        "policyVersion": 1,
+        "mode": "shadow",
+        "phase": "pre_plan",
+        "matchedRuleIds": ["rule-flow"],
+        "matchedRules": [
+            {
+                "ruleId": "rule-flow",
+                "type": "block_feature_value",
+                "condition": {
+                    "dimension": "flowAlignment",
+                    "value": "short_term_reversal",
+                },
+            }
+        ],
+        "wouldBlock": True,
+        "blocked": False,
+    }
+    payload = report(
+        session_file="session-shadow.jsonl",
+        run_label="shadow-policy",
+        start_ts=10.0,
+        end_ts=20.0,
+        trades=[
+            trade(
+                net=-3.0,
+                realized_all_in_r=-0.6,
+                policy_assessments=[assessment],
+            )
+        ],
+    )
+    path = tmp_path / "shadow-report.json"
+    write_report(path, payload)
+
+    dataset = aggregate_research_sources([path])
+
+    rows = dataset["researchPolicyShadowOutcomes"]
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["policyId"] == "research-policy-1"
+    assert row["ruleId"] == "rule-flow"
+    assert row["samples"] == 1
+    assert row["netPnl"] == pytest.approx(-3.0)
+    assert row["expectancyAllInR"] == pytest.approx(-0.6)
+    assert row["zeroTradeCounterfactualNetImprovement"] == pytest.approx(3.0)
+    assert row["zeroTradeCounterfactualAllInRImprovementPerTrade"] == pytest.approx(0.6)
