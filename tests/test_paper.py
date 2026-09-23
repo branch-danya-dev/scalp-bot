@@ -36,6 +36,7 @@ def test_position_can_go_negative_without_being_closed_before_stop() -> None:
     cfg = Settings(
         taker_fee_rate=0,
         slippage_bps=0,
+        maker_fill_confirmation_bps=0,
         max_leverage=1,
         max_open_positions=4,
         partial_take_enabled=False,
@@ -820,6 +821,7 @@ def test_closed_trade_persists_move_extremes_timestamps_and_fees() -> None:
         taker_fee_rate=0.0005,
         maker_fee_rate=0.0002,
         slippage_bps=0,
+        maker_fill_confirmation_bps=0,
         partial_take_enabled=False,
         no_follow_through_seconds=999,
         max_leverage=2,
