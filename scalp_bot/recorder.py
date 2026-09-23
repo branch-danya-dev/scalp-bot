@@ -542,6 +542,8 @@ class SessionRecorder:
             "shortFlowAlignment": {},
             "liquidityState": {},
             "liquidityBias": {},
+            "executionReady": {},
+            "structureAvailable": {},
         }
 
         def strategy_diag(strategy: str) -> dict:
@@ -576,6 +578,9 @@ class SessionRecorder:
                     },
                     "entryLiquidityScoreTotal": 0.0,
                     "entryLiquidityScoreSamples": 0,
+                    "entryLocalRegimeCounts": {},
+                    "entryHtfBiasCounts": {},
+                    "entryExecutionReadyCounts": {},
                     "tradesClosed": 0,
                     "wins": 0,
                     "losses": 0,
@@ -747,6 +752,36 @@ class SessionRecorder:
                             )
                             item_diag["entryFlowScoreSamples"] += 1
 
+                    decision_context = (
+                        strategy_details.get("decisionContext")
+                        if isinstance(strategy_details, dict)
+                        else None
+                    )
+                    if isinstance(decision_context, dict):
+                        for target_key, source_key in (
+                            ("entryLocalRegimeCounts", "localRegime"),
+                            ("entryHtfBiasCounts", "htfBias"),
+                        ):
+                            value = str(
+                                decision_context.get(source_key)
+                                or "unknown"
+                            )
+                            counts = item_diag[target_key]
+                            counts[value] = counts.get(value, 0) + 1
+                        ready_key = str(
+                            bool(
+                                decision_context.get(
+                                    "executionReady"
+                                )
+                            )
+                        ).lower()
+                        ready_counts = item_diag[
+                            "entryExecutionReadyCounts"
+                        ]
+                        ready_counts[ready_key] = (
+                            ready_counts.get(ready_key, 0) + 1
+                        )
+
                     liquidity_alignment = (
                         strategy_details.get("liquidityAlignment")
                         if isinstance(strategy_details, dict)
@@ -899,6 +934,26 @@ class SessionRecorder:
                         if isinstance(short_alignment, dict)
                         else "unknown"
                     )
+                    execution_context = (
+                        market_context.get("executionContext") or {}
+                        if isinstance(market_context, dict)
+                        else {}
+                    )
+                    structure_context = (
+                        market_context.get("structureContext")
+                        if isinstance(market_context, dict)
+                        else None
+                    )
+                    execution_ready_key = (
+                        str(bool(execution_context.get("ready"))).lower()
+                        if isinstance(execution_context, dict)
+                        else "unknown"
+                    )
+                    structure_available_key = (
+                        "true"
+                        if isinstance(structure_context, dict)
+                        else "false"
+                    )
                     for bucket_name, value in (
                         ("legacyTrend", legacy),
                         ("htfBias", htf_key),
@@ -908,6 +963,8 @@ class SessionRecorder:
                         ("shortFlowAlignment", short_alignment_key),
                         ("liquidityState", liquidity_state),
                         ("liquidityBias", liquidity_bias),
+                        ("executionReady", execution_ready_key),
+                        ("structureAvailable", structure_available_key),
                     ):
                         bucket = market_context_counts[bucket_name]
                         bucket[value] = bucket.get(value, 0) + 1
