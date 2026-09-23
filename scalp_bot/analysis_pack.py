@@ -32,10 +32,26 @@ FOCUS_WINDOWS = {
 }
 
 INTERACTION_FOCUS_STATES = {
-    "trend_structure": {"test", "reclaim", "continuation"},
+    "trend_structure": {
+        "pullback",
+        "armed",
+        "test",
+        "reclaim",
+        "continuation",
+    },
     "weak_level_rejection": {"test", "reject", "reaction"},
-    "orderbook_density": {"test", "defended", "reaction", "exhausted"},
-    "level_breakout": {"break", "impulse"},
+    "orderbook_density": {
+        "test",
+        "defended",
+        "reaction",
+        "exhausted",
+    },
+    "level_breakout": {
+        "pressure",
+        "armed",
+        "break",
+        "impulse",
+    },
 }
 
 
