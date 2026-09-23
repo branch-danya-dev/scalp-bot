@@ -15,6 +15,9 @@ from .economic_calibration import (
 )
 from .performance_matrix import pair_closed_trades
 from .recorder import SessionRecorder
+from .research_policy import (
+    extract_policy_candidates,
+)
 from .stability_validation import (
     build_stability_validation,
 )
@@ -922,6 +925,25 @@ def aggregate_research_sources(
             validation_threshold_consistency_rate
         ),
     )
+    stability_sha256 = hashlib.sha256(
+        json.dumps(
+            stability,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    policy_candidates = extract_policy_candidates(
+        stability,
+        source={
+            "sourceKind": "cross_session_dataset",
+            "stabilitySha256": stability_sha256,
+            "sessionIds": [
+                row["sessionId"]
+                for row in sessions
+            ],
+        },
+    )
 
     return {
         "schemaVersion": 1,
@@ -1029,6 +1051,27 @@ def aggregate_research_sources(
             calibration
         ),
         "stabilityValidation": stability,
+        "policyPromotionCandidates": {
+            "schemaVersion": 1,
+            "source": {
+                "sourceKind": "cross_session_dataset",
+                "stabilitySha256": stability_sha256,
+            },
+            "summary": {
+                "candidates": len(policy_candidates),
+                "featureBlockCandidates": sum(
+                    row.get("ruleType")
+                    == "block_feature_value"
+                    for row in policy_candidates
+                ),
+                "economicThresholdCandidates": sum(
+                    row.get("ruleType")
+                    == "min_net_reward_risk"
+                    for row in policy_candidates
+                ),
+            },
+            "candidates": policy_candidates,
+        },
         "tables": {
             "trades": trades,
             "hindsight": hindsight,
@@ -1105,6 +1148,7 @@ def write_research_dataset_pack(
         "files": {
             "report": "cross-session-report.json",
             "stabilityValidation": "stability-validation.json",
+            "policyCandidates": "policy-candidates.json",
             **TABLE_FILES,
         },
     }
@@ -1132,6 +1176,14 @@ def write_research_dataset_pack(
         (tmp / "stability-validation.json").write_text(
             json.dumps(
                 dataset.get("stabilityValidation") or {},
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        (tmp / "policy-candidates.json").write_text(
+            json.dumps(
+                dataset.get("policyPromotionCandidates") or {},
                 ensure_ascii=False,
                 indent=2,
             ),
@@ -1176,6 +1228,7 @@ def write_research_dataset_pack(
             "Cross-session research dataset for scalp-bot.\n\n"
             "cross-session-report.json: aggregate metrics and hypotheses.\n"
             "stability-validation.json: session holdout / leave-one-session-out validation.\n"
+            "policy-candidates.json: Stage 11 candidates eligible for explicit human promotion.\n"
             "sessions.jsonl: session provenance.\n"
             "trades.jsonl: normalized actual closed trades.\n"
             "hindsight-opportunities.jsonl: independent hindsight labels.\n"
