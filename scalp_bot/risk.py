@@ -363,6 +363,13 @@ class RiskEngine:
             first_take_move_pct
             < max(0.0, self.config.min_first_take_move_pct)
         )
+        movement_floor_bands = {
+            "0.10%": first_take_move_pct >= 0.0010,
+            "0.15%": first_take_move_pct >= 0.0015,
+            "0.20%": first_take_move_pct >= 0.0020,
+            "0.25%": first_take_move_pct >= 0.0025,
+            "0.30%": first_take_move_pct >= 0.0030,
+        }
         lifecycle_fee_cost = notional * lifecycle_fee_pct
         lifecycle_slippage_cost = notional * lifecycle_slippage_pct
         estimated_costs = lifecycle_fee_cost + lifecycle_slippage_cost
@@ -432,6 +439,7 @@ class RiskEngine:
             "minimumFirstTakeMovePct": self.config.min_first_take_move_pct,
             "firstTakeMoveGateEnabled": self.config.enforce_min_first_take_move_gate,
             "wouldFailFirstTakeMove": minimum_first_take_move_failed,
+            "movementFloorBands": movement_floor_bands,
             "runnerFraction": runner_fraction if partial_enabled else 1.0,
             "runnerTargetPct": runner_target_pct,
             "lifecycleGrossPct": lifecycle_gross_pct,
@@ -554,6 +562,7 @@ class RiskEngine:
             "lifecycleCostPct": lifecycle_cost_pct,
             "firstTakeMovePct": first_take_move_pct,
             "minimumFirstTakeMovePct": self.config.min_first_take_move_pct,
+            "movementFloorBands": movement_floor_bands,
             "winnerCostShare": winner_cost_share,
             "stopCostShare": stop_cost_share,
             "takerFeeCostUsd": fee_cost,
