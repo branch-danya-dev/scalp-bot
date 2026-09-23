@@ -10,6 +10,9 @@ from .execution import execution_profile, fee_rate, slippage_rate
 from .strategy_policy import no_follow_through_seconds, partial_take_fraction
 
 
+_UNSET_TRADE_PRICE = object()
+
+
 @dataclass(slots=True)
 class Position:
     symbol: str
@@ -623,6 +626,24 @@ class PaperBroker:
         self.pending_entries[plan.symbol] = pending
         return pending
 
+    def cancel_pending(
+        self,
+        symbol: str,
+        reason: str,
+    ) -> dict | None:
+        pending = self.pending_entries.pop(symbol, None)
+        if pending is None:
+            return None
+        return {
+            "event": "entry_cancelled",
+            "symbol": symbol,
+            "strategy": pending.plan.strategy,
+            "setupId": pending.plan.setup_id,
+            "reason": reason,
+            "limitPrice": pending.limit_price,
+            "positionAction": pending.position_action,
+        }
+
     def expire_pending(
         self,
         now: float | None = None,
@@ -865,7 +886,14 @@ class PaperBroker:
             fee,
         )
 
-    def mark(self, symbol: str, last_price: float, book: OrderBook) -> list[dict]:
+    def mark(
+        self,
+        symbol: str,
+        last_price: float,
+        book: OrderBook,
+        *,
+        trade_price: float | None | object = _UNSET_TRADE_PRICE,
+    ) -> list[dict]:
         pos = self.positions.get(symbol)
         if pos is None:
             return []
@@ -890,6 +918,11 @@ class PaperBroker:
             pos.mae_price = executable
             pos.mae_at = now
         profile = execution_profile(pos.strategy)
+        maker_trade_price = (
+            last_price
+            if trade_price is _UNSET_TRADE_PRICE
+            else trade_price
+        )
         pos.estimated_exit_fee_usd = (
             pos.notional * fee_rate(
                 self.config,
@@ -919,6 +952,14 @@ class PaperBroker:
             pos,
             executable,
             profile.partial_exit,
+            trade_price=(
+                float(maker_trade_price)
+                if isinstance(
+                    maker_trade_price,
+                    (int, float),
+                )
+                else None
+            ),
         )
         if (
             self.config.partial_take_enabled
@@ -950,7 +991,27 @@ class PaperBroker:
             return events
 
         pos = self.positions[symbol]
-        hit_target = executable >= pos.target if pos.side == Side.LONG else executable <= pos.target
+        if profile.target_exit == "maker_limit":
+            resolved_trade_price = (
+                float(maker_trade_price)
+                if isinstance(
+                    maker_trade_price,
+                    (int, float),
+                )
+                else None
+            )
+            hit_target = self._maker_exit_trade_through(
+                pos,
+                pos.target,
+                resolved_trade_price,
+                self.config.maker_fill_confirmation_bps,
+            )
+        else:
+            hit_target = (
+                executable >= pos.target
+                if pos.side == Side.LONG
+                else executable <= pos.target
+            )
         if hit_target:
             events.append(self.close(symbol, book, "runner_target" if pos.partial_taken else "target"))
             return events
@@ -1055,21 +1116,39 @@ class PaperBroker:
             return pos.entry + risk_distance * multiple
         return pos.entry - risk_distance * multiple
 
+    @staticmethod
+    def _maker_exit_trade_through(
+        pos: Position,
+        limit_price: float,
+        trade_price: float | None,
+        confirmation_bps: float = 0.0,
+    ) -> bool:
+        if trade_price is None or limit_price <= 0:
+            return False
+        confirm = max(0.0, confirmation_bps) / 10_000
+        if pos.side == Side.LONG:
+            return trade_price >= limit_price * (1 + confirm)
+        return trade_price <= limit_price * (1 - confirm)
+
     def _partial_triggered(
         self,
         pos: Position,
         executable: float,
         exit_mode: str,
+        *,
+        trade_price: float | None = None,
     ) -> bool:
         if pos.initial_risk_usd <= 0:
             return False
         if exit_mode != "maker_limit":
             return pos.mfe_r >= self.config.partial_take_at_r
         limit_price = self._partial_limit_price(pos)
-        confirm = max(0.0, self.config.maker_fill_confirmation_bps) / 10_000
-        if pos.side == Side.LONG:
-            return executable >= limit_price * (1 + confirm)
-        return executable <= limit_price * (1 - confirm)
+        return self._maker_exit_trade_through(
+            pos,
+            limit_price,
+            trade_price,
+            self.config.maker_fill_confirmation_bps,
+        )
 
     def _partial_close_notional(self, pos: Position) -> float:
         return min(

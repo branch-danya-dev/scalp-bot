@@ -614,3 +614,65 @@ def test_breakout_absorption_vetoes_aggression_without_price_response(
     assert decision.details["breakoutAbsorbed"] is True
     assert decision.details["absorptionEfficiency"] == pytest.approx(0.80)
     assert decision.details["directionalResponseBps"] == pytest.approx(1.0)
+
+
+
+def test_breakout_keeps_exact_structural_generation_identity() -> None:
+    strategy = LevelBreakoutStrategy()
+    strategy.staged_entries_enabled = False
+    rows = mature_breakout_candles()
+
+    wrong_nearby = StructuralLevel(
+        kind="resistance",
+        low=100.00,
+        high=100.06,
+        touches=6,
+        timeframe="5m",
+        score=0.95,
+        reaction_pct=0.006,
+        volume_ratio=1.30,
+        last_touch_index=66,
+        level_id="R:wrong",
+        generation_id="R:wrong:g7",
+        distinct_approaches=5,
+        dwell_bars=9,
+        lifecycle="worked",
+    )
+    selected = StructuralLevel(
+        kind="resistance",
+        low=100.08,
+        high=100.14,
+        touches=6,
+        timeframe="5m",
+        score=0.86,
+        reaction_pct=0.006,
+        volume_ratio=1.25,
+        last_touch_index=68,
+        level_id="R:selected",
+        generation_id="R:selected:g3",
+        distinct_approaches=5,
+        dwell_bars=9,
+        lifecycle="worked",
+    )
+    structure = MarketStructure(
+        levels=[wrong_nearby, selected]
+    )
+
+    decision = strategy.evaluate(
+        rows,
+        OrderBook(
+            bids=[(100.16, 50)],
+            asks=[(100.17, 50)],
+        ),
+        Trend.UP,
+        symbol="IDENTITYUSDT",
+        trades=aggressive_buy_flow(),
+        structure=structure,
+    )
+
+    # The selected zone is the closer second level. Its generation must travel
+    # with the candidate exactly; a nearby first row may never be substituted.
+    assert decision.details["zone"]["low"] == pytest.approx(100.08)
+    state = strategy._states["IDENTITYUSDT"]
+    assert state.armed_generation_id == "R:selected:g3"
+    assert decision.details["zoneGeneration"][1] == "R:selected:g3"

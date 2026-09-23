@@ -36,6 +36,7 @@ def test_position_can_go_negative_without_being_closed_before_stop() -> None:
     cfg = Settings(
         taker_fee_rate=0,
         slippage_bps=0,
+        maker_fill_confirmation_bps=0,
         max_leverage=1,
         max_open_positions=4,
         partial_take_enabled=False,
@@ -213,10 +214,12 @@ def test_session_loss_limit_still_exists_when_explicitly_enabled() -> None:
 
 
 
-def test_target_uses_executable_exit_not_last_trade() -> None:
+def test_maker_target_requires_trade_through_not_book_touch() -> None:
     cfg = Settings(
         taker_fee_rate=0,
+        maker_fee_rate=0,
         slippage_bps=0,
+        maker_fill_confirmation_bps=0.5,
         partial_take_enabled=False,
         no_follow_through_seconds=999,
     )
@@ -225,13 +228,27 @@ def test_target_uses_executable_exit_not_last_trade() -> None:
     p.target = 101.0
     broker.open(p, book(99.99, 100.00))
 
-    # Last trade printed through target, but executable bid did not.
-    events = broker.mark("AAAUSDT", 101.10, book(100.95, 101.05))
+    # A book-only update through the target is not sufficient evidence that
+    # our resting maker sell actually filled.
+    events = broker.mark(
+        "AAAUSDT",
+        100.90,
+        book(101.01, 101.02),
+        trade_price=None,
+    )
     assert events == []
     assert "AAAUSDT" in broker.positions
 
-    events = broker.mark("AAAUSDT", 101.10, book(101.00, 101.05))
+    # A public trade through the resting limit by the configured confirmation
+    # margin is the conservative paper fill model.
+    events = broker.mark(
+        "AAAUSDT",
+        101.01,
+        book(100.95, 101.05),
+        trade_price=101.01,
+    )
     assert events and events[-1]["reason"] == "target"
+    assert events[-1]["exit"] == pytest.approx(101.0)
 
 
 def test_closed_trade_counter_is_not_truncated_with_ui_history() -> None:
@@ -804,6 +821,7 @@ def test_closed_trade_persists_move_extremes_timestamps_and_fees() -> None:
         taker_fee_rate=0.0005,
         maker_fee_rate=0.0002,
         slippage_bps=0,
+        maker_fill_confirmation_bps=0,
         partial_take_enabled=False,
         no_follow_through_seconds=999,
         max_leverage=2,
@@ -1032,3 +1050,44 @@ def test_staged_add_rejects_bad_aggregate_payoff_even_when_leg_is_valid() -> Non
             add,
             book(100.19, 100.20),
         )
+
+
+
+def test_maker_partial_does_not_fill_on_book_only_touch() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        maker_fill_confirmation_bps=0.5,
+        partial_take_enabled=True,
+        partial_take_at_r=1.0,
+        partial_take_fraction=0.5,
+        min_net_profit_usd=0,
+        min_net_profit_equity_fraction=0,
+        no_follow_through_seconds=999,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("MAKERPARTUSDT", Side.LONG, 1000)
+    p.strategy = "level_breakout"
+    broker.open(p, book(99.99, 100.00))
+
+    partial_limit = broker._partial_limit_price(
+        broker.positions["MAKERPARTUSDT"]
+    )
+    events = broker.mark(
+        "MAKERPARTUSDT",
+        partial_limit,
+        book(partial_limit + 0.01, partial_limit + 0.02),
+        trade_price=None,
+    )
+    assert events == []
+    assert broker.positions["MAKERPARTUSDT"].partial_taken is False
+
+    events = broker.mark(
+        "MAKERPARTUSDT",
+        partial_limit * 1.0001,
+        book(partial_limit, partial_limit + 0.01),
+        trade_price=partial_limit * 1.0001,
+    )
+    assert events
+    assert events[0]["event"] == "partial_take"

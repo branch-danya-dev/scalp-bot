@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import floor, log
+from statistics import median
 
 from ..domain import Candle
 from .structure import MarketStructure, StructuralLevel
@@ -20,11 +21,21 @@ class LevelLife:
     failed_breaks: int = 0
     sweeps: int = 0
     was_near: bool = False
+    departed_since_ms: int | None = None
+    last_approach_bar_ms: int | None = None
     broken: bool = False
     last_counted_bar_ms: int | None = None
 
 
 class LevelLifecycleTracker:
+    # Distinct approaches describe separate market visits, not sub-second
+    # oscillation around a zone boundary. A level must first move materially
+    # away, remain away for a short interval, and return on a later confirmed
+    # candle before lifecycle maturity increases.
+    approach_departure_seconds = 5.0
+    approach_min_separation_seconds = 15.0
+    approach_reset_multiple = 2.0
+
     def __init__(self) -> None:
         self._levels: dict[str, LevelLife] = {}
 
@@ -45,9 +56,15 @@ class LevelLifecycleTracker:
         if reference_price <= 0:
             return structure
         latest = candles[-1] if candles else None
-        local_range = max(
-            (c.high - c.low for c in candles[-20:]),
-            default=reference_price * 0.001,
+        range_values = [
+            c.high - c.low
+            for c in candles[-20:]
+            if c.high >= c.low
+        ]
+        local_range = (
+            median(range_values)
+            if range_values
+            else reference_price * 0.001
         )
 
         for level in structure.levels:
@@ -75,7 +92,17 @@ class LevelLifecycleTracker:
                     dwell_bars=level.dwell_bars,
                     acceptance_bars=level.acceptance_bars,
                     was_near=currently_near,
+                    departed_since_ms=(
+                        None
+                        if currently_near
+                        else now_ms
+                    ),
                     last_approach_ms=(now_ms if currently_near else None),
+                    last_approach_bar_ms=(
+                        latest.start_ms
+                        if currently_near and latest is not None
+                        else None
+                    ),
                     last_counted_bar_ms=(
                         latest.start_ms
                         if latest is not None
@@ -93,6 +120,8 @@ class LevelLifecycleTracker:
                 life.failed_breaks = 0
                 life.sweeps = 0
                 life.was_near = False
+                life.departed_since_ms = now_ms
+                life.last_approach_bar_ms = None
                 life.first_seen_ms = now_ms
             life.last_seen_ms = now_ms
 
@@ -101,14 +130,64 @@ class LevelLifecycleTracker:
                 local_range * 0.15,
                 reference_price * 0.0004,
             )
+            reset_distance = max(
+                tolerance * self.approach_reset_multiple,
+                level.width,
+                reference_price * 0.0008,
+            )
             near = (
                 reference_price >= level.low - tolerance
                 and reference_price <= level.high + tolerance
             )
-            if near and not life.was_near:
-                life.distinct_approaches += 1
-                life.last_approach_ms = now_ms
-            life.was_near = near
+            materially_away = (
+                reference_price < level.low - reset_distance
+                or reference_price > level.high + reset_distance
+            )
+
+            if materially_away:
+                if life.was_near or life.departed_since_ms is None:
+                    life.departed_since_ms = now_ms
+                life.was_near = False
+            elif near:
+                if not life.was_near:
+                    departed_long_enough = (
+                        life.departed_since_ms is not None
+                        and now_ms - life.departed_since_ms
+                        >= int(
+                            self.approach_departure_seconds
+                            * 1000
+                        )
+                    )
+                    separated_in_time = (
+                        life.last_approach_ms is None
+                        or now_ms - life.last_approach_ms
+                        >= int(
+                            self.approach_min_separation_seconds
+                            * 1000
+                        )
+                    )
+                    separated_by_bar = (
+                        latest is None
+                        or life.last_approach_bar_ms is None
+                        or latest.start_ms
+                        != life.last_approach_bar_ms
+                    )
+                    if (
+                        departed_long_enough
+                        and separated_in_time
+                        and separated_by_bar
+                    ):
+                        life.distinct_approaches += 1
+                        life.last_approach_ms = now_ms
+                        life.last_approach_bar_ms = (
+                            latest.start_ms
+                            if latest is not None
+                            else None
+                        )
+                life.was_near = True
+                life.departed_since_ms = None
+            # Between the near and reset bands, keep the previous hysteresis
+            # state. Merely crossing the near threshold is not a new approach.
 
             if latest is not None:
                 overlaps = latest.high >= level.low and latest.low <= level.high

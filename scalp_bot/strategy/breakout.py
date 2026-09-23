@@ -52,6 +52,7 @@ class BreakoutWatchState:
     armed_price: float = 0.0
     armed_zone: LevelZone | None = None
     armed_trend: Trend = Trend.FLAT
+    armed_generation_id: str | None = None
     break_started_at: float = 0.0
     break_extreme: float = 0.0
     retest_seen: bool = False
@@ -158,6 +159,7 @@ class LevelBreakoutStrategy(Strategy):
         state.probe_opened = False
         state.armed_zone = None
         state.armed_trend = Trend.FLAT
+        state.armed_generation_id = None
 
     @staticmethod
     def _generation(zone: LevelZone) -> tuple[str, str, float]:
@@ -189,6 +191,49 @@ class LevelBreakoutStrategy(Strategy):
                 and zone.high >= price * (1 - LevelBreakoutStrategy.max_zone_distance_pct)
             ]
         eligible.sort(key=lambda zone: (abs(zone.center - price), -zone.score))
+        return eligible[0] if eligible else None
+
+    @staticmethod
+    def _select_structural_candidate(
+        levels: list["StructuralLevel"],
+        price: float,
+        *,
+        long_side: bool,
+    ) -> tuple[LevelZone, "StructuralLevel"] | None:
+        pairs = [
+            (level.as_zone(), level)
+            for level in levels
+        ]
+        if long_side:
+            eligible = [
+                pair
+                for pair in pairs
+                if pair[0].high >= price * 0.997
+                and pair[0].low
+                <= price
+                * (
+                    1
+                    + LevelBreakoutStrategy.max_zone_distance_pct
+                )
+            ]
+        else:
+            eligible = [
+                pair
+                for pair in pairs
+                if pair[0].low <= price * 1.003
+                and pair[0].high
+                >= price
+                * (
+                    1
+                    - LevelBreakoutStrategy.max_zone_distance_pct
+                )
+            ]
+        eligible.sort(
+            key=lambda pair: (
+                abs(pair[0].center - price),
+                -pair[0].score,
+            )
+        )
         return eligible[0] if eligible else None
 
     @staticmethod
@@ -377,7 +422,12 @@ class LevelBreakoutStrategy(Strategy):
         )
 
         candidates: list[
-            tuple[float, Trend, LevelZone, list]
+            tuple[
+                float,
+                Trend,
+                LevelZone,
+                "StructuralLevel | None",
+            ]
         ] = []
         if not pinned_arm:
             for direction in context_plan.allowed_directions:
@@ -387,24 +437,36 @@ class LevelBreakoutStrategy(Strategy):
                     if long_candidate
                     else "support"
                 )
+                matched_level = None
                 if structure is not None:
                     structural_rows = [
                         level
                         for level in structure.levels
                         if level.kind == zone_kind
                         and level.touches >= self.min_zone_touches
-                        and level.distinct_approaches >= self.min_distinct_approaches
+                        and level.distinct_approaches
+                        >= self.min_distinct_approaches
                         and level.reaction_pct
                         >= typical_range_pct(candles) * 0.45
                         and level.volume_ratio >= 0.80
                         and level.lifecycle == "worked"
                     ]
-                    zones = [
-                        level.as_zone()
-                        for level in structural_rows
-                    ]
+                    selected = self._select_structural_candidate(
+                        structural_rows,
+                        price,
+                        long_side=long_candidate,
+                    )
+                    candidate_zone = (
+                        selected[0]
+                        if selected is not None
+                        else None
+                    )
+                    matched_level = (
+                        selected[1]
+                        if selected is not None
+                        else None
+                    )
                 else:
-                    structural_rows = []
                     zones = detect_level_zones(
                         candles,
                         zone_kind,
@@ -415,38 +477,58 @@ class LevelBreakoutStrategy(Strategy):
                         for zone in zones
                         if self._mature(zone, candles)
                     ]
-                candidate_zone = self._select_zone(
-                    zones,
-                    price,
-                    long_side=long_candidate,
-                )
+                    candidate_zone = self._select_zone(
+                        zones,
+                        price,
+                        long_side=long_candidate,
+                    )
                 if candidate_zone is not None:
                     candidates.append(
                         (
                             abs(candidate_zone.center - price),
                             direction,
                             candidate_zone,
-                            structural_rows,
+                            matched_level,
                         )
                     )
 
+        matched = None
         if pinned_arm:
             playbook_trend = state.armed_trend
             zone = state.armed_zone
-            zone_kind = (
-                "resistance"
-                if playbook_trend == Trend.UP
-                else "support"
-            )
-            structural = (
-                [
-                    level
-                    for level in structure.levels
-                    if level.kind == zone_kind
-                ]
-                if structure is not None
-                else []
-            )
+            if (
+                structure is not None
+                and state.armed_generation_id is not None
+            ):
+                matched = next(
+                    (
+                        level
+                        for level in structure.levels
+                        if level.generation_id
+                        == state.armed_generation_id
+                    ),
+                    None,
+                )
+                if matched is None:
+                    state.stage = BreakoutStage.SEARCH
+                    state.zone_key = None
+                    state.armed_zone = None
+                    state.armed_trend = Trend.FLAT
+                    state.armed_generation_id = None
+                    return StrategyDecision(
+                        self.key,
+                        Action.WAIT,
+                        [
+                            "Prepared breakout level generation "
+                            "disappeared; hypothesis reset"
+                        ],
+                        details={
+                            "state": state.stage.value,
+                            "preparedGenerationId": (
+                                state.armed_generation_id
+                            ),
+                        },
+                    )
         else:
             if not candidates:
                 state.stage = BreakoutStage.SEARCH
@@ -464,7 +546,7 @@ class LevelBreakoutStrategy(Strategy):
                     },
                 )
 
-            _, playbook_trend, zone, structural = min(
+            _, playbook_trend, zone, matched = min(
                 candidates,
                 key=lambda row: row[0],
             )
@@ -487,22 +569,12 @@ class LevelBreakoutStrategy(Strategy):
         }
 
         generation = self._generation(zone)
-        if structure is not None:
-            matched = next(
-                (
-                    level
-                    for level in structural
-                    if abs(level.center - zone.center)
-                    <= max(zone.width, price * 0.0006)
-                ),
-                None,
+        if matched is not None and matched.generation_id:
+            generation = (
+                zone.kind,
+                matched.generation_id,
+                round(zone.center, 8),
             )
-            if matched is not None and matched.generation_id:
-                generation = (
-                    zone.kind,
-                    matched.generation_id,
-                    round(zone.center, 8),
-                )
         if state.zone_key != generation:
             state.zone_key = generation
             state.stage = BreakoutStage.FOUND
@@ -511,6 +583,7 @@ class LevelBreakoutStrategy(Strategy):
             state.armed_price = 0.0
             state.armed_zone = None
             state.armed_trend = Trend.FLAT
+            state.armed_generation_id = None
             state.break_started_at = 0.0
             state.break_extreme = 0.0
             state.retest_seen = False
@@ -651,6 +724,11 @@ class LevelBreakoutStrategy(Strategy):
                 state.armed_price = price
             state.armed_zone = zone
             state.armed_trend = playbook_trend
+            state.armed_generation_id = (
+                matched.generation_id
+                if matched is not None
+                else None
+            )
             state.armed_until = max(
                 state.armed_until,
                 market_now + self.pressure_hysteresis_seconds,
@@ -664,6 +742,7 @@ class LevelBreakoutStrategy(Strategy):
             if not state.probe_opened:
                 state.armed_zone = None
                 state.armed_trend = Trend.FLAT
+                state.armed_generation_id = None
 
         opportunity_arm = (
             {
@@ -684,6 +763,11 @@ class LevelBreakoutStrategy(Strategy):
                     else Action.SHORT.value
                 ),
                 "generation": list(generation),
+                "structuralGenerationId": (
+                    matched.generation_id
+                    if matched is not None
+                    else None
+                ),
                 "watchedLevel": zone.center,
                 "armPrice": state.armed_price,
                 "pinned": True,

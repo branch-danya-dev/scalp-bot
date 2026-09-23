@@ -1821,6 +1821,7 @@ class TradingEngine:
             session.decisions[key] = decision
             self._record_decision_if_changed(session, decision)
 
+        self._validate_pending_entry(session)
         self._maybe_strategy_invalidation(session)
 
     @staticmethod
@@ -3235,6 +3236,84 @@ class TradingEngine:
             },
         )
 
+    def _validate_pending_entry(
+        self,
+        session: ActiveSymbolSession,
+    ) -> None:
+        pending = self.broker.pending_entries.get(
+            session.symbol
+        )
+        if pending is None:
+            return
+
+        strategy_key = pending.plan.strategy
+        decision = session.decisions.get(strategy_key)
+        reason: str | None = None
+
+        if not self.strategy_enabled.get(strategy_key, False):
+            reason = "strategy_disabled"
+        elif decision is None:
+            reason = "decision_missing"
+        elif not decision.tradeable:
+            reason = "setup_no_longer_tradeable"
+        elif decision.side != pending.plan.side:
+            reason = "setup_direction_changed"
+        else:
+            current_setup_id = self._resolve_setup_id(
+                session,
+                decision,
+            )
+            if current_setup_id != pending.plan.setup_id:
+                reason = "setup_identity_changed"
+
+            freshness = (
+                decision.details.get("opportunityFreshness")
+                if isinstance(decision.details, dict)
+                else None
+            )
+            freshness_class = (
+                str(freshness.get("classification") or "")
+                if isinstance(freshness, dict)
+                else ""
+            )
+            if (
+                reason is None
+                and freshness_class in {"late", "exhausted"}
+            ):
+                reason = (
+                    "setup_freshness_"
+                    + freshness_class
+                )
+
+            entry_context = (
+                decision.details.get(
+                    "entryContextAssessment"
+                )
+                if isinstance(decision.details, dict)
+                else None
+            )
+            if (
+                reason is None
+                and isinstance(entry_context, dict)
+                and entry_context.get("allowed") is False
+            ):
+                reason = "entry_context_invalidated"
+
+        if reason is None:
+            return
+
+        event = self.broker.cancel_pending(
+            session.symbol,
+            f"setup_invalidated:{reason}",
+        )
+        if event is not None:
+            self._emit(
+                "entry_cancelled",
+                session.symbol,
+                event,
+                snapshot=True,
+            )
+
     def _maybe_strategy_invalidation(
         self,
         session: ActiveSymbolSession,
@@ -3330,11 +3409,16 @@ class TradingEngine:
                     event,
                     snapshot=True,
                 )
-        self._mark_position_from_book(session)
+        self._mark_position_from_book(
+            session,
+            trade_price=session.last_price,
+        )
 
     def _mark_position_from_book(
         self,
         session: ActiveSymbolSession,
+        *,
+        trade_price: float | None = None,
     ) -> None:
         if session.symbol not in self.broker.positions:
             return
@@ -3349,6 +3433,7 @@ class TradingEngine:
             session.symbol,
             mark,
             session.orderbook,
+            trade_price=trade_price,
         )
         self._handle_broker_events(session, events)
 

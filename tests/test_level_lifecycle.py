@@ -7,7 +7,7 @@ def candle(i: int, close: float) -> Candle:
     return Candle(i * 60_000, close, close + 0.1, close - 0.1, close, 100, 10_000)
 
 
-def test_level_lifecycle_counts_separate_approaches() -> None:
+def test_level_lifecycle_counts_only_separate_market_approaches() -> None:
     tracker = LevelLifecycleTracker()
     level = StructuralLevel(
         kind="resistance", low=100.0, high=100.1, touches=2,
@@ -15,13 +15,30 @@ def test_level_lifecycle_counts_separate_approaches() -> None:
     )
     structure = MarketStructure(levels=[level])
     rows = [candle(i, 99.0) for i in range(20)]
+
     tracker.update(structure, rows, 99.0, 1_000)
-    tracker.update(structure, rows, 100.05, 2_000)
-    tracker.update(structure, rows, 99.0, 3_000)
-    tracker.update(structure, rows, 100.04, 4_000)
+    tracker.update(structure, rows, 100.05, 7_000)
+    assert level.distinct_approaches == 2
+
+    # Boundary chatter without a material departure must not manufacture
+    # another "distinct approach".
+    tracker.update(structure, rows, 99.94, 20_000)
+    tracker.update(structure, rows, 100.04, 25_000)
+    assert level.distinct_approaches == 2
+
+    # Even after a real departure, re-entry on the same confirmed candle is
+    # not a new structural visit.
+    tracker.update(structure, rows, 99.0, 30_000)
+    tracker.update(structure, rows, 100.04, 40_000)
+    assert level.distinct_approaches == 2
+
+    # A later confirmed bar plus a sustained departure creates a new visit.
+    later_rows = [*rows, candle(20, 99.0)]
+    tracker.update(structure, later_rows, 99.0, 61_000)
+    tracker.update(structure, later_rows, 100.04, 67_000)
     assert level.level_id is not None
     assert level.generation_id is not None
-    assert level.distinct_approaches >= 2
+    assert level.distinct_approaches == 3
 
 
 def test_structural_level_as_zone_preserves_last_touch_index() -> None:
