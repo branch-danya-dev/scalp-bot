@@ -144,6 +144,8 @@ def build_decision_trace(
     decision: StrategyDecision,
     trend: Trend,
     observed_at_ms: int,
+    *,
+    market_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     details = decision.details or {}
     state = str(details.get("state") or "unknown")
@@ -165,6 +167,7 @@ def build_decision_trace(
         "action": decision.action.value,
         "state": state,
         "trend": trend.value,
+        "marketContext": market_context,
         "setupId": decision.setup_id,
         "object": _market_object(decision),
         "confirmed": _confirmed_facts(details),
@@ -217,4 +220,9 @@ def build_trace_from_public(
         decision,
         trend,
         observed_at_ms,
+        market_context=(
+            payload.get("marketContext")
+            if isinstance(payload.get("marketContext"), dict)
+            else None
+        ),
     )
