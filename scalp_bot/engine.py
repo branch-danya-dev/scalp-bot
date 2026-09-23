@@ -1761,6 +1761,94 @@ class TradingEngine:
             decision.details["flowAlignment"] = alignment.public()
 
     @staticmethod
+    def _annotate_decision_context(
+        session: ActiveSymbolSession,
+        decision: StrategyDecision,
+    ) -> None:
+        context = session.market_context
+        if context is None:
+            return
+
+        effective_action = decision.action
+        if effective_action == Action.WAIT:
+            shadow = str(
+                (decision.details or {}).get("shadowAction")
+                or ""
+            )
+            if shadow in {"long", "short"}:
+                effective_action = Action(shadow)
+
+        flow_alignment = context.flow_alignment_for(
+            effective_action
+        )
+        liquidity_alignment = context.liquidity_alignment_for(
+            effective_action
+        )
+        structure = context.structure
+
+        decision.details["decisionContext"] = {
+            "schemaVersion": 1,
+            "marketObservedAtMs": context.observed_at_ms,
+            "marketContextFingerprint": list(
+                context.fingerprint()
+            ),
+            "legacyTrend": context.legacy_trend.value,
+            "htfBias": (
+                context.htf_bias.bias.value
+                if context.htf_bias is not None
+                else None
+            ),
+            "localRegime": (
+                context.local_regime.regime.value
+                if context.local_regime is not None
+                else None
+            ),
+            "localDirection": (
+                context.local_regime.direction.value
+                if context.local_regime is not None
+                else None
+            ),
+            "flowAlignment": (
+                flow_alignment.public()
+                if flow_alignment is not None
+                else None
+            ),
+            "liquidityState": (
+                context.liquidity.state.value
+                if context.liquidity is not None
+                else None
+            ),
+            "liquidityAlignment": (
+                liquidity_alignment.public()
+                if liquidity_alignment is not None
+                else None
+            ),
+            "entryFreshness": (
+                decision.details.get("entryFreshness")
+                if isinstance(
+                    decision.details.get("entryFreshness"),
+                    dict,
+                )
+                else None
+            ),
+            "executionReady": context.execution.ready,
+            "spreadPct": context.execution.spread_pct,
+            "top5DepthUsd": (
+                context.execution.top5_depth_usd
+            ),
+            "nearestSupportDistancePct": (
+                structure.support_distance_pct
+                if structure is not None
+                else None
+            ),
+            "nearestResistanceDistancePct": (
+                structure.resistance_distance_pct
+                if structure is not None
+                else None
+            ),
+        }
+
+    @staticmethod
     def _freshness_object_key(
         decision: StrategyDecision,
     ) -> tuple:
