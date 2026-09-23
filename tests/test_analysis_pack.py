@@ -206,8 +206,17 @@ def test_analysis_pack_keeps_events_candles_reports_and_sampled_books(tmp_path):
     assert '"analysisRuntime"' in compact
     assert '"strategy_state_transition"' in compact
     assert manifest["compaction"]["interactionDecisionFocusStates"]["level_breakout"] == [
+        "armed",
         "break",
         "impulse",
+        "pressure",
+    ]
+    assert manifest["compaction"]["interactionDecisionFocusStates"]["trend_structure"] == [
+        "armed",
+        "continuation",
+        "pullback",
+        "reclaim",
+        "test",
     ]
     assert '"risk_reject"' in compact
     assert books
