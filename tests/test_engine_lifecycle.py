@@ -1323,3 +1323,261 @@ def test_arbiter_uses_pending_maker_entry_for_density_and_fills_after_trade_thro
         assert engine.strategy_stats["orderbook_density"]["tradesOpened"] == 1
     finally:
         close_rest(engine)
+
+
+
+def _kline_message_row(
+    start_ms: int,
+    close: float,
+    *,
+    confirm: bool,
+) -> dict:
+    return {
+        "start": start_ms,
+        "open": str(close - 0.1),
+        "high": str(close + 0.2),
+        "low": str(close - 0.2),
+        "close": str(close),
+        "volume": "10",
+        "turnover": str(close * 10),
+        "confirm": confirm,
+    }
+
+
+def test_kline_boundary_keeps_confirmed_history_live(tmp_path) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[
+                Candle(
+                    60_000,
+                    99.9,
+                    100.2,
+                    99.8,
+                    100.0,
+                    10,
+                    1000,
+                    confirmed=False,
+                ),
+            ],
+        )
+
+        engine._apply_kline(
+            session,
+            {
+                "data": [
+                    _kline_message_row(
+                        60_000,
+                        100.1,
+                        confirm=True,
+                    ),
+                    _kline_message_row(
+                        120_000,
+                        100.3,
+                        confirm=False,
+                    ),
+                ],
+            },
+        )
+
+        assert [row.start_ms for row in session.candles] == [
+            60_000,
+            120_000,
+        ]
+        assert session.candles[0].confirmed is True
+        assert session.candles[1].confirmed is False
+        assert session.last_price == pytest.approx(100.3)
+    finally:
+        close_rest(engine)
+
+
+def test_new_kline_bucket_auto_confirms_previous_forming_minute(
+    tmp_path,
+) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[
+                Candle(
+                    60_000,
+                    99.9,
+                    100.2,
+                    99.8,
+                    100.0,
+                    10,
+                    1000,
+                    confirmed=False,
+                ),
+            ],
+        )
+
+        engine._apply_kline(
+            session,
+            {
+                "data": [
+                    _kline_message_row(
+                        120_000,
+                        100.3,
+                        confirm=False,
+                    ),
+                ],
+            },
+        )
+
+        assert session.candles[0].confirmed is True
+        assert session.candles[1].confirmed is False
+    finally:
+        close_rest(engine)
+
+
+def test_confirmed_kline_cannot_be_downgraded_by_later_live_update(
+    tmp_path,
+) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[
+                Candle(
+                    60_000,
+                    99.9,
+                    100.2,
+                    99.8,
+                    100.1,
+                    10,
+                    1000,
+                    confirmed=True,
+                ),
+            ],
+        )
+
+        engine._apply_kline(
+            session,
+            {
+                "data": [
+                    _kline_message_row(
+                        60_000,
+                        100.15,
+                        confirm=False,
+                    ),
+                ],
+            },
+        )
+
+        assert len(session.candles) == 1
+        assert session.candles[0].confirmed is True
+        assert session.candles[0].close == pytest.approx(100.15)
+    finally:
+        close_rest(engine)
+
+
+def test_arbiter_refuses_trade_when_confirmed_1m_history_is_stale(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        confirmed_candle_stale_seconds=150,
+    )
+    try:
+        engine.running = True
+        now = time()
+        stale_start = int((now - 600) // 60) * 60_000
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[
+                Candle(
+                    stale_start,
+                    100,
+                    101,
+                    99,
+                    100,
+                    1,
+                    100,
+                    confirmed=True,
+                ),
+            ],
+            orderbook=book(),
+            last_price=100,
+            last_market_at=now,
+            last_book_at=now,
+            book_synced=True,
+        )
+        session.decisions["trend_structure"] = StrategyDecision(
+            strategy="trend_structure",
+            action=Action.LONG,
+            reasons=["would otherwise trade"],
+            confidence=0.9,
+            entry=100,
+            stop=99.5,
+            target=101,
+            setup_id="stale-candle-setup",
+        )
+        engine.sessions = {session.symbol: session}
+        engine.candidates = [
+            Candidate(
+                "AAAUSDT",
+                200_000_000,
+                0,
+                100,
+                activity_rank=1,
+            ),
+        ]
+
+        engine._arbitrate_once()
+
+        assert not engine.broker.positions
+        assert engine.market_health()["ready"] is False
+        assert "confirmed 1m candle history is stale" in (
+            engine.market_health()["reason"] or ""
+        )
+    finally:
+        close_rest(engine)
+
+
+@pytest.mark.asyncio
+async def test_evaluate_replaces_tradeable_signal_with_stale_candle_wait(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        confirmed_candle_stale_seconds=150,
+    )
+    now = time()
+    stale_start = int((now - 600) // 60) * 60_000
+    session = ActiveSymbolSession(
+        symbol="AAAUSDT",
+        candles=[
+            Candle(
+                stale_start,
+                100,
+                101,
+                99,
+                100,
+                1,
+                100,
+                confirmed=True,
+            ),
+        ],
+        orderbook=book(),
+        last_price=100,
+    )
+    session.decisions["trend_structure"] = StrategyDecision(
+        strategy="trend_structure",
+        action=Action.LONG,
+        reasons=["old signal"],
+        entry=100,
+        stop=99,
+        target=102,
+    )
+
+    try:
+        await engine._evaluate(session)
+        assert session.decisions["trend_structure"].action == Action.WAIT
+        assert (
+            session.decisions["trend_structure"].details["state"]
+            == "stale_candle"
+        )
+    finally:
+        await engine.rest.close()
