@@ -1075,6 +1075,15 @@ class TradingEngine:
             "marketQueueMaxLagSeconds": (
                 self.config.market_queue_max_lag_seconds
             ),
+            "prometheusEnabled": self.config.prometheus_enabled,
+            "otelEnabled": self.config.otel_enabled,
+            "otelServiceName": self.config.otel_service_name,
+            "otelExporterOtlpEndpoint": (
+                self.config.otel_exporter_otlp_endpoint
+            ),
+            "otelTraceSampleRatio": (
+                self.config.otel_trace_sample_ratio
+            ),
             "minNetProfitUsd": self.config.min_net_profit_usd,
             "minNetProfitEquityFraction": self.config.min_net_profit_equity_fraction,
             "minNetRewardRisk": self.config.min_net_reward_risk,
@@ -4961,11 +4970,25 @@ class TradingEngine:
                     plan_setup_id,
                 )
                 if latency_message is not None:
-                    self._mark_order_fill(
-                        latency_message,
-                        strategy=strategy_key,
-                        execution_mode="paper_maker",
-                    )
+                    with span(
+                        "paper.order.fill",
+                        **{
+                            "market.symbol": session.symbol,
+                            "strategy.name": strategy_key,
+                            "execution.mode": "paper_maker",
+                            "latency.source_event_id": (
+                                latency_message.event_id
+                            ),
+                            "latency.source_trace_id": (
+                                latency_message.trace_id
+                            ),
+                        },
+                    ):
+                        self._mark_order_fill(
+                            latency_message,
+                            strategy=strategy_key,
+                            execution_mode="paper_maker",
+                        )
                     strategy_details = (
                         dict(plan.get("strategy_details") or {})
                     )
