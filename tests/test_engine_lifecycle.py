@@ -3237,3 +3237,65 @@ def test_order_latency_helpers_complete_paper_taker_chain(
         assert trace["durationsMs"]["orderToFill"] is not None
     finally:
         close_rest(engine)
+
+
+def test_research_frame_delta_tape_preserves_all_new_trades() -> None:
+    session = ActiveSymbolSession(
+        symbol="DELTAUSDT",
+        candles=[candle()],
+        orderbook=book(),
+    )
+    for sequence in range(1, 5):
+        session.trades.append(
+            TradeTick(
+                ts_ms=1_000 + sequence,
+                price=100.0 + sequence / 100,
+                size=1.0,
+                side="Buy",
+                sequence=sequence,
+            )
+        )
+    session.trade_sequence = 4
+
+    frame = session.frame(
+        16,
+        None,
+        recent_trade_limit=1,
+        trade_after_sequence=1,
+    )
+
+    assert frame["tradeEncoding"] == "delta_v1"
+    assert frame["tradeCursor"] == 4
+    assert frame["tradeDeltaFromSequence"] == 1
+    assert frame["tradeDeltaGap"] is False
+    assert [
+        row["sequence"]
+        for row in frame["recentTrades"]
+    ] == [2, 3, 4]
+
+
+def test_research_frame_delta_tape_reports_pruned_gap() -> None:
+    session = ActiveSymbolSession(
+        symbol="DELTAGAPUSDT",
+        candles=[candle()],
+        orderbook=book(),
+    )
+    session.trades.append(
+        TradeTick(
+            ts_ms=2_000,
+            price=100.0,
+            size=1.0,
+            side="Buy",
+            sequence=7,
+        )
+    )
+    session.trade_sequence = 7
+
+    frame = session.frame(
+        16,
+        None,
+        trade_after_sequence=3,
+    )
+
+    assert frame["tradeDeltaGap"] is True
+    assert frame["recentTrades"][0]["sequence"] == 7
