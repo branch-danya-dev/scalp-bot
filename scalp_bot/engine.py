@@ -4314,27 +4314,26 @@ class TradingEngine:
                     ),
                 },
             ):
-                pass
-            if best.position_action == "add":
-                pending = self.broker.place_pending_add(
-                    best.plan,
-                    min_trade_ts_ms=(
-                        best.session.trades[-1].ts_ms
-                        if best.session.trades
-                        else None
-                    ),
-                )
-                pending_event = "entry_add_pending"
-            else:
-                pending = self.broker.place_pending(
-                    best.plan,
-                    min_trade_ts_ms=(
-                        best.session.trades[-1].ts_ms
-                        if best.session.trades
-                        else None
-                    ),
-                )
-                pending_event = "entry_pending"
+                if best.position_action == "add":
+                    pending = self.broker.place_pending_add(
+                        best.plan,
+                        min_trade_ts_ms=(
+                            best.session.trades[-1].ts_ms
+                            if best.session.trades
+                            else None
+                        ),
+                    )
+                    pending_event = "entry_add_pending"
+                else:
+                    pending = self.broker.place_pending(
+                        best.plan,
+                        min_trade_ts_ms=(
+                            best.session.trades[-1].ts_ms
+                            if best.session.trades
+                            else None
+                        ),
+                    )
+                    pending_event = "entry_pending"
             self._mark_order_ack(
                 latency_message,
                 strategy=best.decision.strategy,
@@ -4374,36 +4373,29 @@ class TradingEngine:
             execution_mode=execution_mode,
         )
         best.session.last_trade_at = now
-        if best.position_action == "add":
-            position = self.broker.add(
-                best.plan,
-                best.session.depth_orderbook(),
-            )
-            self._record_added_position(
-                best.session,
-                best.decision,
-                best.plan.public(),
-                position.public(),
-                semantic_arbitration=(
-                    best.arbitration.public()
+        with span(
+            "paper.order.submit",
+            **{
+                "market.symbol": best.session.symbol,
+                "strategy.name": best.decision.strategy,
+                "execution.mode": execution_mode,
+                "market.event_id": (
+                    latency_message.event_id
+                    if latency_message is not None
+                    else None
                 ),
-                selection_priority=best.priority.public(),
-            )
-        else:
-            position = self.broker.open(
-                best.plan,
-                best.session.depth_orderbook(),
-            )
-            self._record_opened_position(
-                best.session,
-                best.decision,
-                best.plan.public(),
-                position.public(),
-                semantic_arbitration=(
-                    best.arbitration.public()
-                ),
-                selection_priority=best.priority.public(),
-            )
+            },
+        ):
+            if best.position_action == "add":
+                position = self.broker.add(
+                    best.plan,
+                    best.session.depth_orderbook(),
+                )
+            else:
+                position = self.broker.open(
+                    best.plan,
+                    best.session.depth_orderbook(),
+                )
 
         self._mark_order_ack(
             latency_message,
@@ -4419,6 +4411,29 @@ class TradingEngine:
             best.plan.strategy_details[
                 "latencyTrace"
             ] = latency_snapshot(latency_message)
+
+        if best.position_action == "add":
+            self._record_added_position(
+                best.session,
+                best.decision,
+                best.plan.public(),
+                position.public(),
+                semantic_arbitration=(
+                    best.arbitration.public()
+                ),
+                selection_priority=best.priority.public(),
+            )
+        else:
+            self._record_opened_position(
+                best.session,
+                best.decision,
+                best.plan.public(),
+                position.public(),
+                semantic_arbitration=(
+                    best.arbitration.public()
+                ),
+                selection_priority=best.priority.public(),
+            )
 
     def _record_opened_position(
         self,
