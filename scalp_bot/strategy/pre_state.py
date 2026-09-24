@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from statistics import median
 from typing import Any
 
-from ..domain import Candle, Trend
+from ..domain import Candle, TradeTick, Trend
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +29,17 @@ class FormingCandleContext:
     range_expansion_ratio: float | None
     velocity_bps_per_second: float
     direction: Trend
+    price_source: str = "kline"
+    volume_source: str = "kline_snapshot"
+    tape_updates: int = 0
+    current_minute_trade_count: int = 0
+    last_trade_ts_ms: int | None = None
+    last_trade_age_seconds: float | None = None
+    kline_snapshot_age_seconds: float | None = None
+    micro_move_5s_bps: float | None = None
+    micro_range_5s_bps: float | None = None
+    micro_move_15s_bps: float | None = None
+    micro_range_15s_bps: float | None = None
 
     def public(self) -> dict[str, Any]:
         return {
@@ -52,6 +63,17 @@ class FormingCandleContext:
             "rangeExpansionRatio": self.range_expansion_ratio,
             "velocityBpsPerSecond": self.velocity_bps_per_second,
             "direction": self.direction.value,
+            "priceSource": self.price_source,
+            "volumeSource": self.volume_source,
+            "tapeUpdates": self.tape_updates,
+            "currentMinuteTradeCount": self.current_minute_trade_count,
+            "lastTradeTsMs": self.last_trade_ts_ms,
+            "lastTradeAgeSeconds": self.last_trade_age_seconds,
+            "klineSnapshotAgeSeconds": self.kline_snapshot_age_seconds,
+            "microMove5sBps": self.micro_move_5s_bps,
+            "microRange5sBps": self.micro_range_5s_bps,
+            "microMove15sBps": self.micro_move_15s_bps,
+            "microRange15sBps": self.micro_range_15s_bps,
         }
 
     def fingerprint(self) -> tuple:
@@ -79,12 +101,44 @@ def _median_positive(values: list[float]) -> float | None:
     return float(median(rows)) if rows else None
 
 
+def _micro_window(
+    trades: list[TradeTick],
+    *,
+    observed_at_ms: int,
+    seconds: int,
+) -> tuple[float | None, float | None]:
+    if len(trades) < 2:
+        return None, None
+    cutoff = observed_at_ms - seconds * 1000
+    rows = [
+        trade
+        for trade in trades
+        if cutoff <= trade.ts_ms <= observed_at_ms
+    ]
+    if len(rows) < 2:
+        return None, None
+    rows.sort(key=lambda trade: trade.ts_ms)
+    first = rows[0].price
+    last = rows[-1].price
+    if first <= 0:
+        return None, None
+    move_bps = (last - first) / first * 10_000
+    high = max(trade.price for trade in rows)
+    low = min(trade.price for trade in rows)
+    range_bps = (high - low) / first * 10_000
+    return move_bps, range_bps
+
+
 def build_forming_candle_context(
     forming: Candle | None,
     closed_1m: list[Candle],
     *,
     observed_at_ms: int,
     baseline_bars: int = 20,
+    recent_trades: list[TradeTick] | None = None,
+    tape_updates: int = 0,
+    last_trade_ts_ms: int | None = None,
+    kline_snapshot_observed_at_ms: int | None = None,
 ) -> FormingCandleContext | None:
     if forming is None or forming.confirmed or forming.open <= 0:
         return None
@@ -150,6 +204,67 @@ def build_forming_candle_context(
     else:
         direction = Trend.UP if body_pct > 0 else Trend.DOWN
 
+    minute_trades = sorted(
+        [
+            trade
+            for trade in (recent_trades or [])
+            if (
+                forming.start_ms
+                <= trade.ts_ms
+                < forming.start_ms + 60_000
+                and trade.ts_ms <= observed_at_ms
+            )
+        ],
+        key=lambda trade: trade.ts_ms,
+    )
+    resolved_last_trade_ts = (
+        max(
+            [
+                value
+                for value in (
+                    last_trade_ts_ms,
+                    (
+                        minute_trades[-1].ts_ms
+                        if minute_trades
+                        else None
+                    ),
+                )
+                if isinstance(value, int)
+            ],
+            default=None,
+        )
+    )
+    last_trade_age_seconds = (
+        max(
+            0.0,
+            (observed_at_ms - resolved_last_trade_ts) / 1000,
+        )
+        if resolved_last_trade_ts is not None
+        else None
+    )
+    kline_snapshot_age_seconds = (
+        max(
+            0.0,
+            (
+                observed_at_ms
+                - kline_snapshot_observed_at_ms
+            )
+            / 1000,
+        )
+        if kline_snapshot_observed_at_ms is not None
+        else None
+    )
+    micro_move_5s_bps, micro_range_5s_bps = _micro_window(
+        minute_trades,
+        observed_at_ms=observed_at_ms,
+        seconds=5,
+    )
+    micro_move_15s_bps, micro_range_15s_bps = _micro_window(
+        minute_trades,
+        observed_at_ms=observed_at_ms,
+        seconds=15,
+    )
+
     return FormingCandleContext(
         start_ms=forming.start_ms,
         observed_at_ms=observed_at_ms,
@@ -171,4 +286,19 @@ def build_forming_candle_context(
         range_expansion_ratio=range_expansion_ratio,
         velocity_bps_per_second=velocity_bps_per_second,
         direction=direction,
+        price_source=(
+            "hybrid_tape"
+            if tape_updates > 0
+            else "kline"
+        ),
+        volume_source="kline_snapshot",
+        tape_updates=max(0, int(tape_updates)),
+        current_minute_trade_count=len(minute_trades),
+        last_trade_ts_ms=resolved_last_trade_ts,
+        last_trade_age_seconds=last_trade_age_seconds,
+        kline_snapshot_age_seconds=kline_snapshot_age_seconds,
+        micro_move_5s_bps=micro_move_5s_bps,
+        micro_range_5s_bps=micro_range_5s_bps,
+        micro_move_15s_bps=micro_move_15s_bps,
+        micro_range_15s_bps=micro_range_15s_bps,
     )
