@@ -30,6 +30,9 @@ LATENCY_BUCKETS = (
     1.000,
     2.000,
     5.000,
+    10.000,
+    15.000,
+    30.000,
 )
 
 LATENCY_SECONDS = Histogram(
