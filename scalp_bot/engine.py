@@ -21,6 +21,7 @@ from .observability import build_decision_trace
 from .latency_observability import (
     configure_telemetry,
     exchange_receive_seconds,
+    latency_metrics_snapshot,
     latency_snapshot,
     observe_latency,
     observe_recorder_health,
@@ -1073,6 +1074,8 @@ class TradingEngine:
             "balance": self.broker.balance,
             "realizedPnl": self.broker.total_pnl,
             "closedTrades": self.broker.total_closed_trades,
+            "latencyMetrics": latency_metrics_snapshot(),
+            "recorderHealth": self.recorder.health(),
         }
         self._last_run_summary = summary
         self._emit("run_summary", None, summary)
