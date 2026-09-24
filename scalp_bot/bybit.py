@@ -55,6 +55,7 @@ class MarketMessage(msgspec.Struct):
     queue_depth: int = 0
     queue_lag_ms: float = 0.0
     event_id: str | None = None
+    trace_id: str | None = None
     receipt_wall_ns: int = 0
     receipt_mono_ns: int = 0
     parsed_mono_ns: int = 0
@@ -701,6 +702,11 @@ async def _stream_topics(
                             - receipt_mono_ns
                         ),
                     )
+                    root_context = root.get_span_context()
+                    if root_context.is_valid:
+                        message.trace_id = (
+                            f"{root_context.trace_id:032x}"
+                        )
                     message.otel_span = root
                     try:
                         queue.put_nowait(message)
