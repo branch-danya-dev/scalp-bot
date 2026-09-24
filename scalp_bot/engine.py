@@ -21,6 +21,7 @@ from .observability import build_decision_trace
 from .latency_observability import (
     configure_telemetry,
     exchange_receive_seconds,
+    latency_metrics_snapshot,
     latency_snapshot,
     observe_latency,
     observe_recorder_health,
@@ -142,6 +143,9 @@ class ActiveSymbolSession:
     strategy_states: dict[str, str] = field(default_factory=dict)
     strategy_state_started_at: dict[str, float] = field(default_factory=dict)
     trades: deque[TradeTick] = field(default_factory=deque)
+    trade_sequence: int = 0
+    last_research_trade_sequence: int = 0
+    last_replay_trade_sequence: int = 0
     book_flow: deque[tuple[int, float]] = field(default_factory=deque)
     last_book_flow_ms: int = 0
     level_tracker: LevelLifecycleTracker = field(default_factory=LevelLifecycleTracker)
@@ -684,8 +688,36 @@ class ActiveSymbolSession:
         book_depth: int,
         position: dict | None,
         recent_trade_limit: int = 250,
+        *,
+        trade_after_sequence: int | None = None,
     ) -> dict:
         now_ms = int(time() * 1000)
+        all_trades = list(self.trades)
+        if trade_after_sequence is None:
+            selected_trades = (
+                all_trades[-max(0, recent_trade_limit):]
+                if recent_trade_limit > 0
+                else []
+            )
+            trade_encoding = "rolling_v1"
+            trade_delta_gap = False
+        else:
+            selected_trades = [
+                trade
+                for trade in all_trades
+                if trade.sequence > trade_after_sequence
+            ]
+            trade_encoding = "delta_v1"
+            first_sequence = (
+                selected_trades[0].sequence
+                if selected_trades
+                else None
+            )
+            trade_delta_gap = bool(
+                first_sequence is not None
+                and first_sequence
+                > trade_after_sequence + 1
+            )
         return {
             "lastPrice": self.last_price,
             "trend": self.trend.value,
@@ -710,13 +742,17 @@ class ActiveSymbolSession:
             "tradeFlow": compute_trade_flow(list(self.trades), now_ms),
             "bookFlow": self.book_flow_snapshot(now_ms),
             "position": position,
+            "tradeEncoding": trade_encoding,
+            "tradeCursor": self.trade_sequence,
+            "tradeDeltaFromSequence": (
+                trade_after_sequence
+                if trade_after_sequence is not None
+                else None
+            ),
+            "tradeDeltaGap": trade_delta_gap,
             "recentTrades": [
                 trade.public()
-                for trade in (
-                    list(self.trades)[-max(0, recent_trade_limit):]
-                    if recent_trade_limit > 0
-                    else []
-                )
+                for trade in selected_trades
             ],
             "structure": self.structure.public() if self.structure else None,
         }
@@ -1038,6 +1074,8 @@ class TradingEngine:
             "balance": self.broker.balance,
             "realizedPnl": self.broker.total_pnl,
             "closedTrades": self.broker.total_closed_trades,
+            "latencyMetrics": latency_metrics_snapshot(),
+            "recorderHealth": self.recorder.health(),
         }
         self._last_run_summary = summary
         self._emit("run_summary", None, summary)
@@ -2073,6 +2111,7 @@ class TradingEngine:
                 if rows:
                     ticks: list[TradeTick] = []
                     for row in rows:
+                        session.trade_sequence += 1
                         tick = TradeTick(
                             ts_ms=int(
                                 row.get("T")
@@ -2081,6 +2120,7 @@ class TradingEngine:
                             price=float(row["p"]),
                             size=float(row["v"]),
                             side=str(row.get("S") or ""),
+                            sequence=session.trade_sequence,
                         )
                         session.trades.append(tick)
                         self._overlay_trade_on_forming_candle(
@@ -2158,8 +2198,17 @@ class TradingEngine:
                                 else None
                             ),
                             self.config.research_recent_trades,
+                            trade_after_sequence=(
+                                session.last_research_trade_sequence
+                                if self.config.research_trade_delta_enabled
+                                else None
+                            ),
                         ),
                     )
+                    if self.config.research_trade_delta_enabled:
+                        session.last_research_trade_sequence = (
+                            session.trade_sequence
+                        )
 
                 frame_interval = (
                     self.config.replay_engaged_frame_seconds
@@ -2182,8 +2231,17 @@ class TradingEngine:
                                 else None
                             ),
                             self.config.replay_recent_trades,
+                            trade_after_sequence=(
+                                session.last_replay_trade_sequence
+                                if self.config.replay_trade_delta_enabled
+                                else None
+                            ),
                         ),
                     )
+                    if self.config.replay_trade_delta_enabled:
+                        session.last_replay_trade_sequence = (
+                            session.trade_sequence
+                        )
 
         await stream_symbol(
             self.config.bybit_public_ws_url,

@@ -52,6 +52,7 @@ class TradeTick:
     price: float
     size: float
     side: str
+    sequence: int = 0
 
     @property
     def notional(self) -> float:
@@ -64,6 +65,7 @@ class TradeTick:
             "size": self.size,
             "side": self.side,
             "notional": self.notional,
+            "sequence": self.sequence or None,
         }
 
 

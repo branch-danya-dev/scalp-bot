@@ -4,6 +4,7 @@ from prometheus_client import REGISTRY
 
 from scalp_bot.bybit import MarketMessage
 from scalp_bot.latency_observability import (
+    latency_metrics_snapshot,
     latency_snapshot,
     observe_latency,
     stage_wall_ns,
@@ -101,3 +102,31 @@ def test_stream_name_has_bounded_topic_categories() -> None:
         "publicTrade.BTCUSDT"
     ) == "public_trade"
     assert stream_name("kline.1.BTCUSDT") == "kline_1m"
+
+
+def test_latency_metrics_snapshot_contains_histogram_series() -> None:
+    observe_latency(
+        "snapshot_fixture",
+        0.025,
+        stream="public_trade",
+        strategy="level_breakout",
+        execution_mode="paper_taker",
+    )
+
+    snapshot = latency_metrics_snapshot()
+
+    assert snapshot["scope"] == "process_lifetime"
+    matching = [
+        row
+        for row in snapshot["latencyHistogram"]
+        if row["labels"] == {
+            "execution_mode": "paper_taker",
+            "stage": "snapshot_fixture",
+            "strategy": "level_breakout",
+            "stream": "public_trade",
+        }
+    ]
+    assert len(matching) == 1
+    assert matching[0]["count"] >= 1
+    assert float(matching[0]["sum"]) > 0
+    assert matching[0]["buckets"]

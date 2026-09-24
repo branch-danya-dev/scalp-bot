@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -63,6 +63,7 @@ def _trades_from_public(rows: list[dict]) -> list[TradeTick]:
             price=float(row["price"]),
             size=float(row["size"]),
             side=str(row["side"]),
+            sequence=int(row.get("sequence") or 0),
         )
         for row in rows
     ]
@@ -77,6 +78,10 @@ class OfflineStrategyReplay:
 
     def run_rows(self, rows: list[dict], *, symbol: str | None = None) -> list[ShadowSignal]:
         candles_by_symbol: dict[str, list[Candle]] = defaultdict(list)
+        trades_by_symbol: dict[
+            str,
+            deque[TradeTick],
+        ] = defaultdict(deque)
         signals: list[ShadowSignal] = []
         for row in rows:
             event = row.get("event")
@@ -121,7 +126,45 @@ class OfflineStrategyReplay:
             )
             if not fast_book.bids or not fast_book.asks:
                 continue
-            trades = _trades_from_public(payload.get("recentTrades") or [])
+            frame_trades = _trades_from_public(
+                payload.get("recentTrades") or []
+            )
+            trade_encoding = str(
+                payload.get("tradeEncoding") or "rolling_v1"
+            )
+            if trade_encoding == "delta_v1":
+                buffer = trades_by_symbol[row_symbol]
+                if bool(payload.get("tradeDeltaGap")):
+                    buffer.clear()
+                seen_sequences = {
+                    trade.sequence
+                    for trade in buffer
+                    if trade.sequence > 0
+                }
+                for trade in frame_trades:
+                    if (
+                        trade.sequence > 0
+                        and trade.sequence in seen_sequences
+                    ):
+                        continue
+                    buffer.append(trade)
+                    if trade.sequence > 0:
+                        seen_sequences.add(trade.sequence)
+                observed_at_ms = int(
+                    float(row.get("ts") or 0) * 1000
+                )
+                cutoff = observed_at_ms - 90_000
+                while (
+                    buffer
+                    and buffer[0].ts_ms < cutoff
+                ):
+                    buffer.popleft()
+                trades = list(buffer)
+            else:
+                trades = frame_trades
+                trades_by_symbol[row_symbol] = deque(
+                    frame_trades
+                )
             try:
                 trend = Trend(str(payload.get("trend") or "flat"))
             except ValueError:

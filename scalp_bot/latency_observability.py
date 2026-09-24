@@ -189,6 +189,60 @@ def observe_recorder_health(health: dict[str, Any]) -> None:
     )
 
 
+def _histogram_snapshot(metric) -> list[dict]:
+    grouped: dict[
+        tuple[tuple[str, str], ...],
+        dict[str, Any],
+    ] = {}
+    for family in metric.collect():
+        for sample in family.samples:
+            labels = dict(sample.labels)
+            le = labels.pop("le", None)
+            key = tuple(sorted(
+                (str(k), str(v))
+                for k, v in labels.items()
+            ))
+            row = grouped.setdefault(
+                key,
+                {
+                    "labels": dict(key),
+                    "buckets": {},
+                    "count": None,
+                    "sum": None,
+                },
+            )
+            if sample.name.endswith("_bucket"):
+                if le is not None:
+                    row["buckets"][str(le)] = float(
+                        sample.value
+                    )
+            elif sample.name.endswith("_count"):
+                row["count"] = float(sample.value)
+            elif sample.name.endswith("_sum"):
+                row["sum"] = float(sample.value)
+    return list(grouped.values())
+
+
+def latency_metrics_snapshot() -> dict:
+    return {
+        "scope": "process_lifetime",
+        "latencyHistogram": _histogram_snapshot(
+            LATENCY_SECONDS
+        ),
+        "marketQueueLagHistogram": _histogram_snapshot(
+            MARKET_QUEUE_LAG_SECONDS
+        ),
+        "recorder": {
+            "pendingRows": float(
+                RECORDER_PENDING_ROWS._value.get()
+            ),
+            "droppedRows": float(
+                RECORDER_DROPPED_ROWS._value.get()
+            ),
+        },
+    }
+
+
 def stream_name(topic: str | None) -> str:
     value = str(topic or "")
     if value.startswith("publicTrade."):

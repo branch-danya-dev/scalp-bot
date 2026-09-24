@@ -195,6 +195,8 @@ class Settings(BaseSettings):
     research_frame_seconds: float = 1.0
     research_recent_trades: int = 250
     replay_recent_trades: int = 250
+    research_trade_delta_enabled: bool = False
+    replay_trade_delta_enabled: bool = False
 
     run_label: str = "paper-v3-scalp-econ-4h"
     paper_run_duration_seconds: float = 14_400.0
