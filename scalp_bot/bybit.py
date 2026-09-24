@@ -19,6 +19,7 @@ from .activity import (
 )
 from .config import Settings
 from .domain import Candidate, Candle, OrderBook
+from .instrument import InstrumentSpec
 from .latency_observability import (
     exchange_receive_seconds,
     observe_latency,
@@ -125,6 +126,7 @@ class BybitRestClient:
         self.client = httpx.AsyncClient(timeout=10.0)
         self._request_lock = asyncio.Lock()
         self._last_request_at = 0.0
+        self._instrument_cache: dict[str, InstrumentSpec] = {}
 
     @property
     def active_rest_url(self) -> str:
@@ -372,6 +374,47 @@ class BybitRestClient:
         for index, item in enumerate(rows, start=1):
             item.activity_rank = index
         return rows
+
+    async def instrument_info(
+        self,
+        symbol: str,
+    ) -> InstrumentSpec:
+        normalized = symbol.upper()
+        cached = self._instrument_cache.get(normalized)
+        if cached is not None:
+            return cached
+        result = await self._get(
+            "/v5/market/instruments-info",
+            {
+                "category": "linear",
+                "symbol": normalized,
+            },
+        )
+        rows = result.get("list") or []
+        row = next(
+            (
+                item
+                for item in rows
+                if str(item.get("symbol") or "") == normalized
+            ),
+            None,
+        )
+        if row is None:
+            raise BybitError(
+                f"Bybit instrument metadata missing for {normalized}"
+            )
+        spec = InstrumentSpec.from_bybit(row)
+        if not spec.tradeable:
+            raise BybitError(
+                f"Bybit instrument {normalized} is not Trading "
+                f"(status={spec.status or 'unknown'})"
+            )
+        if spec.tick_size <= 0 or spec.qty_step <= 0:
+            raise BybitError(
+                f"Bybit instrument {normalized} has invalid tick/qty step"
+            )
+        self._instrument_cache[normalized] = spec
+        return spec
 
     async def klines(self, symbol: str, interval: str, limit: int = 240) -> list[Candle]:
         result = await self._get(

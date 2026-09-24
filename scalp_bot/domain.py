@@ -230,6 +230,7 @@ class TradePlan:
     entry_drift_pct: float
     setup_id: str
     entry_mode: str = "taker_market"
+    quantity: float | None = None
     strategy_details: dict[str, Any] = field(default_factory=dict)
 
     def public(self) -> dict[str, Any]:

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from .config import Settings
 from .domain import OrderBook, Side, StrategyDecision, TradePlan
+from .instrument import InstrumentSpec
 from .execution import (
     apply_entry_slippage,
     execution_profile,
@@ -60,6 +61,7 @@ class RiskEngine:
         available_risk_usd: float,
         *,
         depth_book: OrderBook | None = None,
+        instrument: InstrumentSpec | None = None,
         setup_id: str | None = None,
         existing_position_notional: float = 0.0,
         existing_position_all_in_risk_usd: float = 0.0,
@@ -73,6 +75,11 @@ class RiskEngine:
             return RiskResult(False, "deep order book is not ready")
 
         side = decision.side
+        if instrument is not None and not instrument.tradeable:
+            return RiskResult(
+                False,
+                f"instrument is not tradeable: {instrument.status}",
+            )
         setup_entry = float(decision.entry)
         execution = execution_profile(decision.strategy)
         entry_mode = preferred_entry_mode(
@@ -89,6 +96,11 @@ class RiskEngine:
                 if side == Side.LONG
                 else max(setup_entry, book.best_ask)
             )
+            if instrument is not None:
+                raw_market_entry = instrument.maker_entry_price(
+                    raw_market_entry,
+                    side,
+                )
         else:
             raw_market_entry = float(
                 book.executable_entry(side) or 0
@@ -101,6 +113,9 @@ class RiskEngine:
         best_raw_entry = raw_market_entry
         stop = float(decision.stop)
         target = float(decision.target)
+        if instrument is not None:
+            stop = instrument.stop_price(stop, side)
+            target = instrument.target_price(target, side)
         if market_entry <= 0:
             return RiskResult(False, "executable market entry is unavailable")
 
@@ -507,6 +522,50 @@ class RiskEngine:
                 + stop_depth_stress_rate
             )
 
+        quantity = (
+            notional / market_entry
+            if market_entry > 0
+            else 0.0
+        )
+        instrument_diagnostics = None
+        if instrument is not None:
+            normalized = instrument.normalize_quantity(
+                entry_price=market_entry,
+                requested_notional=notional,
+                market_order=entry_mode != "maker_limit",
+            )
+            if normalized is None:
+                return RiskResult(
+                    False,
+                    "instrument minimum/step constraints reject order size",
+                )
+            quantity, notional = normalized
+            (
+                stop_depth_stress_rate,
+                stop_depth_impact_rate,
+                visible_stop_depth,
+                raw_stop_exit_vwap,
+            ) = self._stop_depth_stress(
+                depth,
+                side,
+                notional,
+            )
+            if raw_stop_exit_vwap is None or visible_stop_depth <= 0:
+                return RiskResult(
+                    False,
+                    "insufficient visible stop-side depth after quantity normalization",
+                )
+            all_in_loss_pct = (
+                stop_pct
+                + round_trip_cost_pct
+                + stop_depth_stress_rate
+            )
+            instrument_diagnostics = {
+                **instrument.public(),
+                "normalizedQuantity": quantity,
+                "normalizedNotionalUsd": notional,
+            }
+
         entry_depth_impact_bps = (
             max(
                 0.0,
@@ -758,6 +817,8 @@ class RiskEngine:
             "notionalByTradeAllInCapUsd": notional_by_trade_all_in_cap,
             "notionalByAllInPortfolioRiskUsd": notional_by_all_in_portfolio_risk,
             "effectiveLeverage": notional / balance if balance else 0.0,
+            "quantity": quantity,
+            "instrument": instrument_diagnostics,
             "setupEntry": setup_entry,
             "marketEntry": market_entry,
             "rawExecutableEntry": float(raw_depth_entry),
@@ -1021,6 +1082,7 @@ class RiskEngine:
             entry_drift_pct=entry_drift,
             setup_id=resolved_setup_id,
             entry_mode=entry_mode,
+            quantity=quantity,
             strategy_details=strategy_details,
         )
         return RiskResult(

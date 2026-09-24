@@ -2,6 +2,7 @@ import pytest
 
 from scalp_bot.config import Settings
 from scalp_bot.domain import Action, OrderBook, StrategyDecision
+from scalp_bot.instrument import InstrumentSpec
 from scalp_bot.paper import PaperBroker
 from scalp_bot.risk import RiskEngine
 
@@ -1330,3 +1331,104 @@ def test_risk_uses_fast_quote_but_deep_book_for_entry_depth() -> None:
     assert economics["deepBookBestAsk"] == pytest.approx(100.00)
     assert result.plan.market_entry > fast.best_ask
     assert economics["entryDepthImpactBps"] > 0
+
+
+def test_risk_plan_respects_exchange_tick_and_quantity_steps() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_position_leverage=5,
+        risk_fraction=0.01,
+        max_total_risk_fraction=0.10,
+        min_net_profit_usd=0,
+        min_net_reward_risk=0,
+        absolute_min_net_reward_risk=0,
+        taker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+    )
+    spec = InstrumentSpec(
+        symbol="STEPUSDT",
+        status="Trading",
+        tick_size=0.10,
+        qty_step=0.25,
+        min_order_qty=0.25,
+        min_notional_value=5.0,
+        max_order_qty=100.0,
+        max_market_order_qty=100.0,
+        funding_interval_minutes=480,
+        max_leverage=50.0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "STEPUSDT",
+        decision(
+            101.07,
+            entry=100.0,
+            stop=99.83,
+        ),
+        1000,
+        OrderBook(
+            bids=[(99.9, 100.0)],
+            asks=[(100.0, 100.0)],
+        ),
+        5000,
+        100,
+        instrument=spec,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.stop == pytest.approx(99.8)
+    assert result.plan.target == pytest.approx(101.0)
+    assert result.plan.quantity is not None
+    assert (
+        result.plan.quantity / spec.qty_step
+    ) == pytest.approx(
+        round(result.plan.quantity / spec.qty_step)
+    )
+    assert result.plan.notional == pytest.approx(
+        result.plan.quantity * result.plan.market_entry
+    )
+
+
+def test_risk_plan_rejects_below_exchange_minimum_order() -> None:
+    cfg = Settings(
+        start_balance=10,
+        max_leverage=1,
+        max_position_leverage=1,
+        risk_fraction=0.001,
+        max_total_risk_fraction=0.10,
+        min_net_profit_usd=0,
+        min_net_reward_risk=0,
+        absolute_min_net_reward_risk=0,
+        taker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+    )
+    spec = InstrumentSpec(
+        symbol="MINUSDT",
+        status="Trading",
+        tick_size=0.01,
+        qty_step=1.0,
+        min_order_qty=1.0,
+        min_notional_value=50.0,
+        max_order_qty=1000.0,
+        max_market_order_qty=1000.0,
+        funding_interval_minutes=480,
+        max_leverage=20.0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "MINUSDT",
+        decision(101.0, entry=100.0, stop=99.0),
+        10,
+        OrderBook(
+            bids=[(99.99, 100.0)],
+            asks=[(100.0, 100.0)],
+        ),
+        10,
+        10,
+        instrument=spec,
+    )
+
+    assert not result.allowed
+    assert "instrument minimum/step" in result.reason

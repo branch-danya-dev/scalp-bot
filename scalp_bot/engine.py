@@ -18,6 +18,7 @@ from .paper import PaperBroker, Position
 from .expectancy import StrategyExpectancyBook
 from .strategy_policy import minimum_expectancy_r
 from .observability import build_decision_trace
+from .instrument import InstrumentSpec
 from .latency_observability import (
     configure_telemetry,
     exchange_receive_seconds,
@@ -101,6 +102,7 @@ ENTRY_FRESHNESS_RESET_STATES = {
 class ActiveSymbolSession:
     symbol: str
     candles: list[Candle] = field(default_factory=list)
+    instrument: InstrumentSpec | None = None
     context_5m: list[Candle] = field(default_factory=list)
     context_15m: list[Candle] = field(default_factory=list)
     context_1h: list[Candle] = field(default_factory=list)
@@ -659,6 +661,11 @@ class ActiveSymbolSession:
         return {
             "schemaVersion": 1,
             "symbol": self.symbol,
+            "instrument": (
+                self.instrument.public()
+                if self.instrument is not None
+                else None
+            ),
             "lastPrice": self.last_price,
             "legacyTrend": self.trend.value,
             "htfBias": (
@@ -1809,7 +1816,14 @@ class TradingEngine:
         self.sessions.pop(symbol, None)
 
     async def _bootstrap_symbol(self, symbol: str) -> None:
-        candles, context_5m, context_15m, context_1h = await asyncio.gather(
+        (
+            instrument,
+            candles,
+            context_5m,
+            context_15m,
+            context_1h,
+        ) = await asyncio.gather(
+            self.rest.instrument_info(symbol),
             self.rest.klines(
                 symbol,
                 "1",
@@ -1835,6 +1849,7 @@ class TradingEngine:
         session = ActiveSymbolSession(
             symbol=symbol,
             candles=candles,
+            instrument=instrument,
             context_5m=[x for x in context_5m if x.confirmed],
             context_15m=[x for x in context_15m if x.confirmed],
             context_1h=[x for x in context_1h if x.confirmed],
@@ -3839,6 +3854,7 @@ class TradingEngine:
             self.broker.available_notional,
             self.broker.available_risk_usd,
             depth_book=session.depth_orderbook(),
+            instrument=session.instrument,
             setup_id=setup_id,
             existing_position_notional=(
                 existing_position.notional
