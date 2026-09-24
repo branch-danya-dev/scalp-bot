@@ -1520,6 +1520,7 @@ class TradingEngine:
             session.fast_event_evaluations += 1
             session.last_fast_event_reason = reason
             latency_message = session.pending_latency_message
+            evaluation_started_ns = perf_counter_ns()
 
             with span(
                 "strategy.event_evaluate",
@@ -1536,6 +1537,28 @@ class TradingEngine:
                 await self._evaluate(session)
 
             if latency_message is not None:
+                if (
+                    latency_message.strategy_eval_started_mono_ns
+                    <= 0
+                ):
+                    latency_message.strategy_eval_started_mono_ns = (
+                        evaluation_started_ns
+                    )
+                    observe_latency(
+                        "parse_to_strategy",
+                        max(
+                            0.0,
+                            (
+                                evaluation_started_ns
+                                - latency_message.parsed_mono_ns
+                            )
+                            / 1_000_000_000,
+                        )
+                        if latency_message.parsed_mono_ns > 0
+                        else None,
+                        stream=stream_name(latency_message.topic),
+                        status="fallback",
+                    )
                 latency_message.strategy_eval_finished_mono_ns = (
                     perf_counter_ns()
                 )
