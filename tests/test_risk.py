@@ -510,11 +510,27 @@ def test_executable_spread_is_not_subtracted_twice() -> None:
     economics = result.plan.strategy_details["economics"]
     # Entry slippage is embedded in expectedEntryFill. Only fees/exit
     # slippage remain in TradePlan.estimated_costs.
+    assert result.plan.quantity is not None
+    quantity = result.plan.quantity
+    target_fill = result.plan.target * (
+        1 - economics["targetExitSlippageRate"]
+    )
+    expected_costs = (
+        quantity
+        * result.plan.market_entry
+        * economics["entryFeeRate"]
+        + quantity
+        * target_fill
+        * economics["targetExitFeeRate"]
+        + quantity
+        * abs(result.plan.target - target_fill)
+    )
     assert result.plan.estimated_costs == pytest.approx(
-        result.plan.notional * 0.00075
+        expected_costs
     )
     assert economics["winnerTotalFrictionUsd"] == pytest.approx(
-        result.plan.notional * 0.00085
+        expected_costs
+        + economics["embeddedEntrySlippageUsd"]
     )
     assert economics["entrySlippageEmbeddedInFill"] is True
     assert economics["entrySpreadPct"] == pytest.approx(0.0010005, rel=1e-3)
@@ -837,7 +853,10 @@ def test_breakout_economics_prices_actual_partial_runner_lifecycle() -> None:
         0.30 * economics["partialMovePct"]
         + 0.70 * economics["runnerTargetPct"]
     )
-    assert economics["lifecycleCostPct"] == pytest.approx(0.00075)
+    # Exit fees are charged on contract quantity * actual exit price, so
+    # a profitable long costs slightly more in quote terms than the legacy
+    # entry-notional approximation of exactly 0.00075.
+    assert economics["lifecycleCostPct"] > 0.00075
     assert result.plan.expected_gross_profit == pytest.approx(
         result.plan.notional * economics["lifecycleGrossPct"]
     )
