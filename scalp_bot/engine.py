@@ -103,6 +103,7 @@ class ActiveSymbolSession:
     symbol: str
     candles: list[Candle] = field(default_factory=list)
     instrument: InstrumentSpec | None = None
+    fee_schedule: FeeSchedule | None = None
     context_5m: list[Candle] = field(default_factory=list)
     context_15m: list[Candle] = field(default_factory=list)
     context_1h: list[Candle] = field(default_factory=list)
@@ -664,6 +665,11 @@ class ActiveSymbolSession:
             "instrument": (
                 self.instrument.public()
                 if self.instrument is not None
+                else None
+            ),
+            "feeSchedule": (
+                self.fee_schedule.public()
+                if self.fee_schedule is not None
                 else None
             ),
             "lastPrice": self.last_price,
@@ -1818,12 +1824,14 @@ class TradingEngine:
     async def _bootstrap_symbol(self, symbol: str) -> None:
         (
             instrument,
+            fee_schedule,
             candles,
             context_5m,
             context_15m,
             context_1h,
         ) = await asyncio.gather(
             self.rest.instrument_info(symbol),
+            self.rest.fee_schedule(symbol),
             self.rest.klines(
                 symbol,
                 "1",
@@ -1850,6 +1858,7 @@ class TradingEngine:
             symbol=symbol,
             candles=candles,
             instrument=instrument,
+            fee_schedule=fee_schedule,
             context_5m=[x for x in context_5m if x.confirmed],
             context_15m=[x for x in context_15m if x.confirmed],
             context_1h=[x for x in context_1h if x.confirmed],
@@ -3855,6 +3864,7 @@ class TradingEngine:
             self.broker.available_risk_usd,
             depth_book=session.depth_orderbook(),
             instrument=session.instrument,
+            fee_schedule=session.fee_schedule,
             setup_id=setup_id,
             existing_position_notional=(
                 existing_position.notional

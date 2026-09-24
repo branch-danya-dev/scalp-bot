@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     bybit_rest_url: str = "https://api.bybit.com"
     bybit_rest_fallback_urls: str = "https://api.bytick.com"
     bybit_public_ws_url: str = "wss://stream.bybit.com/v5/public/linear"
+    # Optional read-only credentials enable exact account fee-rate lookup.
+    # Never place secrets in checked-in profiles; provide them as process env.
+    bybit_api_key: str = ""
+    bybit_api_secret: str = ""
+    bybit_private_recv_window_ms: int = 5000
+    fee_rate_mode: str = "account_if_available"
 
     start_balance: float = 1_000.0
     min_turnover_usd: float = 150_000_000.0

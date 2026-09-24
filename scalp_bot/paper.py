@@ -11,6 +11,7 @@ from .execution import (
     apply_exit_slippage,
     execution_profile,
     fee_rate,
+    fee_rate_for_details,
     slippage_rate,
 )
 from .strategy_policy import no_follow_through_seconds, partial_take_fraction
@@ -89,9 +90,10 @@ class Position:
             1e-9,
         )
         stop_quote = self.quantity * stop_reference
-        exit_fee = stop_quote * fee_rate(
+        exit_fee = stop_quote * fee_rate_for_details(
             config,
             profile.stop_exit,
+            self.strategy_details,
         )
         exit_slippage = stop_quote * slippage_rate(
             config,
@@ -446,9 +448,10 @@ class PaperBroker:
         resolved_entry_fee = (
             plan_quantity
             * resolved_fill
-            * fee_rate(
+            * fee_rate_for_details(
                 self.config,
                 plan.entry_mode,
+                plan.strategy_details,
             )
             if entry_fee is None
             else max(0.0, entry_fee)
@@ -464,9 +467,10 @@ class PaperBroker:
             combined_quantity * combined_stop
         )
         target_exit_cost = target_exit_quote * (
-            fee_rate(
+            fee_rate_for_details(
                 self.config,
                 profile.target_exit,
+                plan.strategy_details,
             )
             + slippage_rate(
                 self.config,
@@ -474,9 +478,10 @@ class PaperBroker:
             )
         )
         stop_exit_cost = stop_exit_quote * (
-            fee_rate(
+            fee_rate_for_details(
                 self.config,
                 profile.stop_exit,
+                plan.strategy_details,
             )
             + slippage_rate(
                 self.config,
@@ -897,9 +902,10 @@ class PaperBroker:
         fee = (
             fill_quantity
             * pending.limit_price
-            * fee_rate(
+            * fee_rate_for_details(
                 self.config,
                 "maker_limit",
+                pending.plan.strategy_details,
             )
         )
         if is_add:
@@ -1052,9 +1058,10 @@ class PaperBroker:
         fee = (
             quantity
             * fill
-            * fee_rate(
+            * fee_rate_for_details(
                 self.config,
                 profile.entry,
+                plan.strategy_details,
             )
         )
         return self._position_from_fill(
@@ -1088,9 +1095,10 @@ class PaperBroker:
         fee = (
             quantity
             * fill
-            * fee_rate(
+            * fee_rate_for_details(
                 self.config,
                 profile.entry,
+                plan.strategy_details,
             )
         )
         economics = self.staged_add_economics(
@@ -1156,9 +1164,10 @@ class PaperBroker:
         pos.estimated_exit_fee_usd = (
             pos.quantity
             * executable
-            * fee_rate(
+            * fee_rate_for_details(
                 self.config,
                 profile.stop_exit,
+                pos.strategy_details,
             )
         )
 
@@ -1528,9 +1537,10 @@ class PaperBroker:
         if pos.quantity <= 0:
             return pos.entry
         profile = execution_profile(pos.strategy)
-        fee = fee_rate(
+        fee = fee_rate_for_details(
             self.config,
             profile.stop_exit,
+            pos.strategy_details,
         )
         profit_buffer = (
             pos.quantity
@@ -1772,9 +1782,10 @@ class PaperBroker:
         exit_fee = (
             close_quantity
             * fill
-            * fee_rate(
+            * fee_rate_for_details(
                 self.config,
                 exit_mode,
+                pos.strategy_details,
             )
         )
         fees = allocated_entry_fee + exit_fee

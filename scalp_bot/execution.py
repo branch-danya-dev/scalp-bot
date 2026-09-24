@@ -1,9 +1,46 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from typing import Any
 
 from .config import Settings
 from .domain import Side
+
+
+@dataclass(frozen=True, slots=True)
+class FeeSchedule:
+    symbol: str
+    maker_fee_rate: float
+    taker_fee_rate: float
+    source: str = "configured"
+
+    def public(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_public(
+        cls,
+        payload: dict[str, Any] | None,
+    ) -> "FeeSchedule | None":
+        if not isinstance(payload, dict):
+            return None
+        try:
+            return cls(
+                symbol=str(payload.get("symbol") or ""),
+                maker_fee_rate=float(
+                    payload.get("maker_fee_rate")
+                    if "maker_fee_rate" in payload
+                    else payload.get("makerFeeRate")
+                ),
+                taker_fee_rate=float(
+                    payload.get("taker_fee_rate")
+                    if "taker_fee_rate" in payload
+                    else payload.get("takerFeeRate")
+                ),
+                source=str(payload.get("source") or "unknown"),
+            )
+        except (TypeError, ValueError):
+            return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,12 +90,38 @@ def execution_profile(strategy: str) -> ExecutionProfile:
     )
 
 
-def fee_rate(config: Settings, mode: str) -> float:
+def fee_rate(
+    config: Settings,
+    mode: str,
+    schedule: FeeSchedule | None = None,
+) -> float:
+    if schedule is not None:
+        return (
+            schedule.maker_fee_rate
+            if mode == "maker_limit"
+            else schedule.taker_fee_rate
+        )
     return (
         config.maker_fee_rate
         if mode == "maker_limit"
         else config.taker_fee_rate
     )
+
+
+def fee_rate_for_details(
+    config: Settings,
+    mode: str,
+    details: dict[str, Any] | None,
+) -> float:
+    raw = (
+        details.get("feeSchedule")
+        if isinstance(details, dict)
+        else None
+    )
+    schedule = FeeSchedule.from_public(
+        raw if isinstance(raw, dict) else None
+    )
+    return fee_rate(config, mode, schedule)
 
 
 def slippage_rate(config: Settings, mode: str) -> float:

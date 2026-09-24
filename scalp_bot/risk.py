@@ -9,6 +9,7 @@ from .execution import (
     apply_entry_slippage,
     apply_exit_slippage,
     execution_profile,
+    FeeSchedule,
     fee_rate,
     preferred_entry_mode,
     slippage_rate,
@@ -63,6 +64,7 @@ class RiskEngine:
         *,
         depth_book: OrderBook | None = None,
         instrument: InstrumentSpec | None = None,
+        fee_schedule: FeeSchedule | None = None,
         setup_id: str | None = None,
         existing_position_notional: float = 0.0,
         existing_position_all_in_risk_usd: float = 0.0,
@@ -203,18 +205,25 @@ class RiskEngine:
         if available_risk_usd <= 0:
             return RiskResult(False, "portfolio risk budget exhausted")
 
-        entry_fee_rate = fee_rate(self.config, entry_mode)
+        entry_fee_rate = fee_rate(
+            self.config,
+            entry_mode,
+            fee_schedule,
+        )
         target_exit_fee_rate = fee_rate(
             self.config,
             execution.target_exit,
+            fee_schedule,
         )
         stop_exit_fee_rate = fee_rate(
             self.config,
             execution.stop_exit,
+            fee_schedule,
         )
         partial_exit_fee_rate = fee_rate(
             self.config,
             execution.partial_exit,
+            fee_schedule,
         )
         target_exit_slippage_rate = slippage_rate(
             self.config,
@@ -1048,6 +1057,11 @@ class RiskEngine:
                 "baseEntry": execution.entry,
             },
             "entryMode": entry_mode,
+            "feeSchedule": (
+                fee_schedule.public()
+                if fee_schedule is not None
+                else None
+            ),
             "entryFeeRate": entry_fee_rate,
             "targetExitFeeRate": target_exit_fee_rate,
             "stopExitFeeRate": stop_exit_fee_rate,
@@ -1211,6 +1225,10 @@ class RiskEngine:
             "payoffMarginUsd": expected_net - minimum_net_reward,
         }
         strategy_details = dict(decision.details)
+        if fee_schedule is not None:
+            strategy_details["feeSchedule"] = (
+                fee_schedule.public()
+            )
         strategy_details["economics"] = economics
 
         resolved_setup_id = (

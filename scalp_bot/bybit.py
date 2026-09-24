@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 from collections.abc import Awaitable, Callable
 from contextlib import nullcontext
 from itertools import count
 from time import perf_counter_ns, time, time_ns
 from typing import Any
+from urllib.parse import urlencode
 
 import httpx
 import msgspec
@@ -20,6 +23,7 @@ from .activity import (
 from .config import Settings
 from .domain import Candidate, Candle, OrderBook
 from .instrument import InstrumentSpec
+from .execution import FeeSchedule
 from .latency_observability import (
     exchange_receive_seconds,
     observe_latency,
@@ -127,6 +131,7 @@ class BybitRestClient:
         self._request_lock = asyncio.Lock()
         self._last_request_at = 0.0
         self._instrument_cache: dict[str, InstrumentSpec] = {}
+        self._fee_schedule_cache: dict[str, FeeSchedule] = {}
 
     @property
     def active_rest_url(self) -> str:
@@ -251,6 +256,174 @@ class BybitRestClient:
                 "Bybit EU Spot/Spot Margin."
             )
         )
+
+    async def _private_get(
+        self,
+        path: str,
+        params: dict[str, str | int],
+    ) -> dict:
+        api_key = self.config.bybit_api_key.strip()
+        api_secret = self.config.bybit_api_secret.strip()
+        if not api_key or not api_secret:
+            raise BybitError(
+                "Bybit private credentials are not configured"
+            )
+
+        query = urlencode(
+            [(key, str(value)) for key, value in params.items()]
+        )
+        timestamp = str(int(time() * 1000))
+        recv_window = str(
+            max(
+                1,
+                int(self.config.bybit_private_recv_window_ms),
+            )
+        )
+        plain = (
+            timestamp
+            + api_key
+            + recv_window
+            + query
+        )
+        signature = hmac.new(
+            api_secret.encode("utf-8"),
+            plain.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        headers = {
+            "X-BAPI-API-KEY": api_key,
+            "X-BAPI-TIMESTAMP": timestamp,
+            "X-BAPI-RECV-WINDOW": recv_window,
+            "X-BAPI-SIGN": signature,
+        }
+        await self._pace_request()
+        response = await self.client.get(
+            f"{self._active_rest_url}{path}",
+            params=params,
+            headers=headers,
+        )
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise BybitError(
+                f"Bybit private HTTP {response.status_code}: "
+                f"{self._response_excerpt(response)}"
+            ) from exc
+        payload = response.json()
+        if payload.get("retCode") != 0:
+            raise BybitError(
+                "Bybit private error "
+                f"{payload.get('retCode')}: "
+                f"{payload.get('retMsg')}"
+            )
+        return payload.get("result") or {}
+
+    def _configured_fee_schedule(
+        self,
+        symbol: str,
+        *,
+        source: str = "configured",
+    ) -> FeeSchedule:
+        return FeeSchedule(
+            symbol=symbol,
+            maker_fee_rate=max(
+                0.0,
+                float(self.config.maker_fee_rate),
+            ),
+            taker_fee_rate=max(
+                0.0,
+                float(self.config.taker_fee_rate),
+            ),
+            source=source,
+        )
+
+    async def fee_schedule(
+        self,
+        symbol: str,
+    ) -> FeeSchedule:
+        normalized = symbol.upper()
+        cached = self._fee_schedule_cache.get(normalized)
+        if cached is not None:
+            return cached
+
+        mode = str(
+            self.config.fee_rate_mode or "configured"
+        ).strip().lower()
+        if mode not in {
+            "configured",
+            "account_if_available",
+            "account_required",
+        }:
+            raise BybitError(
+                f"unsupported fee_rate_mode: {mode}"
+            )
+
+        if mode == "configured":
+            schedule = self._configured_fee_schedule(
+                normalized,
+            )
+            self._fee_schedule_cache[normalized] = schedule
+            return schedule
+
+        credentials_ready = bool(
+            self.config.bybit_api_key.strip()
+            and self.config.bybit_api_secret.strip()
+        )
+        if not credentials_ready:
+            if mode == "account_required":
+                raise BybitError(
+                    "account fee rates are required but "
+                    "SCALP_BYBIT_API_KEY/SECRET are missing"
+                )
+            schedule = self._configured_fee_schedule(
+                normalized,
+                source="configured_no_credentials",
+            )
+            self._fee_schedule_cache[normalized] = schedule
+            return schedule
+
+        try:
+            result = await self._private_get(
+                "/v5/account/fee-rate",
+                {
+                    "category": "linear",
+                    "symbol": normalized,
+                },
+            )
+            rows = result.get("list") or []
+            row = next(
+                (
+                    item
+                    for item in rows
+                    if str(item.get("symbol") or "")
+                    in {"", normalized}
+                ),
+                None,
+            )
+            if row is None:
+                raise BybitError(
+                    f"account fee rate missing for {normalized}"
+                )
+            schedule = FeeSchedule(
+                symbol=normalized,
+                maker_fee_rate=float(
+                    row.get("makerFeeRate")
+                ),
+                taker_fee_rate=float(
+                    row.get("takerFeeRate")
+                ),
+                source="bybit_account",
+            )
+        except (BybitError, TypeError, ValueError):
+            if mode == "account_required":
+                raise
+            schedule = self._configured_fee_schedule(
+                normalized,
+                source="configured_account_unavailable",
+            )
+
+        self._fee_schedule_cache[normalized] = schedule
+        return schedule
 
     async def liquid_candidates(self, limit: int | None = None) -> list[Candidate]:
         result = await self._get("/v5/market/tickers", {"category": "linear"})
