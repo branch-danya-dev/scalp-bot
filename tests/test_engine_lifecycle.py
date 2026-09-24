@@ -2566,6 +2566,79 @@ def test_execution_uses_specific_public_trade_price_for_maker_fill(
 
 
 
+@pytest.mark.asyncio
+async def test_public_trade_batch_fills_resting_maker_before_later_tick_invalidation(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        passive_entry_enabled=True,
+        maker_fill_confirmation_bps=0.0,
+        maker_queue_ahead_fraction=0.0,
+        event_driven_evaluation_enabled=False,
+    )
+    try:
+        pending_plan = plan("AAAUSDT")
+        pending_plan.strategy = "weak_level_rejection"
+        pending_plan.entry_mode = "maker_limit"
+        pending_plan.market_entry = 99.99
+        pending_plan.notional = 1_000.0
+        pending_plan.setup_id = "reject:g1"
+        engine.broker.place_pending(
+            pending_plan,
+            min_trade_ts_ms=1_000,
+        )
+
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(99.99, 100.01),
+            last_price=100.0,
+        )
+        engine.sessions[session.symbol] = session
+
+        evaluations: list[float] = []
+
+        async def invalidate_after_tick(current):
+            evaluations.append(current.last_price)
+            engine.broker.cancel_pending(
+                current.symbol,
+                "test_invalidation",
+            )
+
+        engine._evaluate = invalidate_after_tick  # type: ignore[method-assign]
+
+        await engine._process_public_trade_rows(
+            session,
+            [
+                {
+                    "T": 1_001,
+                    "p": "99.98",
+                    "v": "20",
+                    "S": "Sell",
+                },
+                {
+                    "T": 1_002,
+                    "p": "100.10",
+                    "v": "20",
+                    "S": "Buy",
+                },
+            ],
+            wall_now=time(),
+        )
+
+        assert "AAAUSDT" not in engine.broker.pending_entries
+        assert "AAAUSDT" in engine.broker.positions
+        assert engine.broker.positions["AAAUSDT"].entry == pytest.approx(
+            99.99
+        )
+        # The fill removed the resting order on the first trade. A later
+        # trade from the same websocket batch must not retroactively cancel it.
+        assert evaluations == []
+    finally:
+        close_rest(engine)
+
+
 def test_trade_overlay_makes_forming_ohlc_tick_native_without_double_volume() -> None:
     forming = Candle(
         60_000,

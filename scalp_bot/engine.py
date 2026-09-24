@@ -2107,58 +2107,12 @@ class TradingEngine:
                 self._apply_kline(session, message)
                 session.last_kline_at = wall_now
             elif topic.startswith("publicTrade."):
-                rows = message.get("data") or []
-                if rows:
-                    ticks: list[TradeTick] = []
-                    for row in rows:
-                        session.trade_sequence += 1
-                        tick = TradeTick(
-                            ts_ms=int(
-                                row.get("T")
-                                or time() * 1000
-                            ),
-                            price=float(row["p"]),
-                            size=float(row["v"]),
-                            side=str(row.get("S") or ""),
-                            sequence=session.trade_sequence,
-                        )
-                        session.trades.append(tick)
-                        self._overlay_trade_on_forming_candle(
-                            session,
-                            tick,
-                        )
-                        ticks.append(tick)
-
-                    session.last_price = ticks[-1].price
-                    session.last_trade_stream_at = wall_now
-                    prune_trades(
-                        session.trades,
-                        ticks[-1].ts_ms,
-                        self.config.trade_buffer_seconds,
-                    )
-
-                    # Pending maker entries must be invalidated against the
-                    # newest tape before the same trade is allowed to fill.
-                    if symbol in self.broker.pending_entries:
-                        session.last_eval = monotonic()
-                        await self._evaluate(session)
-
-                    for tick in ticks:
-                        session.last_price = tick.price
-                        self._mark_execution_from_market(
-                            session,
-                            trade_ts_ms=tick.ts_ms,
-                            trade_price=tick.price,
-                            trade_notional_usd=tick.notional,
-                        )
-                    session.last_price = ticks[-1].price
-
-                    self._schedule_event_evaluation(
-                        session,
-                        "public_trade",
-                        observed_at_ms=ticks[-1].ts_ms,
-                        market_message=message,
-                    )
+                await self._process_public_trade_rows(
+                    session,
+                    message.get("data") or [],
+                    wall_now=wall_now,
+                    market_message=message,
+                )
 
             # Periodic evaluation remains a fallback, but deep-book-only
             # context updates never drive the latency-sensitive strategy loop.
@@ -2257,6 +2211,79 @@ class TradingEngine:
             market_queue_max_lag_seconds=(
                 self.config.market_queue_max_lag_seconds
             ),
+        )
+
+    async def _process_public_trade_rows(
+        self,
+        session: ActiveSymbolSession,
+        rows: list[dict],
+        *,
+        wall_now: float | None = None,
+        market_message: MarketMessage | None = None,
+    ) -> None:
+        """Apply public trades in exchange order without batch look-ahead.
+
+        A resting maker order belongs to the market state that existed before
+        the current trade. Therefore the current trade must first be offered
+        to paper execution; only afterwards may strategy evaluation use that
+        trade to keep or cancel any still-resting order before the next trade.
+        """
+        if not rows:
+            return
+
+        observed_wall = time() if wall_now is None else wall_now
+        ticks: list[TradeTick] = []
+        for row in rows:
+            session.trade_sequence += 1
+            tick = TradeTick(
+                ts_ms=int(row.get("T") or time() * 1000),
+                price=float(row["p"]),
+                size=float(row["v"]),
+                side=str(row.get("S") or ""),
+                sequence=session.trade_sequence,
+            )
+            session.trades.append(tick)
+            self._overlay_trade_on_forming_candle(
+                session,
+                tick,
+            )
+            session.last_price = tick.price
+            session.last_trade_stream_at = observed_wall
+            prune_trades(
+                session.trades,
+                tick.ts_ms,
+                self.config.trade_buffer_seconds,
+            )
+            ticks.append(tick)
+
+            had_pending = (
+                session.symbol
+                in self.broker.pending_entries
+            )
+            self._mark_execution_from_market(
+                session,
+                trade_ts_ms=tick.ts_ms,
+                trade_price=tick.price,
+                trade_notional_usd=tick.notional,
+            )
+
+            # If the order survived this execution event, the same trade may
+            # now invalidate it for subsequent events. Never evaluate the
+            # whole websocket batch before processing its earlier fills.
+            if (
+                had_pending
+                and session.symbol
+                in self.broker.pending_entries
+            ):
+                session.last_eval = monotonic()
+                await self._evaluate(session)
+
+        session.last_price = ticks[-1].price
+        self._schedule_event_evaluation(
+            session,
+            "public_trade",
+            observed_at_ms=ticks[-1].ts_ms,
+            market_message=market_message,
         )
 
     @staticmethod
