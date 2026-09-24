@@ -1237,3 +1237,60 @@ def test_partial_is_not_planned_when_partial_leg_cannot_clear_min_net() -> None:
     assert economics["partialNetAtTriggerUsd"] < 1.0
     assert economics["partialFraction"] == 0.0
     assert economics["runnerFraction"] == 1.0
+
+
+def test_stop_side_depth_stress_reduces_size_and_stays_reserved() -> None:
+    layered = OrderBook(
+        bids=[
+            (99.99, 5),
+            (99.90, 10),
+            (99.70, 100),
+        ],
+        asks=[(100.00, 100)],
+    )
+    base_cfg = scalp_settings(
+        max_total_risk_fraction=0.05,
+        max_position_leverage=5.0,
+        stop_depth_stress_multiplier=0.0,
+    )
+    stressed_cfg = scalp_settings(
+        max_total_risk_fraction=0.05,
+        max_position_leverage=5.0,
+        stop_depth_stress_multiplier=2.0,
+    )
+    trade = decision(100.60, stop=99.90)
+
+    base = RiskEngine(base_cfg).build_plan(
+        "BASEUSDT",
+        trade,
+        1000,
+        layered,
+        10_000,
+        50,
+    )
+    stressed = RiskEngine(stressed_cfg).build_plan(
+        "STRESSUSDT",
+        trade,
+        1000,
+        layered,
+        10_000,
+        50,
+    )
+
+    assert base.allowed and base.plan is not None
+    assert stressed.allowed and stressed.plan is not None
+    assert stressed.plan.notional < base.plan.notional
+    economics = stressed.plan.strategy_details["economics"]
+    assert economics["stopDepthImpactBps"] > 0
+    assert economics["stressedStopDepthImpactBps"] > (
+        economics["stopDepthImpactBps"]
+    )
+    assert economics["stopDepthStressCostUsd"] > 0
+    assert stressed.plan.expected_net_loss <= 12.5 + 1e-6
+
+    broker = PaperBroker(stressed_cfg)
+    broker.open(stressed.plan, layered)
+    assert broker.open_risk_usd == pytest.approx(
+        stressed.plan.expected_net_loss,
+        rel=1e-6,
+    )
