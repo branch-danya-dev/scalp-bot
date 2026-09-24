@@ -143,6 +143,38 @@ def short_term_bullish_reversal_flow():
     )
 
 
+
+
+def strongly_bearish_flow():
+    return build_multi_horizon_flow_context(
+        {
+            "imbalance5s": -0.70,
+            "imbalance15s": -0.55,
+            "imbalance60s": -0.45,
+            "cvd5s": -7_000.0,
+            "cvd15s": -16_500.0,
+            "cvd60s": -45_000.0,
+            "notional5s": 10_000.0,
+            "notional15s": 30_000.0,
+            "notional60s": 100_000.0,
+            "tradeCount5s": 10,
+            "tradeCount15s": 30,
+            "tradeCount60s": 100,
+        },
+        {
+            "bestLevelOfiUsd5s": -8_000.0,
+            "bestLevelOfiUsd15s": -9_000.0,
+            "bestLevelOfiUsd60s": -10_000.0,
+            "normalizedOfi5s": -0.08,
+            "normalizedOfi15s": -0.09,
+            "normalizedOfi60s": -0.10,
+            "eventCount5s": 5,
+            "eventCount15s": 12,
+            "eventCount60s": 30,
+        },
+        observed_at_ms=100_000,
+    )
+
 def test_continuation_uses_local_trend_when_legacy_htf_is_flat() -> None:
     ctx = context(
         LocalRegime.BULLISH_TREND,
@@ -575,3 +607,22 @@ def test_rejection_prefers_near_primary_direction_level_over_closer_opposite() -
     )
 
     assert decision.details["zone"]["kind"] == "support"
+
+
+def test_rejection_still_blocks_multi_horizon_opposed_flow_in_unclear_context() -> None:
+    ctx = context(
+        LocalRegime.UNCLEAR,
+        direction=Trend.FLAT,
+        parent=Trend.FLAT,
+        flow=strongly_bearish_flow(),
+    )
+
+    assessment = assess_entry_context(
+        PlaybookKind.LEVEL_REJECTION,
+        Action.LONG,
+        ctx,
+        Trend.FLAT,
+    )
+
+    assert assessment.allowed is False
+    assert "rejection_flow_opposed" in assessment.blockers
