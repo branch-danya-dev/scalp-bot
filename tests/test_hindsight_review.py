@@ -44,14 +44,39 @@ def decision(
     state: str,
     *,
     side: str | None = None,
+    hypothesis_side: str | None = None,
     reason: str = "waiting",
 ) -> dict:
+    details = {"state": state}
+    if side is None and hypothesis_side in {"long", "short"}:
+        if strategy == "orderbook_density":
+            details["wallSide"] = (
+                "bid"
+                if hypothesis_side == "long"
+                else "ask"
+            )
+        elif strategy == "level_breakout":
+            details["zone"] = {
+                "kind": (
+                    "resistance"
+                    if hypothesis_side == "long"
+                    else "support"
+                )
+            }
+        elif strategy == "weak_level_rejection":
+            details["zone"] = {
+                "kind": (
+                    "support"
+                    if hypothesis_side == "long"
+                    else "resistance"
+                )
+            }
     payload = {
         "strategy": strategy,
         "action": side or "wait",
         "confidence": 0.7,
         "reasons": [reason],
-        "details": {"state": state},
+        "details": details,
     }
     if strategy == "trend_structure" and side is None:
         payload["trace"] = {
@@ -398,3 +423,82 @@ def test_pre_run_activation_generation_matches_strategy_mapping() -> None:
     opportunity = report["opportunities"][0]
     assert opportunity["segment"] == 2
     assert opportunity["strategyFit"]["mappedToExistingStrategy"] is True
+
+
+def test_hindsight_does_not_count_density_only_as_tradeable_coverage() -> None:
+    rows = [
+        activated(),
+        decision(
+            5.0,
+            "orderbook_density",
+            "persisting",
+            hypothesis_side="long",
+            reason="liquidity evidence",
+        ),
+        frame(10.0, 100.0),
+        decision(
+            15.0,
+            "orderbook_density",
+            "approach",
+            hypothesis_side="long",
+            reason="liquidity evidence",
+        ),
+        frame(20.0, 100.20),
+        frame(30.0, 100.50),
+        deactivated(40.0),
+    ]
+
+    report = analyze_hindsight_opportunities(
+        rows,
+        taker_fee_rate=0.0005,
+        slippage_bps=0.0,
+        minimum_net_move_pct=0.001,
+    )
+
+    opportunity = report["opportunities"][0]
+    fit = opportunity["strategyFit"]
+    assert fit["mappedToExistingStrategy"] is True
+    assert fit["mappedToTradeablePlaybook"] is False
+    assert fit["closestTradeablePlaybook"] is None
+    assert opportunity["coverageClassification"] == "uncovered"
+    assert report["summary"]["mappedToTradeablePlaybook"] == 0
+    assert report["summary"]["unmappedToTradeablePlaybook"] == 1
+    assert report["summary"]["uncoveredOpportunities"] == 1
+    assert report["summary"]["observedUnconfirmedOpportunities"] == 0
+    assert report["summary"]["tradeableSetupSeenOpportunities"] == 0
+
+
+def test_hindsight_distinguishes_observed_unconfirmed_from_tradeable_setup() -> None:
+    rows = [
+        activated(),
+        decision(
+            5.0,
+            "level_breakout",
+            "armed",
+            hypothesis_side="long",
+            reason="prepared",
+        ),
+        frame(10.0, 100.0),
+        frame(20.0, 100.25),
+        frame(30.0, 100.55),
+        deactivated(40.0),
+    ]
+
+    report = analyze_hindsight_opportunities(
+        rows,
+        taker_fee_rate=0.0005,
+        slippage_bps=0.0,
+        minimum_net_move_pct=0.001,
+    )
+
+    opportunity = report["opportunities"][0]
+    assert (
+        opportunity["coverageClassification"]
+        == "observed_unconfirmed"
+    )
+    assert report["summary"][
+        "observedUnconfirmedOpportunities"
+    ] == 1
+    assert report["summary"][
+        "tradeableSetupSeenOpportunities"
+    ] == 0

@@ -223,6 +223,20 @@ def test_stage22_rejection_waits_for_micro_response_without_late_add() -> None:
         fired.details["fireTrigger"]["source"]
         == "rejection_absorption_micro_response"
     )
+    first_fire_ms = fired.details["fireTrigger"]["observedAtMs"]
+    repeated = strategy.evaluate(
+        rows,
+        response_book,
+        Trend.UP,
+        symbol="EARLYREJECTUSDT",
+        trades=absorption_flow,
+        observed_at_ms=observed + 1_500,
+    )
+    assert repeated.action == Action.LONG
+    assert (
+        repeated.details["fireTrigger"]["observedAtMs"]
+        == first_fire_ms
+    )
 
     late_strategy = WeakLevelRejectionStrategy()
     late_strategy.staged_entries_enabled = False

@@ -3299,3 +3299,69 @@ def test_research_frame_delta_tape_reports_pruned_gap() -> None:
 
     assert frame["tradeDeltaGap"] is True
     assert frame["recentTrades"][0]["sequence"] == 7
+
+
+def test_tradeable_breakout_freshness_starts_at_fire_not_old_arm(
+    tmp_path,
+) -> None:
+    engine = make_engine(tmp_path)
+    session = ActiveSymbolSession(
+        symbol="FRESHFIREUSDT",
+        candles=[candle()],
+        orderbook=book(100.49, 100.51),
+        last_price=100.50,
+    )
+    decision = StrategyDecision(
+        strategy="level_breakout",
+        action=Action.LONG,
+        reasons=["confirmed"],
+        confidence=0.9,
+        watched_level=100.0,
+        entry=100.50,
+        stop=99.50,
+        target=103.00,
+        setup_id="level_breakout:long:R:g1",
+        details={
+            "state": "impulse",
+            "expectedImpulsePct": 0.02,
+            "opportunityArm": {
+                "observedAtMs": 100_000,
+                "price": 100.0,
+                "source": "breakout_pressure_armed",
+            },
+            "preparedOpportunity": {
+                "preparedAtMs": 100_000,
+                "source": "breakout_pressure_armed",
+            },
+            "fireTrigger": {
+                "observedAtMs": 190_000,
+                "price": 100.50,
+                "source": "breakout_sustained_price_response",
+            },
+        },
+    )
+
+    try:
+        engine._annotate_entry_freshness(
+            session,
+            decision,
+            observed_at=190.10,
+        )
+
+        freshness = decision.details["opportunityFreshness"]
+        assert freshness["classification"] == "fresh"
+        assert freshness["source"] == (
+            "breakout_sustained_price_response"
+        )
+        assert freshness["confirmationAgeSeconds"] == pytest.approx(
+            0.10,
+            abs=1e-6,
+        )
+        assert decision.details["armToFireSeconds"] == pytest.approx(
+            90.0
+        )
+        assert decision.details["causalTriggerSource"] == (
+            "breakout_sustained_price_response"
+        )
+    finally:
+        close_rest(engine)
