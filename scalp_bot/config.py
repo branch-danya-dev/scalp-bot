@@ -178,6 +178,12 @@ class Settings(BaseSettings):
     market_queue_size: int = 512
     market_queue_put_timeout_seconds: float = 0.05
     market_queue_max_lag_seconds: float = 0.50
+
+    prometheus_enabled: bool = True
+    otel_enabled: bool = False
+    otel_service_name: str = "scalp-bot"
+    otel_exporter_otlp_endpoint: str = "http://127.0.0.1:4318"
+    otel_trace_sample_ratio: float = 1.0
     fast_event_min_mid_move_bps: float = 0.25
     fast_event_min_spread_change_bps: float = 0.25
     fast_event_min_ofi_fraction: float = 0.02
