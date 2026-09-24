@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from math import floor, log
 from statistics import median
 
@@ -40,11 +41,11 @@ class LevelLifecycleTracker:
         self._levels: dict[str, LevelLife] = {}
 
     @staticmethod
-    def _id(level: StructuralLevel, reference_price: float) -> str:
-        ratio = 1.0006
-        bucket = floor(
-            log(max(level.center, 1e-12)) / log(ratio)
-        )
+    def _id(
+        level: StructuralLevel,
+        reference_price: float,
+        now_ms: int,
+    ) -> str:
         side = (
             "S"
             if level.kind in {
@@ -54,11 +55,23 @@ class LevelLifecycleTracker:
             }
             else "R"
         )
-        # Price buckets stabilize detector drift, but structurally different
-        # market objects must never share one generation. In particular a
-        # local resistance and day_high at the same price are separate
-        # obstacles and have different ownership semantics in the arbiter.
         object_kind = str(level.kind or "unknown")
+        if level.kind in {"day_high", "day_low"}:
+            session_date = datetime.fromtimestamp(
+                now_ms / 1000,
+                tz=timezone.utc,
+            ).date().isoformat()
+            return f"{side}:{object_kind}:{session_date}"
+
+        ratio = 1.0006
+        bucket = floor(
+            log(max(level.center, 1e-12)) / log(ratio)
+        )
+        # Price buckets stabilize detector drift, but structurally different
+        # market objects must never share one generation. Current-day
+        # extremes instead keep one causal identity for the UTC session so
+        # extending the same impulse cannot manufacture a new setup merely
+        # because the session high/low moved.
         return f"{side}:{object_kind}:{bucket}"
 
     def update(
@@ -82,8 +95,17 @@ class LevelLifecycleTracker:
             else reference_price * 0.001
         )
 
+        identity_ms = (
+            latest.start_ms
+            if latest is not None
+            else now_ms
+        )
         for level in structure.levels:
-            level_id = self._id(level, reference_price)
+            level_id = self._id(
+                level,
+                reference_price,
+                identity_ms,
+            )
             life = self._levels.get(level_id)
             if life is None:
                 historical_approaches = max(

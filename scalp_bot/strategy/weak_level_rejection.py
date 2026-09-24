@@ -23,7 +23,7 @@ from .common import (
     zone_overlap_count,
     zone_visual,
 )
-from .flow import flow_at_level, flow_beyond_level
+from .flow import flow_at_level, flow_beyond_level, price_response_bps_since
 from .liquidity import find_liquidity_targets
 from .structure import (
     RESISTANCE_LEVEL_KINDS,
@@ -482,13 +482,26 @@ class WeakLevelRejectionStrategy(Strategy):
             if forming is not None
             else None
         )
+        (
+            post_absorption_tape_response_bps,
+            post_absorption_tape_trade_count,
+        ) = (
+            price_response_bps_since(
+                trades,
+                int(state.absorption_at * 1000),
+                now_ms=observed_at_ms,
+            )
+            if state.absorption_at > 0
+            else (None, 0)
+        )
         tape_response_aligned = (
-            forming_micro_move_5s_bps is not None
+            post_absorption_tape_response_bps is not None
+            and post_absorption_tape_trade_count >= 2
             and (
-                forming_micro_move_5s_bps
+                post_absorption_tape_response_bps
                 >= self.micro_response_min_bps
                 if action == Action.LONG
-                else forming_micro_move_5s_bps
+                else post_absorption_tape_response_bps
                 <= -self.micro_response_min_bps
             )
         )
@@ -623,6 +636,12 @@ class WeakLevelRejectionStrategy(Strategy):
                     ),
                     "tapeResponseAligned": (
                         tape_response_aligned
+                    ),
+                    "postAbsorptionTapeResponseBps": (
+                        post_absorption_tape_response_bps
+                    ),
+                    "postAbsorptionTapeTradeCount": (
+                        post_absorption_tape_trade_count
                     ),
                     "formingPositionSupported": (
                         forming_position_supported
@@ -894,6 +913,12 @@ class WeakLevelRejectionStrategy(Strategy):
                 "tapeResponseAligned": (
                     tape_response_aligned
                 ),
+                "postAbsorptionTapeResponseBps": (
+                    post_absorption_tape_response_bps
+                ),
+                "postAbsorptionTapeTradeCount": (
+                    post_absorption_tape_trade_count
+                ),
                 "formingPositionSupported": (
                     forming_position_supported
                 ),
@@ -975,6 +1000,9 @@ class WeakLevelRejectionStrategy(Strategy):
                     "contextAligned": entry_context.allowed,
                 },
             },
+            setup_id=(
+                f"{self.key}:{action.value}:{generation_id}"
+            ),
         )
 
     def manage_position(

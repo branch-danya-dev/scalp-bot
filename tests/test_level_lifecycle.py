@@ -210,3 +210,70 @@ def test_daily_extreme_and_local_level_never_share_generation_identity() -> None
     assert local.generation_id != day_high.generation_id
     assert ":resistance:" in str(local.level_id)
     assert ":day_high:" in str(day_high.level_id)
+
+
+def test_current_day_extreme_identity_survives_intraday_extension() -> None:
+    tracker = LevelLifecycleTracker()
+    rows = [candle(i, 99.0) for i in range(20)]
+    first = StructuralLevel(
+        kind="day_high",
+        low=100.00,
+        high=100.00,
+        touches=1,
+        timeframe="1D",
+        score=0.92,
+    )
+    tracker.update(
+        MarketStructure(levels=[first]),
+        rows,
+        99.8,
+        1_000,
+    )
+
+    extended = StructuralLevel(
+        kind="day_high",
+        low=101.00,
+        high=101.00,
+        touches=1,
+        timeframe="1D",
+        score=0.92,
+    )
+    tracker.update(
+        MarketStructure(levels=[extended]),
+        rows,
+        100.8,
+        61_000,
+    )
+
+    assert extended.level_id == first.level_id
+    assert extended.generation_id == first.generation_id
+
+    next_day = StructuralLevel(
+        kind="day_high",
+        low=102.00,
+        high=102.00,
+        touches=1,
+        timeframe="1D",
+        score=0.92,
+    )
+    next_day_rows = [
+        *rows,
+        Candle(
+            86_400_000,
+            101.8,
+            102.1,
+            101.7,
+            102.0,
+            100,
+            10_200,
+        ),
+    ]
+    tracker.update(
+        MarketStructure(levels=[next_day]),
+        next_day_rows,
+        101.8,
+        86_401_000,
+    )
+
+    assert next_day.level_id != first.level_id
+    assert next_day.generation_id != first.generation_id

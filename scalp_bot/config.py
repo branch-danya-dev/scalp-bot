@@ -113,6 +113,7 @@ class Settings(BaseSettings):
     maker_fee_rate: float = 0.00020
     slippage_bps: float = 1.0
     maker_fill_confirmation_bps: float = 0.5
+    maker_queue_ahead_fraction: float = 0.50
     passive_entry_enabled: bool = False
     passive_entry_timeout_seconds: float = 15.0
     max_winner_cost_share: float = 0.35
@@ -121,6 +122,7 @@ class Settings(BaseSettings):
     enforce_min_first_take_move_gate: bool = False
     max_stop_cost_share: float = 1.0
     enforce_stop_cost_share_gate: bool = False
+    stop_depth_stress_multiplier: float = 2.0
 
     partial_take_enabled: bool = True
     partial_take_at_r: float = 1.0

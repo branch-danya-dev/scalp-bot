@@ -7,6 +7,7 @@ from scalp_bot.strategy.flow import (
     cumulative_delta,
     flow_at_level,
     flow_beyond_level,
+    price_response_bps_since,
     prune_trades,
 )
 
@@ -245,3 +246,21 @@ def test_trade_flow_exposes_multi_horizon_imbalances_and_counts() -> None:
     assert flow["imbalance5s"] == 1.0
     assert flow["imbalance15s"] == 0.5
     assert flow["imbalance60s"] == pytest.approx(300 / 900)
+
+
+def test_event_causal_price_response_ignores_pre_event_move() -> None:
+    rows = [
+        TradeTick(1_000, 100.00, 1, "Buy"),
+        TradeTick(1_500, 100.05, 1, "Buy"),
+        TradeTick(2_000, 100.10, 1, "Buy"),
+        TradeTick(2_500, 100.10, 1, "Sell"),
+    ]
+
+    response, count = price_response_bps_since(
+        rows,
+        2_000,
+        now_ms=2_500,
+    )
+
+    assert count == 2
+    assert response == pytest.approx(0.0)

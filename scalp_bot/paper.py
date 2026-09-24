@@ -57,6 +57,8 @@ class Position:
     partial_taken_at: float | None = None
     estimated_exit_fee_usd: float = 0.0
     initial_risk_budget_usd: float = 0.0
+    maker_partial_trade_notional_usd: float = 0.0
+    maker_target_trade_notional_usd: float = 0.0
     entry_legs: list[dict[str, Any]] = field(default_factory=list)
 
     @property
@@ -89,10 +91,27 @@ class Position:
             config,
             profile.stop_exit,
         )
+        economics = (
+            self.strategy_details.get("economics")
+            if isinstance(self.strategy_details, dict)
+            else None
+        )
+        stop_depth_stress_rate = (
+            max(
+                0.0,
+                float(economics.get("stopDepthStressPct") or 0.0),
+            )
+            if isinstance(economics, dict)
+            else 0.0
+        )
+        stop_depth_reserve = (
+            self.notional * stop_depth_stress_rate
+        )
         return (
             max(0.0, self.entry_fee_remaining)
             + exit_fee
             + exit_slippage
+            + stop_depth_reserve
         )
 
     def all_in_risk_usd(self, config: Settings) -> float:
@@ -147,6 +166,8 @@ class PendingEntry:
     expires_at: float
     min_trade_ts_ms: int | None = None
     position_action: str = "open"
+    eligible_trade_notional_usd: float = 0.0
+    required_trade_notional_usd: float = 0.0
 
     def public(self) -> dict:
         return {
@@ -162,6 +183,12 @@ class PendingEntry:
             "minTradeTsMs": self.min_trade_ts_ms,
             "entryMode": self.plan.entry_mode,
             "positionAction": self.position_action,
+            "eligibleTradeNotionalUsd": (
+                self.eligible_trade_notional_usd
+            ),
+            "requiredTradeNotionalUsd": (
+                self.required_trade_notional_usd
+            ),
         }
 
 
@@ -174,6 +201,18 @@ class PaperBroker:
         self.pending_entries: dict[str, PendingEntry] = {}
         self.closed_trades: list[dict] = []
         self.total_closed_trades: int = 0
+
+    def _maker_required_trade_notional(
+        self,
+        order_notional: float,
+    ) -> float:
+        return max(0.0, order_notional) * (
+            1.0
+            + max(
+                0.0,
+                self.config.maker_queue_ahead_fraction,
+            )
+        )
 
     @property
     def total_pnl(self) -> float:
@@ -583,6 +622,11 @@ class PaperBroker:
             created_at=now,
             expires_at=now + max(0.1, self.config.passive_entry_timeout_seconds),
             min_trade_ts_ms=min_trade_ts_ms,
+            required_trade_notional_usd=(
+                self._maker_required_trade_notional(
+                    plan.notional
+                )
+            ),
         )
         self.pending_entries[plan.symbol] = pending
         return pending
@@ -628,6 +672,11 @@ class PaperBroker:
             + max(0.1, self.config.passive_entry_timeout_seconds),
             min_trade_ts_ms=min_trade_ts_ms,
             position_action="add",
+            required_trade_notional_usd=(
+                self._maker_required_trade_notional(
+                    plan.notional
+                )
+            ),
         )
         self.pending_entries[plan.symbol] = pending
         return pending
@@ -676,6 +725,7 @@ class PaperBroker:
         last_trade_price: float,
         *,
         trade_ts_ms: int | None = None,
+        trade_notional_usd: float | None = None,
     ) -> list[dict]:
         pending = self.pending_entries.get(symbol)
         if pending is None:
@@ -704,6 +754,17 @@ class PaperBroker:
             filled = last_trade_price >= pending.limit_price * (1 + confirm)
         if not filled:
             return []
+        if trade_notional_usd is not None:
+            pending.eligible_trade_notional_usd += max(
+                0.0,
+                float(trade_notional_usd),
+            )
+            if (
+                pending.eligible_trade_notional_usd
+                + 1e-9
+                < pending.required_trade_notional_usd
+            ):
+                return []
         del self.pending_entries[symbol]
         is_add = pending.position_action == "add"
         if is_add:
@@ -785,7 +846,17 @@ class PaperBroker:
             "plan": pending.plan.public(),
             "position": position.public(),
             "limitPrice": pending.limit_price,
-            "fillModel": "trade_through",
+            "fillModel": (
+                "trade_through_volume"
+                if trade_notional_usd is not None
+                else "trade_through"
+            ),
+            "eligibleTradeNotionalUsd": (
+                pending.eligible_trade_notional_usd
+            ),
+            "requiredTradeNotionalUsd": (
+                pending.required_trade_notional_usd
+            ),
             "positionAction": pending.position_action,
         }]
 
@@ -903,6 +974,7 @@ class PaperBroker:
         book: OrderBook,
         *,
         trade_price: float | None | object = _UNSET_TRADE_PRICE,
+        trade_notional_usd: float | None = None,
     ) -> list[dict]:
         pos = self.positions.get(symbol)
         if pos is None:
@@ -970,6 +1042,7 @@ class PaperBroker:
                 )
                 else None
             ),
+            trade_notional_usd=trade_notional_usd,
         )
         economics = (
             pos.strategy_details.get("economics")
@@ -1022,12 +1095,29 @@ class PaperBroker:
                 )
                 else None
             )
-            hit_target = self._maker_exit_trade_through(
+            target_price_through = self._maker_exit_trade_through(
                 pos,
                 pos.target,
                 resolved_trade_price,
                 self.config.maker_fill_confirmation_bps,
             )
+            if (
+                target_price_through
+                and trade_notional_usd is not None
+            ):
+                pos.maker_target_trade_notional_usd += max(
+                    0.0,
+                    float(trade_notional_usd),
+                )
+                hit_target = (
+                    pos.maker_target_trade_notional_usd
+                    + 1e-9
+                    >= self._maker_required_trade_notional(
+                        pos.notional
+                    )
+                )
+            else:
+                hit_target = target_price_through
         else:
             hit_target = (
                 executable >= pos.target
@@ -1159,17 +1249,35 @@ class PaperBroker:
         exit_mode: str,
         *,
         trade_price: float | None = None,
+        trade_notional_usd: float | None = None,
     ) -> bool:
         if pos.initial_risk_usd <= 0:
             return False
         if exit_mode != "maker_limit":
             return pos.mfe_r >= self.config.partial_take_at_r
         limit_price = self._partial_limit_price(pos)
-        return self._maker_exit_trade_through(
+        price_through = self._maker_exit_trade_through(
             pos,
             limit_price,
             trade_price,
             self.config.maker_fill_confirmation_bps,
+        )
+        if not price_through:
+            return False
+        if trade_notional_usd is None:
+            return True
+
+        pos.maker_partial_trade_notional_usd += max(
+            0.0,
+            float(trade_notional_usd),
+        )
+        required = self._maker_required_trade_notional(
+            self._partial_close_notional(pos)
+        )
+        return (
+            pos.maker_partial_trade_notional_usd
+            + 1e-9
+            >= required
         )
 
     def _partial_close_notional(self, pos: Position) -> float:
