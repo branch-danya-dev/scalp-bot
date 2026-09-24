@@ -175,6 +175,9 @@ class Settings(BaseSettings):
     deep_orderbook_depth: int = 1000
     event_driven_evaluation_enabled: bool = True
     event_evaluation_min_interval_seconds: float = 0.05
+    market_queue_size: int = 512
+    market_queue_put_timeout_seconds: float = 0.05
+    market_queue_max_lag_seconds: float = 0.50
     fast_event_min_mid_move_bps: float = 0.25
     fast_event_min_spread_change_bps: float = 0.25
     fast_event_min_ofi_fraction: float = 0.02
