@@ -8,7 +8,8 @@ and short smoke are explicitly completed.
 
 See:
 
-- `docs/stage19-technical-economic-remediation.md` — current remediation plan
+- `docs/stage27-10h-run.md` — current controlled 10-hour run and sharded post-run analysis workflow.
+- `docs/stage19-technical-economic-remediation.md` — earlier remediation plan
   and validation order.
 - `docs/trade-observatory.md` — replay/decision observability.
 - `docs/research-economics-refactor-2026-09-22.md` — earlier economics
