@@ -819,7 +819,10 @@ class TradingEngine:
         self.rest = BybitRestClient(config)
         self.risk = RiskEngine(config)
         self.broker = PaperBroker(config)
-        self.recorder = SessionRecorder(config.session_dir)
+        self.recorder = SessionRecorder(
+            config.session_dir,
+            max_queue_size=config.recorder_queue_size,
+        )
         self.research_policy = ResearchPolicyRuntime.from_settings(
             path=config.research_policy_file,
             mode=config.research_policy_mode,

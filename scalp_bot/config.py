@@ -210,6 +210,7 @@ class Settings(BaseSettings):
     replay_idle_frame_seconds: float = 5.0
     replay_book_depth: int = 16
     session_dir: str = "data/sessions"
+    recorder_queue_size: int = 50_000
 
 
 settings = Settings()

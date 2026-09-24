@@ -884,6 +884,18 @@ def test_session_report_tracks_staged_adds_and_fast_path_runtime(
     )
 
 
+def test_recorder_queue_capacity_is_bounded(tmp_path) -> None:
+    recorder = SessionRecorder(
+        str(tmp_path),
+        max_queue_size=7,
+    )
+
+    health = recorder.health()
+
+    assert health["queueCapacity"] == 7
+    assert recorder._write_queue.maxsize == 7
+
+
 def test_background_recorder_writer_flushes_queued_rows(tmp_path) -> None:
     recorder = SessionRecorder(str(tmp_path))
     recorder.start_background_writer()

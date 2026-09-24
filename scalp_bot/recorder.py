@@ -4,7 +4,7 @@ import json
 from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path
-from queue import SimpleQueue
+from queue import Full, Queue
 from threading import Event, Lock, Thread
 from time import time
 
@@ -21,13 +21,20 @@ class _FlushBarrier:
 
 
 class SessionRecorder:
-    def __init__(self, directory: str) -> None:
+    def __init__(
+        self,
+        directory: str,
+        *,
+        max_queue_size: int = 50_000,
+    ) -> None:
         self.root = Path(directory)
         self.root.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         self.path = self.root / f"session-{stamp}.jsonl"
         self._lock = Lock()
-        self._write_queue: SimpleQueue = SimpleQueue()
+        self._write_queue: Queue = Queue(
+            maxsize=max(1, int(max_queue_size)),
+        )
         self._writer_thread: Thread | None = None
         self._writer_error: BaseException | None = None
         self._queued_rows = 0
@@ -93,7 +100,15 @@ class SessionRecorder:
                 ) from self._writer_error
             return
         barrier = _FlushBarrier()
-        self._write_queue.put(barrier)
+        try:
+            self._write_queue.put(
+                barrier,
+                timeout=max(0.0, timeout),
+            )
+        except Full as exc:
+            raise TimeoutError(
+                "recorder queue remained full during flush"
+            ) from exc
         if not barrier.done.wait(max(0.0, timeout)):
             raise TimeoutError(
                 "recorder background writer flush timed out"
@@ -109,7 +124,13 @@ class SessionRecorder:
             return
         if thread.is_alive():
             self.flush(timeout)
-            self._write_queue.put(_RECORDER_STOP)
+            try:
+                self._write_queue.put(
+                    _RECORDER_STOP,
+                    timeout=max(0.0, timeout),
+                )
+            except Full:
+                pass
             thread.join(max(0.0, timeout))
         self._writer_thread = None
 
@@ -126,6 +147,7 @@ class SessionRecorder:
                 self._queued_rows - self._written_rows,
             ),
             "droppedRows": self._dropped_rows,
+            "queueCapacity": self._write_queue.maxsize,
             "writerError": (
                 f"{type(self._writer_error).__name__}: "
                 f"{self._writer_error}"
@@ -161,8 +183,12 @@ class SessionRecorder:
             thread is not None
             and thread.is_alive()
         ):
+            try:
+                self._write_queue.put_nowait(row)
+            except Full:
+                self._dropped_rows += 1
+                return
             self._queued_rows += 1
-            self._write_queue.put(row)
             return
 
         # Deterministic synchronous fallback for unit tests and callers that
