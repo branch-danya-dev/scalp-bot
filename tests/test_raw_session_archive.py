@@ -38,9 +38,13 @@ def test_raw_archive_round_trip_and_hashes(
             encoding="utf-8"
         )
     )
-    decompressed = zstd.ZstdDecompressor().decompress(
-        archive.read_bytes()
-    )
+    with (
+        archive.open("rb") as compressed,
+        zstd.ZstdDecompressor().stream_reader(
+            compressed
+        ) as reader,
+    ):
+        decompressed = reader.read()
 
     assert decompressed == payload
     assert metadata["source"]["sha256"] == hashlib.sha256(
