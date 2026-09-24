@@ -2562,3 +2562,189 @@ def test_execution_uses_specific_public_trade_price_for_maker_fill(
         ].entry == pytest.approx(99.99)
     finally:
         close_rest(engine)
+
+
+
+def test_trade_overlay_makes_forming_ohlc_tick_native_without_double_volume() -> None:
+    forming = Candle(
+        60_000,
+        100.0,
+        100.10,
+        99.90,
+        100.02,
+        50.0,
+        5_001.0,
+        confirmed=False,
+    )
+    session = ActiveSymbolSession(
+        symbol="AAAUSDT",
+        candles=[forming],
+        activated_at=0.0,
+        forming_kline_start_ms=60_000,
+        forming_kline_observed_at_ms=80_000,
+    )
+    before_volume = forming.volume
+    before_turnover = forming.turnover
+    tick = TradeTick(
+        81_000,
+        100.25,
+        2.0,
+        "Buy",
+    )
+
+    updated = TradingEngine._overlay_trade_on_forming_candle(
+        session,
+        tick,
+    )
+
+    assert updated is True
+    assert forming.close == pytest.approx(100.25)
+    assert forming.high == pytest.approx(100.25)
+    assert forming.low == pytest.approx(99.90)
+    assert forming.volume == pytest.approx(before_volume)
+    assert forming.turnover == pytest.approx(before_turnover)
+    assert session.forming_price_source == "hybrid_tape"
+    assert session.forming_volume_source == "kline_snapshot"
+    assert session.forming_trade_overlay_updates == 1
+    assert session.forming_trade_last_ts_ms == 81_000
+
+
+def test_first_trade_of_new_minute_can_create_provisional_tape_candle() -> None:
+    session = ActiveSymbolSession(
+        symbol="AAAUSDT",
+        candles=[
+            Candle(
+                0,
+                99.9,
+                100.1,
+                99.8,
+                100.0,
+                10,
+                1000,
+                confirmed=True,
+            ),
+        ],
+        # The symbol was already active before the 60s boundary.
+        activated_at=0.0,
+    )
+    first = TradeTick(
+        60_100,
+        100.05,
+        2.0,
+        "Buy",
+    )
+    second = TradeTick(
+        60_300,
+        100.20,
+        3.0,
+        "Buy",
+    )
+
+    assert TradingEngine._overlay_trade_on_forming_candle(
+        session,
+        first,
+    )
+    assert TradingEngine._overlay_trade_on_forming_candle(
+        session,
+        second,
+    )
+
+    forming = next(
+        row
+        for row in session.candles
+        if row.start_ms == 60_000
+    )
+    assert forming.confirmed is False
+    assert forming.open == pytest.approx(100.05)
+    assert forming.high == pytest.approx(100.20)
+    assert forming.low == pytest.approx(100.05)
+    assert forming.close == pytest.approx(100.20)
+    assert forming.volume == pytest.approx(5.0)
+    assert forming.turnover == pytest.approx(
+        first.notional + second.notional
+    )
+    assert session.forming_price_source == "tape_provisional"
+    assert session.forming_volume_source == "tape_provisional"
+    assert session.forming_tape_only_start_ms == 60_000
+
+
+def test_kline_rebases_provisional_candle_without_losing_newer_tape(
+    tmp_path,
+) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[
+                Candle(
+                    0,
+                    99.9,
+                    100.1,
+                    99.8,
+                    100.0,
+                    10,
+                    1000,
+                    confirmed=True,
+                ),
+            ],
+            activated_at=0.0,
+        )
+        early = TradeTick(
+            60_500,
+            100.05,
+            2.0,
+            "Buy",
+        )
+        newer = TradeTick(
+            63_000,
+            100.30,
+            1.0,
+            "Buy",
+        )
+        session.trades.extend([early, newer])
+        TradingEngine._overlay_trade_on_forming_candle(
+            session,
+            early,
+        )
+        TradingEngine._overlay_trade_on_forming_candle(
+            session,
+            newer,
+        )
+
+        engine._apply_kline(
+            session,
+            {
+                "ts": 62_000,
+                "data": [
+                    {
+                        "start": 60_000,
+                        "open": "100.00",
+                        "high": "100.15",
+                        "low": "99.95",
+                        "close": "100.10",
+                        "volume": "10",
+                        "turnover": "1000",
+                        "confirm": False,
+                    },
+                ],
+            },
+        )
+
+        forming = next(
+            row
+            for row in session.candles
+            if row.start_ms == 60_000
+        )
+        # Kline restores authoritative cumulative volume, then the newer tape
+        # execution restores fresher price geometry only.
+        assert forming.volume == pytest.approx(10.0)
+        assert forming.turnover == pytest.approx(1000.0)
+        assert forming.close == pytest.approx(100.30)
+        assert forming.high == pytest.approx(100.30)
+        assert session.forming_price_source == "hybrid_tape"
+        assert session.forming_volume_source == "kline_snapshot"
+        assert session.forming_trade_overlay_updates == 1
+        assert session.forming_trade_last_ts_ms == 63_000
+        assert session.forming_tape_only_start_ms == 0
+    finally:
+        close_rest(engine)

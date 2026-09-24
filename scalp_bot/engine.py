@@ -97,6 +97,13 @@ class ActiveSymbolSession:
     flow_context: MultiHorizonFlowContext | None = None
     liquidity_evidence: LiquidityEvidence | None = None
     forming_candle_context: FormingCandleContext | None = None
+    forming_kline_start_ms: int = 0
+    forming_kline_observed_at_ms: int = 0
+    forming_trade_overlay_updates: int = 0
+    forming_trade_last_ts_ms: int = 0
+    forming_tape_only_start_ms: int = 0
+    forming_price_source: str = "kline"
+    forming_volume_source: str = "kline_snapshot"
     market_context: MarketContext | None = None
     market_context_fingerprint: tuple | None = None
     market_context_semantic_fingerprint: tuple | None = None
@@ -1391,6 +1398,10 @@ class TradingEngine:
                             side=str(row.get("S") or ""),
                         )
                         session.trades.append(tick)
+                        self._overlay_trade_on_forming_candle(
+                            session,
+                            tick,
+                        )
                         ticks.append(tick)
 
                     session.last_price = ticks[-1].price
@@ -1475,6 +1486,87 @@ class TradingEngine:
             self.config.orderbook_depth,
         )
 
+    @staticmethod
+    def _overlay_trade_on_forming_candle(
+        session: ActiveSymbolSession,
+        trade: TradeTick,
+    ) -> bool:
+        minute_start = (
+            trade.ts_ms // 60_000 * 60_000
+        )
+        forming = next(
+            (
+                candle
+                for candle in reversed(session.candles)
+                if (
+                    not candle.confirmed
+                    and candle.start_ms == minute_start
+                )
+            ),
+            None,
+        )
+        if forming is None:
+            # At a minute boundary the trade stream may lead the kline topic.
+            # If this symbol was already active before the new minute began,
+            # the first observed execution is a valid provisional minute open.
+            # Mid-minute activations deliberately do not synthesize a candle
+            # because their first observed trade is not necessarily the true
+            # minute open.
+            active_before_minute = (
+                int(session.activated_at * 1000)
+                <= minute_start
+            )
+            if not session.candles or not active_before_minute:
+                return False
+            forming = Candle(
+                start_ms=minute_start,
+                open=trade.price,
+                high=trade.price,
+                low=trade.price,
+                close=trade.price,
+                volume=trade.size,
+                turnover=trade.notional,
+                confirmed=False,
+            )
+            session.candles.append(forming)
+            session.candles.sort(
+                key=lambda candle: candle.start_ms
+            )
+            session.forming_tape_only_start_ms = minute_start
+            session.forming_kline_start_ms = 0
+            session.forming_kline_observed_at_ms = 0
+            session.forming_price_source = "tape_provisional"
+            session.forming_volume_source = "tape_provisional"
+            session.forming_trade_overlay_updates = 1
+            session.forming_trade_last_ts_ms = trade.ts_ms
+            return True
+
+        forming.high = max(forming.high, trade.price)
+        forming.low = min(forming.low, trade.price)
+        forming.close = trade.price
+        if (
+            session.forming_tape_only_start_ms
+            == minute_start
+        ):
+            # Before the first kline snapshot, tape is the only cumulative
+            # source for this minute and may safely build provisional volume.
+            forming.volume += trade.size
+            forming.turnover += trade.notional
+            session.forming_price_source = "tape_provisional"
+            session.forming_volume_source = "tape_provisional"
+        else:
+            # Once a kline snapshot exists, only overlay price geometry. Its
+            # cumulative volume/turnover already includes prior executions.
+            session.forming_price_source = "hybrid_tape"
+            session.forming_volume_source = "kline_snapshot"
+
+        session.forming_trade_overlay_updates += 1
+        session.forming_trade_last_ts_ms = max(
+            session.forming_trade_last_ts_ms,
+            trade.ts_ms,
+        )
+        return True
+
     def _apply_kline(
         self,
         session: ActiveSymbolSession,
@@ -1531,6 +1623,55 @@ class TradingEngine:
         latest = max(incoming, key=lambda candle: candle.start_ms)
         session.last_price = latest.close
 
+        forming = max(
+            (
+                candle
+                for candle in session.candles
+                if not candle.confirmed
+            ),
+            key=lambda candle: candle.start_ms,
+            default=None,
+        )
+        if forming is not None:
+            snapshot_observed_at_ms = int(
+                message.get("ts")
+                or time() * 1000
+            )
+            session.forming_kline_start_ms = (
+                forming.start_ms
+            )
+            session.forming_kline_observed_at_ms = (
+                snapshot_observed_at_ms
+            )
+            session.forming_tape_only_start_ms = 0
+            session.forming_price_source = "kline"
+            session.forming_volume_source = "kline_snapshot"
+            session.forming_trade_overlay_updates = 0
+            session.forming_trade_last_ts_ms = 0
+
+            # If a kline update is delivered after newer public trades, do not
+            # let the slower topic move live OHLC backwards. Re-apply only the
+            # tape executions newer than the kline snapshot timestamp.
+            for trade in session.trades:
+                if (
+                    trade.ts_ms > snapshot_observed_at_ms
+                    and forming.start_ms
+                    <= trade.ts_ms
+                    < forming.start_ms + 60_000
+                ):
+                    self._overlay_trade_on_forming_candle(
+                        session,
+                        trade,
+                    )
+        else:
+            session.forming_kline_start_ms = 0
+            session.forming_kline_observed_at_ms = 0
+            session.forming_trade_overlay_updates = 0
+            session.forming_trade_last_ts_ms = 0
+            session.forming_tape_only_start_ms = 0
+            session.forming_price_source = "kline"
+            session.forming_volume_source = "kline_snapshot"
+
     @staticmethod
     def _closed_candle_source_key(
         candles: list[Candle],
@@ -1585,6 +1726,34 @@ class TradingEngine:
             forming_1m,
             closed_1m,
             observed_at_ms=now_ms,
+            recent_trades=list(session.trades),
+            tape_updates=(
+                session.forming_trade_overlay_updates
+                if (
+                    forming_1m is not None
+                    and (
+                        session.forming_kline_start_ms
+                        in {0, forming_1m.start_ms}
+                    )
+                )
+                else 0
+            ),
+            last_trade_ts_ms=(
+                session.forming_trade_last_ts_ms
+                or None
+            ),
+            kline_snapshot_observed_at_ms=(
+                session.forming_kline_observed_at_ms
+                if (
+                    forming_1m is not None
+                    and session.forming_kline_start_ms
+                    == forming_1m.start_ms
+                    and session.forming_kline_observed_at_ms > 0
+                )
+                else None
+            ),
+            price_source=session.forming_price_source,
+            volume_source=session.forming_volume_source,
         )
 
         trade_flow = compute_trade_flow(
@@ -2148,6 +2317,27 @@ class TradingEngine:
                         forming.velocity_bps_per_second
                     ),
                     "direction": forming.direction.value,
+                    "priceSource": forming.price_source,
+                    "volumeSource": forming.volume_source,
+                    "tapeUpdates": forming.tape_updates,
+                    "lastTradeAgeSeconds": (
+                        forming.last_trade_age_seconds
+                    ),
+                    "klineSnapshotAgeSeconds": (
+                        forming.kline_snapshot_age_seconds
+                    ),
+                    "microMove5sBps": (
+                        forming.micro_move_5s_bps
+                    ),
+                    "microRange5sBps": (
+                        forming.micro_range_5s_bps
+                    ),
+                    "microMove15sBps": (
+                        forming.micro_move_15s_bps
+                    ),
+                    "microRange15sBps": (
+                        forming.micro_range_15s_bps
+                    ),
                 }
                 if forming is not None
                 else None
