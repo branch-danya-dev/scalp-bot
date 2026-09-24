@@ -2998,6 +2998,7 @@ def test_deep_book_stale_blocks_planning_but_fast_observation_remains_ready(
             last_book_at=now,
             book_synced=True,
             deep_book_synced=False,
+            confirmed_candle_stale_after_seconds=0.0,
             decisions={
                 "level_breakout": StrategyDecision(
                     strategy="level_breakout",
