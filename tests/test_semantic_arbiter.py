@@ -403,7 +403,7 @@ def test_trend_strategy_never_receives_aggressive_risk_scale() -> None:
     assert assessment.risk_scale == 1.0
 
 
-def test_opposite_tradeable_playbooks_at_same_location_block_each_other() -> None:
+def test_opposite_tradeable_playbooks_are_derisked_not_deadlocked() -> None:
     ctx = context()
     trend_long = decision(
         "trend_structure",
@@ -421,12 +421,13 @@ def test_opposite_tradeable_playbooks_at_same_location_block_each_other() -> Non
         ctx,
     )
 
-    assert result["trend_structure"].allowed is False
-    assert result["weak_level_rejection"].allowed is False
-    assert (
-        "opposing_playbook_conflict"
-        in result["trend_structure"].blockers
-    )
+    assert result["trend_structure"].allowed is True
+    assert result["weak_level_rejection"].allowed is True
+    assert result["trend_structure"].risk_scale == 0.50
+    assert result["weak_level_rejection"].risk_scale == 0.50
+    assert "opposing_playbook_conflict" not in result[
+        "trend_structure"
+    ].blockers
     assert result["trend_structure"].conflicting_strategies == (
         "weak_level_rejection",
     )

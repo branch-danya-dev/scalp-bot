@@ -690,10 +690,16 @@ def assess_session_candidates(
 
         blockers = list(assessment.blockers)
         reasons = list(assessment.reasons)
+        risk_scale = assessment.risk_scale
         if opposite:
-            blockers.append("opposing_playbook_conflict")
+            # Disagreement is uncertainty, not proof that both setups are
+            # invalid. Keep both candidates available to the central selector
+            # but de-risk them so the stronger flow/liquidity/freshness path
+            # can still trade instead of producing a guaranteed no-trade.
+            risk_scale = min(risk_scale, 0.50)
             reasons.append(
-                "opposite tradeable playbook exists at the same market location"
+                "opposite tradeable playbook exists at the same market "
+                "location; candidate remains selectable at reduced risk"
             )
         if same_side:
             reasons.append(
