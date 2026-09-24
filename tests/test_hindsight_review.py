@@ -44,14 +44,39 @@ def decision(
     state: str,
     *,
     side: str | None = None,
+    hypothesis_side: str | None = None,
     reason: str = "waiting",
 ) -> dict:
+    details = {"state": state}
+    if side is None and hypothesis_side in {"long", "short"}:
+        if strategy == "orderbook_density":
+            details["wallSide"] = (
+                "bid"
+                if hypothesis_side == "long"
+                else "ask"
+            )
+        elif strategy == "level_breakout":
+            details["zone"] = {
+                "kind": (
+                    "resistance"
+                    if hypothesis_side == "long"
+                    else "support"
+                )
+            }
+        elif strategy == "weak_level_rejection":
+            details["zone"] = {
+                "kind": (
+                    "support"
+                    if hypothesis_side == "long"
+                    else "resistance"
+                )
+            }
     payload = {
         "strategy": strategy,
         "action": side or "wait",
         "confidence": 0.7,
         "reasons": [reason],
-        "details": {"state": state},
+        "details": details,
     }
     if strategy == "trend_structure" and side is None:
         payload["trace"] = {
@@ -407,6 +432,7 @@ def test_hindsight_does_not_count_density_only_as_tradeable_coverage() -> None:
             5.0,
             "orderbook_density",
             "persisting",
+            hypothesis_side="long",
             reason="liquidity evidence",
         ),
         frame(10.0, 100.0),
@@ -414,6 +440,7 @@ def test_hindsight_does_not_count_density_only_as_tradeable_coverage() -> None:
             15.0,
             "orderbook_density",
             "approach",
+            hypothesis_side="long",
             reason="liquidity evidence",
         ),
         frame(20.0, 100.20),
@@ -448,6 +475,7 @@ def test_hindsight_distinguishes_observed_unconfirmed_from_tradeable_setup() -> 
             5.0,
             "level_breakout",
             "armed",
+            hypothesis_side="long",
             reason="prepared",
         ),
         frame(10.0, 100.0),
