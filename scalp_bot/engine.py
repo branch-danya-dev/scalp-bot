@@ -88,7 +88,10 @@ class ActiveSymbolSession:
     context_5m: list[Candle] = field(default_factory=list)
     context_15m: list[Candle] = field(default_factory=list)
     context_1h: list[Candle] = field(default_factory=list)
+    # orderbook is the latency-sensitive L50 book kept under the legacy name
+    # for compatibility with existing strategy/test code.
     orderbook: OrderBook = field(default_factory=OrderBook)
+    deep_orderbook: OrderBook = field(default_factory=OrderBook)
     last_price: float = 0.0
     # Legacy strategy direction remains unchanged during Stage 1.
     trend: Trend = Trend.FLAT
@@ -136,12 +139,22 @@ class ActiveSymbolSession:
     last_trade_at: float = 0.0
     last_market_at: float = 0.0
     last_book_at: float = 0.0
+    last_deep_book_at: float = 0.0
     book_stale_after_seconds: float = 1.5
+    deep_book_stale_after_seconds: float = 1.5
     confirmed_candle_stale_after_seconds: float = 150.0
     book_synced: bool | None = None
+    deep_book_synced: bool | None = None
     last_trade_stream_at: float = 0.0
     last_kline_at: float = 0.0
     last_eval: float = 0.0
+    last_event_eval_at: float = 0.0
+    event_eval_pending: bool = False
+    fast_event_requests: int = 0
+    fast_event_evaluations: int = 0
+    fast_event_coalesced: int = 0
+    last_fast_event_reason: str | None = None
+    last_fast_event_at_ms: int = 0
     last_frame: float = 0.0
     last_research_frame: float = 0.0
     last_risk_fingerprint: tuple | None = None
@@ -178,6 +191,73 @@ class ActiveSymbolSession:
             "staleAfterSeconds": self.book_stale_after_seconds,
             "bidLevels": len(self.orderbook.bids),
             "askLevels": len(self.orderbook.asks),
+        }
+
+    def depth_orderbook(self) -> OrderBook:
+        # Manually-constructed sessions in deterministic tests/replay predate
+        # the dual-book runtime. Live sessions explicitly start deep sync as
+        # False, so only legacy/test sessions may fall back to the fast book.
+        if (
+            self.deep_orderbook.bids
+            and self.deep_orderbook.asks
+        ):
+            return self.deep_orderbook
+        if self.deep_book_synced is None:
+            return self.orderbook
+        return self.deep_orderbook
+
+    def deep_book_age_seconds(
+        self,
+        now: float | None = None,
+    ) -> float | None:
+        if self.last_deep_book_at <= 0:
+            return None
+        resolved_now = time() if now is None else now
+        return max(
+            0.0,
+            resolved_now - self.last_deep_book_at,
+        )
+
+    def deep_book_is_fresh(
+        self,
+        now: float | None = None,
+    ) -> bool:
+        if (
+            self.deep_book_synced is None
+            and not self.deep_orderbook.bids
+            and not self.deep_orderbook.asks
+        ):
+            return self.book_is_fresh(now)
+        age = self.deep_book_age_seconds(now)
+        if age is None:
+            return False
+        if self.deep_book_synced is False:
+            return False
+        if (
+            not self.deep_orderbook.bids
+            or not self.deep_orderbook.asks
+        ):
+            return False
+        return age <= self.deep_book_stale_after_seconds
+
+    def deep_book_health(
+        self,
+        now: float | None = None,
+    ) -> dict:
+        return {
+            "fresh": self.deep_book_is_fresh(now),
+            "synced": self.deep_book_synced,
+            "ageSeconds": self.deep_book_age_seconds(now),
+            "staleAfterSeconds": (
+                self.deep_book_stale_after_seconds
+            ),
+            "bidLevels": len(self.depth_orderbook().bids),
+            "askLevels": len(self.depth_orderbook().asks),
+            "source": (
+                "deep_l1000"
+                if self.deep_book_synced is not None
+                else "legacy_fast_fallback"
+            ),
         }
 
     def confirmed_candle_age_seconds(
@@ -404,10 +484,11 @@ class ActiveSymbolSession:
             return None
         wall_price = float(wall_price)
         wall_side = str(details.get("wallSide") or "")
+        depth_book = self.depth_orderbook()
         rows = (
-            self.orderbook.bids
+            depth_book.bids
             if wall_side == "bid"
-            else self.orderbook.asks
+            else depth_book.asks
         )
         nearest_index = None
         if rows:
@@ -481,6 +562,13 @@ class ActiveSymbolSession:
                 if self.static_analysis_key is not None
                 else None
             ),
+            "fastEventRequests": self.fast_event_requests,
+            "fastEventEvaluations": self.fast_event_evaluations,
+            "fastEventCoalesced": self.fast_event_coalesced,
+            "lastFastEventReason": self.last_fast_event_reason,
+            "lastFastEventAtMs": (
+                self.last_fast_event_at_ms or None
+            ),
         }
 
     def market_context_public(self) -> dict:
@@ -526,8 +614,12 @@ class ActiveSymbolSession:
             "candles": [x.public() for x in self.candles[-240:]],
             "chartSeries": self.chart_series(now_ms),
             "orderbook": self.orderbook.public(50),
+            "fastOrderbook": self.orderbook.public(50),
+            "deepOrderbook": self.depth_orderbook().public(50),
             "densityContext": self.density_context(now_ms),
             "bookHealth": self.book_health(),
+            "fastBookHealth": self.book_health(),
+            "deepBookHealth": self.deep_book_health(),
             "candleHealth": self.candle_health(
                 self.confirmed_candle_stale_after_seconds
             ),
@@ -566,8 +658,18 @@ class ActiveSymbolSession:
             "marketContext": self.market_context_public(),
             "analysisRuntime": self.analysis_runtime_public(),
             "candle": self.candles[-1].public() if self.candles else None,
-            "orderbook": self.orderbook.public(book_depth),
+            "orderbook": self.orderbook.public(
+                min(book_depth, 50)
+            ),
+            "fastOrderbook": self.orderbook.public(
+                min(book_depth, 50)
+            ),
+            "deepOrderbook": self.depth_orderbook().public(
+                book_depth
+            ),
             "bookHealth": self.book_health(),
+            "fastBookHealth": self.book_health(),
+            "deepBookHealth": self.deep_book_health(),
             "candleHealth": self.candle_health(
                 self.confirmed_candle_stale_after_seconds
             ),
@@ -771,6 +873,7 @@ class TradingEngine:
         self.sessions: dict[str, ActiveSymbolSession] = {}
         self.events: deque[dict] = deque(maxlen=260)
         self._tasks: list[asyncio.Task] = []
+        self._event_tasks: set[asyncio.Task] = set()
         self._worker_tasks: dict[str, tuple[asyncio.Task, asyncio.Event]] = {}
         self._stop = asyncio.Event()
         self._paper_timer_task: asyncio.Task | None = None
@@ -806,11 +909,15 @@ class TradingEngine:
             task.cancel()
         for task in self._tasks:
             task.cancel()
+        for task in list(self._event_tasks):
+            task.cancel()
         await asyncio.gather(
             *(x[0] for x in self._worker_tasks.values()),
             *self._tasks,
+            *list(self._event_tasks),
             return_exceptions=True,
         )
+        self._event_tasks.clear()
         await self.rest.close()
 
     def set_running(self, value: bool) -> None:
@@ -910,6 +1017,14 @@ class TradingEngine:
             "minTurnoverUsd": self.config.min_turnover_usd,
             "workingSymbols": self.config.working_symbols,
             "maxActiveSymbols": self.config.max_active_symbols,
+            "fastOrderbookDepth": self.config.fast_orderbook_depth,
+            "deepOrderbookDepth": self.config.deep_orderbook_depth,
+            "eventDrivenEvaluation": (
+                self.config.event_driven_evaluation_enabled
+            ),
+            "eventEvaluationMinIntervalSeconds": (
+                self.config.event_evaluation_min_interval_seconds
+            ),
             "minNetProfitUsd": self.config.min_net_profit_usd,
             "minNetProfitEquityFraction": self.config.min_net_profit_equity_fraction,
             "minNetRewardRisk": self.config.min_net_reward_risk,
@@ -1001,6 +1116,7 @@ class TradingEngine:
             if session.last_market_at > 0
             and now - session.last_market_at <= self.config.market_stale_seconds
             and session.book_is_fresh(now)
+            and session.deep_book_is_fresh(now)
             and session.confirmed_candle_is_fresh(
                 self.config.confirmed_candle_stale_seconds,
                 now,
@@ -1022,11 +1138,24 @@ class TradingEngine:
                     now,
                 )
             ]
+            stale_deep_books = [
+                session.symbol
+                for session in self.sessions.values()
+                if (
+                    session.book_is_fresh(now)
+                    and not session.deep_book_is_fresh(now)
+                )
+            ]
             reason = (
                 "confirmed 1m candle history is stale: "
                 + ", ".join(stale_candles[:6])
                 if stale_candles
-                else "waiting for fresh synchronized websocket market data"
+                else (
+                    "waiting for synchronized deep L1000 book: "
+                    + ", ".join(stale_deep_books[:6])
+                    if stale_deep_books
+                    else "waiting for fresh synchronized websocket market data"
+                )
             )
         else:
             reason = None
@@ -1039,6 +1168,16 @@ class TradingEngine:
             "candidateCount": len(self.candidates),
             "activeSymbolCount": len(self.sessions),
             "liveSymbolCount": len(live_sessions),
+            "fastBookReadyCount": sum(
+                1
+                for session in self.sessions.values()
+                if session.book_is_fresh(now)
+            ),
+            "deepBookReadyCount": sum(
+                1
+                for session in self.sessions.values()
+                if session.deep_book_is_fresh(now)
+            ),
         }
 
     def start_block_reason(self) -> str | None:
@@ -1156,6 +1295,198 @@ class TradingEngine:
                 return True
         return False
 
+    def _fast_book_event_reason(
+        self,
+        session: ActiveSymbolSession,
+        previous: OrderBook,
+        current: OrderBook,
+        *,
+        ofi_usd: float = 0.0,
+    ) -> str | None:
+        if not self.config.event_driven_evaluation_enabled:
+            return None
+        engaged = (
+            self._session_engaged(session)
+            or session.symbol in self.broker.positions
+            or session.symbol in self.broker.pending_entries
+        )
+        if not engaged:
+            return None
+        if not current.bids or not current.asks:
+            return None
+        if not previous.bids or not previous.asks:
+            return "fast_book_ready"
+
+        if (
+            previous.best_bid != current.best_bid
+            or previous.best_ask != current.best_ask
+        ):
+            return "best_quote"
+
+        previous_mid = previous.mid
+        current_mid = current.mid
+        if previous_mid and current_mid:
+            mid_move_bps = (
+                abs(current_mid - previous_mid)
+                / previous_mid
+                * 10_000
+            )
+            if (
+                mid_move_bps
+                >= self.config.fast_event_min_mid_move_bps
+            ):
+                return "mid_move"
+
+        spread_change_bps = (
+            abs(current.spread_pct - previous.spread_pct)
+            * 10_000
+        )
+        if (
+            spread_change_bps
+            >= self.config.fast_event_min_spread_change_bps
+        ):
+            return "spread_change"
+
+        top_depth = sum(
+            price * qty
+            for price, qty in (
+                current.bids[:5] + current.asks[:5]
+            )
+        )
+        if top_depth > 0:
+            ofi_fraction = abs(ofi_usd) / top_depth
+            if (
+                ofi_fraction
+                >= self.config.fast_event_min_ofi_fraction
+            ):
+                return "top_level_ofi"
+        return None
+
+    @staticmethod
+    def _tradeable_event_fingerprint(
+        session: ActiveSymbolSession,
+    ) -> tuple:
+        return tuple(sorted(
+            (
+                key,
+                decision.action.value,
+                str(decision.setup_id or ""),
+                str((decision.details or {}).get("state") or ""),
+            )
+            for key, decision in session.decisions.items()
+            if decision.tradeable
+        ))
+
+    def _track_event_task(
+        self,
+        task: asyncio.Task,
+    ) -> None:
+        self._event_tasks.add(task)
+        task.add_done_callback(self._event_tasks.discard)
+
+    def _schedule_event_evaluation(
+        self,
+        session: ActiveSymbolSession,
+        reason: str,
+        *,
+        observed_at_ms: int | None = None,
+    ) -> None:
+        if not self.config.event_driven_evaluation_enabled:
+            return
+        if not (
+            self._session_engaged(session)
+            or session.symbol in self.broker.positions
+            or session.symbol in self.broker.pending_entries
+        ):
+            return
+
+        session.fast_event_requests += 1
+        session.last_fast_event_reason = reason
+        session.last_fast_event_at_ms = (
+            int(time() * 1000)
+            if observed_at_ms is None
+            else int(observed_at_ms)
+        )
+        if session.event_eval_pending:
+            session.fast_event_coalesced += 1
+            return
+
+        session.event_eval_pending = True
+        task = asyncio.create_task(
+            self._run_event_evaluation(
+                session.symbol,
+                reason,
+            ),
+            name=f"fast-eval-{session.symbol}",
+        )
+        self._track_event_task(task)
+
+    async def _run_event_evaluation(
+        self,
+        symbol: str,
+        reason: str,
+    ) -> None:
+        session = self.sessions.get(symbol)
+        if session is None:
+            return
+        try:
+            min_interval = max(
+                0.0,
+                float(
+                    self.config
+                    .event_evaluation_min_interval_seconds
+                ),
+            )
+            elapsed = (
+                monotonic() - session.last_event_eval_at
+                if session.last_event_eval_at > 0
+                else min_interval
+            )
+            delay = max(0.0, min_interval - elapsed)
+            if delay > 0:
+                await asyncio.sleep(delay)
+
+            session = self.sessions.get(symbol)
+            if session is None:
+                return
+            before = self._tradeable_event_fingerprint(
+                session
+            )
+            now = monotonic()
+            session.last_eval = now
+            session.last_event_eval_at = now
+            session.fast_event_evaluations += 1
+            session.last_fast_event_reason = reason
+            await self._evaluate(session)
+            after = self._tradeable_event_fingerprint(
+                session
+            )
+
+            # FIRE should not wait for the periodic 250ms arbiter tick. Keep
+            # the global selection/risk semantics intact, but invoke them as
+            # soon as this market event creates a new tradeable setup.
+            if (
+                self.running
+                and after
+                and after != before
+            ):
+                self._arbitrate_once()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            self._emit(
+                "fast_path_error",
+                symbol,
+                {
+                    "reason": reason,
+                    "error": f"{type(exc).__name__}: {exc}",
+                },
+            )
+        finally:
+            current = self.sessions.get(symbol)
+            if current is not None:
+                current.event_eval_pending = False
+
     def _research_book_depth(
         self,
         session: ActiveSymbolSession,
@@ -1175,8 +1506,8 @@ class TradingEngine:
             )
         )
         if density_engaged:
-            return self.config.orderbook_depth
-        return min(self.config.orderbook_depth, 50)
+            return self.config.deep_orderbook_depth
+        return min(self.config.deep_orderbook_depth, 50)
 
     def _deactivate_symbol(self, symbol: str, reason: str) -> None:
         worker = self._worker_tasks.pop(symbol, None)
@@ -1220,6 +1551,11 @@ class TradingEngine:
             context_15m=[x for x in context_15m if x.confirmed],
             context_1h=[x for x in context_1h if x.confirmed],
             book_stale_after_seconds=self.config.book_stale_seconds,
+            deep_book_stale_after_seconds=(
+                self.config.deep_book_stale_seconds
+            ),
+            book_synced=False,
+            deep_book_synced=False,
             confirmed_candle_stale_after_seconds=(
                 self.config.confirmed_candle_stale_seconds
             ),
@@ -1364,8 +1700,17 @@ class TradingEngine:
             except Exception as exc:
                 self._emit("context_error", None, {"error": str(exc)})
 
-    async def _symbol_worker(self, symbol: str, stop_event: asyncio.Event) -> None:
-        book_state = OrderBookState(self.config.orderbook_depth)
+    async def _symbol_worker(
+        self,
+        symbol: str,
+        stop_event: asyncio.Event,
+    ) -> None:
+        fast_depth = self.config.fast_orderbook_depth
+        deep_depth = self.config.deep_orderbook_depth
+        fast_book_state = OrderBookState(fast_depth)
+        deep_book_state = OrderBookState(deep_depth)
+        fast_topic = f"orderbook.{fast_depth}."
+        deep_topic = f"orderbook.{deep_depth}."
 
         async def on_message(message: dict) -> None:
             session = self.sessions.get(symbol)
@@ -1374,39 +1719,91 @@ class TradingEngine:
 
             wall_now = time()
             session.last_market_at = wall_now
-            topic = message.get("topic", "")
-            if topic.startswith("orderbook."):
+            topic = str(message.get("topic") or "")
+            is_fast_book = topic.startswith(fast_topic)
+            is_deep_book = topic.startswith(deep_topic)
+            deep_only = (
+                is_deep_book
+                and not is_fast_book
+            )
+
+            if is_fast_book:
                 previous_book = session.orderbook
                 try:
-                    session.orderbook = book_state.apply(message)
+                    session.orderbook = fast_book_state.apply(
+                        message
+                    )
                 except OrderBookSequenceError:
                     session.last_book_at = 0.0
                     session.book_synced = False
                     session.orderbook = OrderBook()
                     raise
-                session.book_synced = book_state.synced
+                session.book_synced = fast_book_state.synced
                 session.last_book_at = wall_now
+
+                # If both configured depths are identical, the same stream is
+                # authoritative for both roles.
+                if fast_depth == deep_depth:
+                    session.deep_orderbook = session.orderbook
+                    session.deep_book_synced = (
+                        fast_book_state.synced
+                    )
+                    session.last_deep_book_at = wall_now
+
                 data = message.get("data") or {}
+                ofi_usd = 0.0
+                event_ms = int(
+                    message.get("cts")
+                    or message.get("ts")
+                    or wall_now * 1000
+                )
                 if (
                     message.get("type") != "snapshot"
                     and int(data.get("u") or 0) != 1
                     and previous_book.bids
                     and previous_book.asks
                 ):
-                    event_ms = int(
-                        message.get("cts")
-                        or message.get("ts")
-                        or wall_now * 1000
+                    ofi_usd = best_level_ofi_usd(
+                        previous_book,
+                        session.orderbook,
                     )
                     session.record_book_flow(
                         event_ms,
-                        best_level_ofi_usd(
-                            previous_book,
-                            session.orderbook,
-                        ),
+                        ofi_usd,
                     )
+
+                # Stop/target checks consume the fast executable quote while
+                # market-exit VWAP still uses the deep book.
                 self._mark_position_from_book(session)
-            elif topic.startswith("kline."):
+                reason = self._fast_book_event_reason(
+                    session,
+                    previous_book,
+                    session.orderbook,
+                    ofi_usd=ofi_usd,
+                )
+                if reason is not None:
+                    self._schedule_event_evaluation(
+                        session,
+                        reason,
+                        observed_at_ms=event_ms,
+                    )
+
+            if deep_only:
+                try:
+                    session.deep_orderbook = (
+                        deep_book_state.apply(message)
+                    )
+                except OrderBookSequenceError:
+                    session.last_deep_book_at = 0.0
+                    session.deep_book_synced = False
+                    session.deep_orderbook = OrderBook()
+                    raise
+                session.deep_book_synced = (
+                    deep_book_state.synced
+                )
+                session.last_deep_book_at = wall_now
+
+            if topic.startswith("kline."):
                 self._apply_kline(session, message)
                 session.last_kline_at = wall_now
             elif topic.startswith("publicTrade."):
@@ -1416,7 +1813,8 @@ class TradingEngine:
                     for row in rows:
                         tick = TradeTick(
                             ts_ms=int(
-                                row.get("T") or time() * 1000
+                                row.get("T")
+                                or time() * 1000
                             ),
                             price=float(row["p"]),
                             size=float(row["v"]),
@@ -1437,18 +1835,12 @@ class TradingEngine:
                         self.config.trade_buffer_seconds,
                     )
 
-                    # Pending maker orders must consume the newest tape before
-                    # they are allowed to fill. Otherwise the same trade batch
-                    # can invalidate a setup and fill its stale limit before
-                    # the next 0.20s strategy evaluation.
+                    # Pending maker entries must be invalidated against the
+                    # newest tape before the same trade is allowed to fill.
                     if symbol in self.broker.pending_entries:
                         session.last_eval = monotonic()
                         await self._evaluate(session)
 
-                    # A publicTrade websocket payload may contain several
-                    # executions. Replay them in order so a maker entry/target
-                    # crossing in an earlier row is not lost just because the
-                    # final trade retraced.
                     for tick in ticks:
                         session.last_price = tick.price
                         self._mark_execution_from_market(
@@ -1459,57 +1851,84 @@ class TradingEngine:
                         )
                     session.last_price = ticks[-1].price
 
-            now = monotonic()
-            evaluation_interval = self._evaluation_interval_seconds(
-                session
-            )
-            if now - session.last_eval >= evaluation_interval:
-                session.last_eval = now
-                await self._evaluate(session)
+                    self._schedule_event_evaluation(
+                        session,
+                        "public_trade",
+                        observed_at_ms=ticks[-1].ts_ms,
+                    )
 
-            position = self.broker.positions.get(symbol)
+            # Periodic evaluation remains a fallback, but deep-book-only
+            # context updates never drive the latency-sensitive strategy loop.
+            if not deep_only:
+                now = monotonic()
+                evaluation_interval = (
+                    self._evaluation_interval_seconds(
+                        session
+                    )
+                )
+                if (
+                    not session.event_eval_pending
+                    and now - session.last_eval
+                    >= evaluation_interval
+                ):
+                    session.last_eval = now
+                    await self._evaluate(session)
 
-            if (
-                now - session.last_research_frame
-                >= self.config.research_frame_seconds
-            ):
-                session.last_research_frame = now
-                self.recorder.record(
-                    "research_frame",
-                    symbol,
-                    session.frame(
-                        self._research_book_depth(
-                            session,
-                            position,
+                position = self.broker.positions.get(symbol)
+
+                if (
+                    now - session.last_research_frame
+                    >= self.config.research_frame_seconds
+                ):
+                    session.last_research_frame = now
+                    self.recorder.record(
+                        "research_frame",
+                        symbol,
+                        session.frame(
+                            self._research_book_depth(
+                                session,
+                                position,
+                            ),
+                            (
+                                position.public()
+                                if position
+                                else None
+                            ),
+                            self.config.research_recent_trades,
                         ),
-                        position.public() if position else None,
-                        self.config.research_recent_trades,
-                    ),
-                )
+                    )
 
-            frame_interval = (
-                self.config.replay_engaged_frame_seconds
-                if position is not None or self._session_engaged(session)
-                else self.config.replay_idle_frame_seconds
-            )
-            if now - session.last_frame >= frame_interval:
-                session.last_frame = now
-                self.recorder.record(
-                    "market_frame",
-                    symbol,
-                    session.frame(
-                        self.config.replay_book_depth,
-                        position.public() if position else None,
-                        self.config.replay_recent_trades,
-                    ),
+                frame_interval = (
+                    self.config.replay_engaged_frame_seconds
+                    if (
+                        position is not None
+                        or self._session_engaged(session)
+                    )
+                    else self.config.replay_idle_frame_seconds
                 )
+                if now - session.last_frame >= frame_interval:
+                    session.last_frame = now
+                    self.recorder.record(
+                        "market_frame",
+                        symbol,
+                        session.frame(
+                            self.config.replay_book_depth,
+                            (
+                                position.public()
+                                if position
+                                else None
+                            ),
+                            self.config.replay_recent_trades,
+                        ),
+                    )
 
         await stream_symbol(
             self.config.bybit_public_ws_url,
             symbol,
             on_message,
             stop_event,
-            self.config.orderbook_depth,
+            fast_orderbook_depth=fast_depth,
+            deep_orderbook_depth=deep_depth,
         )
 
     @staticmethod
@@ -1892,7 +2311,7 @@ class TradingEngine:
             density is not None
             and self.strategy_enabled.get("orderbook_density", False)
         ):
-            if not session.book_is_fresh(now):
+            if not session.deep_book_is_fresh(now):
                 raw_density = StrategyDecision(
                     strategy="orderbook_density",
                     action=Action.WAIT,
@@ -1901,7 +2320,8 @@ class TradingEngine:
                     ],
                     details={
                         "state": "stale_book",
-                        "bookHealth": session.book_health(now),
+                        "bookHealth": session.deep_book_health(now),
+                        "bookSource": "deep_l1000",
                         "positionInvalidated": False,
                         "evidenceOnly": True,
                     },
@@ -1910,7 +2330,7 @@ class TradingEngine:
                 try:
                     raw_density = density.evaluate(
                         closed_1m,
-                        session.orderbook,
+                        session.depth_orderbook(),
                         session.trend,
                         symbol=session.symbol,
                         trades=list(session.trades),
@@ -2624,6 +3044,14 @@ class TradingEngine:
             ),
             "analysisRuntime": session.analysis_runtime_public(),
             "executionReady": context.execution.ready,
+            "fastBookFresh": session.book_is_fresh(),
+            "fastBookAgeSeconds": session.book_age_seconds(),
+            "deepBookFresh": session.deep_book_is_fresh(),
+            "deepBookAgeSeconds": (
+                session.deep_book_age_seconds()
+            ),
+            "fastBookSource": "orderbook_l50",
+            "deepBookSource": "orderbook_l1000",
             "spreadPct": context.execution.spread_pct,
             "top5DepthUsd": (
                 context.execution.top5_depth_usd
@@ -2902,6 +3330,7 @@ class TradingEngine:
             session.orderbook,
             self.broker.available_notional,
             self.broker.available_risk_usd,
+            depth_book=session.depth_orderbook(),
             setup_id=setup_id,
             existing_position_notional=(
                 existing_position.notional
@@ -2957,6 +3386,8 @@ class TradingEngine:
             ):
                 continue
             if not session.book_is_fresh(now):
+                continue
+            if not session.deep_book_is_fresh(now):
                 continue
             if not session.confirmed_candle_is_fresh(
                 self.config.confirmed_candle_stale_seconds,
@@ -3531,7 +3962,7 @@ class TradingEngine:
         if best.position_action == "add":
             position = self.broker.add(
                 best.plan,
-                best.session.orderbook,
+                best.session.depth_orderbook(),
             )
             self._record_added_position(
                 best.session,
@@ -3546,7 +3977,7 @@ class TradingEngine:
         else:
             position = self.broker.open(
                 best.plan,
-                best.session.orderbook,
+                best.session.depth_orderbook(),
             )
             self._record_opened_position(
                 best.session,
@@ -4019,6 +4450,7 @@ class TradingEngine:
             session.symbol,
             session.orderbook,
             reason,
+            depth_book=session.depth_orderbook(),
         )
         self._handle_broker_events(session, [event])
 
@@ -4117,6 +4549,7 @@ class TradingEngine:
             session.symbol,
             mark,
             session.orderbook,
+            depth_book=session.depth_orderbook(),
             trade_price=trade_price,
             trade_notional_usd=trade_notional_usd,
         )
@@ -4307,7 +4740,17 @@ class TradingEngine:
         for symbol in list(self.broker.positions):
             session = self.sessions.get(symbol)
             book = session.orderbook if session else OrderBook()
-            event = self.broker.close(symbol, book, reason)
+            deep_book = (
+                session.depth_orderbook()
+                if session
+                else book
+            )
+            event = self.broker.close(
+                symbol,
+                book,
+                reason,
+                depth_book=deep_book,
+            )
             if session:
                 self._handle_broker_events(session, [event])
             else:

@@ -1247,3 +1247,43 @@ def test_maker_partial_requires_cumulative_trade_through_volume() -> None:
     )
     assert partial and partial[0]["event"] == "partial_take"
     assert pos.partial_taken is True
+
+
+def test_fast_book_triggers_stop_while_deep_book_sets_exit_vwap() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+        max_leverage=2,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("FASTSTOPUSDT", Side.LONG, 1000)
+    p.stop = 99.50
+    p.target = 102.0
+    broker.open(
+        p,
+        OrderBook(
+            bids=[(99.99, 100)],
+            asks=[(100.00, 100)],
+        ),
+    )
+
+    fast = OrderBook(
+        bids=[(99.40, 100)],
+        asks=[(99.41, 100)],
+    )
+    deep = OrderBook(
+        bids=[(99.00, 100)],
+        asks=[(99.10, 100)],
+    )
+    events = broker.mark(
+        "FASTSTOPUSDT",
+        99.40,
+        fast,
+        depth_book=deep,
+    )
+
+    assert events and events[-1]["reason"] == "stop"
+    assert events[-1]["exit"] == pytest.approx(99.00)

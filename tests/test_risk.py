@@ -1294,3 +1294,39 @@ def test_stop_side_depth_stress_reduces_size_and_stays_reserved() -> None:
         stressed.plan.expected_net_loss,
         rel=1e-6,
     )
+
+
+def test_risk_uses_fast_quote_but_deep_book_for_entry_depth() -> None:
+    cfg = scalp_settings(
+        max_entry_drift_bps=100,
+        stop_depth_stress_multiplier=0.0,
+    )
+    fast = OrderBook(
+        bids=[(99.99, 100)],
+        asks=[(100.00, 100)],
+    )
+    deep = OrderBook(
+        bids=[(99.99, 100)],
+        asks=[
+            (100.00, 1),
+            (100.10, 100),
+        ],
+    )
+
+    result = RiskEngine(cfg).build_plan(
+        "DUALBOOKUSDT",
+        decision(102.0, stop=99.5),
+        1000,
+        fast,
+        10_000,
+        50,
+        depth_book=deep,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    economics = result.plan.strategy_details["economics"]
+    assert economics["fastBookBestAsk"] == pytest.approx(100.00)
+    assert economics["deepBookBestAsk"] == pytest.approx(100.00)
+    assert result.plan.market_entry > fast.best_ask
+    assert economics["entryDepthImpactBps"] > 0

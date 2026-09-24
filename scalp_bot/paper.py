@@ -973,6 +973,7 @@ class PaperBroker:
         last_price: float,
         book: OrderBook,
         *,
+        depth_book: OrderBook | None = None,
         trade_price: float | None | object = _UNSET_TRADE_PRICE,
         trade_notional_usd: float | None = None,
     ) -> list[dict]:
@@ -981,6 +982,7 @@ class PaperBroker:
             return []
 
         pos.last_price = last_price
+        realization_book = depth_book or book
         direction = 1 if pos.side == Side.LONG else -1
         executable = book.executable_exit(pos.side) or last_price
         now = time()
@@ -1026,7 +1028,14 @@ class PaperBroker:
 
         hit_stop = executable <= pos.stop if pos.side == Side.LONG else executable >= pos.stop
         if hit_stop:
-            return [self.close(symbol, book, "stop")]
+            return [
+                self.close(
+                    symbol,
+                    book,
+                    "stop",
+                    depth_book=realization_book,
+                )
+            ]
 
         events: list[dict] = []
         allow_runner = bool(pos.strategy_details.get("allowRunner", True))
@@ -1066,7 +1075,7 @@ class PaperBroker:
             preview = self._preview_realize(
                 pos,
                 close_notional,
-                book,
+                realization_book,
                 reason="partial_take",
             )
             required_net = self._partial_required_net_usd(pos)
@@ -1077,7 +1086,7 @@ class PaperBroker:
                 events.append(
                     self._partial_take(
                         pos,
-                        book,
+                        realization_book,
                         preview=preview,
                     )
                 )
@@ -1125,21 +1134,42 @@ class PaperBroker:
                 else executable <= pos.target
             )
         if hit_target:
-            events.append(self.close(symbol, book, "runner_target" if pos.partial_taken else "target"))
+            events.append(
+                self.close(
+                    symbol,
+                    book,
+                    "runner_target" if pos.partial_taken else "target",
+                    depth_book=realization_book,
+                )
+            )
             return events
 
         if not pos.partial_taken and self._should_cut_no_follow_through(pos, gross_mark_original):
-            events.append(self.close(symbol, book, "no_follow_through"))
+            events.append(
+                self.close(
+                    symbol,
+                    book,
+                    "no_follow_through",
+                    depth_book=realization_book,
+                )
+            )
         return events
 
-    def close(self, symbol: str, book: OrderBook, reason: str) -> dict:
+    def close(
+        self,
+        symbol: str,
+        book: OrderBook,
+        reason: str,
+        *,
+        depth_book: OrderBook | None = None,
+    ) -> dict:
         pos = self.positions.get(symbol)
         if pos is None:
             raise RuntimeError("no paper position for symbol")
         final_leg = self._realize(
             pos,
             pos.notional,
-            book,
+            depth_book or book,
             reason=reason,
         )
         direction = 1 if pos.side == Side.LONG else -1

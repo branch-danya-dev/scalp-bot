@@ -2748,3 +2748,405 @@ def test_kline_rebases_provisional_candle_without_losing_newer_tape(
         assert session.forming_tape_only_start_ms == 0
     finally:
         close_rest(engine)
+
+
+@pytest.mark.asyncio
+async def test_fast_event_evaluation_bypasses_poll_interval_and_arbitrates_fire(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        evaluation_engaged_interval_seconds=0.20,
+        event_evaluation_min_interval_seconds=0.0,
+    )
+    session = ActiveSymbolSession(
+        symbol="FASTUSDT",
+        candles=[candle()],
+        orderbook=book(),
+        last_price=100.0,
+        last_book_at=time(),
+        book_synced=True,
+        decisions={
+            "level_breakout": StrategyDecision(
+                strategy="level_breakout",
+                action=Action.WAIT,
+                reasons=["armed fixture"],
+                confidence=0.8,
+                watched_level=100.0,
+                details={"state": "armed"},
+            )
+        },
+    )
+    engine.sessions[session.symbol] = session
+    evaluations: list[str] = []
+    arbitrations: list[str] = []
+
+    async def fake_evaluate(target: ActiveSymbolSession) -> None:
+        evaluations.append(target.symbol)
+        target.decisions["level_breakout"] = StrategyDecision(
+            strategy="level_breakout",
+            action=Action.LONG,
+            reasons=["event fire"],
+            confidence=0.9,
+            watched_level=100.0,
+            entry=100.0,
+            stop=99.5,
+            target=101.0,
+            setup_id="level_breakout:long:R:g1",
+            details={"state": "impulse"},
+        )
+
+    def fake_arbitrate() -> None:
+        arbitrations.append("fire")
+
+    monkeypatch.setattr(engine, "_evaluate", fake_evaluate)
+    monkeypatch.setattr(engine, "_arbitrate_once", fake_arbitrate)
+    engine.running = True
+    # The fallback poll has effectively just run. Event-driven evaluation must
+    # still execute without waiting evaluation_engaged_interval_seconds.
+    session.last_eval = 10**9
+
+    try:
+        engine._schedule_event_evaluation(
+            session,
+            "best_quote",
+            observed_at_ms=1_000,
+        )
+        tasks = list(engine._event_tasks)
+        assert tasks
+        await asyncio.gather(*tasks)
+
+        assert evaluations == ["FASTUSDT"]
+        assert arbitrations == ["fire"]
+        assert session.fast_event_evaluations == 1
+        assert session.last_fast_event_reason == "best_quote"
+    finally:
+        engine.running = False
+        await engine.rest.close()
+
+
+@pytest.mark.asyncio
+async def test_deep_book_update_alone_does_not_drive_strategy_evaluation(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        event_evaluation_min_interval_seconds=0.0,
+    )
+    session = ActiveSymbolSession(
+        symbol="DEEPUSDT",
+        candles=[candle()],
+        orderbook=book(),
+        last_price=100.0,
+        last_book_at=time(),
+        book_synced=True,
+        last_eval=10**9,
+        decisions={
+            "level_breakout": StrategyDecision(
+                strategy="level_breakout",
+                action=Action.WAIT,
+                reasons=["armed fixture"],
+                confidence=0.8,
+                watched_level=100.0,
+                details={"state": "armed"},
+            )
+        },
+    )
+    engine.sessions[session.symbol] = session
+    evaluations: list[str] = []
+
+    async def fake_evaluate(target: ActiveSymbolSession) -> None:
+        evaluations.append(target.symbol)
+
+    async def fake_stream(
+        ws_url,
+        symbol,
+        callback,
+        stop_event,
+        orderbook_depth=None,
+        *,
+        fast_orderbook_depth=50,
+        deep_orderbook_depth=1000,
+    ):
+        await callback({
+            "topic": f"orderbook.{deep_orderbook_depth}.{symbol}",
+            "type": "snapshot",
+            "ts": 1_000,
+            "data": {
+                "u": 1,
+                "seq": 10,
+                "b": [["99.99", "100"]],
+                "a": [["100.01", "100"]],
+            },
+        })
+
+    monkeypatch.setattr(engine, "_evaluate", fake_evaluate)
+    monkeypatch.setattr(
+        "scalp_bot.engine.stream_symbol",
+        fake_stream,
+    )
+
+    try:
+        await engine._symbol_worker(
+            session.symbol,
+            asyncio.Event(),
+        )
+        assert evaluations == []
+        assert session.deep_book_synced is True
+        assert session.depth_orderbook().best_bid == pytest.approx(99.99)
+        assert session.fast_event_requests == 0
+    finally:
+        await engine.rest.close()
+
+
+@pytest.mark.asyncio
+async def test_fast_book_desync_does_not_destroy_deep_context(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        event_driven_evaluation_enabled=False,
+    )
+    session = ActiveSymbolSession(
+        symbol="GAPUSDT",
+        candles=[candle()],
+        last_price=100.0,
+        last_eval=10**9,
+    )
+    engine.sessions[session.symbol] = session
+
+    async def fake_stream(
+        ws_url,
+        symbol,
+        callback,
+        stop_event,
+        orderbook_depth=None,
+        *,
+        fast_orderbook_depth=50,
+        deep_orderbook_depth=1000,
+    ):
+        await callback({
+            "topic": f"orderbook.{deep_orderbook_depth}.{symbol}",
+            "type": "snapshot",
+            "ts": 1_000,
+            "data": {
+                "u": 1,
+                "seq": 100,
+                "b": [["99.90", "200"]],
+                "a": [["100.10", "200"]],
+            },
+        })
+        await callback({
+            "topic": f"orderbook.{fast_orderbook_depth}.{symbol}",
+            "type": "snapshot",
+            "ts": 1_010,
+            "data": {
+                "u": 1,
+                "seq": 200,
+                "b": [["99.99", "20"]],
+                "a": [["100.01", "20"]],
+            },
+        })
+        try:
+            await callback({
+                "topic": f"orderbook.{fast_orderbook_depth}.{symbol}",
+                "type": "delta",
+                "ts": 1_020,
+                "data": {
+                    "u": 3,
+                    "seq": 202,
+                    "b": [],
+                    "a": [],
+                },
+            })
+        except Exception:
+            pass
+
+    monkeypatch.setattr(
+        "scalp_bot.engine.stream_symbol",
+        fake_stream,
+    )
+
+    try:
+        await engine._symbol_worker(
+            session.symbol,
+            asyncio.Event(),
+        )
+        assert session.book_synced is False
+        assert not session.orderbook.bids
+        assert session.deep_book_synced is True
+        assert session.depth_orderbook().best_bid == pytest.approx(99.90)
+    finally:
+        await engine.rest.close()
+
+
+def test_deep_book_stale_blocks_planning_but_fast_observation_remains_ready(
+    tmp_path,
+) -> None:
+    engine = make_engine(tmp_path)
+    try:
+        now = time()
+        session = ActiveSymbolSession(
+            symbol="STALEDEEPUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100.0,
+            last_market_at=now,
+            last_book_at=now,
+            book_synced=True,
+            deep_book_synced=False,
+            confirmed_candle_stale_after_seconds=0.0,
+            decisions={
+                "level_breakout": StrategyDecision(
+                    strategy="level_breakout",
+                    action=Action.LONG,
+                    reasons=["fixture fire"],
+                    confidence=0.9,
+                    watched_level=100.0,
+                    entry=100.0,
+                    stop=99.5,
+                    target=101.0,
+                    setup_id="level_breakout:long:R:g1",
+                    details={"state": "impulse"},
+                )
+            },
+        )
+        engine.sessions[session.symbol] = session
+
+        assert session.book_is_fresh(now) is True
+        assert session.deep_book_is_fresh(now) is False
+        context = engine._build_market_context(
+            session,
+            observed_at_ms=int(now * 1000),
+        )
+        assert context.execution.ready is True
+
+        engine._arbitrate_once()
+        assert session.symbol not in engine.broker.positions
+    finally:
+        close_rest(engine)
+
+
+def test_fast_book_significant_event_gate_filters_minor_size_churn(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        fast_event_min_ofi_fraction=0.02,
+    )
+    try:
+        session = ActiveSymbolSession(
+            symbol="GATEUSDT",
+            candles=[candle()],
+            decisions={
+                "level_breakout": StrategyDecision(
+                    strategy="level_breakout",
+                    action=Action.WAIT,
+                    reasons=["armed"],
+                    confidence=0.8,
+                    watched_level=100.0,
+                    details={"state": "armed"},
+                )
+            },
+        )
+        previous = OrderBook(
+            bids=[(99.99, 100)],
+            asks=[(100.01, 100)],
+        )
+        same_quotes = OrderBook(
+            bids=[(99.99, 99.9)],
+            asks=[(100.01, 100)],
+        )
+
+        assert engine._fast_book_event_reason(
+            session,
+            previous,
+            same_quotes,
+            ofi_usd=10.0,
+        ) is None
+
+        changed_quote = OrderBook(
+            bids=[(100.00, 100)],
+            asks=[(100.02, 100)],
+        )
+        assert engine._fast_book_event_reason(
+            session,
+            previous,
+            changed_quote,
+            ofi_usd=0.0,
+        ) == "best_quote"
+    finally:
+        close_rest(engine)
+
+
+@pytest.mark.asyncio
+async def test_density_evaluation_consumes_deep_book_not_fast_book(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        trend_structure_enabled=False,
+        weak_level_rejection_enabled=False,
+        breakout_enabled=False,
+        density_enabled=True,
+        confirmed_candle_stale_seconds=0.0,
+    )
+    captured: list[OrderBook] = []
+
+    class CaptureDensity:
+        key = "orderbook_density"
+
+        def evaluate(
+            self,
+            candles,
+            orderbook,
+            trend,
+            **kwargs,
+        ):
+            captured.append(orderbook)
+            return StrategyDecision(
+                strategy=self.key,
+                action=Action.WAIT,
+                reasons=["captured"],
+                details={
+                    "state": "search",
+                    "evidenceOnly": True,
+                },
+            )
+
+        def reset(self, symbol):
+            return None
+
+    now = time()
+    fast = OrderBook(
+        bids=[(99.99, 10)],
+        asks=[(100.01, 10)],
+    )
+    deep = OrderBook(
+        bids=[(99.90, 500), (99.80, 500)],
+        asks=[(100.10, 500), (100.20, 500)],
+    )
+    session = ActiveSymbolSession(
+        symbol="DENSDEEPUSDT",
+        candles=[candle()],
+        orderbook=fast,
+        deep_orderbook=deep,
+        last_price=100.0,
+        last_book_at=now,
+        last_deep_book_at=now,
+        book_synced=True,
+        deep_book_synced=True,
+        confirmed_candle_stale_after_seconds=0.0,
+    )
+    engine.sessions[session.symbol] = session
+    engine.strategies["orderbook_density"] = CaptureDensity()  # type: ignore[assignment]
+
+    try:
+        await engine._evaluate(session)
+        assert captured
+        assert captured[-1] is deep
+    finally:
+        await engine.rest.close()
