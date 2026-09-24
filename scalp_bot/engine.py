@@ -20,6 +20,7 @@ from .strategy_policy import minimum_expectancy_r
 from .observability import build_decision_trace
 from .latency_observability import (
     configure_telemetry,
+    exchange_receive_seconds,
     latency_snapshot,
     observe_latency,
     observe_recorder_health,
@@ -921,6 +922,8 @@ class TradingEngine:
             tuple[str, str],
             MarketMessage,
         ] = {}
+        self._arbiter_latency_message: MarketMessage | None = None
+        self._arbiter_trigger_symbol: str | None = None
 
     async def start(self) -> None:
         self._stop.clear()
@@ -1437,6 +1440,7 @@ class TradingEngine:
         reason: str,
         *,
         observed_at_ms: int | None = None,
+        market_message: MarketMessage | None = None,
     ) -> None:
         if not self.config.event_driven_evaluation_enabled:
             return
@@ -1449,6 +1453,8 @@ class TradingEngine:
 
         session.fast_event_requests += 1
         session.last_fast_event_reason = reason
+        if market_message is not None:
+            session.pending_latency_message = market_message
         session.last_fast_event_at_ms = (
             int(time() * 1000)
             if observed_at_ms is None
@@ -1504,7 +1510,54 @@ class TradingEngine:
             session.last_event_eval_at = now
             session.fast_event_evaluations += 1
             session.last_fast_event_reason = reason
-            await self._evaluate(session)
+            latency_message = session.pending_latency_message
+            if latency_message is not None:
+                latency_message.strategy_eval_started_mono_ns = (
+                    perf_counter_ns()
+                )
+                observe_latency(
+                    "parse_to_strategy",
+                    max(
+                        0.0,
+                        (
+                            latency_message.strategy_eval_started_mono_ns
+                            - latency_message.parsed_mono_ns
+                        )
+                        / 1_000_000_000,
+                    ),
+                    stream=stream_name(latency_message.topic),
+                )
+
+            with span(
+                "strategy.event_evaluate",
+                **{
+                    "market.event_id": (
+                        latency_message.event_id
+                        if latency_message is not None
+                        else None
+                    ),
+                    "market.symbol": symbol,
+                    "strategy.trigger_reason": reason,
+                },
+            ):
+                await self._evaluate(session)
+
+            if latency_message is not None:
+                latency_message.strategy_eval_finished_mono_ns = (
+                    perf_counter_ns()
+                )
+                observe_latency(
+                    "strategy_evaluation",
+                    max(
+                        0.0,
+                        (
+                            latency_message.strategy_eval_finished_mono_ns
+                            - latency_message.strategy_eval_started_mono_ns
+                        )
+                        / 1_000_000_000,
+                    ),
+                    stream=stream_name(latency_message.topic),
+                )
             after = self._tradeable_event_fingerprint(
                 session
             )
@@ -1517,7 +1570,47 @@ class TradingEngine:
                 and after
                 and after != before
             ):
-                self._arbitrate_once()
+                if latency_message is not None:
+                    latency_message.fire_mono_ns = perf_counter_ns()
+                    strategy_name = str(after[0][0]) if after else ""
+                    observe_latency(
+                        "strategy_to_fire",
+                        max(
+                            0.0,
+                            (
+                                latency_message.fire_mono_ns
+                                - latency_message.strategy_eval_started_mono_ns
+                            )
+                            / 1_000_000_000,
+                        ),
+                        stream=stream_name(latency_message.topic),
+                        strategy=strategy_name,
+                    )
+                    exchange_receive = exchange_receive_seconds(
+                        latency_message
+                    )
+                    receipt_to_fire = max(
+                        0.0,
+                        (
+                            latency_message.fire_mono_ns
+                            - latency_message.receipt_mono_ns
+                        )
+                        / 1_000_000_000,
+                    )
+                    if exchange_receive is not None:
+                        observe_latency(
+                            "exchange_to_fire",
+                            exchange_receive + receipt_to_fire,
+                            stream=stream_name(latency_message.topic),
+                            strategy=strategy_name,
+                        )
+                self._arbiter_latency_message = latency_message
+                self._arbiter_trigger_symbol = symbol
+                try:
+                    self._arbitrate_once()
+                finally:
+                    self._arbiter_latency_message = None
+                    self._arbiter_trigger_symbol = None
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -1533,6 +1626,7 @@ class TradingEngine:
             current = self.sessions.get(symbol)
             if current is not None:
                 current.event_eval_pending = False
+                current.pending_latency_message = None
 
     def _research_book_depth(
         self,
