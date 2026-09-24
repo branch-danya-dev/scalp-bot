@@ -164,6 +164,11 @@ class ActiveSymbolSession:
     confirmed_candle_stale_after_seconds: float = 150.0
     book_synced: bool | None = None
     deep_book_synced: bool | None = None
+    fast_book_seq: int | None = None
+    deep_book_seq: int | None = None
+    fast_book_cts_ms: int = 0
+    deep_book_cts_ms: int = 0
+    deep_book_execution_max_lag_seconds: float = 0.35
     last_trade_stream_at: float = 0.0
     last_kline_at: float = 0.0
     last_eval: float = 0.0
@@ -266,6 +271,46 @@ class ActiveSymbolSession:
             return False
         return age <= self.deep_book_stale_after_seconds
 
+    def deep_book_execution_lag_seconds(
+        self,
+    ) -> float | None:
+        if (
+            self.fast_book_cts_ms <= 0
+            or self.deep_book_cts_ms <= 0
+        ):
+            return None
+        return max(
+            0.0,
+            (
+                self.fast_book_cts_ms
+                - self.deep_book_cts_ms
+            )
+            / 1000.0,
+        )
+
+    def deep_book_execution_is_current(
+        self,
+        now: float | None = None,
+    ) -> bool:
+        if not self.deep_book_is_fresh(now):
+            return False
+        lag = self.deep_book_execution_lag_seconds()
+        if lag is None:
+            # Legacy/replay fixtures do not carry exchange cts metadata.
+            return True
+        return lag <= max(
+            0.0,
+            self.deep_book_execution_max_lag_seconds,
+        )
+
+    def execution_depth_orderbook(
+        self,
+        now: float | None = None,
+    ) -> OrderBook:
+        if self.deep_book_execution_is_current(now):
+            return self.depth_orderbook()
+        return self.orderbook
+
     def deep_book_health(
         self,
         now: float | None = None,
@@ -284,6 +329,31 @@ class ActiveSymbolSession:
                 if self.deep_book_synced is not None
                 else "legacy_fast_fallback"
             ),
+            "executionCurrent": (
+                self.deep_book_execution_is_current(now)
+            ),
+            "executionLagSeconds": (
+                self.deep_book_execution_lag_seconds()
+            ),
+            "executionMaxLagSeconds": (
+                self.deep_book_execution_max_lag_seconds
+            ),
+            "fastSeq": self.fast_book_seq,
+            "deepSeq": self.deep_book_seq,
+            "sequenceLag": (
+                max(
+                    0,
+                    int(self.fast_book_seq)
+                    - int(self.deep_book_seq),
+                )
+                if (
+                    self.fast_book_seq is not None
+                    and self.deep_book_seq is not None
+                )
+                else None
+            ),
+            "fastCtsMs": self.fast_book_cts_ms or None,
+            "deepCtsMs": self.deep_book_cts_ms or None,
         }
 
     def confirmed_candle_age_seconds(
@@ -1788,6 +1858,9 @@ class TradingEngine:
             deep_book_stale_after_seconds=(
                 self.config.deep_book_stale_seconds
             ),
+            deep_book_execution_max_lag_seconds=(
+                self.config.deep_book_execution_max_lag_seconds
+            ),
             book_synced=False,
             deep_book_synced=False,
             confirmed_candle_stale_after_seconds=(
@@ -2008,6 +2081,12 @@ class TradingEngine:
                     session.orderbook = OrderBook()
                     raise
                 session.book_synced = fast_book_state.synced
+                session.fast_book_seq = fast_book_state.last_seq
+                session.fast_book_cts_ms = int(
+                    message.get("cts")
+                    or message.get("ts")
+                    or wall_now * 1000
+                )
                 session.last_book_at = wall_now
                 message.book_updated_mono_ns = perf_counter_ns()
                 observe_latency(
@@ -2031,6 +2110,12 @@ class TradingEngine:
                     session.deep_orderbook = session.orderbook
                     session.deep_book_synced = (
                         fast_book_state.synced
+                    )
+                    session.deep_book_seq = (
+                        fast_book_state.last_seq
+                    )
+                    session.deep_book_cts_ms = (
+                        session.fast_book_cts_ms
                     )
                     session.last_deep_book_at = wall_now
 
@@ -2085,6 +2170,12 @@ class TradingEngine:
                     raise
                 session.deep_book_synced = (
                     deep_book_state.synced
+                )
+                session.deep_book_seq = deep_book_state.last_seq
+                session.deep_book_cts_ms = int(
+                    message.get("cts")
+                    or message.get("ts")
+                    or wall_now * 1000
                 )
                 session.last_deep_book_at = wall_now
                 message.book_updated_mono_ns = perf_counter_ns()
@@ -3772,7 +3863,7 @@ class TradingEngine:
             session.orderbook,
             self.broker.available_notional,
             self.broker.available_risk_usd,
-            depth_book=session.depth_orderbook(),
+            depth_book=session.execution_depth_orderbook(),
             setup_id=setup_id,
             existing_position_notional=(
                 existing_position.notional
@@ -3944,6 +4035,8 @@ class TradingEngine:
             if not session.book_is_fresh(now):
                 continue
             if not session.deep_book_is_fresh(now):
+                continue
+            if not session.deep_book_execution_is_current(now):
                 continue
             if not session.confirmed_candle_is_fresh(
                 self.config.confirmed_candle_stale_seconds,
@@ -4580,12 +4673,12 @@ class TradingEngine:
             if best.position_action == "add":
                 position = self.broker.add(
                     best.plan,
-                    best.session.depth_orderbook(),
+                    best.session.execution_depth_orderbook(),
                 )
             else:
                 position = self.broker.open(
                     best.plan,
-                    best.session.depth_orderbook(),
+                    best.session.execution_depth_orderbook(),
                 )
 
         self._mark_order_ack(
@@ -5090,7 +5183,7 @@ class TradingEngine:
             session.symbol,
             session.orderbook,
             reason,
-            depth_book=session.depth_orderbook(),
+            depth_book=session.execution_depth_orderbook(),
         )
         self._handle_broker_events(session, [event])
 
@@ -5232,7 +5325,7 @@ class TradingEngine:
             session.symbol,
             mark,
             session.orderbook,
-            depth_book=session.depth_orderbook(),
+            depth_book=session.execution_depth_orderbook(),
             trade_price=trade_price,
             trade_notional_usd=trade_notional_usd,
             trade_side=trade_side,
@@ -5429,7 +5522,7 @@ class TradingEngine:
             session = self.sessions.get(symbol)
             book = session.orderbook if session else OrderBook()
             deep_book = (
-                session.depth_orderbook()
+                session.execution_depth_orderbook()
                 if session
                 else book
             )

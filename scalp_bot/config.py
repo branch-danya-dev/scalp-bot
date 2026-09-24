@@ -164,6 +164,10 @@ class Settings(BaseSettings):
     market_stale_seconds: float = 3.0
     book_stale_seconds: float = 1.5
     deep_book_stale_seconds: float = 1.5
+    # L1000 is slower than L50. It may remain useful for context while being
+    # too old for a latency-sensitive fill. Market execution falls back to
+    # the fresh L50 book when exchange timestamps diverge beyond this bound.
+    deep_book_execution_max_lag_seconds: float = 0.35
     # Disabled in bare Settings for deterministic unit tests; research/live
     # profiles explicitly enable this safety gate.
     confirmed_candle_stale_seconds: float = 0.0

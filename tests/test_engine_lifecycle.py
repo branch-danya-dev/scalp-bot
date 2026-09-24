@@ -3266,6 +3266,54 @@ async def test_density_evaluation_consumes_deep_book_not_fast_book(
         await engine.rest.close()
 
 
+def test_execution_depth_falls_back_when_deep_book_exchange_time_is_old(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        deep_book_execution_max_lag_seconds=0.35,
+    )
+    now = time()
+    fast = OrderBook(
+        bids=[(99.99, 10)],
+        asks=[(100.01, 10)],
+    )
+    deep = OrderBook(
+        bids=[(99.90, 500)],
+        asks=[(100.10, 500)],
+    )
+    session = ActiveSymbolSession(
+        symbol="SYNCUSDT",
+        candles=[candle()],
+        orderbook=fast,
+        deep_orderbook=deep,
+        last_book_at=now,
+        last_deep_book_at=now,
+        book_synced=True,
+        deep_book_synced=True,
+        fast_book_seq=10_000,
+        deep_book_seq=9_900,
+        fast_book_cts_ms=1_000_000,
+        deep_book_cts_ms=999_500,
+        deep_book_execution_max_lag_seconds=0.35,
+    )
+    try:
+        assert session.deep_book_is_fresh(now)
+        assert not session.deep_book_execution_is_current(now)
+        assert session.execution_depth_orderbook(now) is fast
+        health = session.deep_book_health(now)
+        assert health["executionCurrent"] is False
+        assert health["executionLagSeconds"] == pytest.approx(0.5)
+        assert health["sequenceLag"] == 100
+
+        session.deep_book_cts_ms = 999_900
+        session.deep_book_seq = 9_995
+        assert session.deep_book_execution_is_current(now)
+        assert session.execution_depth_orderbook(now) is deep
+    finally:
+        close_rest(engine)
+
+
 def test_order_latency_helpers_complete_paper_taker_chain(
     tmp_path,
 ) -> None:
