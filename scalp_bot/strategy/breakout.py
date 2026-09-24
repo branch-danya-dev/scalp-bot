@@ -456,6 +456,26 @@ class LevelBreakoutStrategy(Strategy):
                 else candles[-1].start_ms / 1000 + 60.0
             )
         )
+        preference_conflict = (
+            state.armed_zone is not None
+            and context_plan.primary_direction
+            in {Trend.UP, Trend.DOWN}
+            and state.armed_trend
+            in {Trend.UP, Trend.DOWN}
+            and state.armed_trend
+            != context_plan.primary_direction
+            and state.break_started_at <= 0
+            and not state.probe_opened
+        )
+        if preference_conflict:
+            state.armed_at = 0.0
+            state.armed_until = 0.0
+            state.armed_price = 0.0
+            state.armed_zone = None
+            state.armed_trend = Trend.FLAT
+            state.armed_generation_id = None
+            state.stage = BreakoutStage.FOUND
+
         pinned_arm = (
             state.armed_zone is not None
             and state.armed_trend in context_plan.allowed_directions
@@ -590,8 +610,26 @@ class LevelBreakoutStrategy(Strategy):
                     },
                 )
 
+            primary_rows = [
+                row
+                for row in candidates
+                if (
+                    context_plan.primary_direction
+                    in {Trend.UP, Trend.DOWN}
+                    and row[1]
+                    == context_plan.primary_direction
+                    and price > 0
+                    and row[0] / price
+                    <= self.approach_pct
+                )
+            ]
+            selection_pool = (
+                primary_rows
+                if primary_rows
+                else candidates
+            )
             _, playbook_trend, zone, matched = min(
-                candidates,
+                selection_pool,
                 key=lambda row: row[0],
             )
         if zone is None:
