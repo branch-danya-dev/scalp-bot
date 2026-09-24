@@ -1017,6 +1017,14 @@ class TradingEngine:
             "minTurnoverUsd": self.config.min_turnover_usd,
             "workingSymbols": self.config.working_symbols,
             "maxActiveSymbols": self.config.max_active_symbols,
+            "fastOrderbookDepth": self.config.fast_orderbook_depth,
+            "deepOrderbookDepth": self.config.deep_orderbook_depth,
+            "eventDrivenEvaluation": (
+                self.config.event_driven_evaluation_enabled
+            ),
+            "eventEvaluationMinIntervalSeconds": (
+                self.config.event_evaluation_min_interval_seconds
+            ),
             "minNetProfitUsd": self.config.min_net_profit_usd,
             "minNetProfitEquityFraction": self.config.min_net_profit_equity_fraction,
             "minNetRewardRisk": self.config.min_net_reward_risk,
@@ -3001,6 +3009,14 @@ class TradingEngine:
             ),
             "analysisRuntime": session.analysis_runtime_public(),
             "executionReady": context.execution.ready,
+            "fastBookFresh": session.book_is_fresh(),
+            "fastBookAgeSeconds": session.book_age_seconds(),
+            "deepBookFresh": session.deep_book_is_fresh(),
+            "deepBookAgeSeconds": (
+                session.deep_book_age_seconds()
+            ),
+            "fastBookSource": "orderbook_l50",
+            "deepBookSource": "orderbook_l1000",
             "spreadPct": context.execution.spread_pct,
             "top5DepthUsd": (
                 context.execution.top5_depth_usd
