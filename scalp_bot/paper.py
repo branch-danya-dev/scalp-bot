@@ -62,6 +62,11 @@ class Position:
     initial_risk_budget_usd: float = 0.0
     maker_partial_trade_notional_usd: float = 0.0
     maker_target_trade_notional_usd: float = 0.0
+    funding_pnl_usd: float = 0.0
+    last_funding_time_ms: int = 0
+    funding_payments: list[dict[str, Any]] = field(
+        default_factory=list
+    )
     entry_legs: list[dict[str, Any]] = field(default_factory=list)
 
     @property
@@ -831,6 +836,10 @@ class PaperBroker:
         trade_ts_ms: int | None = None,
         trade_notional_usd: float | None = None,
         trade_side: str | None = None,
+        funding_rate: float | None = None,
+        funding_time_ms: int | None = None,
+        funding_mark_price: float | None = None,
+        observed_at_ms: int | None = None,
     ) -> list[dict]:
         pending = self.pending_entries.get(symbol)
         if pending is None:
@@ -1136,6 +1145,64 @@ class PaperBroker:
             quantity=quantity,
         )
 
+    def _apply_funding_if_due(
+        self,
+        pos: Position,
+        *,
+        funding_rate: float | None,
+        funding_time_ms: int | None,
+        mark_price: float,
+        observed_at_ms: int,
+    ) -> dict | None:
+        if (
+            funding_rate is None
+            or funding_time_ms is None
+            or funding_time_ms <= 0
+            or mark_price <= 0
+        ):
+            return None
+        if funding_time_ms <= pos.last_funding_time_ms:
+            return None
+        if funding_time_ms <= int(pos.opened_at * 1000):
+            return None
+        if observed_at_ms < funding_time_ms:
+            return None
+
+        position_value = (
+            pos.quantity * mark_price
+        )
+        funding_fee = (
+            position_value * float(funding_rate)
+        )
+        funding_pnl = (
+            -funding_fee
+            if pos.side == Side.LONG
+            else funding_fee
+        )
+        payment = {
+            "event": "funding_payment",
+            "symbol": pos.symbol,
+            "strategy": pos.strategy,
+            "side": pos.side.value,
+            "setupId": pos.setup_id,
+            "fundingTimeMs": int(funding_time_ms),
+            "fundingRate": float(funding_rate),
+            "markPrice": mark_price,
+            "positionQuantity": pos.quantity,
+            "positionValueUsd": position_value,
+            "fundingPnlUsd": funding_pnl,
+            "source": "bybit_ticker_estimate",
+            "estimated": True,
+        }
+        pos.last_funding_time_ms = int(
+            funding_time_ms
+        )
+        pos.funding_pnl_usd += funding_pnl
+        pos.realized_net_usd += funding_pnl
+        pos.funding_payments.append(payment)
+        self.balance += funding_pnl
+        return payment
+
     def mark(
         self,
         symbol: str,
@@ -1210,18 +1277,45 @@ class PaperBroker:
             * self.config.taker_fee_rate
         )
 
-        hit_stop = executable <= pos.stop if pos.side == Side.LONG else executable >= pos.stop
+        events: list[dict] = []
+        funding_event = self._apply_funding_if_due(
+            pos,
+            funding_rate=funding_rate,
+            funding_time_ms=funding_time_ms,
+            mark_price=(
+                float(funding_mark_price)
+                if isinstance(
+                    funding_mark_price,
+                    (int, float),
+                )
+                and funding_mark_price > 0
+                else executable
+            ),
+            observed_at_ms=(
+                int(time() * 1000)
+                if observed_at_ms is None
+                else int(observed_at_ms)
+            ),
+        )
+        if funding_event is not None:
+            events.append(funding_event)
+
+        hit_stop = (
+            executable <= pos.stop
+            if pos.side == Side.LONG
+            else executable >= pos.stop
+        )
         if hit_stop:
-            return [
+            events.append(
                 self.close(
                     symbol,
                     book,
                     "stop",
                     depth_book=realization_book,
                 )
-            ]
+            )
+            return events
 
-        events: list[dict] = []
         allow_runner = bool(pos.strategy_details.get("allowRunner", True))
         partial_triggered = self._partial_triggered(
             pos,
@@ -1406,6 +1500,10 @@ class PaperBroker:
             "grossPnl": pos.realized_gross_usd,
             "fees": pos.fees_paid_usd,
             "entryFeeUsd": pos.entry_fee_total_usd,
+            "fundingPnlUsd": pos.funding_pnl_usd,
+            "fundingPayments": list(
+                pos.funding_payments
+            ),
             "plannedFirstTakeMovePct": (
                 economics.get("firstTakeMovePct")
                 if isinstance(economics, dict)

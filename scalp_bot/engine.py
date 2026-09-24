@@ -104,6 +104,9 @@ class ActiveSymbolSession:
     candles: list[Candle] = field(default_factory=list)
     instrument: InstrumentSpec | None = None
     fee_schedule: FeeSchedule | None = None
+    mark_price: float = 0.0
+    funding_rate: float | None = None
+    next_funding_time_ms: int | None = None
     context_5m: list[Candle] = field(default_factory=list)
     context_15m: list[Candle] = field(default_factory=list)
     context_1h: list[Candle] = field(default_factory=list)
@@ -200,6 +203,15 @@ class ActiveSymbolSession:
     research_policy_fingerprints: dict[str, tuple] = field(
         default_factory=dict
     )
+
+    def funding_public(self) -> dict:
+        return {
+            "markPrice": self.mark_price or None,
+            "fundingRate": self.funding_rate,
+            "nextFundingTimeMs": self.next_funding_time_ms,
+            "source": "bybit_linear_ticker",
+            "estimatedPaperSettlement": True,
+        }
 
     def book_age_seconds(self, now: float | None = None) -> float | None:
         if self.last_book_at <= 0:
@@ -672,6 +684,7 @@ class ActiveSymbolSession:
                 if self.fee_schedule is not None
                 else None
             ),
+            "funding": self.funding_public(),
             "lastPrice": self.last_price,
             "legacyTrend": self.trend.value,
             "htfBias": (
@@ -799,6 +812,7 @@ class ActiveSymbolSession:
             "tradeFlow": compute_trade_flow(list(self.trades), now_ms),
             "bookFlow": self.book_flow_snapshot(now_ms),
             "position": position,
+            "funding": self.funding_public(),
             "tradeEncoding": trade_encoding,
             "tradeCursor": self.trade_sequence,
             "tradeDeltaFromSequence": (
@@ -1367,8 +1381,17 @@ class TradingEngine:
 
         for symbol, session in self.sessions.items():
             candidate = candidate_map.get(symbol)
-            if candidate and (candidate.activity_rank or 999) <= self.config.active_keep_rank:
-                session.last_ranked_at = now
+            if candidate is not None:
+                session.mark_price = candidate.mark_price
+                session.funding_rate = candidate.funding_rate
+                session.next_funding_time_ms = (
+                    candidate.next_funding_time_ms
+                )
+                if (
+                    (candidate.activity_rank or 999)
+                    <= self.config.active_keep_rank
+                ):
+                    session.last_ranked_at = now
 
         for candidate in self.candidates[: self.config.working_symbols]:
             await self._promote_symbol(candidate.symbol, now)
@@ -1854,11 +1877,34 @@ class TradingEngine:
             ),
         )
         now = time()
+        scanner_candidate = next(
+            (
+                item
+                for item in self.candidates
+                if item.symbol == symbol
+            ),
+            None,
+        )
         session = ActiveSymbolSession(
             symbol=symbol,
             candles=candles,
             instrument=instrument,
             fee_schedule=fee_schedule,
+            mark_price=(
+                scanner_candidate.mark_price
+                if scanner_candidate is not None
+                else 0.0
+            ),
+            funding_rate=(
+                scanner_candidate.funding_rate
+                if scanner_candidate is not None
+                else None
+            ),
+            next_funding_time_ms=(
+                scanner_candidate.next_funding_time_ms
+                if scanner_candidate is not None
+                else None
+            ),
             context_5m=[x for x in context_5m if x.confirmed],
             context_15m=[x for x in context_15m if x.confirmed],
             context_1h=[x for x in context_1h if x.confirmed],
@@ -3855,6 +3901,9 @@ class TradingEngine:
         position_action: str,
         existing_position: Position | None,
     ):
+        decision.details["fundingSnapshot"] = (
+            session.funding_public()
+        )
         return self.risk.build_plan(
             session.symbol,
             decision,
@@ -5327,6 +5376,7 @@ class TradingEngine:
             trade_price=resolved_trade_price,
             trade_notional_usd=trade_notional_usd,
             trade_side=trade_side,
+            observed_at_ms=trade_ts_ms,
         )
 
     def _mark_position_from_book(
@@ -5336,6 +5386,7 @@ class TradingEngine:
         trade_price: float | None = None,
         trade_notional_usd: float | None = None,
         trade_side: str | None = None,
+        observed_at_ms: int | None = None,
     ) -> None:
         if session.symbol not in self.broker.positions:
             return
@@ -5354,6 +5405,17 @@ class TradingEngine:
             trade_price=trade_price,
             trade_notional_usd=trade_notional_usd,
             trade_side=trade_side,
+            funding_rate=session.funding_rate,
+            funding_time_ms=session.next_funding_time_ms,
+            funding_mark_price=(
+                session.mark_price
+                or mark
+            ),
+            observed_at_ms=(
+                int(time() * 1000)
+                if observed_at_ms is None
+                else observed_at_ms
+            ),
         )
         self._handle_broker_events(session, events)
 
@@ -5362,6 +5424,14 @@ class TradingEngine:
             event_type = event.get("event")
             if event_type == "partial_take":
                 self._emit("partial_take", session.symbol, event, snapshot=True)
+                continue
+            if event_type == "funding_payment":
+                self._emit(
+                    "funding_payment",
+                    session.symbol,
+                    event,
+                    snapshot=True,
+                )
                 continue
             if event_type == "trade_closed":
                 strategy_key = str(event.get("strategy") or "")

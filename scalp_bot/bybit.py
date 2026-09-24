@@ -465,6 +465,23 @@ class BybitRestClient:
                     volume_24h=float(item.get("volume24h") or 0),
                     spread_bps=spread_bps,
                     top_book_notional_usd=top_book_notional,
+                    mark_price=float(
+                        item.get("markPrice")
+                        or item.get("lastPrice")
+                        or 0
+                    ),
+                    funding_rate=(
+                        float(item.get("fundingRate"))
+                        if item.get("fundingRate")
+                        not in {None, ""}
+                        else None
+                    ),
+                    next_funding_time_ms=(
+                        int(item.get("nextFundingTime"))
+                        if item.get("nextFundingTime")
+                        not in {None, ""}
+                        else None
+                    ),
                     trade_count_24h=None,
                     trade_count_source="not_available_from_bybit_v5_ticker",
                 )

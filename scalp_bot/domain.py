@@ -229,6 +229,9 @@ class Candidate:
     volume_24h: float = 0.0
     spread_bps: float = 0.0
     top_book_notional_usd: float = 0.0
+    mark_price: float = 0.0
+    funding_rate: float | None = None
+    next_funding_time_ms: int | None = None
     trade_count_24h: int | None = None
     trade_count_source: str | None = None
     correlation_1h_btc: float | None = None

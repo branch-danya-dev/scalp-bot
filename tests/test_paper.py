@@ -1575,3 +1575,102 @@ def test_pending_entries_have_separate_concurrency_cap() -> None:
         match="maximum pending entries reached",
     ):
         broker.place_pending(second)
+
+
+def test_positive_funding_charges_long_once_at_funding_time() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+        max_leverage=2,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("FUNDLONGUSDT", Side.LONG, 400)
+    pos = broker.open(
+        p,
+        book(99.99, 100.0),
+    )
+    funding_time = int(pos.opened_at * 1000) + 1_000
+
+    events = broker.mark(
+        "FUNDLONGUSDT",
+        100.0,
+        book(99.99, 100.0),
+        funding_rate=0.001,
+        funding_time_ms=funding_time,
+        funding_mark_price=100.0,
+        observed_at_ms=funding_time + 1,
+    )
+
+    payment = next(
+        event
+        for event in events
+        if event["event"] == "funding_payment"
+    )
+    assert payment["fundingPnlUsd"] == pytest.approx(
+        -0.4
+    )
+    assert broker.balance == pytest.approx(999.6)
+    assert pos.funding_pnl_usd == pytest.approx(-0.4)
+    assert pos.realized_net_usd == pytest.approx(-0.4)
+
+    second = broker.mark(
+        "FUNDLONGUSDT",
+        100.0,
+        book(99.99, 100.0),
+        funding_rate=0.001,
+        funding_time_ms=funding_time,
+        funding_mark_price=100.0,
+        observed_at_ms=funding_time + 2_000,
+    )
+    assert not any(
+        event["event"] == "funding_payment"
+        for event in second
+    )
+    assert broker.balance == pytest.approx(999.6)
+
+
+def test_positive_funding_credits_short_and_is_persisted_on_close() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+        max_leverage=2,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("FUNDSHORTUSDT", Side.SHORT, 400)
+    pos = broker.open(
+        p,
+        book(100.0, 100.01),
+    )
+    funding_time = int(pos.opened_at * 1000) + 1_000
+
+    events = broker.mark(
+        "FUNDSHORTUSDT",
+        100.0,
+        book(100.0, 100.01),
+        funding_rate=0.001,
+        funding_time_ms=funding_time,
+        funding_mark_price=100.0,
+        observed_at_ms=funding_time + 1,
+    )
+    assert any(
+        event["event"] == "funding_payment"
+        for event in events
+    )
+    assert pos.funding_pnl_usd == pytest.approx(0.4)
+
+    trade = broker.close(
+        "FUNDSHORTUSDT",
+        book(100.0, 100.01),
+        "test",
+    )
+    assert trade["fundingPnlUsd"] == pytest.approx(
+        0.4
+    )
+    assert len(trade["fundingPayments"]) == 1
+    assert trade["netPnl"] == pytest.approx(0.4)
