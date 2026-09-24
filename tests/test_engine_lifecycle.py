@@ -3181,3 +3181,49 @@ async def test_density_evaluation_consumes_deep_book_not_fast_book(
         assert captured[-1] is deep
     finally:
         await engine.rest.close()
+
+
+def test_order_latency_helpers_complete_paper_taker_chain(
+    tmp_path,
+) -> None:
+    engine = make_engine(tmp_path)
+    message = MarketMessage(
+        topic="publicTrade.AAAUSDT",
+        event_id="m-order-fixture",
+        trace_id="0" * 31 + "3",
+        receipt_wall_ns=2_000_000_000,
+        receipt_mono_ns=perf_counter_ns() - 5_000_000,
+        parsed_mono_ns=perf_counter_ns() - 4_000_000,
+        strategy_eval_started_mono_ns=perf_counter_ns() - 3_000_000,
+        fire_mono_ns=perf_counter_ns() - 2_000_000,
+    )
+
+    try:
+        engine._mark_order_sent(
+            message,
+            strategy="level_breakout",
+            execution_mode="paper_taker",
+        )
+        engine._mark_order_ack(
+            message,
+            strategy="level_breakout",
+            execution_mode="paper_taker",
+        )
+        engine._mark_order_fill(
+            message,
+            strategy="level_breakout",
+            execution_mode="paper_taker",
+        )
+
+        assert message.order_sent_mono_ns >= message.fire_mono_ns
+        assert message.order_ack_mono_ns >= message.order_sent_mono_ns
+        assert message.fill_mono_ns >= message.order_ack_mono_ns
+
+        from scalp_bot.latency_observability import latency_snapshot
+
+        trace = latency_snapshot(message)
+        assert trace is not None
+        assert trace["durationsMs"]["fireToOrder"] is not None
+        assert trace["durationsMs"]["orderToFill"] is not None
+    finally:
+        close_rest(engine)
