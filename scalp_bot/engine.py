@@ -1380,28 +1380,47 @@ class TradingEngine:
             elif topic.startswith("publicTrade."):
                 rows = message.get("data") or []
                 if rows:
+                    ticks: list[TradeTick] = []
                     for row in rows:
-                        session.trades.append(
-                            TradeTick(
-                                ts_ms=int(row.get("T") or time() * 1000),
-                                price=float(row["p"]),
-                                size=float(row["v"]),
-                                side=str(row.get("S") or ""),
-                            )
+                        tick = TradeTick(
+                            ts_ms=int(
+                                row.get("T") or time() * 1000
+                            ),
+                            price=float(row["p"]),
+                            size=float(row["v"]),
+                            side=str(row.get("S") or ""),
                         )
-                    session.last_price = float(rows[-1]["p"])
+                        session.trades.append(tick)
+                        ticks.append(tick)
+
+                    session.last_price = ticks[-1].price
                     session.last_trade_stream_at = wall_now
                     prune_trades(
                         session.trades,
-                        int(rows[-1].get("T") or time() * 1000),
+                        ticks[-1].ts_ms,
                         self.config.trade_buffer_seconds,
                     )
-                    self._mark_execution_from_market(
-                        session,
-                        trade_ts_ms=int(
-                            rows[-1].get("T") or time() * 1000
-                        ),
-                    )
+
+                    # Pending maker orders must consume the newest tape before
+                    # they are allowed to fill. Otherwise the same trade batch
+                    # can invalidate a setup and fill its stale limit before
+                    # the next 0.20s strategy evaluation.
+                    if symbol in self.broker.pending_entries:
+                        session.last_eval = monotonic()
+                        await self._evaluate(session)
+
+                    # A publicTrade websocket payload may contain several
+                    # executions. Replay them in order so a maker entry/target
+                    # crossing in an earlier row is not lost just because the
+                    # final trade retraced.
+                    for tick in ticks:
+                        session.last_price = tick.price
+                        self._mark_execution_from_market(
+                            session,
+                            trade_ts_ms=tick.ts_ms,
+                            trade_price=tick.price,
+                        )
+                    session.last_price = ticks[-1].price
 
             now = monotonic()
             evaluation_interval = self._evaluation_interval_seconds(
@@ -3631,7 +3650,13 @@ class TradingEngine:
         pos = self.broker.positions.get(session.symbol)
         if pos is None:
             return
-        if time() - pos.opened_at < 5:
+        if (
+            time() - pos.opened_at
+            < max(
+                0.0,
+                self.config.strategy_invalidation_grace_seconds,
+            )
+        ):
             return
         strategy = self.strategies.get(pos.strategy)
         if strategy is None:
@@ -3663,10 +3688,16 @@ class TradingEngine:
         session: ActiveSymbolSession,
         *,
         trade_ts_ms: int | None = None,
+        trade_price: float | None = None,
     ) -> None:
+        resolved_trade_price = (
+            float(trade_price)
+            if isinstance(trade_price, (int, float))
+            else session.last_price
+        )
         pending_events = self.broker.mark_pending(
             session.symbol,
-            session.last_price,
+            resolved_trade_price,
             trade_ts_ms=trade_ts_ms,
         )
         for event in pending_events:
@@ -3721,7 +3752,7 @@ class TradingEngine:
                 )
         self._mark_position_from_book(
             session,
-            trade_price=session.last_price,
+            trade_price=resolved_trade_price,
         )
 
     def _mark_position_from_book(
