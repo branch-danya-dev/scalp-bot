@@ -7,8 +7,10 @@ import pytest
 
 from scalp_bot.git_session_export import (
     _RollingTradeDeltaNormalizer,
+    _sample_trade_payload,
     _build_compact_session_summary,
     _build_navigation_index,
+    _scan_session,
     _split_jsonl_stream,
 )
 
@@ -215,11 +217,9 @@ def test_rolling_trade_tape_is_exported_as_delta() -> None:
 
 def test_compact_session_summary_has_no_unbounded_report_payloads() -> None:
     summary = _build_compact_session_summary(
-        bundle_manifest={
-            "source": {
-                "file": "session-test.jsonl",
-                "durationSeconds": 3600,
-            }
+        source_meta={
+            "file": "session-test.jsonl",
+            "durationSeconds": 3600,
         },
         shard_rows=[
             {
@@ -263,3 +263,92 @@ def test_compact_session_summary_has_no_unbounded_report_payloads() -> None:
     assert "postRunOpportunity" not in summary
     assert "tradeReviews" not in summary
     assert "marketData" not in summary
+
+
+
+def test_scan_session_is_lightweight_and_finds_focus(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "session-test.jsonl"
+    rows = [
+        {
+            "ts": 100.0,
+            "event": "decision",
+            "symbol": "AAAUSDT",
+            "payload": {
+                "strategy": "level_breakout",
+                "details": {"state": "armed"},
+            },
+        },
+        {
+            "ts": 101.0,
+            "event": "risk_reject",
+            "symbol": "AAAUSDT",
+            "payload": {"strategy": "level_breakout"},
+        },
+        {
+            "ts": 102.0,
+            "event": "run_summary",
+            "symbol": None,
+            "payload": {"netPnl": 1.5},
+        },
+    ]
+    source.write_text(
+        "".join(
+            __import__("json").dumps(row) + "\n"
+            for row in rows
+        ),
+        encoding="utf-8",
+    )
+
+    (
+        counts,
+        symbols,
+        focus,
+        first_ts,
+        last_ts,
+        row_count,
+        run_summary,
+    ) = _scan_session(source)
+
+    assert row_count == 3
+    assert counts["decision"] == 1
+    assert counts["risk_reject"] == 1
+    assert symbols == {"AAAUSDT"}
+    assert first_ts == 100.0
+    assert last_ts == 102.0
+    assert focus["AAAUSDT"]
+    assert run_summary == {"netPnl": 1.5}
+
+
+
+def test_native_delta_trades_accumulate_until_sample() -> None:
+    normalizer = _RollingTradeDeltaNormalizer()
+    pending = {(0, "AAAUSDT"): [
+        {"sequence": 10},
+        {"sequence": 11},
+    ]}
+    row = {
+        "event": "research_frame",
+        "symbol": "AAAUSDT",
+        "payload": {
+            "tradeEncoding": "delta_v1",
+            "recentTrades": [{"sequence": 11}],
+        },
+    }
+
+    payload = _sample_trade_payload(
+        row,
+        normalizer=normalizer,
+        pending_native_trades=pending,
+        shard_key=(0, "AAAUSDT"),
+    )
+
+    assert [
+        trade["sequence"]
+        for trade in payload["recentTrades"]
+    ] == [10, 11]
+    assert payload["tradeEncoding"] == (
+        "delta_v1_export_compacted"
+    )
+    assert pending[(0, "AAAUSDT")] == []
