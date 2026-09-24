@@ -1213,6 +1213,10 @@ class PaperBroker:
         trade_price: float | None | object = _UNSET_TRADE_PRICE,
         trade_notional_usd: float | None = None,
         trade_side: str | None = None,
+        funding_rate: float | None = None,
+        funding_time_ms: int | None = None,
+        funding_mark_price: float | None = None,
+        observed_at_ms: int | None = None,
     ) -> list[dict]:
         pos = self.positions.get(symbol)
         if pos is None:
