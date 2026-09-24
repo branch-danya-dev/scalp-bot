@@ -56,7 +56,7 @@ duration.
 Start with:
 
 1. `manifest.json`;
-2. `overview/session-report.json`;
+2. `overview/session-summary.json`;
 3. `overview/latency-summary.json`;
 4. `index/shards.json`;
 5. compact `index/trade-events/*` and `index/problem-events/*`.
