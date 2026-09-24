@@ -2869,6 +2869,9 @@ async def test_deep_book_update_alone_does_not_drive_strategy_evaluation(
         *,
         fast_orderbook_depth=50,
         deep_orderbook_depth=1000,
+        market_queue_size=512,
+        market_queue_put_timeout_seconds=0.05,
+        market_queue_max_lag_seconds=0.50,
     ):
         await callback({
             "topic": f"orderbook.{deep_orderbook_depth}.{symbol}",
@@ -2927,6 +2930,9 @@ async def test_fast_book_desync_does_not_destroy_deep_context(
         *,
         fast_orderbook_depth=50,
         deep_orderbook_depth=1000,
+        market_queue_size=512,
+        market_queue_put_timeout_seconds=0.05,
+        market_queue_max_lag_seconds=0.50,
     ):
         await callback({
             "topic": f"orderbook.{deep_orderbook_depth}.{symbol}",

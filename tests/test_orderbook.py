@@ -1,10 +1,18 @@
+import asyncio
+from time import perf_counter_ns
+
 import pytest
 
 from scalp_bot.domain import OrderBook, Side
 from scalp_bot.bybit import (
+    MarketDataBackpressureError,
+    MarketMessage,
     OrderBookSequenceError,
     OrderBookState,
     _kline_is_confirmed,
+    _process_market_queue,
+    _stream_topics,
+    decode_market_message,
 )
 
 
@@ -222,3 +230,132 @@ def test_orderbook_entry_vwap_walks_visible_depth() -> None:
     assert filled == pytest.approx(200)
     assert vwap == pytest.approx(200 / (1 + 100 / 101))
     assert vwap > 100.0
+
+
+def test_msgspec_market_decoder_returns_typed_message() -> None:
+    message = decode_market_message(
+        b'{"topic":"orderbook.50.BTCUSDT","type":"snapshot",'
+        b'"ts":123,"cts":122,"data":{"u":1,"seq":2,'
+        b'"b":[["100","1"]],"a":[["101","2"]]},'
+        b'"unknown":"ignored"}'
+    )
+
+    assert isinstance(message, MarketMessage)
+    assert message.topic == "orderbook.50.BTCUSDT"
+    assert message.type == "snapshot"
+    assert message.ts == 123
+    assert message.cts == 122
+
+    state = OrderBookState(depth=50)
+    book = state.apply(message)
+    assert book.best_bid == pytest.approx(100.0)
+    assert book.best_ask == pytest.approx(101.0)
+
+
+@pytest.mark.asyncio
+async def test_ws_reader_is_decoupled_from_slow_market_callback(
+    monkeypatch,
+) -> None:
+    stop = asyncio.Event()
+    callback_started = asyncio.Event()
+    release_callback = asyncio.Event()
+    second_received = asyncio.Event()
+
+    payloads = [
+        (
+            b'{"topic":"publicTrade.BTCUSDT","ts":1,'
+            b'"data":[{"T":1,"p":"100","v":"1","S":"Buy"}]}'
+        ),
+        (
+            b'{"topic":"publicTrade.BTCUSDT","ts":2,'
+            b'"data":[{"T":2,"p":"101","v":"1","S":"Buy"}]}'
+        ),
+    ]
+
+    class FakeWebSocket:
+        def __init__(self) -> None:
+            self.recv_count = 0
+
+        async def send(self, payload, text=None) -> None:
+            return None
+
+        async def recv(self, decode=None):
+            self.recv_count += 1
+            if self.recv_count == 1:
+                return payloads[0]
+            if self.recv_count == 2:
+                second_received.set()
+                return payloads[1]
+            await stop.wait()
+            raise ConnectionError("fixture stream finished")
+
+    ws = FakeWebSocket()
+
+    class FakeConnect:
+        async def __aenter__(self):
+            return ws
+
+        async def __aexit__(self, *args):
+            return False
+
+    monkeypatch.setattr(
+        "scalp_bot.bybit.websockets.connect",
+        lambda *args, **kwargs: FakeConnect(),
+    )
+
+    async def slow_callback(message: MarketMessage) -> None:
+        callback_started.set()
+        await release_callback.wait()
+
+    task = asyncio.create_task(
+        _stream_topics(
+            "wss://example.invalid",
+            ["publicTrade.BTCUSDT"],
+            slow_callback,
+            stop,
+            queue_size=4,
+            queue_put_timeout_seconds=0.05,
+            queue_max_lag_seconds=1.0,
+        )
+    )
+
+    await asyncio.wait_for(
+        callback_started.wait(),
+        timeout=0.5,
+    )
+    await asyncio.wait_for(
+        second_received.wait(),
+        timeout=0.5,
+    )
+    assert ws.recv_count >= 2
+
+    release_callback.set()
+    stop.set()
+    await asyncio.wait_for(task, timeout=1.0)
+
+
+@pytest.mark.asyncio
+async def test_market_processor_rejects_stale_backlog() -> None:
+    queue: asyncio.Queue[MarketMessage] = asyncio.Queue()
+    message = MarketMessage(
+        topic="orderbook.50.BTCUSDT",
+        received_at_ns=(
+            perf_counter_ns() - 1_000_000_000
+        ),
+    )
+    queue.put_nowait(message)
+    callback_called = False
+
+    async def callback(_message: MarketMessage) -> None:
+        nonlocal callback_called
+        callback_called = True
+
+    with pytest.raises(MarketDataBackpressureError):
+        await _process_market_queue(
+            queue,
+            callback,
+            asyncio.Event(),
+            max_lag_seconds=0.01,
+        )
+
+    assert callback_called is False

@@ -882,3 +882,72 @@ def test_session_report_tracks_staged_adds_and_fast_path_runtime(
         ["analysisMode"]["live_fast_path"]
         == 1
     )
+
+
+def test_background_recorder_writer_flushes_queued_rows(tmp_path) -> None:
+    recorder = SessionRecorder(str(tmp_path))
+    recorder.start_background_writer()
+    try:
+        recorder.record(
+            "market_frame",
+            "AAAUSDT",
+            {
+                "lastPrice": 100.0,
+                "orderbook": {
+                    "bids": [[99.99, 1]],
+                    "asks": [[100.01, 1]],
+                },
+            },
+        )
+        recorder.flush()
+
+        health = recorder.health()
+        assert health["background"] is True
+        assert health["writerError"] is None
+        assert health["writtenRows"] >= 1
+        assert health["pendingRows"] == 0
+
+        bundle = recorder.replay_bundle(
+            recorder.path.name,
+            "AAAUSDT",
+        )
+        assert len(bundle["frames"]) == 1
+    finally:
+        recorder.close()
+
+
+def test_background_recorder_keeps_live_trade_review_immediate(
+    tmp_path,
+) -> None:
+    recorder = SessionRecorder(str(tmp_path))
+    recorder.start_background_writer()
+    try:
+        recorder.record(
+            "trade_opened",
+            "AAAUSDT",
+            {
+                "plan": {
+                    "strategy": "test",
+                    "side": "long",
+                    "setup_id": "async-recorder-1",
+                }
+            },
+        )
+        recorder.record(
+            "trade_closed",
+            "AAAUSDT",
+            {
+                "strategy": "test",
+                "side": "long",
+                "setupId": "async-recorder-1",
+                "netPnl": 1.0,
+            },
+        )
+
+        # The review cache is updated synchronously; UI/report consumers don't
+        # wait for disk IO even though the JSONL write is queued.
+        summaries = recorder.trade_review_summaries()
+        assert len(summaries) == 1
+        assert summaries[0]["setupId"] == "async-recorder-1"
+    finally:
+        recorder.close()

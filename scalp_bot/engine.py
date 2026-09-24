@@ -155,6 +155,12 @@ class ActiveSymbolSession:
     fast_event_coalesced: int = 0
     last_fast_event_reason: str | None = None
     last_fast_event_at_ms: int = 0
+    fast_market_queue_depth: int = 0
+    fast_market_queue_lag_ms: float = 0.0
+    fast_market_queue_max_lag_ms: float = 0.0
+    deep_market_queue_depth: int = 0
+    deep_market_queue_lag_ms: float = 0.0
+    deep_market_queue_max_lag_ms: float = 0.0
     last_frame: float = 0.0
     last_research_frame: float = 0.0
     last_risk_fingerprint: tuple | None = None
@@ -569,6 +575,18 @@ class ActiveSymbolSession:
             "lastFastEventAtMs": (
                 self.last_fast_event_at_ms or None
             ),
+            "marketIngest": {
+                "fastQueueDepth": self.fast_market_queue_depth,
+                "fastQueueLagMs": self.fast_market_queue_lag_ms,
+                "fastQueueMaxLagMs": (
+                    self.fast_market_queue_max_lag_ms
+                ),
+                "deepQueueDepth": self.deep_market_queue_depth,
+                "deepQueueLagMs": self.deep_market_queue_lag_ms,
+                "deepQueueMaxLagMs": (
+                    self.deep_market_queue_max_lag_ms
+                ),
+            },
         }
 
     def market_context_public(self) -> dict:
@@ -886,6 +904,7 @@ class TradingEngine:
 
     async def start(self) -> None:
         self._stop.clear()
+        self.recorder.start_background_writer()
         try:
             await self._scan_once()
         except Exception as exc:
@@ -919,6 +938,7 @@ class TradingEngine:
         )
         self._event_tasks.clear()
         await self.rest.close()
+        self.recorder.close()
 
     def set_running(self, value: bool) -> None:
         if value:
@@ -1024,6 +1044,13 @@ class TradingEngine:
             ),
             "eventEvaluationMinIntervalSeconds": (
                 self.config.event_evaluation_min_interval_seconds
+            ),
+            "marketQueueSize": self.config.market_queue_size,
+            "marketQueuePutTimeoutSeconds": (
+                self.config.market_queue_put_timeout_seconds
+            ),
+            "marketQueueMaxLagSeconds": (
+                self.config.market_queue_max_lag_seconds
             ),
             "minNetProfitUsd": self.config.min_net_profit_usd,
             "minNetProfitEquityFraction": self.config.min_net_profit_equity_fraction,
@@ -1727,6 +1754,28 @@ class TradingEngine:
                 and not is_fast_book
             )
 
+            queue_depth = int(
+                getattr(message, "queue_depth", 0) or 0
+            )
+            queue_lag_ms = float(
+                getattr(message, "queue_lag_ms", 0.0)
+                or 0.0
+            )
+            if deep_only:
+                session.deep_market_queue_depth = queue_depth
+                session.deep_market_queue_lag_ms = queue_lag_ms
+                session.deep_market_queue_max_lag_ms = max(
+                    session.deep_market_queue_max_lag_ms,
+                    queue_lag_ms,
+                )
+            else:
+                session.fast_market_queue_depth = queue_depth
+                session.fast_market_queue_lag_ms = queue_lag_ms
+                session.fast_market_queue_max_lag_ms = max(
+                    session.fast_market_queue_max_lag_ms,
+                    queue_lag_ms,
+                )
+
             if is_fast_book:
                 previous_book = session.orderbook
                 try:
@@ -1929,6 +1978,13 @@ class TradingEngine:
             stop_event,
             fast_orderbook_depth=fast_depth,
             deep_orderbook_depth=deep_depth,
+            market_queue_size=self.config.market_queue_size,
+            market_queue_put_timeout_seconds=(
+                self.config.market_queue_put_timeout_seconds
+            ),
+            market_queue_max_lag_seconds=(
+                self.config.market_queue_max_lag_seconds
+            ),
         )
 
     @staticmethod
@@ -5040,6 +5096,7 @@ class TradingEngine:
             "botRunning": self.running,
             "mode": "paper",
             "marketHealth": self.market_health(),
+            "recorderHealth": self.recorder.health(),
             "run": {
                 "label": self.config.run_label,
                 "configuredDurationSeconds": self.config.paper_run_duration_seconds,
