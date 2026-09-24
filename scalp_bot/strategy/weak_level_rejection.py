@@ -1137,6 +1137,40 @@ class WeakLevelRejectionStrategy(Strategy):
                 else candles[-1].start_ms / 1000
             )
         )
+        pinned_direction = (
+            Trend.UP
+            if (
+                state.pinned_zone is not None
+                and state.pinned_zone.kind == "support"
+            )
+            else (
+                Trend.DOWN
+                if state.pinned_zone is not None
+                else Trend.FLAT
+            )
+        )
+        preference_conflict = (
+            state.pinned_zone is not None
+            and context_plan.primary_direction
+            in {Trend.UP, Trend.DOWN}
+            and pinned_direction
+            != context_plan.primary_direction
+            and state.stage == RejectionStage.TEST
+            and not state.swept
+            and state.absorption_at <= 0
+            and not state.probe_opened
+        )
+        if preference_conflict:
+            state.pinned_zone = None
+            state.pinned_generation_id = None
+            state.pinned_until = 0.0
+            state.armed_at = 0.0
+            state.armed_price = 0.0
+            state.fire_at = 0.0
+            state.fire_price = 0.0
+            state.stage = RejectionStage.SEARCH
+            state.zone_key = None
+
         if (
             state.pinned_zone is not None
             and state.stage in {RejectionStage.TEST, RejectionStage.REJECT}
@@ -1297,11 +1331,40 @@ class WeakLevelRejectionStrategy(Strategy):
                 },
             )
 
-        # Prefer a context-allowed level, but keep observing a nearby
-        # counter-context rejection when no allowed alternative exists.
-        # This preserves research visibility without making it tradeable.
-        choices = allowed_choices or all_choices
-        zone = min(choices, key=lambda item: abs(item.center - price))
+        # When the context has a directional preference, do not let a
+        # slightly closer opposite-side level monopolize the single prepared
+        # hypothesis. Prefer a primary-direction level once it is actually
+        # within the strategy's approach distance; otherwise keep the nearest
+        # observable level so strong counter-context events remain visible.
+        primary_kind = (
+            "support"
+            if context_plan.primary_direction == Trend.UP
+            else (
+                "resistance"
+                if context_plan.primary_direction == Trend.DOWN
+                else None
+            )
+        )
+        primary_choices = [
+            zone
+            for zone in allowed_choices
+            if (
+                primary_kind is not None
+                and zone.kind == primary_kind
+                and price > 0
+                and abs(zone.center - price) / price
+                <= self.approach_pct
+            )
+        ]
+        choices = (
+            primary_choices
+            or allowed_choices
+            or all_choices
+        )
+        zone = min(
+            choices,
+            key=lambda item: abs(item.center - price),
+        )
         structural_level = None
         if structure is not None:
             # Zone and lifecycle metadata must remain the exact same market
