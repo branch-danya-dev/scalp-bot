@@ -5,6 +5,7 @@ import json
 import shutil
 import tempfile
 import zipfile
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import BinaryIO
@@ -13,6 +14,267 @@ from .long_run_pack import build_long_run_analysis_bundle
 
 
 DEFAULT_MAX_FILE_BYTES = 20 * 1024 * 1024
+
+TRADE_INDEX_EVENTS = {
+    "entry_pending",
+    "entry_add_pending",
+    "entry_cancelled",
+    "trade_opened",
+    "position_added",
+    "partial_take",
+    "funding_payment",
+    "trade_closed",
+}
+PROBLEM_INDEX_EVENTS = {
+    "risk_reject",
+    "setup_blocked",
+    "arbiter_blocked",
+    "scanner_error",
+    "context_error",
+    "fast_path_error",
+    "strategy_error",
+    "research_policy_blocked",
+}
+
+
+class _JsonlPartWriter:
+    def __init__(
+        self,
+        *,
+        output_dir: Path,
+        root: Path,
+        max_file_bytes: int,
+    ) -> None:
+        self.output_dir = output_dir
+        self.root = root
+        self.max_file_bytes = max_file_bytes
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.parts: list[dict] = []
+        self._out = None
+        self._path: Path | None = None
+        self._digest = hashlib.sha256()
+        self._size_bytes = 0
+        self._line_count = 0
+        self._part_index = -1
+
+    def _close_part(self) -> None:
+        if self._out is None or self._path is None:
+            return
+        self._out.close()
+        self.parts.append(
+            _part_metadata(
+                path=self._path,
+                root=self.root,
+                size_bytes=self._size_bytes,
+                line_count=self._line_count,
+                digest=self._digest.hexdigest(),
+            )
+        )
+        self._out = None
+        self._path = None
+        self._digest = hashlib.sha256()
+        self._size_bytes = 0
+        self._line_count = 0
+
+    def write(self, value: dict) -> None:
+        raw = (
+            json.dumps(
+                value,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode("utf-8")
+            + b"\n"
+        )
+        if len(raw) > self.max_file_bytes:
+            raise ValueError(
+                "single index row exceeds configured Git part size "
+                f"({len(raw)} > {self.max_file_bytes} bytes)"
+            )
+        if (
+            self._out is not None
+            and self._size_bytes > 0
+            and self._size_bytes + len(raw) > self.max_file_bytes
+        ):
+            self._close_part()
+        if self._out is None:
+            self._part_index += 1
+            self._path = (
+                self.output_dir
+                / f"part-{self._part_index:04d}.jsonl"
+            )
+            self._out = self._path.open("wb")
+
+        self._out.write(raw)
+        self._digest.update(raw)
+        self._size_bytes += len(raw)
+        self._line_count += 1
+
+    def close(self) -> list[dict]:
+        self._close_part()
+        return list(self.parts)
+
+
+def _compact_index_event(
+    row: dict,
+    *,
+    shard_id: str,
+) -> dict:
+    payload = row.get("payload")
+    if not isinstance(payload, dict):
+        payload = {}
+    plan = payload.get("plan")
+    if not isinstance(plan, dict):
+        plan = {}
+    compact = {
+        "ts": row.get("ts"),
+        "iso": row.get("iso"),
+        "shard": shard_id,
+        "event": row.get("event"),
+        "symbol": row.get("symbol"),
+        "strategy": (
+            payload.get("strategy")
+            or plan.get("strategy")
+        ),
+        "action": payload.get("action"),
+        "side": (
+            payload.get("side")
+            or plan.get("side")
+        ),
+        "setupId": (
+            payload.get("setupId")
+            or payload.get("setup_id")
+            or plan.get("setupId")
+            or plan.get("setup_id")
+        ),
+        "reason": payload.get("reason"),
+        "entry": payload.get("entry"),
+        "exit": payload.get("exit"),
+        "netPnl": payload.get("netPnl"),
+    }
+    return {
+        key: value
+        for key, value in compact.items()
+        if value is not None
+    }
+
+
+def _is_trade_index_event(
+    event: str,
+    payload: dict,
+) -> bool:
+    if event in TRADE_INDEX_EVENTS:
+        return True
+    if event != "decision":
+        return False
+    action = str(payload.get("action") or "").lower()
+    return action in {"long", "short"}
+
+
+def _build_navigation_index(
+    run_dir: Path,
+    shard_rows: list[dict],
+    *,
+    max_file_bytes: int,
+) -> dict:
+    index_dir = run_dir / "index"
+    trade_writer = _JsonlPartWriter(
+        output_dir=index_dir / "trade-events",
+        root=run_dir,
+        max_file_bytes=max_file_bytes,
+    )
+    problem_writer = _JsonlPartWriter(
+        output_dir=index_dir / "problem-events",
+        root=run_dir,
+        max_file_bytes=max_file_bytes,
+    )
+
+    for shard in shard_rows:
+        counts: Counter[str] = Counter()
+        symbols: set[str] = set()
+        shard_id = str(shard["id"])
+
+        for part in shard.get("analysisParts") or []:
+            part_path = run_dir / str(part["path"])
+            with part_path.open(
+                "r",
+                encoding="utf-8",
+            ) as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if not isinstance(row, dict):
+                        continue
+                    event = str(row.get("event") or "")
+                    payload = row.get("payload")
+                    if not isinstance(payload, dict):
+                        payload = {}
+                    if event:
+                        counts[event] += 1
+                    symbol = str(row.get("symbol") or "")
+                    if symbol:
+                        symbols.add(symbol)
+
+                    if _is_trade_index_event(event, payload):
+                        trade_writer.write(
+                            _compact_index_event(
+                                row,
+                                shard_id=shard_id,
+                            )
+                        )
+                    if event in PROBLEM_INDEX_EVENTS:
+                        problem_writer.write(
+                            _compact_index_event(
+                                row,
+                                shard_id=shard_id,
+                            )
+                        )
+
+        shard["eventCounts"] = dict(
+            sorted(counts.items())
+        )
+        shard["symbols"] = sorted(symbols)
+        shard["activity"] = {
+            "signals": counts.get("decision", 0),
+            "entriesPending": (
+                counts.get("entry_pending", 0)
+                + counts.get("entry_add_pending", 0)
+            ),
+            "tradesOpened": counts.get("trade_opened", 0),
+            "tradesClosed": counts.get("trade_closed", 0),
+            "partialTakes": counts.get("partial_take", 0),
+            "riskRejects": counts.get("risk_reject", 0),
+            "setupBlocks": counts.get("setup_blocked", 0),
+            "arbiterBlocks": counts.get("arbiter_blocked", 0),
+            "entryCancels": counts.get("entry_cancelled", 0),
+            "errors": (
+                counts.get("scanner_error", 0)
+                + counts.get("context_error", 0)
+                + counts.get("fast_path_error", 0)
+                + counts.get("strategy_error", 0)
+            ),
+        }
+
+    trade_parts = trade_writer.close()
+    problem_parts = problem_writer.close()
+    shard_index = {
+        "schemaVersion": 1,
+        "index": navigation_index,
+        "shards": shard_rows,
+    }
+    _write_json(
+        index_dir / "shards.json",
+        shard_index,
+    )
+    return {
+        "shards": "index/shards.json",
+        "tradeEventParts": trade_parts,
+        "problemEventParts": problem_parts,
+    }
 
 
 def _write_json(path: Path, payload: dict) -> None:
@@ -288,6 +550,12 @@ def build_git_session_export(
                     "orderbookParts": orderbook_parts,
                 }
             )
+
+    navigation_index = _build_navigation_index(
+        run_dir,
+        shard_rows,
+        max_file_bytes=max_file_bytes,
+    )
 
     manifest = {
         "schemaVersion": 1,
