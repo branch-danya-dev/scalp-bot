@@ -214,6 +214,34 @@ class PaperBroker:
             )
         )
 
+    @staticmethod
+    def _maker_entry_aggressor_matches(
+        side: Side,
+        trade_side: str | None,
+    ) -> bool:
+        if not trade_side:
+            return True
+        normalized = trade_side.strip().lower()
+        return (
+            normalized == "sell"
+            if side == Side.LONG
+            else normalized == "buy"
+        )
+
+    @staticmethod
+    def _maker_exit_aggressor_matches(
+        pos: Position,
+        trade_side: str | None,
+    ) -> bool:
+        if not trade_side:
+            return True
+        normalized = trade_side.strip().lower()
+        return (
+            normalized == "buy"
+            if pos.side == Side.LONG
+            else normalized == "sell"
+        )
+
     @property
     def total_pnl(self) -> float:
         return self.balance - self.start_balance
@@ -726,6 +754,7 @@ class PaperBroker:
         *,
         trade_ts_ms: int | None = None,
         trade_notional_usd: float | None = None,
+        trade_side: str | None = None,
     ) -> list[dict]:
         pending = self.pending_entries.get(symbol)
         if pending is None:
@@ -753,6 +782,11 @@ class PaperBroker:
         else:
             filled = last_trade_price >= pending.limit_price * (1 + confirm)
         if not filled:
+            return []
+        if not self._maker_entry_aggressor_matches(
+            pending.plan.side,
+            trade_side,
+        ):
             return []
         if trade_notional_usd is not None:
             pending.eligible_trade_notional_usd += max(
@@ -976,6 +1010,7 @@ class PaperBroker:
         depth_book: OrderBook | None = None,
         trade_price: float | None | object = _UNSET_TRADE_PRICE,
         trade_notional_usd: float | None = None,
+        trade_side: str | None = None,
     ) -> list[dict]:
         pos = self.positions.get(symbol)
         if pos is None:
@@ -1052,6 +1087,7 @@ class PaperBroker:
                 else None
             ),
             trade_notional_usd=trade_notional_usd,
+            trade_side=trade_side,
         )
         economics = (
             pos.strategy_details.get("economics")
@@ -1110,6 +1146,14 @@ class PaperBroker:
                 resolved_trade_price,
                 self.config.maker_fill_confirmation_bps,
             )
+            if (
+                target_price_through
+                and not self._maker_exit_aggressor_matches(
+                    pos,
+                    trade_side,
+                )
+            ):
+                target_price_through = False
             if (
                 target_price_through
                 and trade_notional_usd is not None
@@ -1280,6 +1324,7 @@ class PaperBroker:
         *,
         trade_price: float | None = None,
         trade_notional_usd: float | None = None,
+        trade_side: str | None = None,
     ) -> bool:
         if pos.initial_risk_usd <= 0:
             return False
@@ -1293,6 +1338,11 @@ class PaperBroker:
             self.config.maker_fill_confirmation_bps,
         )
         if not price_through:
+            return False
+        if not self._maker_exit_aggressor_matches(
+            pos,
+            trade_side,
+        ):
             return False
         if trade_notional_usd is None:
             return True

@@ -1131,6 +1131,81 @@ def test_paper_does_not_take_partial_when_plan_marks_it_unprofitable() -> None:
     assert broker.positions["NOPARTUSDT"].partial_taken is False
 
 
+def test_pending_maker_entry_ignores_wrong_aggressor_side() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.05,
+        maker_fee_rate=0,
+        taker_fee_rate=0,
+        passive_entry_enabled=True,
+        maker_fill_confirmation_bps=0,
+        maker_queue_ahead_fraction=0.0,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("SIDEENTRYUSDT", Side.LONG, 1000)
+    p.strategy = "orderbook_density"
+    p.entry_mode = "maker_limit"
+    p.market_entry = 99.99
+    p.expected_net_loss = 10
+    pending = broker.place_pending(p)
+
+    assert broker.mark_pending(
+        "SIDEENTRYUSDT",
+        99.98,
+        trade_notional_usd=2000,
+        trade_side="Buy",
+    ) == []
+    assert pending.eligible_trade_notional_usd == 0
+    assert "SIDEENTRYUSDT" in broker.pending_entries
+
+    filled = broker.mark_pending(
+        "SIDEENTRYUSDT",
+        99.98,
+        trade_notional_usd=2000,
+        trade_side="Sell",
+    )
+    assert filled and filled[0]["event"] == "entry_filled"
+
+
+def test_maker_exit_ignores_wrong_aggressor_side() -> None:
+    cfg = Settings(
+        maker_fee_rate=0,
+        taker_fee_rate=0,
+        slippage_bps=0,
+        maker_fill_confirmation_bps=0,
+        maker_queue_ahead_fraction=0.0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+        max_leverage=2,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("SIDEEXITUSDT", Side.LONG, 1000)
+    p.strategy = "level_breakout"
+    p.target = 101.0
+    broker.open(p, book(99.99, 100.00))
+
+    assert broker.mark(
+        "SIDEEXITUSDT",
+        101.0,
+        book(101.0, 101.01),
+        trade_price=101.0,
+        trade_notional_usd=2000,
+        trade_side="Sell",
+    ) == []
+    assert "SIDEEXITUSDT" in broker.positions
+
+    closed = broker.mark(
+        "SIDEEXITUSDT",
+        101.0,
+        book(101.0, 101.01),
+        trade_price=101.0,
+        trade_notional_usd=2000,
+        trade_side="Buy",
+    )
+    assert closed and closed[-1]["reason"] == "target"
+
+
 def test_pending_maker_entry_requires_cumulative_trade_through_volume() -> None:
     cfg = Settings(
         start_balance=1000,

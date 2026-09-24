@@ -1983,6 +1983,7 @@ class TradingEngine:
                 trade_ts_ms=tick.ts_ms,
                 trade_price=tick.price,
                 trade_notional_usd=tick.notional,
+                trade_side=tick.side,
             )
 
             # If the resting order survived this tick, only now may the
@@ -5093,6 +5094,7 @@ class TradingEngine:
         trade_ts_ms: int | None = None,
         trade_price: float | None = None,
         trade_notional_usd: float | None = None,
+        trade_side: str | None = None,
     ) -> None:
         resolved_trade_price = (
             float(trade_price)
@@ -5104,6 +5106,7 @@ class TradingEngine:
             resolved_trade_price,
             trade_ts_ms=trade_ts_ms,
             trade_notional_usd=trade_notional_usd,
+            trade_side=trade_side,
         )
         for event in pending_events:
             if event.get("event") in {
@@ -5198,6 +5201,7 @@ class TradingEngine:
             session,
             trade_price=resolved_trade_price,
             trade_notional_usd=trade_notional_usd,
+            trade_side=trade_side,
         )
 
     def _mark_position_from_book(
@@ -5206,6 +5210,7 @@ class TradingEngine:
         *,
         trade_price: float | None = None,
         trade_notional_usd: float | None = None,
+        trade_side: str | None = None,
     ) -> None:
         if session.symbol not in self.broker.positions:
             return
@@ -5223,6 +5228,7 @@ class TradingEngine:
             depth_book=session.depth_orderbook(),
             trade_price=trade_price,
             trade_notional_usd=trade_notional_usd,
+            trade_side=trade_side,
         )
         self._handle_broker_events(session, events)
 
