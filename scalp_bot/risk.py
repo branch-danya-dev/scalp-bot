@@ -26,6 +26,30 @@ class RiskEngine:
     def __init__(self, config: Settings) -> None:
         self.config = config
 
+    def _stop_depth_stress(
+        self,
+        book: OrderBook,
+        side: Side,
+        notional: float,
+    ) -> tuple[float, float, float, float | None]:
+        """Reserve adverse stop-side depth impact using the current book."""
+        if notional <= 0:
+            return 0.0, 0.0, 0.0, None
+        best = book.executable_exit(side)
+        raw_vwap, visible = book.exit_vwap(side, notional)
+        if best is None or best <= 0 or raw_vwap is None or raw_vwap <= 0:
+            return 0.0, 0.0, visible, raw_vwap
+        impact = (
+            max(0.0, (best - raw_vwap) / best)
+            if side == Side.LONG
+            else max(0.0, (raw_vwap - best) / best)
+        )
+        stress = impact * max(
+            0.0,
+            self.config.stop_depth_stress_multiplier,
+        )
+        return stress, impact, visible, raw_vwap
+
     def build_plan(
         self,
         symbol: str,
@@ -347,6 +371,138 @@ class RiskEngine:
             stop_pct = abs(market_entry - stop) / market_entry
             all_in_loss_pct = stop_pct + round_trip_cost_pct
 
+        stop_depth_stress_rate = 0.0
+        stop_depth_impact_rate = 0.0
+        visible_stop_depth = 0.0
+        raw_stop_exit_vwap: float | None = None
+        for _ in range(3):
+            (
+                stop_depth_stress_rate,
+                stop_depth_impact_rate,
+                visible_stop_depth,
+                raw_stop_exit_vwap,
+            ) = self._stop_depth_stress(
+                book,
+                side,
+                notional,
+            )
+            if raw_stop_exit_vwap is None or visible_stop_depth <= 0:
+                return RiskResult(
+                    False,
+                    "insufficient visible stop-side depth",
+                )
+
+            stressed_all_in_loss_pct = (
+                stop_pct
+                + round_trip_cost_pct
+                + stop_depth_stress_rate
+            )
+            notional_by_structural_risk = (
+                structural_risk_budget / stop_pct
+            )
+            notional_by_trade_all_in_cap = (
+                trade_all_in_cap_usd / stressed_all_in_loss_pct
+                if stressed_all_in_loss_pct > 0
+                else 0.0
+            )
+            notional_by_all_in_portfolio_risk = (
+                max(available_risk_usd, 0)
+                / stressed_all_in_loss_pct
+                if stressed_all_in_loss_pct > 0
+                else 0.0
+            )
+            stressed_notional = min(
+                notional_by_structural_risk,
+                notional_by_trade_all_in_cap,
+                notional_by_all_in_portfolio_risk,
+                max(available_notional, 0),
+                position_exposure_cap,
+                visible_stop_depth,
+            )
+            if stressed_notional <= 0:
+                return RiskResult(
+                    False,
+                    "stop-side liquidity stress exhausts risk budget",
+                )
+            if stressed_notional >= notional - max(
+                1e-9,
+                notional * 1e-9,
+            ):
+                all_in_loss_pct = stressed_all_in_loss_pct
+                break
+
+            notional = stressed_notional
+            if entry_mode == "maker_limit":
+                raw_depth_entry = raw_market_entry
+                visible_entry_depth = notional
+            else:
+                raw_depth_entry, visible_entry_depth = book.entry_vwap(
+                    side,
+                    notional,
+                )
+                if (
+                    raw_depth_entry is None
+                    or visible_entry_depth
+                    + max(1e-9, notional * 1e-9)
+                    < notional
+                ):
+                    return RiskResult(
+                        False,
+                        "insufficient visible entry depth after stop stress sizing",
+                    )
+            market_entry = apply_entry_slippage(
+                float(raw_depth_entry),
+                side,
+                entry_slippage_rate,
+            )
+            if side == Side.LONG:
+                entry_drift = (
+                    market_entry - setup_entry
+                ) / setup_entry
+                if market_entry <= stop:
+                    return RiskResult(
+                        False,
+                        "setup invalidated after stop stress sizing",
+                    )
+                target_pct = (
+                    target - market_entry
+                ) / market_entry
+            else:
+                entry_drift = (
+                    setup_entry - market_entry
+                ) / setup_entry
+                if market_entry >= stop:
+                    return RiskResult(
+                        False,
+                        "setup invalidated after stop stress sizing",
+                    )
+                target_pct = (
+                    market_entry - target
+                ) / market_entry
+            if entry_drift > max_drift:
+                return RiskResult(
+                    False,
+                    (
+                        "setup expired after stop stress sizing: entry drift "
+                        f"{entry_drift * 10_000:.1f} bps > "
+                        f"{self.config.max_entry_drift_bps:.1f} bps"
+                    ),
+                )
+            stop_pct = abs(
+                market_entry - stop
+            ) / market_entry
+            if stop_pct <= 0 or target_pct <= 0:
+                return RiskResult(
+                    False,
+                    "invalid stop or target after stop stress sizing",
+                )
+        else:
+            all_in_loss_pct = (
+                stop_pct
+                + round_trip_cost_pct
+                + stop_depth_stress_rate
+            )
+
         entry_depth_impact_bps = (
             max(
                 0.0,
@@ -381,7 +537,17 @@ class RiskEngine:
         stop_slippage_cost = (
             notional * stop_exit_slippage_rate
         )
-        stop_estimated_costs = stop_fee_cost + stop_slippage_cost
+        stop_depth_stress_cost = (
+            notional * stop_depth_stress_rate
+        )
+        stop_estimated_costs = (
+            stop_fee_cost
+            + stop_slippage_cost
+            + stop_depth_stress_cost
+        )
+        stressed_stop_cost_pct = (
+            stop_cost_pct + stop_depth_stress_rate
+        )
 
         required_net_profit = max(
             self.config.min_net_profit_usd,
@@ -602,7 +768,21 @@ class RiskEngine:
             "targetMovePct": target_pct,
             "targetCostPct": lifecycle_cost_pct,
             "fullTargetCostPct": target_cost_pct,
-            "stopCostPct": stop_cost_pct,
+            "baseStopCostPct": stop_cost_pct,
+            "stopDepthStressMultiplier": (
+                self.config.stop_depth_stress_multiplier
+            ),
+            "stopDepthImpactBps": (
+                stop_depth_impact_rate * 10_000
+            ),
+            "stressedStopDepthImpactBps": (
+                stop_depth_stress_rate * 10_000
+            ),
+            "stopDepthStressPct": stop_depth_stress_rate,
+            "stopDepthStressCostUsd": stop_depth_stress_cost,
+            "rawStopExitVwap": raw_stop_exit_vwap,
+            "visibleStopDepthUsd": visible_stop_depth,
+            "stopCostPct": stressed_stop_cost_pct,
             "winnerCostShare": winner_cost_share,
             "maximumWinnerCostShare": self.config.max_winner_cost_share,
             "winnerCostShareGateEnabled": self.config.enforce_winner_cost_share_gate,
@@ -777,7 +957,7 @@ class RiskEngine:
 
         economics = {
             **economic_diagnostics,
-            "roundTripCostPct": stop_cost_pct,
+            "roundTripCostPct": stressed_stop_cost_pct,
             "lifecycleCostPct": lifecycle_cost_pct,
             "firstTakeMovePct": first_take_move_pct,
             "minimumFirstTakeMovePct": self.config.min_first_take_move_pct,
