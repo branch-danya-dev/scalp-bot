@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -53,7 +54,10 @@ async def state(symbol: str | None = Query(default=None)) -> dict:
 
 @app.get("/api/replay/sessions")
 async def replay_sessions() -> dict:
-    return {"sessions": engine.recorder.list_sessions()}
+    sessions = await asyncio.to_thread(
+        engine.recorder.list_sessions
+    )
+    return {"sessions": sessions}
 
 
 @app.get("/api/reviews/opportunities")
@@ -62,7 +66,8 @@ async def opportunity_analysis(
     horizon: float = Query(default=120.0, ge=10.0, le=900.0),
 ) -> dict:
     try:
-        return engine.recorder.opportunity_analysis(
+        return await asyncio.to_thread(
+            engine.recorder.opportunity_analysis,
             session,
             horizon_seconds=horizon,
         )
@@ -77,9 +82,13 @@ async def trade_review_summaries(
     session: str | None = Query(default=None),
 ) -> dict:
     try:
+        reviews = await asyncio.to_thread(
+            engine.recorder.trade_review_summaries,
+            session,
+        )
         return {
             "session": session or engine.recorder.path.name,
-            "reviews": engine.recorder.trade_review_summaries(session),
+            "reviews": reviews,
         }
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Session not found") from exc
@@ -93,7 +102,11 @@ async def trade_review(
     session: str | None = Query(default=None),
 ) -> dict:
     try:
-        return engine.recorder.trade_review(review_id, session)
+        return await asyncio.to_thread(
+            engine.recorder.trade_review,
+            review_id,
+            session,
+        )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Trade review not found") from exc
     except FileNotFoundError as exc:
@@ -105,7 +118,11 @@ async def trade_review(
 @app.get("/api/replay/session/{name}")
 async def replay_session(name: str, symbol: str | None = Query(default=None)) -> dict:
     try:
-        return engine.recorder.replay_bundle(name, symbol)
+        return await asyncio.to_thread(
+            engine.recorder.replay_bundle,
+            name,
+            symbol,
+        )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Session not found") from exc
     except ValueError as exc:
