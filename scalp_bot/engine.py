@@ -484,10 +484,11 @@ class ActiveSymbolSession:
             return None
         wall_price = float(wall_price)
         wall_side = str(details.get("wallSide") or "")
+        depth_book = self.depth_orderbook()
         rows = (
-            self.deep_orderbook.bids
+            depth_book.bids
             if wall_side == "bid"
-            else self.deep_orderbook.asks
+            else depth_book.asks
         )
         nearest_index = None
         if rows:
@@ -3925,7 +3926,7 @@ class TradingEngine:
         else:
             position = self.broker.open(
                 best.plan,
-                best.session.deep_orderbook,
+                best.session.depth_orderbook(),
             )
             self._record_opened_position(
                 best.session,
@@ -4497,7 +4498,7 @@ class TradingEngine:
             session.symbol,
             mark,
             session.orderbook,
-            depth_book=session.deep_orderbook,
+            depth_book=session.depth_orderbook(),
             trade_price=trade_price,
             trade_notional_usd=trade_notional_usd,
         )
