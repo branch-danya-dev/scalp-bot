@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from collections.abc import Awaitable, Callable
-from time import time
+from time import perf_counter_ns, time
+from typing import Any
 
 import httpx
+import msgspec
 import websockets
 
 from .activity import (
@@ -23,6 +24,39 @@ class BybitError(RuntimeError):
 
 class OrderBookSequenceError(RuntimeError):
     pass
+
+
+class MarketDataBackpressureError(RuntimeError):
+    pass
+
+
+class MarketMessage(msgspec.Struct):
+    topic: str | None = None
+    type: str | None = None
+    ts: int | None = None
+    cts: int | None = None
+    data: Any = None
+    success: bool | None = None
+    op: str | None = None
+    # Runtime-only ingest telemetry. These fields are absent on the wire and
+    # populated after decoding.
+    received_at_ns: int = 0
+    queue_depth: int = 0
+    queue_lag_ms: float = 0.0
+
+    def get(self, key: str, default=None):
+        return getattr(self, key, default)
+
+
+_MARKET_DECODER = msgspec.json.Decoder(
+    type=MarketMessage,
+    strict=False,
+)
+_JSON_ENCODER = msgspec.json.Encoder()
+
+
+def decode_market_message(raw: bytes | str) -> MarketMessage:
+    return _MARKET_DECODER.decode(raw)
 
 
 def _interval_ms(interval: str) -> int | None:
@@ -427,7 +461,48 @@ class OrderBookState:
                 side[price] = qty
 
 
-StreamCallback = Callable[[dict], Awaitable[None]]
+StreamCallback = Callable[
+    [MarketMessage],
+    Awaitable[None],
+]
+
+
+async def _process_market_queue(
+    queue: asyncio.Queue[MarketMessage],
+    callback: StreamCallback,
+    stop_event: asyncio.Event,
+    *,
+    max_lag_seconds: float,
+) -> None:
+    while not stop_event.is_set():
+        message = await queue.get()
+        try:
+            message.queue_depth = queue.qsize()
+            if message.received_at_ns > 0:
+                lag_seconds = max(
+                    0.0,
+                    (
+                        perf_counter_ns()
+                        - message.received_at_ns
+                    )
+                    / 1_000_000_000,
+                )
+                message.queue_lag_ms = (
+                    lag_seconds * 1000
+                )
+                if (
+                    max_lag_seconds > 0
+                    and lag_seconds > max_lag_seconds
+                ):
+                    raise MarketDataBackpressureError(
+                        "market processor lag exceeded "
+                        f"{max_lag_seconds:.3f}s "
+                        f"(lag={lag_seconds:.3f}s, "
+                        f"queue={message.queue_depth})"
+                    )
+            await callback(message)
+        finally:
+            queue.task_done()
 
 
 async def _stream_topics(
@@ -435,8 +510,13 @@ async def _stream_topics(
     topics: list[str],
     callback: StreamCallback,
     stop_event: asyncio.Event,
+    *,
+    queue_size: int = 512,
+    queue_put_timeout_seconds: float = 0.05,
+    queue_max_lag_seconds: float = 0.50,
 ) -> None:
     while not stop_event.is_set():
+        processor: asyncio.Task | None = None
         try:
             async with websockets.connect(
                 ws_url,
@@ -444,24 +524,80 @@ async def _stream_topics(
                 ping_timeout=20,
             ) as ws:
                 await ws.send(
-                    json.dumps({
+                    _JSON_ENCODER.encode({
                         "op": "subscribe",
                         "args": topics,
-                    })
+                    }),
+                    text=True,
+                )
+                queue: asyncio.Queue[MarketMessage] = (
+                    asyncio.Queue(
+                        maxsize=max(1, int(queue_size)),
+                    )
+                )
+                processor = asyncio.create_task(
+                    _process_market_queue(
+                        queue,
+                        callback,
+                        stop_event,
+                        max_lag_seconds=max(
+                            0.0,
+                            queue_max_lag_seconds,
+                        ),
+                    ),
+                    name=(
+                        "market-processor:"
+                        + ",".join(topics)
+                    ),
                 )
                 while not stop_event.is_set():
+                    if processor.done():
+                        exc = processor.exception()
+                        if exc is not None:
+                            raise exc
+                        raise RuntimeError(
+                            "market processor stopped unexpectedly"
+                        )
+
                     raw = await asyncio.wait_for(
-                        ws.recv(),
+                        ws.recv(decode=False),
                         timeout=35,
                     )
-                    message = json.loads(raw)
-                    if "topic" in message:
-                        await callback(message)
+                    message = decode_market_message(raw)
+                    if not message.topic:
+                        continue
+                    message.received_at_ns = (
+                        perf_counter_ns()
+                    )
+                    try:
+                        queue.put_nowait(message)
+                    except asyncio.QueueFull:
+                        try:
+                            await asyncio.wait_for(
+                                queue.put(message),
+                                timeout=max(
+                                    0.0,
+                                    queue_put_timeout_seconds,
+                                ),
+                            )
+                        except TimeoutError as exc:
+                            raise MarketDataBackpressureError(
+                                "market ingest queue remained full "
+                                f"(size={queue.maxsize})"
+                            ) from exc
         except asyncio.CancelledError:
             raise
         except Exception:
             if not stop_event.is_set():
                 await asyncio.sleep(2)
+        finally:
+            if processor is not None:
+                if not processor.done():
+                    processor.cancel()
+                await asyncio.gather(
+                    processor,
+                    return_exceptions=True,
+                )
 
 
 async def stream_symbol(
@@ -473,6 +609,9 @@ async def stream_symbol(
     *,
     fast_orderbook_depth: int = 50,
     deep_orderbook_depth: int = 1000,
+    market_queue_size: int = 512,
+    market_queue_put_timeout_seconds: float = 0.05,
+    market_queue_max_lag_seconds: float = 0.50,
 ) -> None:
     valid_depths = {1, 50, 200, 1000}
     if orderbook_depth is not None:
@@ -499,6 +638,13 @@ async def stream_symbol(
             fast_topics,
             callback,
             stop_event,
+            queue_size=market_queue_size,
+            queue_put_timeout_seconds=(
+                market_queue_put_timeout_seconds
+            ),
+            queue_max_lag_seconds=(
+                market_queue_max_lag_seconds
+            ),
         )
         return
 
@@ -510,11 +656,25 @@ async def stream_symbol(
             fast_topics,
             callback,
             stop_event,
+            queue_size=market_queue_size,
+            queue_put_timeout_seconds=(
+                market_queue_put_timeout_seconds
+            ),
+            queue_max_lag_seconds=(
+                market_queue_max_lag_seconds
+            ),
         ),
         _stream_topics(
             ws_url,
             [f"orderbook.{deep_orderbook_depth}.{symbol}"],
             callback,
             stop_event,
+            queue_size=market_queue_size,
+            queue_put_timeout_seconds=(
+                market_queue_put_timeout_seconds
+            ),
+            queue_max_lag_seconds=(
+                market_queue_max_lag_seconds
+            ),
         ),
     )
