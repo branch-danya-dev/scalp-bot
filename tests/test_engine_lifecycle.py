@@ -130,6 +130,28 @@ def policy_file(
     return str(path)
 
 
+def test_engines_do_not_share_stateful_strategy_instances(tmp_path) -> None:
+    first = make_engine(tmp_path / "first")
+    second = make_engine(tmp_path / "second")
+    try:
+        assert (
+            first.strategies["level_breakout"]
+            is not second.strategies["level_breakout"]
+        )
+        assert (
+            first.strategies["weak_level_rejection"]
+            is not second.strategies["weak_level_rejection"]
+        )
+
+        first_breakout = first.strategies["level_breakout"]
+        second_breakout = second.strategies["level_breakout"]
+        first_breakout._states["AAAUSDT"] = object()  # type: ignore[attr-defined]
+        assert "AAAUSDT" not in second_breakout._states  # type: ignore[attr-defined]
+    finally:
+        close_rest(first)
+        close_rest(second)
+
+
 def test_consumed_setup_is_blocked_until_wait_rearms_it(tmp_path) -> None:
     engine = make_engine(tmp_path, setup_rearm_seconds=0, setup_reset_wait_seconds=1)
     try:

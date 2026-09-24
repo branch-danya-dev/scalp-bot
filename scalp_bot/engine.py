@@ -39,7 +39,7 @@ from .strategy.flow import best_level_ofi_usd, prune_trades
 from .strategy.lifecycle import LevelLifecycleTracker
 from .strategy.structure import aggregate_candles
 from .strategy import (
-    DEFAULT_STRATEGIES,
+    create_default_strategies,
     HTFBiasSnapshot,
     LocalRegimeSnapshot,
     MultiHorizonFlowContext,
@@ -827,7 +827,10 @@ class TradingEngine:
             path=config.research_policy_file,
             mode=config.research_policy_mode,
         )
-        self.strategies: dict[str, Strategy] = {x.key: x for x in DEFAULT_STRATEGIES}
+        strategy_instances = create_default_strategies()
+        self.strategies: dict[str, Strategy] = {
+            x.key: x for x in strategy_instances
+        }
         configured_strategy_state = {
             "trend_structure": config.trend_structure_enabled,
             "weak_level_rejection": config.weak_level_rejection_enabled,
@@ -864,7 +867,7 @@ class TradingEngine:
                     "short": {},
                 },
             }
-            for x in DEFAULT_STRATEGIES
+            for x in strategy_instances
         }
         for key, probe_fraction in (
             (
