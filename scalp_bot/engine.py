@@ -4369,6 +4369,7 @@ class TradingEngine:
             session.symbol,
             session.orderbook,
             reason,
+            depth_book=session.deep_orderbook,
         )
         self._handle_broker_events(session, [event])
 
@@ -4467,6 +4468,7 @@ class TradingEngine:
             session.symbol,
             mark,
             session.orderbook,
+            depth_book=session.deep_orderbook,
             trade_price=trade_price,
             trade_notional_usd=trade_notional_usd,
         )
@@ -4657,7 +4659,17 @@ class TradingEngine:
         for symbol in list(self.broker.positions):
             session = self.sessions.get(symbol)
             book = session.orderbook if session else OrderBook()
-            event = self.broker.close(symbol, book, reason)
+            deep_book = (
+                session.deep_orderbook
+                if session
+                else book
+            )
+            event = self.broker.close(
+                symbol,
+                book,
+                reason,
+                depth_book=deep_book,
+            )
             if session:
                 self._handle_broker_events(session, [event])
             else:
