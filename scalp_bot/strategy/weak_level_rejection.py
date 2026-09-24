@@ -524,7 +524,8 @@ class WeakLevelRejectionStrategy(Strategy):
             and early_absorption_ready
         )
         late_reaction_only = (
-            flow_reversed
+            not self.staged_entries_enabled
+            and flow_reversed
             and not state.probe_opened
             and (
                 absorption_age_seconds is None
