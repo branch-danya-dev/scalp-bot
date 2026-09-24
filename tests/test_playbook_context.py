@@ -17,7 +17,7 @@ from scalp_bot.strategy.regime import (
     LocalRegime,
     LocalRegimeSnapshot,
 )
-from scalp_bot.strategy.structure import MarketStructure
+from scalp_bot.strategy.structure import MarketStructure, StructuralLevel
 from scalp_bot.strategy.trend_structure import TrendStructureStrategy
 from scalp_bot.strategy.weak_level_rejection import WeakLevelRejectionStrategy
 
@@ -448,3 +448,130 @@ def test_symmetric_range_has_no_fake_primary_direction() -> None:
         ctx,
         Trend.FLAT,
     ).primary_direction == Trend.FLAT
+
+
+def _worked_level(
+    kind: str,
+    center: float,
+    generation: str,
+) -> StructuralLevel:
+    return StructuralLevel(
+        kind=kind,
+        low=center - 0.03,
+        high=center + 0.03,
+        touches=6,
+        timeframe="1m",
+        score=0.8,
+        reaction_pct=0.005,
+        volume_ratio=1.2,
+        last_touch_index=70,
+        level_id=generation.rsplit(":g", 1)[0],
+        generation_id=generation,
+        distinct_approaches=5,
+        dwell_bars=5,
+        acceptance_bars=1,
+        lifecycle="worked",
+    )
+
+
+def _young_level(
+    kind: str,
+    center: float,
+    generation: str,
+) -> StructuralLevel:
+    return StructuralLevel(
+        kind=kind,
+        low=center - 0.02,
+        high=center + 0.02,
+        touches=2,
+        timeframe="1m",
+        score=0.6,
+        reaction_pct=0.003,
+        volume_ratio=1.0,
+        last_touch_index=70,
+        level_id=generation.rsplit(":g", 1)[0],
+        generation_id=generation,
+        distinct_approaches=2,
+        dwell_bars=1,
+        acceptance_bars=1,
+        lifecycle="tested",
+    )
+
+
+def test_breakout_prefers_near_primary_direction_level_over_closer_opposite() -> None:
+    strategy = LevelBreakoutStrategy()
+    ctx = context(
+        LocalRegime.BULLISH_TREND,
+        direction=Trend.UP,
+        parent=Trend.UP,
+    )
+    structure = MarketStructure(
+        levels=[
+            _worked_level(
+                "support",
+                99.95,
+                "S:support:1:g1",
+            ),
+            _worked_level(
+                "resistance",
+                100.20,
+                "R:resistance:1:g1",
+            ),
+        ]
+    )
+
+    decision = strategy.evaluate(
+        candles(),
+        OrderBook(
+            bids=[(99.99, 100.0)],
+            asks=[(100.01, 100.0)],
+        ),
+        Trend.FLAT,
+        symbol="PRIMARYBREAKUSDT",
+        trades=[],
+        structure=structure,
+        market_context=ctx,
+        observed_at_ms=100_000,
+    )
+
+    assert decision.details["playbookTrend"] == "up"
+    assert decision.details["zone"]["kind"] == "resistance"
+
+
+def test_rejection_prefers_near_primary_direction_level_over_closer_opposite() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    ctx = context(
+        LocalRegime.BULLISH_TREND,
+        direction=Trend.UP,
+        parent=Trend.UP,
+    )
+    structure = MarketStructure(
+        levels=[
+            _young_level(
+                "support",
+                99.90,
+                "S:support:2:g1",
+            ),
+            _young_level(
+                "resistance",
+                100.02,
+                "R:resistance:2:g1",
+            ),
+        ]
+    )
+
+    decision = strategy.evaluate(
+        candles(),
+        OrderBook(
+            bids=[(99.99, 100.0)],
+            asks=[(100.01, 100.0)],
+        ),
+        Trend.FLAT,
+        symbol="PRIMARYREJECTUSDT",
+        trades=[],
+        structure=structure,
+        market_context=ctx,
+        observed_at_ms=100_000,
+    )
+
+    assert decision.details["zone"]["kind"] == "support"
