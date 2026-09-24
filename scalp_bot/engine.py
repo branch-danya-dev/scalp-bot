@@ -3,15 +3,30 @@ from __future__ import annotations
 import asyncio
 from collections import deque
 from dataclasses import dataclass, field
-from time import monotonic, time
+from time import monotonic, perf_counter_ns, time
 
-from .bybit import BybitRestClient, OrderBookSequenceError, OrderBookState, stream_symbol
+from .bybit import (
+    BybitRestClient,
+    MarketMessage,
+    OrderBookSequenceError,
+    OrderBookState,
+    stream_symbol,
+)
 from .config import Settings
 from .domain import Action, Candle, Candidate, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .paper import PaperBroker, Position
 from .expectancy import StrategyExpectancyBook
 from .strategy_policy import minimum_expectancy_r
 from .observability import build_decision_trace
+from .latency_observability import (
+    configure_telemetry,
+    exchange_receive_seconds,
+    latency_snapshot,
+    observe_latency,
+    observe_recorder_health,
+    span,
+    stream_name,
+)
 from .recorder import SessionRecorder
 from .research_policy import (
     PolicyAssessment,
@@ -150,6 +165,7 @@ class ActiveSymbolSession:
     last_eval: float = 0.0
     last_event_eval_at: float = 0.0
     event_eval_pending: bool = False
+    pending_latency_message: MarketMessage | None = None
     fast_event_requests: int = 0
     fast_event_evaluations: int = 0
     fast_event_coalesced: int = 0
@@ -719,6 +735,7 @@ class Opportunity:
 class TradingEngine:
     def __init__(self, config: Settings) -> None:
         self.config = config
+        configure_telemetry(config)
         self.rest = BybitRestClient(config)
         self.risk = RiskEngine(config)
         self.broker = PaperBroker(config)
@@ -901,6 +918,15 @@ class TradingEngine:
         self._scanner_error: str | None = None
         self._last_scan_ok_at: float | None = None
         self._last_scan_error_at: float | None = None
+        self._pending_order_latency: dict[
+            tuple[str, str],
+            MarketMessage,
+        ] = {}
+        self._arbiter_latency_message: MarketMessage | None = None
+        self._arbiter_trigger_symbol: str | None = None
+        self._arbiter_trigger_setups: set[
+            tuple[str, str]
+        ] = set()
 
     async def start(self) -> None:
         self._stop.clear()
@@ -1051,6 +1077,15 @@ class TradingEngine:
             ),
             "marketQueueMaxLagSeconds": (
                 self.config.market_queue_max_lag_seconds
+            ),
+            "prometheusEnabled": self.config.prometheus_enabled,
+            "otelEnabled": self.config.otel_enabled,
+            "otelServiceName": self.config.otel_service_name,
+            "otelExporterOtlpEndpoint": (
+                self.config.otel_exporter_otlp_endpoint
+            ),
+            "otelTraceSampleRatio": (
+                self.config.otel_trace_sample_ratio
             ),
             "minNetProfitUsd": self.config.min_net_profit_usd,
             "minNetProfitEquityFraction": self.config.min_net_profit_equity_fraction,
@@ -1417,6 +1452,7 @@ class TradingEngine:
         reason: str,
         *,
         observed_at_ms: int | None = None,
+        market_message: MarketMessage | None = None,
     ) -> None:
         if not self.config.event_driven_evaluation_enabled:
             return
@@ -1429,6 +1465,8 @@ class TradingEngine:
 
         session.fast_event_requests += 1
         session.last_fast_event_reason = reason
+        if market_message is not None:
+            session.pending_latency_message = market_message
         session.last_fast_event_at_ms = (
             int(time() * 1000)
             if observed_at_ms is None
@@ -1484,7 +1522,61 @@ class TradingEngine:
             session.last_event_eval_at = now
             session.fast_event_evaluations += 1
             session.last_fast_event_reason = reason
-            await self._evaluate(session)
+            latency_message = session.pending_latency_message
+            evaluation_started_ns = perf_counter_ns()
+
+            with span(
+                "strategy.event_evaluate",
+                **{
+                    "market.event_id": (
+                        latency_message.event_id
+                        if latency_message is not None
+                        else None
+                    ),
+                    "market.symbol": symbol,
+                    "strategy.trigger_reason": reason,
+                },
+            ):
+                await self._evaluate(session)
+
+            if latency_message is not None:
+                if (
+                    latency_message.strategy_eval_started_mono_ns
+                    <= 0
+                ):
+                    latency_message.strategy_eval_started_mono_ns = (
+                        evaluation_started_ns
+                    )
+                    observe_latency(
+                        "parse_to_strategy",
+                        max(
+                            0.0,
+                            (
+                                evaluation_started_ns
+                                - latency_message.parsed_mono_ns
+                            )
+                            / 1_000_000_000,
+                        )
+                        if latency_message.parsed_mono_ns > 0
+                        else None,
+                        stream=stream_name(latency_message.topic),
+                        status="fallback",
+                    )
+                latency_message.strategy_eval_finished_mono_ns = (
+                    perf_counter_ns()
+                )
+                observe_latency(
+                    "strategy_evaluation",
+                    max(
+                        0.0,
+                        (
+                            latency_message.strategy_eval_finished_mono_ns
+                            - latency_message.strategy_eval_started_mono_ns
+                        )
+                        / 1_000_000_000,
+                    ),
+                    stream=stream_name(latency_message.topic),
+                )
             after = self._tradeable_event_fingerprint(
                 session
             )
@@ -1497,7 +1589,83 @@ class TradingEngine:
                 and after
                 and after != before
             ):
-                self._arbitrate_once()
+                before_setups = {
+                    (str(row[0]), str(row[2]))
+                    for row in before
+                }
+                after_setups = {
+                    (str(row[0]), str(row[2]))
+                    for row in after
+                }
+                new_fire_setups = (
+                    after_setups - before_setups
+                )
+                if latency_message is not None and new_fire_setups:
+                    latency_message.fire_mono_ns = perf_counter_ns()
+                    strategy_name = sorted(
+                        new_fire_setups
+                    )[0][0]
+                    observe_latency(
+                        "strategy_to_fire",
+                        max(
+                            0.0,
+                            (
+                                latency_message.fire_mono_ns
+                                - latency_message.strategy_eval_started_mono_ns
+                            )
+                            / 1_000_000_000,
+                        ),
+                        stream=stream_name(latency_message.topic),
+                        strategy=strategy_name,
+                    )
+                    exchange_receive = exchange_receive_seconds(
+                        latency_message
+                    )
+                    receipt_to_fire = max(
+                        0.0,
+                        (
+                            latency_message.fire_mono_ns
+                            - latency_message.receipt_mono_ns
+                        )
+                        / 1_000_000_000,
+                    )
+                    if (
+                        exchange_receive is not None
+                        and exchange_receive >= 0
+                    ):
+                        observe_latency(
+                            "exchange_to_fire",
+                            exchange_receive + receipt_to_fire,
+                            stream=stream_name(latency_message.topic),
+                            strategy=strategy_name,
+                        )
+                    trace_snapshot = latency_snapshot(
+                        latency_message
+                    )
+                    for decision in session.decisions.values():
+                        setup_key = (
+                            decision.strategy,
+                            str(decision.setup_id or ""),
+                        )
+                        if setup_key in new_fire_setups:
+                            decision.details[
+                                "latencyTrace"
+                            ] = trace_snapshot
+                self._arbiter_latency_message = (
+                    latency_message
+                    if new_fire_setups
+                    else None
+                )
+                self._arbiter_trigger_symbol = symbol
+                self._arbiter_trigger_setups = (
+                    new_fire_setups
+                )
+                try:
+                    self._arbitrate_once()
+                finally:
+                    self._arbiter_latency_message = None
+                    self._arbiter_trigger_symbol = None
+                    self._arbiter_trigger_setups = set()
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -1513,6 +1681,7 @@ class TradingEngine:
             current = self.sessions.get(symbol)
             if current is not None:
                 current.event_eval_pending = False
+                current.pending_latency_message = None
 
     def _research_book_depth(
         self,
@@ -1739,7 +1908,20 @@ class TradingEngine:
         fast_topic = f"orderbook.{fast_depth}."
         deep_topic = f"orderbook.{deep_depth}."
 
-        async def on_message(message: dict) -> None:
+        async def on_message(
+            message: MarketMessage | dict,
+        ) -> None:
+            if isinstance(message, dict):
+                message = MarketMessage(
+                    topic=message.get("topic"),
+                    type=message.get("type"),
+                    ts=message.get("ts"),
+                    cts=message.get("cts"),
+                    data=message.get("data"),
+                    success=message.get("success"),
+                    op=message.get("op"),
+                )
+
             session = self.sessions.get(symbol)
             if session is None:
                 return
@@ -1789,6 +1971,21 @@ class TradingEngine:
                     raise
                 session.book_synced = fast_book_state.synced
                 session.last_book_at = wall_now
+                message.book_updated_mono_ns = perf_counter_ns()
+                observe_latency(
+                    "processor_to_book",
+                    max(
+                        0.0,
+                        (
+                            message.book_updated_mono_ns
+                            - message.processor_started_mono_ns
+                        )
+                        / 1_000_000_000,
+                    )
+                    if message.processor_started_mono_ns > 0
+                    else None,
+                    stream=stream_name(message.topic),
+                )
 
                 # If both configured depths are identical, the same stream is
                 # authoritative for both roles.
@@ -1835,6 +2032,7 @@ class TradingEngine:
                         session,
                         reason,
                         observed_at_ms=event_ms,
+                        market_message=message,
                     )
 
             if deep_only:
@@ -1851,6 +2049,21 @@ class TradingEngine:
                     deep_book_state.synced
                 )
                 session.last_deep_book_at = wall_now
+                message.book_updated_mono_ns = perf_counter_ns()
+                observe_latency(
+                    "processor_to_book",
+                    max(
+                        0.0,
+                        (
+                            message.book_updated_mono_ns
+                            - message.processor_started_mono_ns
+                        )
+                        / 1_000_000_000,
+                    )
+                    if message.processor_started_mono_ns > 0
+                    else None,
+                    stream=stream_name(message.topic),
+                )
 
             if topic.startswith("kline."):
                 self._apply_kline(session, message)
@@ -1904,6 +2117,7 @@ class TradingEngine:
                         session,
                         "public_trade",
                         observed_at_ms=ticks[-1].ts_ms,
+                        market_message=message,
                     )
 
             # Periodic evaluation remains a fallback, but deep-book-only
@@ -2383,17 +2597,25 @@ class TradingEngine:
                     },
                 )
             else:
+                density_started_ns = perf_counter_ns()
                 try:
-                    raw_density = density.evaluate(
-                        closed_1m,
-                        session.depth_orderbook(),
-                        session.trend,
-                        symbol=session.symbol,
-                        trades=list(session.trades),
-                        structure=session.structure,
-                        market_context=session.market_context,
-                        observed_at_ms=now_ms,
-                    )
+                    with span(
+                        "strategy.evaluate",
+                        **{
+                            "strategy.name": "orderbook_density",
+                            "market.symbol": session.symbol,
+                        },
+                    ):
+                        raw_density = density.evaluate(
+                            closed_1m,
+                            session.depth_orderbook(),
+                            session.trend,
+                            symbol=session.symbol,
+                            trades=list(session.trades),
+                            structure=session.structure,
+                            market_context=session.market_context,
+                            observed_at_ms=now_ms,
+                        )
                 except Exception as exc:
                     error = f"{type(exc).__name__}: {exc}"
                     previous = session.decisions.get(
@@ -2422,6 +2644,19 @@ class TradingEngine:
                             "evidenceOnly": True,
                         },
                     )
+                finally:
+                    observe_latency(
+                        "strategy_function",
+                        max(
+                            0.0,
+                            (
+                                perf_counter_ns()
+                                - density_started_ns
+                            )
+                            / 1_000_000_000,
+                        ),
+                        strategy="orderbook_density",
+                    )
 
             self._annotate_flow_context(
                 session,
@@ -2443,6 +2678,50 @@ class TradingEngine:
             observed_at_ms=now_ms,
         )
 
+        latency_message = session.pending_latency_message
+        if latency_message is not None:
+            latency_message.features_ready_mono_ns = perf_counter_ns()
+            observe_latency(
+                "parse_to_features",
+                max(
+                    0.0,
+                    (
+                        latency_message.features_ready_mono_ns
+                        - latency_message.parsed_mono_ns
+                    )
+                    / 1_000_000_000,
+                ),
+                stream=stream_name(latency_message.topic),
+            )
+            if latency_message.book_updated_mono_ns > 0:
+                observe_latency(
+                    "book_to_features",
+                    max(
+                        0.0,
+                        (
+                            latency_message.features_ready_mono_ns
+                            - latency_message.book_updated_mono_ns
+                        )
+                        / 1_000_000_000,
+                    ),
+                    stream=stream_name(latency_message.topic),
+                )
+            latency_message.strategy_eval_started_mono_ns = (
+                perf_counter_ns()
+            )
+            observe_latency(
+                "parse_to_strategy",
+                max(
+                    0.0,
+                    (
+                        latency_message.strategy_eval_started_mono_ns
+                        - latency_message.parsed_mono_ns
+                    )
+                    / 1_000_000_000,
+                ),
+                stream=stream_name(latency_message.topic),
+            )
+
         if density_decision is not None:
             self._annotate_decision_context(
                 session,
@@ -2459,17 +2738,25 @@ class TradingEngine:
                 continue
             if not self.strategy_enabled.get(key, False):
                 continue
+            strategy_started_ns = perf_counter_ns()
             try:
-                decision = strategy.evaluate(
-                    closed_1m,
-                    session.orderbook,
-                    session.trend,
-                    symbol=session.symbol,
-                    trades=list(session.trades),
-                    structure=session.structure,
-                    market_context=session.market_context,
-                    observed_at_ms=now_ms,
-                )
+                with span(
+                    "strategy.evaluate",
+                    **{
+                        "strategy.name": key,
+                        "market.symbol": session.symbol,
+                    },
+                ):
+                    decision = strategy.evaluate(
+                        closed_1m,
+                        session.orderbook,
+                        session.trend,
+                        symbol=session.symbol,
+                        trades=list(session.trades),
+                        structure=session.structure,
+                        market_context=session.market_context,
+                        observed_at_ms=now_ms,
+                    )
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"
                 previous = session.decisions.get(key)
@@ -2485,6 +2772,19 @@ class TradingEngine:
                     action=Action.WAIT,
                     reasons=[f"Ошибка стратегии: {error}"],
                     details={"state": "error", "error": error},
+                )
+            finally:
+                observe_latency(
+                    "strategy_function",
+                    max(
+                        0.0,
+                        (
+                            perf_counter_ns()
+                            - strategy_started_ns
+                        )
+                        / 1_000_000_000,
+                    ),
+                    strategy=key,
                 )
 
             self._annotate_flow_context(
@@ -3404,6 +3704,116 @@ class TradingEngine:
             ),
         )
 
+    def _latency_for_selected_opportunity(
+        self,
+        opportunity: Opportunity,
+    ) -> MarketMessage | None:
+        message = self._arbiter_latency_message
+        if (
+            message is None
+            or self._arbiter_trigger_symbol
+            != opportunity.session.symbol
+        ):
+            return None
+        setup_key = (
+            opportunity.decision.strategy,
+            str(opportunity.plan.setup_id or ""),
+        )
+        if setup_key not in self._arbiter_trigger_setups:
+            return None
+        return message
+
+    @staticmethod
+    def _latency_seconds(
+        message: MarketMessage,
+        start_attr: str,
+        end_attr: str,
+    ) -> float | None:
+        start = int(getattr(message, start_attr, 0) or 0)
+        end = int(getattr(message, end_attr, 0) or 0)
+        if start <= 0 or end <= 0:
+            return None
+        return max(
+            0.0,
+            (end - start) / 1_000_000_000,
+        )
+
+    def _mark_order_sent(
+        self,
+        message: MarketMessage | None,
+        *,
+        strategy: str,
+        execution_mode: str,
+    ) -> None:
+        if message is None:
+            return
+        message.order_sent_mono_ns = perf_counter_ns()
+        observe_latency(
+            "fire_to_order",
+            self._latency_seconds(
+                message,
+                "fire_mono_ns",
+                "order_sent_mono_ns",
+            ),
+            stream=stream_name(message.topic),
+            strategy=strategy,
+            execution_mode=execution_mode,
+        )
+
+    def _mark_order_ack(
+        self,
+        message: MarketMessage | None,
+        *,
+        strategy: str,
+        execution_mode: str,
+    ) -> None:
+        if message is None:
+            return
+        message.order_ack_mono_ns = perf_counter_ns()
+        observe_latency(
+            "order_to_ack",
+            self._latency_seconds(
+                message,
+                "order_sent_mono_ns",
+                "order_ack_mono_ns",
+            ),
+            strategy=strategy,
+            execution_mode=execution_mode,
+        )
+
+    def _mark_order_fill(
+        self,
+        message: MarketMessage | None,
+        *,
+        strategy: str,
+        execution_mode: str,
+    ) -> None:
+        if message is None:
+            return
+        message.fill_mono_ns = perf_counter_ns()
+        observe_latency(
+            "order_to_fill",
+            self._latency_seconds(
+                message,
+                "order_sent_mono_ns",
+                "fill_mono_ns",
+            ),
+            strategy=strategy,
+            execution_mode=execution_mode,
+        )
+
+    def _pop_pending_order_latency(
+        self,
+        symbol: str,
+        setup_id: str | None,
+    ) -> MarketMessage | None:
+        if not setup_id:
+            return None
+        return self._pending_order_latency.pop(
+            (symbol, str(setup_id)),
+            None,
+        )
+
     async def _arbiter_loop(self) -> None:
         while not self._stop.is_set():
             try:
@@ -3419,6 +3829,10 @@ class TradingEngine:
         opportunities: list[Opportunity] = []
         now = time()
         for event in self.broker.expire_pending(now):
+            self._pop_pending_order_latency(
+                str(event.get("symbol") or ""),
+                str(event.get("setupId") or ""),
+            )
             self._emit(
                 "entry_cancelled",
                 event.get("symbol"),
@@ -3965,7 +4379,13 @@ class TradingEngine:
 
         best.session.last_risk_fingerprint = None
         best.session.last_blocked_fingerprint = None
+        latency_message = (
+            self._latency_for_selected_opportunity(best)
+        )
         selection_payload = {
+            "latencyTrace": latency_snapshot(
+                latency_message
+            ),
             "semanticArbitration": (
                 best.arbitration.public()
             ),
@@ -3980,26 +4400,63 @@ class TradingEngine:
         }
 
         if best.plan.entry_mode == "maker_limit":
-            if best.position_action == "add":
-                pending = self.broker.place_pending_add(
-                    best.plan,
-                    min_trade_ts_ms=(
-                        best.session.trades[-1].ts_ms
-                        if best.session.trades
+            execution_mode = "paper_maker"
+            self._mark_order_sent(
+                latency_message,
+                strategy=best.decision.strategy,
+                execution_mode=execution_mode,
+            )
+            with span(
+                "paper.order.submit",
+                **{
+                    "market.symbol": best.session.symbol,
+                    "strategy.name": best.decision.strategy,
+                    "execution.mode": execution_mode,
+                    "market.event_id": (
+                        latency_message.event_id
+                        if latency_message is not None
                         else None
                     ),
+                },
+            ):
+                if best.position_action == "add":
+                    pending = self.broker.place_pending_add(
+                        best.plan,
+                        min_trade_ts_ms=(
+                            best.session.trades[-1].ts_ms
+                            if best.session.trades
+                            else None
+                        ),
+                    )
+                    pending_event = "entry_add_pending"
+                else:
+                    pending = self.broker.place_pending(
+                        best.plan,
+                        min_trade_ts_ms=(
+                            best.session.trades[-1].ts_ms
+                            if best.session.trades
+                            else None
+                        ),
+                    )
+                    pending_event = "entry_pending"
+            self._mark_order_ack(
+                latency_message,
+                strategy=best.decision.strategy,
+                execution_mode=execution_mode,
+            )
+            if latency_message is not None:
+                self._pending_order_latency[
+                    (
+                        best.session.symbol,
+                        str(best.plan.setup_id),
+                    )
+                ] = latency_message
+                best.plan.strategy_details[
+                    "latencyTrace"
+                ] = latency_snapshot(latency_message)
+                selection_payload["latencyTrace"] = (
+                    latency_snapshot(latency_message)
                 )
-                pending_event = "entry_add_pending"
-            else:
-                pending = self.broker.place_pending(
-                    best.plan,
-                    min_trade_ts_ms=(
-                        best.session.trades[-1].ts_ms
-                        if best.session.trades
-                        else None
-                    ),
-                )
-                pending_event = "entry_pending"
             self._emit(
                 pending_event,
                 best.session.symbol,
@@ -4014,12 +4471,53 @@ class TradingEngine:
             )
             return
 
+        execution_mode = "paper_taker"
+        self._mark_order_sent(
+            latency_message,
+            strategy=best.decision.strategy,
+            execution_mode=execution_mode,
+        )
         best.session.last_trade_at = now
+        with span(
+            "paper.order.submit",
+            **{
+                "market.symbol": best.session.symbol,
+                "strategy.name": best.decision.strategy,
+                "execution.mode": execution_mode,
+                "market.event_id": (
+                    latency_message.event_id
+                    if latency_message is not None
+                    else None
+                ),
+            },
+        ):
+            if best.position_action == "add":
+                position = self.broker.add(
+                    best.plan,
+                    best.session.depth_orderbook(),
+                )
+            else:
+                position = self.broker.open(
+                    best.plan,
+                    best.session.depth_orderbook(),
+                )
+
+        self._mark_order_ack(
+            latency_message,
+            strategy=best.decision.strategy,
+            execution_mode=execution_mode,
+        )
+        self._mark_order_fill(
+            latency_message,
+            strategy=best.decision.strategy,
+            execution_mode=execution_mode,
+        )
+        if latency_message is not None:
+            best.plan.strategy_details[
+                "latencyTrace"
+            ] = latency_snapshot(latency_message)
+
         if best.position_action == "add":
-            position = self.broker.add(
-                best.plan,
-                best.session.depth_orderbook(),
-            )
             self._record_added_position(
                 best.session,
                 best.decision,
@@ -4031,10 +4529,6 @@ class TradingEngine:
                 selection_priority=best.priority.public(),
             )
         else:
-            position = self.broker.open(
-                best.plan,
-                best.session.depth_orderbook(),
-            )
             self._record_opened_position(
                 best.session,
                 best.decision,
@@ -4462,6 +4956,10 @@ class TradingEngine:
             f"setup_invalidated:{reason}",
         )
         if event is not None:
+            self._pop_pending_order_latency(
+                session.symbol,
+                str(event.get("setupId") or ""),
+            )
             self._emit(
                 "entry_cancelled",
                 session.symbol,
@@ -4539,6 +5037,41 @@ class TradingEngine:
                 plan = dict(event.get("plan") or {})
                 decision = session.decisions.get(strategy_key)
                 plan_setup_id = str(plan.get("setup_id") or "")
+                latency_message = self._pop_pending_order_latency(
+                    session.symbol,
+                    plan_setup_id,
+                )
+                if latency_message is not None:
+                    with span(
+                        "paper.order.fill",
+                        parent_span=latency_message.otel_span,
+                        **{
+                            "market.symbol": session.symbol,
+                            "strategy.name": strategy_key,
+                            "execution.mode": "paper_maker",
+                            "latency.source_event_id": (
+                                latency_message.event_id
+                            ),
+                            "latency.source_trace_id": (
+                                latency_message.trace_id
+                            ),
+                        },
+                    ):
+                        self._mark_order_fill(
+                            latency_message,
+                            strategy=strategy_key,
+                            execution_mode="paper_maker",
+                        )
+                    strategy_details = (
+                        dict(plan.get("strategy_details") or {})
+                    )
+                    strategy_details[
+                        "latencyTrace"
+                    ] = latency_snapshot(latency_message)
+                    plan["strategy_details"] = strategy_details
+                    event["latencyTrace"] = (
+                        latency_snapshot(latency_message)
+                    )
                 if (
                     decision is None
                     or str(decision.setup_id or "") != plan_setup_id
@@ -4573,6 +5106,10 @@ class TradingEngine:
                         dict(event.get("position") or {}),
                     )
             elif event.get("event") == "entry_cancelled":
+                self._pop_pending_order_latency(
+                    session.symbol,
+                    str(event.get("setupId") or ""),
+                )
                 self._emit(
                     "entry_cancelled",
                     session.symbol,
@@ -4786,6 +5323,10 @@ class TradingEngine:
 
     def _cancel_all_pending(self, reason: str) -> None:
         for event in self.broker.cancel_all_pending(reason):
+            self._pop_pending_order_latency(
+                str(event.get("symbol") or ""),
+                str(event.get("setupId") or ""),
+            )
             self._emit(
                 "entry_cancelled",
                 event.get("symbol"),
@@ -5038,6 +5579,16 @@ class TradingEngine:
         if snapshot and symbol in self.sessions:
             stored["market"] = self.sessions[symbol].market_snapshot()
         self.recorder.record(event, symbol, stored)
+        if event in {
+            "research_frame",
+            "market_frame",
+            "trade_opened",
+            "trade_closed",
+            "run_summary",
+        }:
+            observe_recorder_health(
+                self.recorder.health()
+            )
 
     def public_state(self, selected_symbol: str | None = None) -> dict:
         working = list(self.sessions)

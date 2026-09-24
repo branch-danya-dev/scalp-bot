@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from prometheus_client import make_asgi_app
 
 from .config import settings
 from .engine import TradingEngine
@@ -27,6 +28,8 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Scalp Bot", version="0.2.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+if settings.prometheus_enabled:
+    app.mount("/metrics", make_asgi_app())
 
 
 class ToggleBody(BaseModel):

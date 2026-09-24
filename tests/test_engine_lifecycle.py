@@ -1,8 +1,9 @@
 import asyncio
 
 import pytest
-from time import time
+from time import perf_counter_ns, time
 
+from scalp_bot.bybit import MarketMessage
 from scalp_bot.config import Settings
 from scalp_bot.domain import Action, Candidate, Candle, OrderBook, Side, StrategyDecision, TradePlan, TradeTick, Trend
 from scalp_bot.engine import ActiveSymbolSession, TradingEngine
@@ -2781,6 +2782,7 @@ async def test_fast_event_evaluation_bypasses_poll_interval_and_arbitrates_fire(
     engine.sessions[session.symbol] = session
     evaluations: list[str] = []
     arbitrations: list[str] = []
+    arbiter_setups: list[set[tuple[str, str]]] = []
 
     async def fake_evaluate(target: ActiveSymbolSession) -> None:
         evaluations.append(target.symbol)
@@ -2799,6 +2801,9 @@ async def test_fast_event_evaluation_bypasses_poll_interval_and_arbitrates_fire(
 
     def fake_arbitrate() -> None:
         arbitrations.append("fire")
+        arbiter_setups.append(
+            set(engine._arbiter_trigger_setups)
+        )
 
     monkeypatch.setattr(engine, "_evaluate", fake_evaluate)
     monkeypatch.setattr(engine, "_arbitrate_once", fake_arbitrate)
@@ -2807,11 +2812,22 @@ async def test_fast_event_evaluation_bypasses_poll_interval_and_arbitrates_fire(
     # still execute without waiting evaluation_engaged_interval_seconds.
     session.last_eval = 10**9
 
+    message = MarketMessage(
+        topic="orderbook.50.FASTUSDT",
+        ts=1_000,
+        event_id="m-fast-fixture",
+        trace_id="0" * 31 + "2",
+        receipt_wall_ns=2_000_000_000,
+        receipt_mono_ns=perf_counter_ns() - 2_000_000,
+        parsed_mono_ns=perf_counter_ns() - 1_000_000,
+    )
+
     try:
         engine._schedule_event_evaluation(
             session,
             "best_quote",
             observed_at_ms=1_000,
+            market_message=message,
         )
         tasks = list(engine._event_tasks)
         assert tasks
@@ -2819,8 +2835,27 @@ async def test_fast_event_evaluation_bypasses_poll_interval_and_arbitrates_fire(
 
         assert evaluations == ["FASTUSDT"]
         assert arbitrations == ["fire"]
+        assert arbiter_setups == [{
+            (
+                "level_breakout",
+                "level_breakout:long:R:g1",
+            )
+        }]
         assert session.fast_event_evaluations == 1
         assert session.last_fast_event_reason == "best_quote"
+        assert message.strategy_eval_started_mono_ns > 0
+        assert message.strategy_eval_finished_mono_ns >= (
+            message.strategy_eval_started_mono_ns
+        )
+        assert message.fire_mono_ns >= (
+            message.strategy_eval_finished_mono_ns
+        )
+        trace = session.decisions[
+            "level_breakout"
+        ].details["latencyTrace"]
+        assert trace["eventId"] == "m-fast-fixture"
+        assert trace["traceId"] == "0" * 31 + "2"
+        assert trace["fireTsNs"] is not None
     finally:
         engine.running = False
         await engine.rest.close()
@@ -3156,3 +3191,49 @@ async def test_density_evaluation_consumes_deep_book_not_fast_book(
         assert captured[-1] is deep
     finally:
         await engine.rest.close()
+
+
+def test_order_latency_helpers_complete_paper_taker_chain(
+    tmp_path,
+) -> None:
+    engine = make_engine(tmp_path)
+    message = MarketMessage(
+        topic="publicTrade.AAAUSDT",
+        event_id="m-order-fixture",
+        trace_id="0" * 31 + "3",
+        receipt_wall_ns=2_000_000_000,
+        receipt_mono_ns=perf_counter_ns() - 5_000_000,
+        parsed_mono_ns=perf_counter_ns() - 4_000_000,
+        strategy_eval_started_mono_ns=perf_counter_ns() - 3_000_000,
+        fire_mono_ns=perf_counter_ns() - 2_000_000,
+    )
+
+    try:
+        engine._mark_order_sent(
+            message,
+            strategy="level_breakout",
+            execution_mode="paper_taker",
+        )
+        engine._mark_order_ack(
+            message,
+            strategy="level_breakout",
+            execution_mode="paper_taker",
+        )
+        engine._mark_order_fill(
+            message,
+            strategy="level_breakout",
+            execution_mode="paper_taker",
+        )
+
+        assert message.order_sent_mono_ns >= message.fire_mono_ns
+        assert message.order_ack_mono_ns >= message.order_sent_mono_ns
+        assert message.fill_mono_ns >= message.order_ack_mono_ns
+
+        from scalp_bot.latency_observability import latency_snapshot
+
+        trace = latency_snapshot(message)
+        assert trace is not None
+        assert trace["durationsMs"]["fireToOrder"] is not None
+        assert trace["durationsMs"]["orderToFill"] is not None
+    finally:
+        close_rest(engine)
