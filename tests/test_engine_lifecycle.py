@@ -2525,6 +2525,170 @@ def test_strategy_invalidation_no_longer_waits_five_seconds(tmp_path) -> None:
 
 
 
+@pytest.mark.asyncio
+async def test_public_trade_batch_fills_before_later_tick_can_invalidate(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        passive_entry_enabled=True,
+        maker_fill_confirmation_bps=0.0,
+        maker_queue_ahead_fraction=0.0,
+    )
+    try:
+        pending_plan = plan("AAAUSDT")
+        pending_plan.strategy = "weak_level_rejection"
+        pending_plan.entry_mode = "maker_limit"
+        pending_plan.market_entry = 99.99
+        pending_plan.setup_id = "reject:g1"
+        engine.broker.place_pending(
+            pending_plan,
+            min_trade_ts_ms=1_000,
+        )
+
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(99.99, 100.01),
+            last_price=100.0,
+        )
+        session.decisions["weak_level_rejection"] = StrategyDecision(
+            strategy="weak_level_rejection",
+            action=Action.LONG,
+            reasons=["fresh rejection"],
+            entry=100.0,
+            stop=99.5,
+            target=101.0,
+            setup_id="reject:g1",
+            details={
+                "state": "reject",
+                "opportunityFreshness": {
+                    "classification": "fresh",
+                },
+            },
+        )
+        engine.sessions[session.symbol] = session
+
+        evaluations: list[list[float]] = []
+
+        async def invalidate_after_trade(
+            current: ActiveSymbolSession,
+        ) -> None:
+            evaluations.append(
+                [tick.price for tick in current.trades]
+            )
+            current.decisions["weak_level_rejection"] = (
+                StrategyDecision(
+                    strategy="weak_level_rejection",
+                    action=Action.WAIT,
+                    reasons=["invalidated after fill"],
+                    details={"state": "search"},
+                )
+            )
+            engine._validate_pending_entry(current)
+
+        engine._evaluate = invalidate_after_trade  # type: ignore[method-assign]
+
+        await engine._process_public_trade_message(
+            session,
+            MarketMessage(
+                topic="publicTrade.AAAUSDT",
+                data=[
+                    {
+                        "T": 1_001,
+                        "p": "99.98",
+                        "v": "10",
+                        "S": "Sell",
+                    },
+                    {
+                        "T": 1_002,
+                        "p": "100.10",
+                        "v": "1",
+                        "S": "Buy",
+                    },
+                ],
+            ),
+        )
+
+        assert "AAAUSDT" in engine.broker.positions
+        assert "AAAUSDT" not in engine.broker.pending_entries
+        # Once the first tick fills the order, pending-entry invalidation is
+        # no longer allowed to run against later ticks in the same batch.
+        assert evaluations == []
+    finally:
+        await engine.rest.close()
+
+
+@pytest.mark.asyncio
+async def test_public_trade_batch_does_not_expose_future_ticks_to_pending_validation(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        passive_entry_enabled=True,
+        maker_fill_confirmation_bps=0.0,
+        maker_queue_ahead_fraction=0.0,
+    )
+    try:
+        pending_plan = plan("AAAUSDT")
+        pending_plan.strategy = "weak_level_rejection"
+        pending_plan.entry_mode = "maker_limit"
+        pending_plan.market_entry = 99.99
+        pending_plan.setup_id = "reject:g1"
+        engine.broker.place_pending(
+            pending_plan,
+            min_trade_ts_ms=1_000,
+        )
+
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(99.99, 100.01),
+            last_price=100.0,
+        )
+        engine.sessions[session.symbol] = session
+        seen_trade_prices: list[list[float]] = []
+
+        async def cancel_on_first_visible_tick(
+            current: ActiveSymbolSession,
+        ) -> None:
+            seen_trade_prices.append(
+                [tick.price for tick in current.trades]
+            )
+            engine.broker.cancel_pending(
+                current.symbol,
+                "test_cancel",
+            )
+
+        engine._evaluate = cancel_on_first_visible_tick  # type: ignore[method-assign]
+
+        await engine._process_public_trade_message(
+            session,
+            MarketMessage(
+                topic="publicTrade.AAAUSDT",
+                data=[
+                    {
+                        "T": 1_001,
+                        "p": "100.02",
+                        "v": "1",
+                        "S": "Buy",
+                    },
+                    {
+                        "T": 1_002,
+                        "p": "99.98",
+                        "v": "10",
+                        "S": "Sell",
+                    },
+                ],
+            ),
+        )
+
+        assert seen_trade_prices == [[100.02]]
+        assert "AAAUSDT" not in engine.broker.positions
+    finally:
+        await engine.rest.close()
+
+
 def test_execution_uses_specific_public_trade_price_for_maker_fill(
     tmp_path,
 ) -> None:
