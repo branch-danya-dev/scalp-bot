@@ -466,7 +466,7 @@ def test_arbiter_blocks_trend_long_into_mature_resistance(tmp_path) -> None:
         close_rest(engine)
 
 
-def test_arbiter_waits_when_viable_playbooks_conflict_on_direction(tmp_path) -> None:
+def test_arbiter_selects_one_viable_playbook_when_directions_conflict(tmp_path) -> None:
     engine = make_engine(tmp_path, max_leverage=1, risk_fraction=0.01)
     try:
         now = time()
@@ -513,18 +513,15 @@ def test_arbiter_waits_when_viable_playbooks_conflict_on_direction(tmp_path) -> 
 
         engine._arbitrate_once()
 
-        assert not engine.broker.positions
-        blocked = [
-            event
-            for event in engine.events
-            if event["event"] == "arbiter_blocked"
+        assert len(engine.broker.positions) == 1
+        position = engine.broker.positions["AAAUSDT"]
+        arbitration = position.strategy_details[
+            "semanticArbitration"
         ]
-        assert len(blocked) >= 2
-        assert all(
-            "opposing_playbook_conflict"
-            in event["payload"]["blockers"]
-            for event in blocked[-2:]
-        )
+        assert arbitration["conflictingStrategies"]
+        assert "opposing_playbook_conflict" not in arbitration[
+            "blockers"
+        ]
     finally:
         close_rest(engine)
 

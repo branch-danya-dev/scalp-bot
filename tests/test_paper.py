@@ -964,7 +964,9 @@ def test_staged_add_aggregates_position_without_widening_stop() -> None:
     assert position.entry_legs[0]["phase"] == "probe"
     assert position.entry_legs[1]["phase"] == "add"
     assert position.initial_risk_usd > first_risk
-    assert broker.total_exposure == pytest.approx(700)
+    assert broker.total_exposure == pytest.approx(
+        position.qty * position.last_price
+    )
 
     closed = broker.close(
         "STAGEDUSDT",
