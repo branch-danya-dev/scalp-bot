@@ -689,6 +689,11 @@ class TradingEngine:
             )
             setattr(
                 breakout_strategy,
+                "retest_response_min_bps",
+                config.breakout_retest_response_min_bps,
+            )
+            setattr(
+                breakout_strategy,
                 "hold_without_retest_seconds",
                 config.breakout_hold_without_retest_seconds,
             )
@@ -701,6 +706,26 @@ class TradingEngine:
                 breakout_strategy,
                 "min_directional_response_bps",
                 config.breakout_min_directional_response_bps,
+            )
+
+        rejection_strategy = self.strategies.get(
+            "weak_level_rejection"
+        )
+        if rejection_strategy is not None:
+            setattr(
+                rejection_strategy,
+                "micro_response_min_bps",
+                config.weak_level_rejection_micro_response_min_bps,
+            )
+            setattr(
+                rejection_strategy,
+                "micro_response_min_seconds",
+                config.weak_level_rejection_micro_response_min_seconds,
+            )
+            setattr(
+                rejection_strategy,
+                "micro_response_max_seconds",
+                config.weak_level_rejection_micro_response_max_seconds,
             )
 
         density_strategy = self.strategies.get("orderbook_density")

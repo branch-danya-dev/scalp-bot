@@ -896,3 +896,210 @@ def test_rejection_keeps_exact_selected_structural_generation() -> None:
         second.details["levelLifecycle"]["generation_id"]
         == "S:selected:g4"
     )
+
+
+
+def test_breakout_retest_requires_fresh_post_retest_response() -> None:
+    strategy = LevelBreakoutStrategy()
+    strategy.staged_entries_enabled = False
+    rows = mature_breakout_candles()
+    structure = mature_structure()
+    flow = aggressive_buy_flow()
+
+    first = strategy.evaluate(
+        rows,
+        OrderBook(
+            bids=[(100.16, 50)],
+            asks=[(100.17, 50)],
+        ),
+        Trend.UP,
+        symbol="RETESTRESPONSEUSDT",
+        trades=flow,
+        structure=structure,
+    )
+    assert first.action == Action.WAIT
+    state = strategy._states["RETESTRESPONSEUSDT"]
+    assert state.break_started_at > 0
+
+    # Pull back close to the broken resistance while still technically above
+    # the break buffer. This records a retest, but it is not an entry yet.
+    retest = strategy.evaluate(
+        rows,
+        OrderBook(
+            bids=[(100.065, 50)],
+            asks=[(100.075, 50)],
+        ),
+        Trend.UP,
+        symbol="RETESTRESPONSEUSDT",
+        trades=flow,
+        structure=structure,
+    )
+    assert retest.action == Action.WAIT
+    assert strategy._states[
+        "RETESTRESPONSEUSDT"
+    ].retest_seen is True
+
+    # Time alone cannot turn the retest into FIRE.
+    strategy._states[
+        "RETESTRESPONSEUSDT"
+    ].retest_at -= 4.0
+    still_wait = strategy.evaluate(
+        rows,
+        OrderBook(
+            bids=[(100.065, 50)],
+            asks=[(100.075, 50)],
+        ),
+        Trend.UP,
+        symbol="RETESTRESPONSEUSDT",
+        trades=flow,
+        structure=structure,
+    )
+    assert still_wait.action == Action.WAIT
+    assert still_wait.details["retestResponseReady"] is False
+
+    # A small fresh move away from the reclaimed level completes the setup.
+    fired = strategy.evaluate(
+        rows,
+        OrderBook(
+            bids=[(100.09, 50)],
+            asks=[(100.10, 50)],
+        ),
+        Trend.UP,
+        symbol="RETESTRESPONSEUSDT",
+        trades=flow,
+        structure=structure,
+    )
+    assert fired.action == Action.LONG
+    assert fired.details["retestResponseReady"] is True
+    assert fired.details["postRetestResponseBps"] >= (
+        strategy.retest_response_min_bps
+    )
+    assert (
+        fired.details["breakoutConfirmationMode"]
+        == "retest_response"
+    )
+    assert (
+        fired.details["fireTrigger"]["source"]
+        == "breakout_retest_response"
+    )
+
+
+def test_previous_day_high_is_valid_breakout_setup_without_five_touches() -> None:
+    strategy = LevelBreakoutStrategy()
+    strategy.staged_entries_enabled = False
+    level = StructuralLevel(
+        kind="previous_day_high",
+        low=100.05,
+        high=100.05,
+        touches=1,
+        timeframe="1D",
+        score=0.88,
+        generation_id="R:previous_day_high:100:g1",
+        distinct_approaches=0,
+        dwell_bars=0,
+        acceptance_bars=0,
+        lifecycle="fresh",
+    )
+    structure = MarketStructure(levels=[level])
+    rows = mature_breakout_candles()
+    flow = aggressive_buy_flow()
+
+    first = strategy.evaluate(
+        rows,
+        OrderBook(
+            bids=[(100.16, 50)],
+            asks=[(100.17, 50)],
+        ),
+        Trend.UP,
+        symbol="PDHBREAKUSDT",
+        trades=flow,
+        structure=structure,
+    )
+    assert first.action == Action.WAIT
+    state = strategy._states["PDHBREAKUSDT"]
+    assert state.armed_generation_id == level.generation_id
+    state.break_started_at -= (
+        strategy.hold_without_retest_seconds + 1
+    )
+
+    fired = strategy.evaluate(
+        rows,
+        OrderBook(
+            bids=[(100.16, 50)],
+            asks=[(100.17, 50)],
+        ),
+        Trend.UP,
+        symbol="PDHBREAKUSDT",
+        trades=flow,
+        structure=structure,
+    )
+    assert fired.action == Action.LONG
+    assert fired.details["setupLevelKind"] == "previous_day_high"
+    assert fired.details["setupLevelClass"] == "session_extreme"
+    assert (
+        fired.details["levelLifecycle"]["generation_id"]
+        == level.generation_id
+    )
+
+
+def test_previous_day_low_can_be_rejection_setup_with_micro_response() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    strategy.staged_entries_enabled = False
+    level = StructuralLevel(
+        kind="previous_day_low",
+        low=100.00,
+        high=100.00,
+        touches=1,
+        timeframe="1D",
+        score=0.88,
+        generation_id="S:previous_day_low:100:g1",
+        distinct_approaches=0,
+        dwell_bars=0,
+        acceptance_bars=0,
+        lifecycle="fresh",
+    )
+    structure = MarketStructure(levels=[level])
+    rows = rejection_candles()
+    absorption = [
+        TradeTick(20_000_000 + i * 200, 100.00, 4, "Sell")
+        for i in range(10)
+    ]
+    absorption.append(
+        TradeTick(20_002_200, 99.95, 2, "Sell")
+    )
+
+    armed = strategy.evaluate(
+        rows,
+        OrderBook(
+            bids=[(100.09, 50)],
+            asks=[(100.10, 50)],
+        ),
+        Trend.UP,
+        symbol="PDLREJECTUSDT",
+        trades=absorption,
+        structure=structure,
+        observed_at_ms=20_002_200,
+    )
+    assert armed.action == Action.WAIT
+    assert armed.details["microResponseReady"] is False
+
+    fired = strategy.evaluate(
+        rows,
+        OrderBook(
+            bids=[(100.115, 50)],
+            asks=[(100.125, 50)],
+        ),
+        Trend.UP,
+        symbol="PDLREJECTUSDT",
+        trades=absorption,
+        structure=structure,
+        observed_at_ms=20_003_200,
+    )
+    assert fired.action == Action.LONG
+    assert fired.details["setupLevelKind"] == "previous_day_low"
+    assert fired.details["setupLevelClass"] == "session_extreme"
+    assert fired.details["microResponseReady"] is True
+    assert (
+        fired.details["levelLifecycle"]["generation_id"]
+        == level.generation_id
+    )

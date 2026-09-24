@@ -24,6 +24,10 @@ from .common import (
 )
 from .flow import flow_at_level, flow_beyond_level
 from .liquidity import find_liquidity_targets
+from .structure import (
+    RESISTANCE_LEVEL_KINDS,
+    SUPPORT_LEVEL_KINDS,
+)
 from .playbook_context import (
     PlaybookKind,
     assess_entry_context,
@@ -57,6 +61,7 @@ class BreakoutWatchState:
     break_extreme: float = 0.0
     retest_seen: bool = False
     retest_at: float = 0.0
+    retest_price: float = 0.0
     probe_opened: bool = False
 
 
@@ -81,6 +86,7 @@ class LevelBreakoutStrategy(Strategy):
     staged_entries_enabled = False
     probe_risk_fraction = 0.35
     retest_tolerance_bps = 3.0
+    retest_response_min_bps = 2.0
     hold_without_retest_seconds = 8.0
     absorption_efficiency_threshold = 0.35
     min_directional_response_bps = 5.0
@@ -237,6 +243,43 @@ class LevelBreakoutStrategy(Strategy):
             )
         )
         return eligible[0] if eligible else None
+
+    @classmethod
+    def _structural_level_is_tradeable(
+        cls,
+        level,
+        candles: list[Candle],
+        *,
+        long_candidate: bool,
+    ) -> bool:
+        allowed_kinds = (
+            RESISTANCE_LEVEL_KINDS
+            if long_candidate
+            else SUPPORT_LEVEL_KINDS
+        )
+        if level.kind not in allowed_kinds:
+            return False
+        if not level.generation_id or level.lifecycle == "broken":
+            return False
+
+        # Current/previous-day extremes are market objects by definition.
+        # They do not need to manufacture five local touches before a
+        # breakout can be evaluated. Their actual trade still requires the
+        # same pressure, executed flow, acceptance and response evidence.
+        if level.kind != (
+            "resistance" if long_candidate else "support"
+        ):
+            return True
+
+        return (
+            level.touches >= cls.min_zone_touches
+            and level.distinct_approaches
+            >= cls.min_distinct_approaches
+            and level.reaction_pct
+            >= typical_range_pct(candles) * 0.45
+            and level.volume_ratio >= 0.80
+            and level.lifecycle == "worked"
+        )
 
     @staticmethod
     def _pressure_score(
@@ -444,14 +487,11 @@ class LevelBreakoutStrategy(Strategy):
                     structural_rows = [
                         level
                         for level in structure.levels
-                        if level.kind == zone_kind
-                        and level.touches >= self.min_zone_touches
-                        and level.distinct_approaches
-                        >= self.min_distinct_approaches
-                        and level.reaction_pct
-                        >= typical_range_pct(candles) * 0.45
-                        and level.volume_ratio >= 0.80
-                        and level.lifecycle == "worked"
+                        if self._structural_level_is_tradeable(
+                            level,
+                            candles,
+                            long_candidate=long_candidate,
+                        )
                     ]
                     selected = self._select_structural_candidate(
                         structural_rows,
@@ -590,6 +630,7 @@ class LevelBreakoutStrategy(Strategy):
             state.break_extreme = 0.0
             state.retest_seen = False
             state.retest_at = 0.0
+            state.retest_price = 0.0
             state.probe_opened = False
         visuals = zone_visual(zone, "breakout zone")
         flow = compute_trade_flow(trades, observed_at_ms)
@@ -792,6 +833,7 @@ class LevelBreakoutStrategy(Strategy):
             state.break_extreme = 0.0
             state.retest_seen = False
             state.retest_at = 0.0
+            state.retest_price = 0.0
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
@@ -937,6 +979,7 @@ class LevelBreakoutStrategy(Strategy):
             state.break_extreme = price
             state.retest_seen = False
             state.retest_at = 0.0
+            state.retest_price = 0.0
         if long_side:
             state.break_extreme = max(
                 state.break_extreme or price,
@@ -983,6 +1026,7 @@ class LevelBreakoutStrategy(Strategy):
         ):
             state.retest_seen = True
             state.retest_at = market_now
+            state.retest_price = price
 
         held_seconds = max(
             0.0,
@@ -993,10 +1037,55 @@ class LevelBreakoutStrategy(Strategy):
             if state.retest_seen and state.retest_at > 0
             else 0.0
         )
+        post_retest_response_bps = (
+            (
+                (price - state.retest_price)
+                / state.retest_price
+                * 10_000
+            )
+            if (
+                state.retest_seen
+                and state.retest_price > 0
+                and long_side
+            )
+            else (
+                (
+                    (state.retest_price - price)
+                    / state.retest_price
+                    * 10_000
+                )
+                if (
+                    state.retest_seen
+                    and state.retest_price > 0
+                )
+                else 0.0
+            )
+        )
+        forming_micro_move_5s_bps = (
+            forming.micro_move_5s_bps
+            if forming is not None
+            else None
+        )
+        tape_retest_response_ready = (
+            forming_micro_move_5s_bps is not None
+            and (
+                forming_micro_move_5s_bps
+                >= self.retest_response_min_bps
+                if long_side
+                else forming_micro_move_5s_bps
+                <= -self.retest_response_min_bps
+            )
+        )
+        retest_response_ready = (
+            post_retest_response_bps
+            >= self.retest_response_min_bps
+            or tape_retest_response_ready
+        )
         retest_hold_ready = (
             state.retest_seen
             and retest_hold_seconds
             >= self.min_break_hold_seconds
+            and retest_response_ready
         )
         sustained_response_ready = (
             directional_response_bps
@@ -1008,7 +1097,7 @@ class LevelBreakoutStrategy(Strategy):
             and sustained_response_ready
         )
         confirmation_mode = (
-            "retest_hold"
+            "retest_response"
             if retest_hold_ready
             else (
                 "sustained_price_response"
@@ -1073,8 +1162,8 @@ class LevelBreakoutStrategy(Strategy):
                     self.key,
                     Action.WAIT,
                     [
-                        "BREAK наблюдается; ждём retest+hold либо устойчивое "
-                        "acceptance за уровнем перед FIRE"
+                        "BREAK наблюдается; ждём retest+hold+price response либо "
+                        "устойчивое acceptance с направленным response перед FIRE"
                     ],
                     0.64,
                     zone.center,
@@ -1096,6 +1185,21 @@ class LevelBreakoutStrategy(Strategy):
                         ),
                         "retestSeen": state.retest_seen,
                         "retestHoldSeconds": retest_hold_seconds,
+                        "retestPrice": (
+                            state.retest_price or None
+                        ),
+                        "postRetestResponseBps": (
+                            post_retest_response_bps
+                        ),
+                        "tapeRetestResponseReady": (
+                            tape_retest_response_ready
+                        ),
+                        "retestResponseReady": (
+                            retest_response_ready
+                        ),
+                        "requiredRetestResponseBps": (
+                            self.retest_response_min_bps
+                        ),
                         "sustainedHoldSecondsRequired": (
                             self.hold_without_retest_seconds
                         ),
@@ -1265,8 +1369,28 @@ class LevelBreakoutStrategy(Strategy):
             strategy=self.key,
             action=action,
             reasons=[
-                "Пробой зрелой наторгованной горизонтальной зоны",
-                f"Зона подтверждена {zone.touches} касаниями, реакциями и объёмом",
+                (
+                    "Пробой значимого session/previous-day экстремума"
+                    if (
+                        matched is not None
+                        and matched.kind
+                        not in {"support", "resistance"}
+                    )
+                    else "Пробой зрелой наторгованной горизонтальной зоны"
+                ),
+                (
+                    f"Структурный объект {matched.kind} имеет самостоятельную "
+                    "session/HTF значимость"
+                    if (
+                        matched is not None
+                        and matched.kind
+                        not in {"support", "resistance"}
+                    )
+                    else (
+                        f"Зона подтверждена {zone.touches} касаниями, "
+                        "реакциями и объёмом"
+                    )
+                ),
                 (
                     "Ранний probe разрешён сильным ARMED/pre-state; "
                     "остаток риска ждёт acceptance + hold"
@@ -1296,6 +1420,20 @@ class LevelBreakoutStrategy(Strategy):
                     if structure is not None and matched is not None
                     else None
                 ),
+                "setupLevelKind": (
+                    matched.kind
+                    if matched is not None
+                    else zone.kind
+                ),
+                "setupLevelClass": (
+                    "session_extreme"
+                    if (
+                        matched is not None
+                        and matched.kind
+                        not in {"support", "resistance"}
+                    )
+                    else "worked_horizontal"
+                ),
                 "flow": flow,
                 "levelFlow": level_flow.public(),
                 "acceptanceFlow": acceptance_flow.public(),
@@ -1315,8 +1453,8 @@ class LevelBreakoutStrategy(Strategy):
                         "breakout_early_probe"
                         if staged_phase == "probe"
                         else (
-                            "breakout_retest_hold"
-                            if confirmation_mode == "retest_hold"
+                            "breakout_retest_response"
+                            if confirmation_mode == "retest_response"
                             else "breakout_sustained_price_response"
                         )
                     ),
@@ -1351,6 +1489,17 @@ class LevelBreakoutStrategy(Strategy):
                 "requiredBreakHoldSeconds": self.min_break_hold_seconds,
                 "retestSeen": state.retest_seen,
                 "retestHoldSeconds": retest_hold_seconds,
+                "retestPrice": state.retest_price or None,
+                "postRetestResponseBps": (
+                    post_retest_response_bps
+                ),
+                "tapeRetestResponseReady": (
+                    tape_retest_response_ready
+                ),
+                "retestResponseReady": retest_response_ready,
+                "requiredRetestResponseBps": (
+                    self.retest_response_min_bps
+                ),
                 "sustainedHoldSecondsRequired": (
                     self.hold_without_retest_seconds
                 ),

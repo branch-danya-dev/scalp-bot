@@ -25,6 +25,11 @@ from .common import (
 )
 from .flow import flow_at_level, flow_beyond_level
 from .liquidity import find_liquidity_targets
+from .structure import (
+    RESISTANCE_LEVEL_KINDS,
+    SUPPORT_LEVEL_KINDS,
+    directional_level_kind,
+)
 from .playbook_context import (
     PlaybookKind,
     assess_entry_context,
@@ -53,6 +58,8 @@ class RejectionWatchState:
     swept: bool = False
     armed_at: float = 0.0
     armed_price: float = 0.0
+    absorption_at: float = 0.0
+    absorption_price: float = 0.0
     probe_opened: bool = False
 
 
@@ -67,6 +74,9 @@ class WeakLevelRejectionStrategy(Strategy):
     test_pin_max_distance_pct = 0.008
     staged_entries_enabled = False
     probe_risk_fraction = 0.30
+    micro_response_min_bps = 1.5
+    micro_response_min_seconds = 0.50
+    micro_response_max_seconds = 6.0
 
     def __init__(self) -> None:
         self._states: dict[str, RejectionWatchState] = {}
@@ -99,6 +109,8 @@ class WeakLevelRejectionStrategy(Strategy):
         state.swept = False
         state.armed_at = 0.0
         state.armed_price = 0.0
+        state.absorption_at = 0.0
+        state.absorption_price = 0.0
 
     @staticmethod
     def _key(zone: LevelZone) -> tuple[str, float, float, int]:
@@ -135,6 +147,37 @@ class WeakLevelRejectionStrategy(Strategy):
             )
         )
         return eligible[0] if eligible else None
+
+    @classmethod
+    def _structural_level_is_tradeable(
+        cls,
+        level,
+        price: float,
+        kind: LevelKind,
+    ) -> bool:
+        if price <= 0:
+            return False
+        if directional_level_kind(level.kind) != kind:
+            return False
+        if (
+            abs(level.center - price) / price
+            > cls.approach_pct
+        ):
+            return False
+        if not level.generation_id or level.lifecycle == "broken":
+            return False
+
+        # Session and previous-day extremes are meaningful supply/demand
+        # references even on the first interaction of the day. Ordinary
+        # horizontal rejection levels remain intentionally young/weak.
+        if level.kind != kind:
+            return True
+
+        return (
+            1 <= level.distinct_approaches <= cls.max_touches
+            and level.acceptance_bars <= 3
+            and level.lifecycle in {"fresh", "tested"}
+        )
 
     def _decision_for_zone(
         self,
@@ -186,6 +229,8 @@ class WeakLevelRejectionStrategy(Strategy):
             state.swept = False
             state.armed_at = 0.0
             state.armed_price = 0.0
+            state.absorption_at = 0.0
+            state.absorption_price = 0.0
             state.probe_opened = False
 
         if generation_id in state.used_generations:
@@ -403,6 +448,72 @@ class WeakLevelRejectionStrategy(Strategy):
             )
 
         state.stage = RejectionStage.REJECT
+        if attack_absorbed and state.absorption_at <= 0:
+            state.absorption_at = now
+            state.absorption_price = price
+
+        absorption_age_seconds = (
+            max(0.0, now - state.absorption_at)
+            if state.absorption_at > 0
+            else None
+        )
+        micro_price_response_bps = (
+            (
+                (price - state.absorption_price)
+                / state.absorption_price
+                * 10_000
+            )
+            if (
+                state.absorption_price > 0
+                and action == Action.LONG
+            )
+            else (
+                (
+                    (state.absorption_price - price)
+                    / state.absorption_price
+                    * 10_000
+                )
+                if state.absorption_price > 0
+                else 0.0
+            )
+        )
+        forming_micro_move_5s_bps = (
+            forming.micro_move_5s_bps
+            if forming is not None
+            else None
+        )
+        tape_response_aligned = (
+            forming_micro_move_5s_bps is not None
+            and (
+                forming_micro_move_5s_bps
+                >= self.micro_response_min_bps
+                if action == Action.LONG
+                else forming_micro_move_5s_bps
+                <= -self.micro_response_min_bps
+            )
+        )
+        forming_position_supported = (
+            forming is None
+            or (
+                forming.close_position >= 0.52
+                if action == Action.LONG
+                else forming.close_position <= 0.48
+            )
+        )
+        micro_response_ready = (
+            absorption_age_seconds is not None
+            and absorption_age_seconds
+            >= self.micro_response_min_seconds
+            and absorption_age_seconds
+            <= self.micro_response_max_seconds
+            and (
+                micro_price_response_bps
+                >= self.micro_response_min_bps
+                or tape_response_aligned
+            )
+            and forming_position_supported
+        )
+
         early_absorption_ready = (
             attack_absorbed
             and not flow_reversed
@@ -413,30 +524,63 @@ class WeakLevelRejectionStrategy(Strategy):
             and early_absorption_ready
         )
         late_reaction_only = (
-            flow_reversed
+            not self.staged_entries_enabled
+            and flow_reversed
             and not state.probe_opened
+            and (
+                absorption_age_seconds is None
+                or absorption_age_seconds
+                > self.micro_response_max_seconds
+            )
         )
-        if (
-            (not flow_reversed and not early_absorption_ready)
+        production_ready = (
+            not self.staged_entries_enabled
+            and micro_response_ready
+        )
+
+        response_expired = (
+            not self.staged_entries_enabled
+            and absorption_age_seconds is not None
+            and absorption_age_seconds
+            > self.micro_response_max_seconds
+            and not micro_response_ready
+        )
+        if response_expired:
+            state.absorption_at = 0.0
+            state.absorption_price = 0.0
+
+        should_wait = (
+            (
+                self.staged_entries_enabled
+                and not flow_reversed
+                and not early_absorption_ready
+            )
             or (
                 not self.staged_entries_enabled
-                and late_reaction_only
+                and not production_ready
             )
-        ):
+            or late_reaction_only
+        )
+        if should_wait:
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
                 [
                     (
-                        "Поздний flow reversal наблюдается после REJECT; "
-                        "Stage 18 не открывает новую позицию на запоздалом REACTION"
+                        "Поздний flow reversal пришёл вне micro-response окна; "
+                        "новую позицию не открываем"
                         if late_reaction_only
                         else (
                             "Rejection probe уже открыт; ждём разворот "
                             "локального flow для add"
                             if state.probe_opened
-                            else "Пробой не удержался, но локального absorption "
-                            "ещё недостаточно для раннего REJECT-входа"
+                            else (
+                                "Failed break + absorption замечены; ждём "
+                                "короткий price response после reclaim"
+                                if state.absorption_at > 0
+                                else "Пробой не удержался, но локального "
+                                "absorption ещё недостаточно"
+                            )
                         )
                     )
                 ],
@@ -444,18 +588,18 @@ class WeakLevelRejectionStrategy(Strategy):
                 zone.center,
                 visuals=visuals,
                 details={
-                    "state": (
-                        RejectionStage.REACTION.value
-                        if late_reaction_only
-                        else state.stage.value
-                    ),
+                    "state": state.stage.value,
                     "zone": zone.public(),
                     "flow": flow,
                     "levelFlow": level_flow.public(),
                     "recentLevelFlow": recent_level_flow.public(),
                     "breakoutFlow": breakout_flow.public(),
                     "roundLevel": round_level,
-                    "weakLevel": True,
+                    "weakLevel": (
+                        structural_level is None
+                        or structural_level.kind
+                        in {"support", "resistance"}
+                    ),
                     "levelGeneration": generation_id,
                     "formingCandle": (
                         forming.public()
@@ -468,6 +612,31 @@ class WeakLevelRejectionStrategy(Strategy):
                     "flowReversed": flow_reversed,
                     "lateReactionObserved": late_reaction_only,
                     "probeOpened": state.probe_opened,
+                    "absorptionObservedAt": (
+                        state.absorption_at or None
+                    ),
+                    "absorptionAgeSeconds": (
+                        absorption_age_seconds
+                    ),
+                    "microPriceResponseBps": (
+                        micro_price_response_bps
+                    ),
+                    "tapeResponseAligned": (
+                        tape_response_aligned
+                    ),
+                    "formingPositionSupported": (
+                        forming_position_supported
+                    ),
+                    "microResponseReady": (
+                        micro_response_ready
+                    ),
+                    "requiredMicroResponseBps": (
+                        self.micro_response_min_bps
+                    ),
+                    "microResponseWindowSeconds": [
+                        self.micro_response_min_seconds,
+                        self.micro_response_max_seconds,
+                    ],
                 },
             )
 
@@ -620,9 +789,9 @@ class WeakLevelRejectionStrategy(Strategy):
                 staged_risk_fraction = 1.0
                 state.stage = RejectionStage.REACTION
         else:
-            # Smoke evidence showed REJECT carried the edge while waiting for
-            # REACTION degraded it. Enter once on early failed-break absorption
-            # and do not add later.
+            # REJECT carries the useful early edge, but production now waits
+            # only for a short tick-native price response after absorption.
+            # This avoids the old late REACTION while refusing a static reclaim.
             staged_phase = "full"
             staged_risk_fraction = 1.0
             state.stage = RejectionStage.REJECT
@@ -631,7 +800,19 @@ class WeakLevelRejectionStrategy(Strategy):
             strategy=self.key,
             action=action,
             reasons=[
-                f"Слабый уровень: {approaches} отдельных подход(а), без длительной проторговки",
+                (
+                    f"Значимый {structural_level.kind} тестируется как "
+                    "session/previous-day rejection"
+                    if (
+                        structural_level is not None
+                        and structural_level.kind
+                        not in {"support", "resistance"}
+                    )
+                    else (
+                        f"Слабый уровень: {approaches} отдельных подход(а), "
+                        "без длительной проторговки"
+                    )
+                ),
                 "Попытка пробоя не удержалась, цена вернулась за границу зоны",
                 (
                     "Ранний probe разрешён подтверждённым absorption; "
@@ -642,8 +823,8 @@ class WeakLevelRejectionStrategy(Strategy):
                         "зарезервированный остаток риска"
                         if staged_phase == "add"
                         else (
-                            "Failed break + локальное absorption дают ранний "
-                            "REJECT-вход без ожидания позднего REACTION"
+                            "Failed break + absorption подтверждены коротким "
+                            "price response после reclaim; поздний REACTION не ждём"
                             if not self.staged_entries_enabled
                             else "Поток непосредственно у уровня подтвердил разворот/поглощение"
                         )
@@ -665,7 +846,11 @@ class WeakLevelRejectionStrategy(Strategy):
                 "recentLevelFlow": recent_level_flow.public(),
                 "breakoutFlow": breakout_flow.public(),
                 "roundLevel": round_level,
-                "weakLevel": True,
+                "weakLevel": (
+                    structural_level is None
+                    or structural_level.kind
+                    in {"support", "resistance"}
+                ),
                 "levelGeneration": generation_id,
                 "formingCandle": (
                     forming.public()
@@ -684,7 +869,7 @@ class WeakLevelRejectionStrategy(Strategy):
                         "rejection_absorption_probe"
                         if staged_phase == "probe"
                         else (
-                            "rejection_absorption_fire"
+                            "rejection_absorption_micro_response"
                             if not self.staged_entries_enabled
                             else "rejection_flow_reversal"
                         )
@@ -697,6 +882,25 @@ class WeakLevelRejectionStrategy(Strategy):
                 },
                 "attackAbsorbed": attack_absorbed,
                 "flowReversed": flow_reversed,
+                "absorptionObservedAt": (
+                    state.absorption_at or None
+                ),
+                "absorptionAgeSeconds": (
+                    absorption_age_seconds
+                ),
+                "microPriceResponseBps": (
+                    micro_price_response_bps
+                ),
+                "tapeResponseAligned": (
+                    tape_response_aligned
+                ),
+                "formingPositionSupported": (
+                    forming_position_supported
+                ),
+                "microResponseReady": micro_response_ready,
+                "requiredMicroResponseBps": (
+                    self.micro_response_min_bps
+                ),
                 "stagedEntry": {
                     "phase": staged_phase,
                     "riskFraction": staged_risk_fraction,
@@ -714,7 +918,7 @@ class WeakLevelRejectionStrategy(Strategy):
                     "confirmationReady": (
                         flow_reversed
                         if self.staged_entries_enabled
-                        else early_absorption_ready
+                        else micro_response_ready
                     ),
                     "probeOpened": state.probe_opened,
                 },
@@ -724,6 +928,20 @@ class WeakLevelRejectionStrategy(Strategy):
                     structural_level.public()
                     if structural_level is not None
                     else None
+                ),
+                "setupLevelKind": (
+                    structural_level.kind
+                    if structural_level is not None
+                    else zone.kind
+                ),
+                "setupLevelClass": (
+                    "session_extreme"
+                    if (
+                        structural_level is not None
+                        and structural_level.kind
+                        not in {"support", "resistance"}
+                    )
+                    else "young_horizontal"
                 ),
                 "tradeMode": mode,
                 "allowRunner": allow_runner,
@@ -938,44 +1156,62 @@ class WeakLevelRejectionStrategy(Strategy):
             state.swept = False
             state.armed_at = 0.0
             state.armed_price = 0.0
+            state.absorption_at = 0.0
+            state.absorption_price = 0.0
             state.probe_opened = False
             state.stage = RejectionStage.SEARCH
             state.zone_key = None
 
         resistance_level = support_level = None
         if structure is not None:
-            resistance_level = structure.nearest_horizontal(
-                price,
-                "resistance",
-                max_distance_pct=self.approach_pct,
-                min_touches=1,
-                max_touches=self.max_touches,
-            )
-            support_level = structure.nearest_horizontal(
-                price,
-                "support",
-                max_distance_pct=self.approach_pct,
-                min_touches=1,
-                max_touches=self.max_touches,
-            )
-
-            def young(level):
-                return (
-                    level is not None
-                    and 1 <= level.distinct_approaches <= 3
-                    and level.acceptance_bars <= 3
-                    and level.lifecycle in {"fresh", "tested"}
-                    and level.generation_id is not None
+            resistance_candidates = [
+                level
+                for level in structure.levels
+                if self._structural_level_is_tradeable(
+                    level,
+                    price,
+                    "resistance",
                 )
-
+            ]
+            support_candidates = [
+                level
+                for level in structure.levels
+                if self._structural_level_is_tradeable(
+                    level,
+                    price,
+                    "support",
+                )
+            ]
+            resistance_level = (
+                min(
+                    resistance_candidates,
+                    key=lambda level: (
+                        abs(level.center - price),
+                        -level.score,
+                    ),
+                )
+                if resistance_candidates
+                else None
+            )
+            support_level = (
+                min(
+                    support_candidates,
+                    key=lambda level: (
+                        abs(level.center - price),
+                        -level.score,
+                    ),
+                )
+                if support_candidates
+                else None
+            )
             resistance = (
                 resistance_level.as_zone()
-                if young(resistance_level)
+                if resistance_level is not None
                 else None
             )
             support = (
                 support_level.as_zone()
-                if young(support_level)
+                if support_level is not None
                 else None
             )
         else:
@@ -1020,8 +1256,7 @@ class WeakLevelRejectionStrategy(Strategy):
         structural_level = None
         if structure is not None:
             # Zone and lifecycle metadata must remain the exact same market
-            # object. Do not proximity-rematch after selection: overlapping
-            # support/resistance objects can otherwise swap generation ids.
+            # object. Session/previous-day levels preserve their own identity.
             structural_level = (
                 resistance_level
                 if zone.kind == "resistance"
