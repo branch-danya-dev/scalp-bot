@@ -1454,7 +1454,7 @@ class LevelBreakoutStrategy(Strategy):
                         if staged_phase == "probe"
                         else (
                             "breakout_retest_response"
-                            if confirmation_mode == "retest_hold"
+                            if confirmation_mode == "retest_response"
                             else "breakout_sustained_price_response"
                         )
                     ),
