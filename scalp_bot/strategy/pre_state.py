@@ -139,6 +139,8 @@ def build_forming_candle_context(
     tape_updates: int = 0,
     last_trade_ts_ms: int | None = None,
     kline_snapshot_observed_at_ms: int | None = None,
+    price_source: str | None = None,
+    volume_source: str | None = None,
 ) -> FormingCandleContext | None:
     if forming is None or forming.confirmed or forming.open <= 0:
         return None
@@ -287,11 +289,19 @@ def build_forming_candle_context(
         velocity_bps_per_second=velocity_bps_per_second,
         direction=direction,
         price_source=(
-            "hybrid_tape"
-            if tape_updates > 0
-            else "kline"
+            str(price_source)
+            if price_source
+            else (
+                "hybrid_tape"
+                if tape_updates > 0
+                else "kline"
+            )
         ),
-        volume_source="kline_snapshot",
+        volume_source=(
+            str(volume_source)
+            if volume_source
+            else "kline_snapshot"
+        ),
         tape_updates=max(0, int(tape_updates)),
         current_minute_trade_count=len(minute_trades),
         last_trade_ts_ms=resolved_last_trade_ts,
