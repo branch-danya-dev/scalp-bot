@@ -12,6 +12,7 @@ See:
 - `docs/stage19-technical-economic-remediation.md` — earlier remediation plan
   and validation order.
 - `docs/trade-observatory.md` — replay/decision observability.
+- `docs/git-session-export.md` — Git-friendly sharded exports for 10-20h analysis.
 - `docs/research-economics-refactor-2026-09-22.md` — earlier economics
   investigation.
 
