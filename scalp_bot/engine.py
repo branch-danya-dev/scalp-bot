@@ -3249,6 +3249,7 @@ class TradingEngine:
             session.orderbook,
             self.broker.available_notional,
             self.broker.available_risk_usd,
+            depth_book=session.deep_orderbook,
             setup_id=setup_id,
             existing_position_notional=(
                 existing_position.notional
@@ -3304,6 +3305,8 @@ class TradingEngine:
             ):
                 continue
             if not session.book_is_fresh(now):
+                continue
+            if not session.deep_book_is_fresh(now):
                 continue
             if not session.confirmed_candle_is_fresh(
                 self.config.confirmed_candle_stale_seconds,
@@ -3878,7 +3881,7 @@ class TradingEngine:
         if best.position_action == "add":
             position = self.broker.add(
                 best.plan,
-                best.session.orderbook,
+                best.session.deep_orderbook,
             )
             self._record_added_position(
                 best.session,
@@ -3893,7 +3896,7 @@ class TradingEngine:
         else:
             position = self.broker.open(
                 best.plan,
-                best.session.orderbook,
+                best.session.deep_orderbook,
             )
             self._record_opened_position(
                 best.session,
