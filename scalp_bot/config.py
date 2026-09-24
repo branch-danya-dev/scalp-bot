@@ -84,9 +84,13 @@ class Settings(BaseSettings):
     breakout_probe_risk_fraction: float = 0.35
     weak_level_rejection_probe_risk_fraction: float = 0.30
     breakout_retest_tolerance_bps: float = 3.0
+    breakout_retest_response_min_bps: float = 2.0
     breakout_hold_without_retest_seconds: float = 8.0
     breakout_absorption_efficiency_threshold: float = 0.35
     breakout_min_directional_response_bps: float = 5.0
+    weak_level_rejection_micro_response_min_bps: float = 1.5
+    weak_level_rejection_micro_response_min_seconds: float = 0.50
+    weak_level_rejection_micro_response_max_seconds: float = 6.0
 
     strategy_expectancy_min_samples: int = 30
     enforce_strategy_expectancy_gate: bool = False
