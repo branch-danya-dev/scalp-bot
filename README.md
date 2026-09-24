@@ -13,6 +13,7 @@ See:
   and validation order.
 - `docs/trade-observatory.md` — replay/decision observability.
 - `docs/git-session-export.md` — Git-friendly sharded exports for 10-20h analysis.
+- `docs/session-preservation.md` — immutable raw archives, checksums and finalization workflow.
 - `docs/research-economics-refactor-2026-09-22.md` — earlier economics
   investigation.
 
