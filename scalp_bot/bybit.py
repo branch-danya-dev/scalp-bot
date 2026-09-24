@@ -589,6 +589,7 @@ async def _stream_topics(
 ) -> None:
     while not stop_event.is_set():
         processor: asyncio.Task | None = None
+        queue: asyncio.Queue[MarketMessage] | None = None
         try:
             async with websockets.connect(
                 ws_url,
@@ -602,8 +603,7 @@ async def _stream_topics(
                     }),
                     text=True,
                 )
-                queue: asyncio.Queue[MarketMessage] = (
-                    asyncio.Queue(
+                queue = asyncio.Queue(
                         maxsize=max(1, int(queue_size)),
                     )
                 )
@@ -743,6 +743,18 @@ async def _stream_topics(
                     processor,
                     return_exceptions=True,
                 )
+            if queue is not None:
+                while True:
+                    try:
+                        queued = queue.get_nowait()
+                    except asyncio.QueueEmpty:
+                        break
+                    try:
+                        if queued.otel_span is not None:
+                            queued.otel_span.end()
+                            queued.otel_span = None
+                    finally:
+                        queue.task_done()
 
 
 async def stream_symbol(
