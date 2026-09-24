@@ -7,6 +7,7 @@ import pytest
 
 from scalp_bot.git_session_export import (
     _RollingTradeDeltaNormalizer,
+    _build_compact_session_summary,
     _build_navigation_index,
     _split_jsonl_stream,
 )
@@ -209,3 +210,56 @@ def test_rolling_trade_tape_is_exported_as_delta() -> None:
         "delta_v1_exported_from_rolling"
     )
     assert second["payload"]["tradeDeltaFromSequence"] == 11
+
+
+
+def test_compact_session_summary_has_no_unbounded_report_payloads() -> None:
+    summary = _build_compact_session_summary(
+        bundle_manifest={
+            "source": {
+                "file": "session-test.jsonl",
+                "durationSeconds": 3600,
+            }
+        },
+        shard_rows=[
+            {
+                "id": "0000-0030",
+                "coreStartTs": 1.0,
+                "coreEndTs": 1801.0,
+                "eventCounts": {
+                    "decision": 10,
+                    "trade_opened": 2,
+                },
+                "activity": {
+                    "signals": 10,
+                    "tradesOpened": 2,
+                },
+                "symbols": ["AAAUSDT"],
+            },
+            {
+                "id": "0030-0060",
+                "coreStartTs": 1801.0,
+                "coreEndTs": 3601.0,
+                "eventCounts": {
+                    "decision": 8,
+                    "risk_reject": 3,
+                },
+                "activity": {
+                    "signals": 8,
+                    "riskRejects": 3,
+                },
+                "symbols": ["AAAUSDT", "BBBUSDT"],
+            },
+        ],
+        run_summary={"netPnl": 12.5},
+    )
+
+    assert summary["eventCounts"]["decision"] == 18
+    assert summary["activity"]["signals"] == 18
+    assert summary["activity"]["tradesOpened"] == 2
+    assert summary["activity"]["riskRejects"] == 3
+    assert summary["symbols"] == ["AAAUSDT", "BBBUSDT"]
+    assert summary["runSummary"]["netPnl"] == 12.5
+    assert "postRunOpportunity" not in summary
+    assert "tradeReviews" not in summary
+    assert "marketData" not in summary
