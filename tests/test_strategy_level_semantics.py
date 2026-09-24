@@ -810,6 +810,20 @@ def test_breakout_sustained_hold_fires_only_with_real_price_response(
         fired.details["fireTrigger"]["source"]
         == "breakout_sustained_price_response"
     )
+    first_fire_ms = fired.details["fireTrigger"]["observedAtMs"]
+    repeated = strategy.evaluate(
+        rows,
+        market,
+        Trend.UP,
+        symbol="STRONGHOLDUSDT",
+        trades=aggressive_buy_flow(),
+        structure=mature_structure(),
+    )
+    assert repeated.action == Action.LONG
+    assert (
+        repeated.details["fireTrigger"]["observedAtMs"]
+        == first_fire_ms
+    )
 
 
 

@@ -94,6 +94,22 @@ def _fallback_plan(
     )
 
 
+def _primary_direction(
+    directions: tuple[Trend, ...],
+    source: str,
+) -> Trend:
+    if not directions:
+        return Trend.FLAT
+    if source in {
+        "range_two_sided",
+        "pullback_two_sided",
+        "transition_two_sided",
+        "unclear_two_sided",
+    }:
+        return Trend.FLAT
+    return directions[0]
+
+
 def _context_meta(
     context: MarketContext,
 ) -> tuple[str | None, str | None]:
@@ -252,10 +268,16 @@ def breakout_direction_plan(
         )
     elif regime == LocalRegime.TRANSITION:
         if local.direction in {Trend.UP, Trend.DOWN}:
-            directions = (local.direction,)
-            source = "transition_direction"
+            opposite = (
+                Trend.DOWN
+                if local.direction == Trend.UP
+                else Trend.UP
+            )
+            directions = (local.direction, opposite)
+            source = "transition_preference_two_sided"
             reasons.append(
-                "transition regime follows the current local transition direction"
+                "transition direction is preference only; either breakout "
+                "side still requires its own level/flow evidence"
             )
         else:
             directions = (Trend.UP, Trend.DOWN)
@@ -264,19 +286,20 @@ def breakout_direction_plan(
                 "directionless transition allows either confirmed breakout"
             )
     else:
-        directions = ()
+        directions = (Trend.UP, Trend.DOWN)
+        source = "unclear_two_sided"
         reasons.append(
-            "unclear local regime does not select a breakout direction"
+            "unclear local regime is context-only; an evidence-confirmed "
+            "breakout may establish its own direction"
         )
 
     local_name, htf_name = _context_meta(context)
     return DirectionPlan(
         playbook=playbook,
         allowed_directions=directions,
-        primary_direction=(
-            directions[0]
-            if directions
-            else Trend.FLAT
+        primary_direction=_primary_direction(
+            directions,
+            source,
         ),
         source=source,
         local_regime=local_name,
@@ -348,24 +371,39 @@ def rejection_direction_plan(
             "range permits support-long and resistance-short rejection"
         )
     elif regime == LocalRegime.TRANSITION:
-        directions = ()
-        reasons.append(
-            "transition is ambiguous; rejection waits for a stable local regime"
-        )
+        if local.direction in {Trend.UP, Trend.DOWN}:
+            opposite = (
+                Trend.DOWN
+                if local.direction == Trend.UP
+                else Trend.UP
+            )
+            directions = (local.direction, opposite)
+            source = "transition_preference_two_sided"
+            reasons.append(
+                "transition direction is preference only; a failed-break "
+                "rejection may establish either side with local evidence"
+            )
+        else:
+            directions = (Trend.UP, Trend.DOWN)
+            source = "transition_two_sided"
+            reasons.append(
+                "directionless transition allows either evidence-confirmed rejection"
+            )
     else:
-        directions = ()
+        directions = (Trend.UP, Trend.DOWN)
+        source = "unclear_two_sided"
         reasons.append(
-            "unclear local regime does not authorize rejection"
+            "unclear local regime is context-only; failed-break/absorption "
+            "evidence may establish rejection direction"
         )
 
     local_name, htf_name = _context_meta(context)
     return DirectionPlan(
         playbook=playbook,
         allowed_directions=directions,
-        primary_direction=(
-            directions[0]
-            if directions
-            else Trend.FLAT
+        primary_direction=_primary_direction(
+            directions,
+            source,
         ),
         source=source,
         local_regime=local_name,
@@ -431,6 +469,12 @@ def assess_entry_context(
                 == FlowAlignmentClass.OPPOSED
             ):
                 blockers.append("breakout_flow_opposed")
+            elif (
+                playbook == PlaybookKind.LEVEL_REJECTION
+                and flow_alignment.classification
+                == FlowAlignmentClass.OPPOSED
+            ):
+                blockers.append("rejection_flow_opposed")
 
         liquidity_alignment = context.liquidity_alignment_for(action)
         if liquidity_alignment is not None:

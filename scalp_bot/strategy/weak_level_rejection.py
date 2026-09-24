@@ -60,6 +60,8 @@ class RejectionWatchState:
     armed_price: float = 0.0
     absorption_at: float = 0.0
     absorption_price: float = 0.0
+    fire_at: float = 0.0
+    fire_price: float = 0.0
     probe_opened: bool = False
 
 
@@ -111,6 +113,8 @@ class WeakLevelRejectionStrategy(Strategy):
         state.armed_price = 0.0
         state.absorption_at = 0.0
         state.absorption_price = 0.0
+        state.fire_at = 0.0
+        state.fire_price = 0.0
 
     @staticmethod
     def _key(zone: LevelZone) -> tuple[str, float, float, int]:
@@ -231,6 +235,8 @@ class WeakLevelRejectionStrategy(Strategy):
             state.armed_price = 0.0
             state.absorption_at = 0.0
             state.absorption_price = 0.0
+            state.fire_at = 0.0
+            state.fire_price = 0.0
             state.probe_opened = False
 
         if generation_id in state.used_generations:
@@ -561,6 +567,8 @@ class WeakLevelRejectionStrategy(Strategy):
         if response_expired:
             state.absorption_at = 0.0
             state.absorption_price = 0.0
+            state.fire_at = 0.0
+            state.fire_price = 0.0
 
         should_wait = (
             (
@@ -815,6 +823,10 @@ class WeakLevelRejectionStrategy(Strategy):
             staged_risk_fraction = 1.0
             state.stage = RejectionStage.REJECT
 
+        if state.fire_at <= 0:
+            state.fire_at = now
+            state.fire_price = price
+
         return StrategyDecision(
             strategy=self.key,
             action=action,
@@ -880,9 +892,18 @@ class WeakLevelRejectionStrategy(Strategy):
                     "preparedOpportunity": prepared_opportunity,
                 "fireTrigger": {
                     "observedAtMs": (
-                        observed_at_ms
-                        if observed_at_ms is not None
-                        else int(now * 1000)
+                        int(state.fire_at * 1000)
+                        if state.fire_at > 0
+                        else (
+                            observed_at_ms
+                            if observed_at_ms is not None
+                            else int(now * 1000)
+                        )
+                    ),
+                    "price": (
+                        state.fire_price
+                        if state.fire_price > 0
+                        else price
                     ),
                     "source": (
                         "rejection_absorption_probe"
@@ -1118,6 +1139,40 @@ class WeakLevelRejectionStrategy(Strategy):
                 else candles[-1].start_ms / 1000
             )
         )
+        pinned_direction = (
+            Trend.UP
+            if (
+                state.pinned_zone is not None
+                and state.pinned_zone.kind == "support"
+            )
+            else (
+                Trend.DOWN
+                if state.pinned_zone is not None
+                else Trend.FLAT
+            )
+        )
+        preference_conflict = (
+            state.pinned_zone is not None
+            and context_plan.primary_direction
+            in {Trend.UP, Trend.DOWN}
+            and pinned_direction
+            != context_plan.primary_direction
+            and state.stage == RejectionStage.TEST
+            and not state.swept
+            and state.absorption_at <= 0
+            and not state.probe_opened
+        )
+        if preference_conflict:
+            state.pinned_zone = None
+            state.pinned_generation_id = None
+            state.pinned_until = 0.0
+            state.armed_at = 0.0
+            state.armed_price = 0.0
+            state.fire_at = 0.0
+            state.fire_price = 0.0
+            state.stage = RejectionStage.SEARCH
+            state.zone_key = None
+
         if (
             state.pinned_zone is not None
             and state.stage in {RejectionStage.TEST, RejectionStage.REJECT}
@@ -1146,6 +1201,10 @@ class WeakLevelRejectionStrategy(Strategy):
                     state.swept = False
                     state.armed_at = 0.0
                     state.armed_price = 0.0
+                    state.absorption_at = 0.0
+                    state.absorption_price = 0.0
+                    state.fire_at = 0.0
+                    state.fire_price = 0.0
                     state.probe_opened = False
                     state.stage = RejectionStage.SEARCH
                     state.zone_key = None
@@ -1186,6 +1245,8 @@ class WeakLevelRejectionStrategy(Strategy):
             state.armed_price = 0.0
             state.absorption_at = 0.0
             state.absorption_price = 0.0
+            state.fire_at = 0.0
+            state.fire_price = 0.0
             state.probe_opened = False
             state.stage = RejectionStage.SEARCH
             state.zone_key = None
@@ -1265,6 +1326,10 @@ class WeakLevelRejectionStrategy(Strategy):
             state.zone_key = None
             state.armed_at = 0.0
             state.armed_price = 0.0
+            state.absorption_at = 0.0
+            state.absorption_price = 0.0
+            state.fire_at = 0.0
+            state.fire_price = 0.0
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
@@ -1276,11 +1341,40 @@ class WeakLevelRejectionStrategy(Strategy):
                 },
             )
 
-        # Prefer a context-allowed level, but keep observing a nearby
-        # counter-context rejection when no allowed alternative exists.
-        # This preserves research visibility without making it tradeable.
-        choices = allowed_choices or all_choices
-        zone = min(choices, key=lambda item: abs(item.center - price))
+        # When the context has a directional preference, do not let a
+        # slightly closer opposite-side level monopolize the single prepared
+        # hypothesis. Prefer a primary-direction level once it is actually
+        # within the strategy's approach distance; otherwise keep the nearest
+        # observable level so strong counter-context events remain visible.
+        primary_kind = (
+            "support"
+            if context_plan.primary_direction == Trend.UP
+            else (
+                "resistance"
+                if context_plan.primary_direction == Trend.DOWN
+                else None
+            )
+        )
+        primary_choices = [
+            zone
+            for zone in allowed_choices
+            if (
+                primary_kind is not None
+                and zone.kind == primary_kind
+                and price > 0
+                and abs(zone.center - price) / price
+                <= self.approach_pct
+            )
+        ]
+        choices = (
+            primary_choices
+            or allowed_choices
+            or all_choices
+        )
+        zone = min(
+            choices,
+            key=lambda item: abs(item.center - price),
+        )
         structural_level = None
         if structure is not None:
             # Zone and lifecycle metadata must remain the exact same market

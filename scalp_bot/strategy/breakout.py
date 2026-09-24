@@ -62,6 +62,8 @@ class BreakoutWatchState:
     retest_seen: bool = False
     retest_at: float = 0.0
     retest_price: float = 0.0
+    fire_at: float = 0.0
+    fire_price: float = 0.0
     probe_opened: bool = False
 
 
@@ -454,6 +456,26 @@ class LevelBreakoutStrategy(Strategy):
                 else candles[-1].start_ms / 1000 + 60.0
             )
         )
+        preference_conflict = (
+            state.armed_zone is not None
+            and context_plan.primary_direction
+            in {Trend.UP, Trend.DOWN}
+            and state.armed_trend
+            in {Trend.UP, Trend.DOWN}
+            and state.armed_trend
+            != context_plan.primary_direction
+            and state.break_started_at <= 0
+            and not state.probe_opened
+        )
+        if preference_conflict:
+            state.armed_at = 0.0
+            state.armed_until = 0.0
+            state.armed_price = 0.0
+            state.armed_zone = None
+            state.armed_trend = Trend.FLAT
+            state.armed_generation_id = None
+            state.stage = BreakoutStage.FOUND
+
         pinned_arm = (
             state.armed_zone is not None
             and state.armed_trend in context_plan.allowed_directions
@@ -588,8 +610,26 @@ class LevelBreakoutStrategy(Strategy):
                     },
                 )
 
+            primary_rows = [
+                row
+                for row in candidates
+                if (
+                    context_plan.primary_direction
+                    in {Trend.UP, Trend.DOWN}
+                    and row[1]
+                    == context_plan.primary_direction
+                    and price > 0
+                    and row[0] / price
+                    <= self.approach_pct
+                )
+            ]
+            selection_pool = (
+                primary_rows
+                if primary_rows
+                else candidates
+            )
             _, playbook_trend, zone, matched = min(
-                candidates,
+                selection_pool,
                 key=lambda row: row[0],
             )
         if zone is None:
@@ -630,6 +670,8 @@ class LevelBreakoutStrategy(Strategy):
             state.retest_seen = False
             state.retest_at = 0.0
             state.retest_price = 0.0
+            state.fire_at = 0.0
+            state.fire_price = 0.0
             state.probe_opened = False
         visuals = zone_visual(zone, "breakout zone")
         flow = compute_trade_flow(trades, observed_at_ms)
@@ -833,6 +875,9 @@ class LevelBreakoutStrategy(Strategy):
             state.retest_seen = False
             state.retest_at = 0.0
             state.retest_price = 0.0
+            if not state.probe_opened:
+                state.fire_at = 0.0
+                state.fire_price = 0.0
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
@@ -1119,6 +1164,10 @@ class LevelBreakoutStrategy(Strategy):
             and not breakout_absorbed
             and confirmation_mode is not None
         )
+
+        if confirmation_ready and state.fire_at <= 0:
+            state.fire_at = market_now
+            state.fire_price = price
 
         if self.staged_entries_enabled:
             probe_fraction = max(
@@ -1460,9 +1509,18 @@ class LevelBreakoutStrategy(Strategy):
                 "preparedOpportunity": prepared_opportunity,
                 "fireTrigger": {
                     "observedAtMs": (
-                        observed_at_ms
-                        if observed_at_ms is not None
-                        else int(market_now * 1000)
+                        int(state.fire_at * 1000)
+                        if state.fire_at > 0
+                        else (
+                            observed_at_ms
+                            if observed_at_ms is not None
+                            else int(market_now * 1000)
+                        )
+                    ),
+                    "price": (
+                        state.fire_price
+                        if state.fire_price > 0
+                        else price
                     ),
                     "source": (
                         "breakout_early_probe"
