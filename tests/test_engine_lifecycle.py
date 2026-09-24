@@ -2782,6 +2782,7 @@ async def test_fast_event_evaluation_bypasses_poll_interval_and_arbitrates_fire(
     engine.sessions[session.symbol] = session
     evaluations: list[str] = []
     arbitrations: list[str] = []
+    arbiter_setups: list[set[tuple[str, str]]] = []
 
     async def fake_evaluate(target: ActiveSymbolSession) -> None:
         evaluations.append(target.symbol)
@@ -2800,6 +2801,9 @@ async def test_fast_event_evaluation_bypasses_poll_interval_and_arbitrates_fire(
 
     def fake_arbitrate() -> None:
         arbitrations.append("fire")
+        arbiter_setups.append(
+            set(engine._arbiter_trigger_setups)
+        )
 
     monkeypatch.setattr(engine, "_evaluate", fake_evaluate)
     monkeypatch.setattr(engine, "_arbitrate_once", fake_arbitrate)
@@ -2831,6 +2835,12 @@ async def test_fast_event_evaluation_bypasses_poll_interval_and_arbitrates_fire(
 
         assert evaluations == ["FASTUSDT"]
         assert arbitrations == ["fire"]
+        assert arbiter_setups == [{
+            (
+                "level_breakout",
+                "level_breakout:long:R:g1",
+            )
+        }]
         assert session.fast_event_evaluations == 1
         assert session.last_fast_event_reason == "best_quote"
         assert message.strategy_eval_started_mono_ns > 0
