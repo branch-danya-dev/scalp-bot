@@ -622,6 +622,11 @@ class PaperBroker:
             created_at=now,
             expires_at=now + max(0.1, self.config.passive_entry_timeout_seconds),
             min_trade_ts_ms=min_trade_ts_ms,
+            required_trade_notional_usd=(
+                self._maker_required_trade_notional(
+                    plan.notional
+                )
+            ),
         )
         self.pending_entries[plan.symbol] = pending
         return pending
@@ -667,6 +672,11 @@ class PaperBroker:
             + max(0.1, self.config.passive_entry_timeout_seconds),
             min_trade_ts_ms=min_trade_ts_ms,
             position_action="add",
+            required_trade_notional_usd=(
+                self._maker_required_trade_notional(
+                    plan.notional
+                )
+            ),
         )
         self.pending_entries[plan.symbol] = pending
         return pending
@@ -715,6 +725,7 @@ class PaperBroker:
         last_trade_price: float,
         *,
         trade_ts_ms: int | None = None,
+        trade_notional_usd: float | None = None,
     ) -> list[dict]:
         pending = self.pending_entries.get(symbol)
         if pending is None:
@@ -743,6 +754,17 @@ class PaperBroker:
             filled = last_trade_price >= pending.limit_price * (1 + confirm)
         if not filled:
             return []
+        if trade_notional_usd is not None:
+            pending.eligible_trade_notional_usd += max(
+                0.0,
+                float(trade_notional_usd),
+            )
+            if (
+                pending.eligible_trade_notional_usd
+                + 1e-9
+                < pending.required_trade_notional_usd
+            ):
+                return []
         del self.pending_entries[symbol]
         is_add = pending.position_action == "add"
         if is_add:
@@ -824,7 +846,17 @@ class PaperBroker:
             "plan": pending.plan.public(),
             "position": position.public(),
             "limitPrice": pending.limit_price,
-            "fillModel": "trade_through",
+            "fillModel": (
+                "trade_through_volume"
+                if trade_notional_usd is not None
+                else "trade_through"
+            ),
+            "eligibleTradeNotionalUsd": (
+                pending.eligible_trade_notional_usd
+            ),
+            "requiredTradeNotionalUsd": (
+                pending.required_trade_notional_usd
+            ),
             "positionAction": pending.position_action,
         }]
 
