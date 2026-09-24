@@ -376,23 +376,37 @@ def _merge_levels(levels: list[StructuralLevel], reference_price: float) -> list
 
 def _utc_day_extremes(
     context_15m: list[Candle],
+    candles_1m: list[Candle] | None = None,
 ) -> tuple[float | None, float | None, float | None, float | None]:
-    if not context_15m:
+    # 15m history provides multi-day coverage, while confirmed 1m history
+    # keeps the current session extreme fresh minute-by-minute instead of
+    # waiting for a 15m bar/context refresh.
+    rows = [
+        *context_15m,
+        *(candles_1m or []),
+    ]
+    if not rows:
         return None, None, None, None
     dates = sorted({
         datetime.fromtimestamp(c.start_ms / 1000, tz=timezone.utc).date()
-        for c in context_15m
+        for c in rows
     })
     latest = dates[-1]
     previous = dates[-2] if len(dates) >= 2 else None
     current_rows = [
-        c for c in context_15m
-        if datetime.fromtimestamp(c.start_ms / 1000, tz=timezone.utc).date() == latest
+        c for c in rows
+        if datetime.fromtimestamp(
+            c.start_ms / 1000,
+            tz=timezone.utc,
+        ).date() == latest
     ]
     previous_rows = [
-        c for c in context_15m
+        c for c in rows
         if previous is not None
-        and datetime.fromtimestamp(c.start_ms / 1000, tz=timezone.utc).date() == previous
+        and datetime.fromtimestamp(
+            c.start_ms / 1000,
+            tz=timezone.utc,
+        ).date() == previous
     ]
     return (
         max((c.high for c in current_rows), default=None),
@@ -524,7 +538,15 @@ def build_market_structure(
 
     levels = _merge_levels(levels, reference_price or 1.0)
 
-    day_high, day_low, previous_day_high, previous_day_low = _utc_day_extremes(context_15m)
+    (
+        day_high,
+        day_low,
+        previous_day_high,
+        previous_day_low,
+    ) = _utc_day_extremes(
+        context_15m,
+        candles_1m,
+    )
     if day_high is not None:
         levels.append(
             StructuralLevel(
@@ -611,7 +633,8 @@ def market_structure_from_public(payload: dict | None) -> MarketStructure:
             "round_confluence", "sources", "last_touch_index",
             "level_id", "generation_id", "distinct_approaches",
             "dwell_bars", "acceptance_bars", "failed_breaks",
-            "sweeps", "lifecycle",
+            "sweeps", "lifecycle", "first_seen_ms", "last_seen_ms",
+            "last_approach_ms",
         }
         levels.append(
             StructuralLevel(**{key: value for key, value in data.items() if key in allowed})
