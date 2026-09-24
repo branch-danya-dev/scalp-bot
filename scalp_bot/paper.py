@@ -57,6 +57,8 @@ class Position:
     partial_taken_at: float | None = None
     estimated_exit_fee_usd: float = 0.0
     initial_risk_budget_usd: float = 0.0
+    maker_partial_trade_notional_usd: float = 0.0
+    maker_target_trade_notional_usd: float = 0.0
     entry_legs: list[dict[str, Any]] = field(default_factory=list)
 
     @property
@@ -89,10 +91,27 @@ class Position:
             config,
             profile.stop_exit,
         )
+        economics = (
+            self.strategy_details.get("economics")
+            if isinstance(self.strategy_details, dict)
+            else None
+        )
+        stop_depth_stress_rate = (
+            max(
+                0.0,
+                float(economics.get("stopDepthStressPct") or 0.0),
+            )
+            if isinstance(economics, dict)
+            else 0.0
+        )
+        stop_depth_reserve = (
+            self.notional * stop_depth_stress_rate
+        )
         return (
             max(0.0, self.entry_fee_remaining)
             + exit_fee
             + exit_slippage
+            + stop_depth_reserve
         )
 
     def all_in_risk_usd(self, config: Settings) -> float:
@@ -147,6 +166,8 @@ class PendingEntry:
     expires_at: float
     min_trade_ts_ms: int | None = None
     position_action: str = "open"
+    eligible_trade_notional_usd: float = 0.0
+    required_trade_notional_usd: float = 0.0
 
     def public(self) -> dict:
         return {
@@ -162,6 +183,12 @@ class PendingEntry:
             "minTradeTsMs": self.min_trade_ts_ms,
             "entryMode": self.plan.entry_mode,
             "positionAction": self.position_action,
+            "eligibleTradeNotionalUsd": (
+                self.eligible_trade_notional_usd
+            ),
+            "requiredTradeNotionalUsd": (
+                self.required_trade_notional_usd
+            ),
         }
 
 
@@ -174,6 +201,18 @@ class PaperBroker:
         self.pending_entries: dict[str, PendingEntry] = {}
         self.closed_trades: list[dict] = []
         self.total_closed_trades: int = 0
+
+    def _maker_required_trade_notional(
+        self,
+        order_notional: float,
+    ) -> float:
+        return max(0.0, order_notional) * (
+            1.0
+            + max(
+                0.0,
+                self.config.maker_queue_ahead_fraction,
+            )
+        )
 
     @property
     def total_pnl(self) -> float:
