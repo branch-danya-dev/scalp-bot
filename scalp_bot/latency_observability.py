@@ -296,7 +296,10 @@ def latency_snapshot(message: Any | None) -> dict | None:
     }
     return {
         "eventId": getattr(message, "event_id", None),
-        "traceId": current_trace_id(),
+        "traceId": (
+            getattr(message, "trace_id", None)
+            or current_trace_id()
+        ),
         "topic": getattr(message, "topic", None),
         "exchangeTsMs": int(
             getattr(message, "cts", 0)
