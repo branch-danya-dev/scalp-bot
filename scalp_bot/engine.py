@@ -3725,6 +3725,16 @@ class TradingEngine:
                     float(fire_ms) / 1000
                     - float(preparation_anchor["triggerTs"]),
                 )
+            elif (
+                fire_ms is None
+                and freshness.confirmation_age_seconds
+                is not None
+            ):
+                # Compatibility for older/continuation playbooks that have a
+                # causal preparation anchor but don't yet emit fireTrigger.
+                decision.details["armToFireSeconds"] = (
+                    freshness.confirmation_age_seconds
+                )
 
         fingerprint = (
             object_key,
