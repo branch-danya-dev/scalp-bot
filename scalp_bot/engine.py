@@ -5483,6 +5483,16 @@ class TradingEngine:
         if snapshot and symbol in self.sessions:
             stored["market"] = self.sessions[symbol].market_snapshot()
         self.recorder.record(event, symbol, stored)
+        if event in {
+            "research_frame",
+            "market_frame",
+            "trade_opened",
+            "trade_closed",
+            "run_summary",
+        }:
+            observe_recorder_health(
+                self.recorder.health()
+            )
 
     def public_state(self, selected_symbol: str | None = None) -> dict:
         working = list(self.sessions)
