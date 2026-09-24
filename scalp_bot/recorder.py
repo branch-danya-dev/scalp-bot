@@ -1315,7 +1315,11 @@ class SessionRecorder:
                     ):
                         bucket = market_context_counts[bucket_name]
                         bucket[value] = bucket.get(value, 0) + 1
-                book = payload.get("orderbook") or {}
+                book = (
+                    payload.get("deepOrderbook")
+                    or payload.get("orderbook")
+                    or {}
+                )
                 bids = book.get("bids") or []
                 asks = book.get("asks") or []
                 if bids or asks:
