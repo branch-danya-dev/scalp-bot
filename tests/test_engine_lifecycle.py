@@ -5,7 +5,7 @@ from time import perf_counter_ns, time
 
 from scalp_bot.bybit import MarketMessage
 from scalp_bot.config import Settings
-from scalp_bot.domain import Action, Candidate, Candle, OrderBook, Side, StrategyDecision, TradePlan, TradeTick, Trend
+from scalp_bot.domain import Action, Candidate, Candle, InstrumentRules, OrderBook, Side, StrategyDecision, TradePlan, TradeTick, Trend
 from scalp_bot.engine import ActiveSymbolSession, TradingEngine
 from scalp_bot.research_policy import (
     create_policy_manifest,
@@ -958,7 +958,17 @@ async def test_bootstrap_loads_direct_multi_timeframe_context(tmp_path) -> None:
             for i in range(count)
         ]
 
+    async def fake_instrument_rules(symbol: str) -> InstrumentRules:
+        return InstrumentRules(
+            symbol=symbol,
+            tick_size=0.01,
+            qty_step=0.001,
+            min_order_qty=0.001,
+            min_notional_value=5.0,
+        )
+
     engine.rest.klines = fake_klines  # type: ignore[method-assign]
+    engine.rest.instrument_rules = fake_instrument_rules  # type: ignore[method-assign]
     try:
         await engine._bootstrap_symbol("TESTUSDT")
         session = engine.sessions["TESTUSDT"]
@@ -2638,7 +2648,7 @@ async def test_public_trade_batch_fills_resting_maker_before_later_tick_invalida
         # trade from the same websocket batch must not retroactively cancel it.
         assert evaluations == []
     finally:
-        close_rest(engine)
+        await engine.rest.close()
 
 
 def test_trade_overlay_makes_forming_ohlc_tick_native_without_double_volume() -> None:

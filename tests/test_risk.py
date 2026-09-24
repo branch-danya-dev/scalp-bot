@@ -1,7 +1,7 @@
 import pytest
 
 from scalp_bot.config import Settings
-from scalp_bot.domain import Action, OrderBook, StrategyDecision
+from scalp_bot.domain import Action, InstrumentRules, OrderBook, StrategyDecision
 from scalp_bot.paper import PaperBroker
 from scalp_bot.risk import RiskEngine
 
