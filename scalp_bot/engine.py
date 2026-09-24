@@ -2238,7 +2238,7 @@ class TradingEngine:
             density is not None
             and self.strategy_enabled.get("orderbook_density", False)
         ):
-            if not session.book_is_fresh(now):
+            if not session.deep_book_is_fresh(now):
                 raw_density = StrategyDecision(
                     strategy="orderbook_density",
                     action=Action.WAIT,
@@ -2247,7 +2247,8 @@ class TradingEngine:
                     ],
                     details={
                         "state": "stale_book",
-                        "bookHealth": session.book_health(now),
+                        "bookHealth": session.deep_book_health(now),
+                        "bookSource": "deep_l1000",
                         "positionInvalidated": False,
                         "evidenceOnly": True,
                     },
@@ -2256,7 +2257,7 @@ class TradingEngine:
                 try:
                     raw_density = density.evaluate(
                         closed_1m,
-                        session.orderbook,
+                        session.deep_orderbook,
                         session.trend,
                         symbol=session.symbol,
                         trades=list(session.trades),
