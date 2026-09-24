@@ -175,26 +175,53 @@ def test_weak_rejection_stages_absorption_probe_then_flow_add() -> None:
     assert consumed.details["alreadyUsed"] is True
 
 
-def test_stage18_rejection_enters_early_absorption_without_late_add() -> None:
+def test_stage22_rejection_waits_for_micro_response_without_late_add() -> None:
     strategy = WeakLevelRejectionStrategy()
     strategy.staged_entries_enabled = False
     book = OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)])
     rows = weak_support_rejection_candles()
+    absorption_flow = rejection_absorption_only_flow()
 
-    early = strategy.evaluate(
+    observed = absorption_flow[-1].ts_ms
+    armed = strategy.evaluate(
         rows,
         book,
         Trend.UP,
         symbol="EARLYREJECTUSDT",
-        trades=rejection_absorption_only_flow(),
+        trades=absorption_flow,
+        observed_at_ms=observed,
     )
-    assert early.action == Action.LONG
-    assert early.details["state"] == "reject"
-    assert early.details["stagedEntry"]["phase"] == "full"
-    assert early.details["stagedEntry"]["riskFraction"] == pytest.approx(1.0)
+    assert armed.action == Action.WAIT
+    assert armed.details["state"] == "reject"
+    assert armed.details["attackAbsorbed"] is True
+    assert armed.details["microResponseReady"] is False
+    assert armed.details["absorptionObservedAt"] is not None
+
+    # A small, prompt directional response after the reclaim is enough. We do
+    # not wait for the old late REACTION state.
+    response_book = OrderBook(
+        bids=[(100.115, 50)],
+        asks=[(100.125, 50)],
+    )
+    fired = strategy.evaluate(
+        rows,
+        response_book,
+        Trend.UP,
+        symbol="EARLYREJECTUSDT",
+        trades=absorption_flow,
+        observed_at_ms=observed + 1_000,
+    )
+    assert fired.action == Action.LONG
+    assert fired.details["state"] == "reject"
+    assert fired.details["microResponseReady"] is True
+    assert fired.details["microPriceResponseBps"] >= (
+        strategy.micro_response_min_bps
+    )
+    assert fired.details["stagedEntry"]["phase"] == "full"
+    assert fired.details["stagedEntry"]["riskFraction"] == pytest.approx(1.0)
     assert (
-        early.details["fireTrigger"]["source"]
-        == "rejection_absorption_fire"
+        fired.details["fireTrigger"]["source"]
+        == "rejection_absorption_micro_response"
     )
 
     late_strategy = WeakLevelRejectionStrategy()
@@ -207,7 +234,6 @@ def test_stage18_rejection_enters_early_absorption_without_late_add() -> None:
         trades=buy_flow(),
     )
     assert late.action == Action.WAIT
-    assert late.details["state"] == "reaction"
     assert late.details["lateReactionObserved"] is True
 
 
