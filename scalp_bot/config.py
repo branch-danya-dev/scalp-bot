@@ -1,5 +1,6 @@
 import os
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,8 +22,8 @@ class Settings(BaseSettings):
     bybit_public_ws_url: str = "wss://stream.bybit.com/v5/public/linear"
     # Optional read-only credentials enable exact account fee-rate lookup.
     # Never place secrets in checked-in profiles; provide them as process env.
-    bybit_api_key: str = ""
-    bybit_api_secret: str = ""
+    bybit_api_key: SecretStr = SecretStr("")
+    bybit_api_secret: SecretStr = SecretStr("")
     bybit_private_recv_window_ms: int = 5000
     fee_rate_mode: str = "account_if_available"
 

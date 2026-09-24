@@ -93,3 +93,23 @@ async def test_fee_schedule_uses_account_endpoint_when_available(
     assert schedule.source == "bybit_account"
     assert schedule.maker_fee_rate == pytest.approx(0.0001)
     assert schedule.taker_fee_rate == pytest.approx(0.0003)
+
+
+def test_bybit_credentials_are_secret_values_and_masked() -> None:
+    cfg = Settings(
+        bybit_api_key="visible-key",
+        bybit_api_secret="visible-secret",
+    )
+
+    assert (
+        cfg.bybit_api_key.get_secret_value()
+        == "visible-key"
+    )
+    assert (
+        cfg.bybit_api_secret.get_secret_value()
+        == "visible-secret"
+    )
+    rendered = repr(cfg)
+    assert "visible-key" not in rendered
+    assert "visible-secret" not in rendered
+    assert "**********" in rendered

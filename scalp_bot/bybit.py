@@ -262,8 +262,16 @@ class BybitRestClient:
         path: str,
         params: dict[str, str | int],
     ) -> dict:
-        api_key = self.config.bybit_api_key.strip()
-        api_secret = self.config.bybit_api_secret.strip()
+        api_key = (
+            self.config.bybit_api_key
+            .get_secret_value()
+            .strip()
+        )
+        api_secret = (
+            self.config.bybit_api_secret
+            .get_secret_value()
+            .strip()
+        )
         if not api_key or not api_secret:
             raise BybitError(
                 "Bybit private credentials are not configured"
@@ -366,8 +374,12 @@ class BybitRestClient:
             return schedule
 
         credentials_ready = bool(
-            self.config.bybit_api_key.strip()
-            and self.config.bybit_api_secret.strip()
+            self.config.bybit_api_key
+            .get_secret_value()
+            .strip()
+            and self.config.bybit_api_secret
+            .get_secret_value()
+            .strip()
         )
         if not credentials_ready:
             if mode == "account_required":
