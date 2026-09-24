@@ -430,28 +430,30 @@ class OrderBookState:
 StreamCallback = Callable[[dict], Awaitable[None]]
 
 
-async def stream_symbol(
+async def _stream_topics(
     ws_url: str,
-    symbol: str,
+    topics: list[str],
     callback: StreamCallback,
     stop_event: asyncio.Event,
-    orderbook_depth: int = 1000,
 ) -> None:
-    if orderbook_depth not in {1, 50, 200, 1000}:
-        raise ValueError(
-            "Bybit orderbook depth must be one of 1, 50, 200, 1000"
-        )
-    topics = [
-        f"orderbook.{orderbook_depth}.{symbol}",
-        f"kline.1.{symbol}",
-        f"publicTrade.{symbol}",
-    ]
     while not stop_event.is_set():
         try:
-            async with websockets.connect(ws_url, ping_interval=20, ping_timeout=20) as ws:
-                await ws.send(json.dumps({"op": "subscribe", "args": topics}))
+            async with websockets.connect(
+                ws_url,
+                ping_interval=20,
+                ping_timeout=20,
+            ) as ws:
+                await ws.send(
+                    json.dumps({
+                        "op": "subscribe",
+                        "args": topics,
+                    })
+                )
                 while not stop_event.is_set():
-                    raw = await asyncio.wait_for(ws.recv(), timeout=35)
+                    raw = await asyncio.wait_for(
+                        ws.recv(),
+                        timeout=35,
+                    )
                     message = json.loads(raw)
                     if "topic" in message:
                         await callback(message)
@@ -460,3 +462,59 @@ async def stream_symbol(
         except Exception:
             if not stop_event.is_set():
                 await asyncio.sleep(2)
+
+
+async def stream_symbol(
+    ws_url: str,
+    symbol: str,
+    callback: StreamCallback,
+    stop_event: asyncio.Event,
+    orderbook_depth: int | None = None,
+    *,
+    fast_orderbook_depth: int = 50,
+    deep_orderbook_depth: int = 1000,
+) -> None:
+    valid_depths = {1, 50, 200, 1000}
+    if orderbook_depth is not None:
+        # Backwards-compatible single-book mode for external callers/tests.
+        fast_orderbook_depth = orderbook_depth
+        deep_orderbook_depth = orderbook_depth
+    if fast_orderbook_depth not in valid_depths:
+        raise ValueError(
+            "Bybit fast orderbook depth must be one of 1, 50, 200, 1000"
+        )
+    if deep_orderbook_depth not in valid_depths:
+        raise ValueError(
+            "Bybit deep orderbook depth must be one of 1, 50, 200, 1000"
+        )
+
+    fast_topics = [
+        f"orderbook.{fast_orderbook_depth}.{symbol}",
+        f"kline.1.{symbol}",
+        f"publicTrade.{symbol}",
+    ]
+    if deep_orderbook_depth == fast_orderbook_depth:
+        await _stream_topics(
+            ws_url,
+            fast_topics,
+            callback,
+            stop_event,
+        )
+        return
+
+    # Keep the latency-sensitive and deep-liquidity feeds on independent
+    # connections. A reconnect/desync on one depth must not stop the other.
+    await asyncio.gather(
+        _stream_topics(
+            ws_url,
+            fast_topics,
+            callback,
+            stop_event,
+        ),
+        _stream_topics(
+            ws_url,
+            [f"orderbook.{deep_orderbook_depth}.{symbol}"],
+            callback,
+            stop_event,
+        ),
+    )
