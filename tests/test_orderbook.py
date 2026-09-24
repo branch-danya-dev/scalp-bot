@@ -285,9 +285,9 @@ async def test_ws_reader_is_decoupled_from_slow_market_callback(
                 return payloads[0]
             if self.recv_count == 2:
                 second_received.set()
-                stop.set()
                 return payloads[1]
-            await asyncio.Future()
+            await stop.wait()
+            raise ConnectionError("fixture stream finished")
 
     ws = FakeWebSocket()
 
@@ -330,6 +330,7 @@ async def test_ws_reader_is_decoupled_from_slow_market_callback(
     assert ws.recv_count >= 2
 
     release_callback.set()
+    stop.set()
     await asyncio.wait_for(task, timeout=1.0)
 
 
