@@ -263,7 +263,6 @@ def _build_navigation_index(
     problem_parts = problem_writer.close()
     shard_index = {
         "schemaVersion": 1,
-        "index": navigation_index,
         "shards": shard_rows,
     }
     _write_json(
@@ -700,6 +699,7 @@ def build_git_session_export(
             "criticalEventParts": critical_parts,
             "frameParts": overview_parts,
         },
+        "index": navigation_index,
         "shards": shard_rows,
     }
     _write_json(run_dir / "manifest.json", manifest)
