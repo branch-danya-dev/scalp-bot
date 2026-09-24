@@ -33,7 +33,10 @@ _PROFILES = {
     "weak_level_rejection": ExecutionProfile(
         name="rejection_confirmation",
         partial_exit="maker_limit",
-        passive_entry_eligible=True,
+        # Production rejection waits for a causal micro-response before FIRE.
+        # Enter immediately once confirmed; waiting for a passive retrace would
+        # contradict the signal and systematically miss the rejection move.
+        passive_entry_eligible=False,
     ),
     "orderbook_density": ExecutionProfile(
         name="density_confirmation",
