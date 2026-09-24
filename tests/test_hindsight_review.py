@@ -398,3 +398,40 @@ def test_pre_run_activation_generation_matches_strategy_mapping() -> None:
     opportunity = report["opportunities"][0]
     assert opportunity["segment"] == 2
     assert opportunity["strategyFit"]["mappedToExistingStrategy"] is True
+
+
+def test_hindsight_does_not_count_density_only_as_tradeable_coverage() -> None:
+    rows = [
+        activated(),
+        decision(
+            5.0,
+            "orderbook_density",
+            "persisting",
+            reason="liquidity evidence",
+        ),
+        frame(10.0, 100.0),
+        decision(
+            15.0,
+            "orderbook_density",
+            "approach",
+            reason="liquidity evidence",
+        ),
+        frame(20.0, 100.20),
+        frame(30.0, 100.50),
+        deactivated(40.0),
+    ]
+
+    report = analyze_hindsight_opportunities(
+        rows,
+        taker_fee_rate=0.0005,
+        slippage_bps=0.0,
+        minimum_net_move_pct=0.001,
+    )
+
+    opportunity = report["opportunities"][0]
+    fit = opportunity["strategyFit"]
+    assert fit["mappedToExistingStrategy"] is True
+    assert fit["mappedToTradeablePlaybook"] is False
+    assert fit["closestTradeablePlaybook"] is None
+    assert report["summary"]["mappedToTradeablePlaybook"] == 0
+    assert report["summary"]["unmappedToTradeablePlaybook"] == 1
