@@ -163,11 +163,21 @@ class Settings(BaseSettings):
     market_context_event_interval_seconds: float = 10.0
     market_stale_seconds: float = 3.0
     book_stale_seconds: float = 1.5
+    deep_book_stale_seconds: float = 1.5
     # Disabled in bare Settings for deterministic unit tests; research/live
     # profiles explicitly enable this safety gate.
     confirmed_candle_stale_seconds: float = 0.0
     trade_buffer_seconds: int = 90
+    # Legacy compatibility value. Live market data uses the explicit fast/deep
+    # depths below so execution timing no longer waits on the 1000-level feed.
     orderbook_depth: int = 1000
+    fast_orderbook_depth: int = 50
+    deep_orderbook_depth: int = 1000
+    event_driven_evaluation_enabled: bool = True
+    event_evaluation_min_interval_seconds: float = 0.05
+    fast_event_min_mid_move_bps: float = 0.25
+    fast_event_min_spread_change_bps: float = 0.25
+    fast_event_min_ofi_fraction: float = 0.02
     density_min_wall_notional_usd: float = 25_000.0
     density_strength_multiple: float = 4.0
     density_turnover_floor_fraction: float = 0.01
