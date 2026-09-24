@@ -245,6 +245,14 @@ def assess_structural_path(
     partial_take_at_r: float = 1.0,
     partial_take_enabled: bool = True,
 ) -> StructuralPathAssessment:
+    planned_partial = (
+        (decision.details or {}).get(
+            "plannedPartialEnabled"
+        )
+    )
+    if isinstance(planned_partial, bool):
+        partial_take_enabled = planned_partial
+
     side = decision.action.value
     if (
         not decision.tradeable
