@@ -61,6 +61,8 @@ selector.
 
 ## Execution model
 
+- confirmed breakout and weak-level rejection entries use taker execution so
+  post-confirmation signals do not wait for a contradictory maker retrace;
 - entries and emergency/invalidated exits use executable book depth;
 - taker entry geometry includes configured slippage in the expected fill;
 - maker entries, partials and targets require public-trade-through confirmation;

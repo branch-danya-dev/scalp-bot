@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .config import Settings
-from .domain import OrderBook, Side, StrategyDecision, TradePlan
+from .domain import InstrumentRules, OrderBook, Side, StrategyDecision, TradePlan
 from .execution import (
     apply_entry_slippage,
     execution_profile,
@@ -44,10 +44,17 @@ class RiskEngine:
             if side == Side.LONG
             else max(0.0, (raw_vwap - best) / best)
         )
-        stress = impact * max(
+        observed_stress = impact * max(
             0.0,
             self.config.stop_depth_stress_multiplier,
         )
+        floor = max(
+            0.0,
+            self.config.stop_liquidity_stress_floor_bps,
+        ) / 10_000
+        # This is deliberately a conservative proxy. The current book is an
+        # observable lower-bound input, not a claim about future stop depth.
+        stress = max(observed_stress, floor)
         return stress, impact, visible, raw_vwap
 
     def build_plan(
@@ -60,6 +67,7 @@ class RiskEngine:
         available_risk_usd: float,
         *,
         depth_book: OrderBook | None = None,
+        instrument_rules: InstrumentRules | None = None,
         setup_id: str | None = None,
         existing_position_notional: float = 0.0,
         existing_position_all_in_risk_usd: float = 0.0,
@@ -101,6 +109,27 @@ class RiskEngine:
         best_raw_entry = raw_market_entry
         stop = float(decision.stop)
         target = float(decision.target)
+        if instrument_rules is not None:
+            stop = instrument_rules.quantize_stop(
+                side,
+                stop,
+            )
+            target = instrument_rules.quantize_target(
+                side,
+                target,
+            )
+            if entry_mode == "maker_limit":
+                raw_market_entry = (
+                    instrument_rules.quantize_maker_entry(
+                        side,
+                        raw_market_entry,
+                    )
+                )
+                market_entry = apply_entry_slippage(
+                    raw_market_entry,
+                    side,
+                    entry_slippage_rate,
+                )
         if market_entry <= 0:
             return RiskResult(False, "executable market entry is unavailable")
 
@@ -507,6 +536,47 @@ class RiskEngine:
                 + stop_depth_stress_rate
             )
 
+        base_qty: float | None = None
+        if instrument_rules is not None:
+            base_qty = instrument_rules.quantize_qty(
+                notional / market_entry
+                if market_entry > 0
+                else 0.0
+            )
+            quantized_notional = base_qty * market_entry
+            if (
+                base_qty
+                < instrument_rules.min_order_qty
+                - 1e-12
+            ):
+                return RiskResult(
+                    False,
+                    (
+                        "instrument_min_qty: "
+                        f"{base_qty:.12g} < "
+                        f"{instrument_rules.min_order_qty:.12g}"
+                    ),
+                )
+            if (
+                quantized_notional
+                + 1e-9
+                < instrument_rules.min_notional_value
+            ):
+                return RiskResult(
+                    False,
+                    (
+                        "instrument_min_notional: "
+                        f"{quantized_notional:.2f} < "
+                        f"{instrument_rules.min_notional_value:.2f}"
+                    ),
+                )
+            if quantized_notional <= 0:
+                return RiskResult(
+                    False,
+                    "instrument quantity rounded to zero",
+                )
+            notional = quantized_notional
+
         entry_depth_impact_bps = (
             max(
                 0.0,
@@ -758,6 +828,12 @@ class RiskEngine:
             "notionalByTradeAllInCapUsd": notional_by_trade_all_in_cap,
             "notionalByAllInPortfolioRiskUsd": notional_by_all_in_portfolio_risk,
             "effectiveLeverage": notional / balance if balance else 0.0,
+            "baseQty": base_qty,
+            "instrumentRules": (
+                instrument_rules.public()
+                if instrument_rules is not None
+                else None
+            ),
             "setupEntry": setup_entry,
             "marketEntry": market_entry,
             "rawExecutableEntry": float(raw_depth_entry),
@@ -775,6 +851,15 @@ class RiskEngine:
             "baseStopCostPct": stop_cost_pct,
             "stopDepthStressMultiplier": (
                 self.config.stop_depth_stress_multiplier
+            ),
+            "stopLiquidityStressModel": (
+                "current_depth_proxy_plus_floor"
+            ),
+            "stopLiquidityStressFloorBps": (
+                self.config.stop_liquidity_stress_floor_bps
+            ),
+            "currentExitDepthImpactBps": (
+                stop_depth_impact_rate * 10_000
             ),
             "stopDepthImpactBps": (
                 stop_depth_impact_rate * 10_000
@@ -1021,6 +1106,7 @@ class RiskEngine:
             entry_drift_pct=entry_drift,
             setup_id=resolved_setup_id,
             entry_mode=entry_mode,
+            base_qty=base_qty,
             strategy_details=strategy_details,
         )
         return RiskResult(

@@ -74,12 +74,19 @@ from .structure import MarketStructure, StructuralLevel, TrendLine, build_market
 from .trend_structure import TrendStructureStrategy
 from .weak_level_rejection import RejectionStage, WeakLevelRejectionStrategy
 
-DEFAULT_STRATEGIES: list[Strategy] = [
-    TrendStructureStrategy(),
-    WeakLevelRejectionStrategy(),
-    DensityBounceStrategy(),
-    LevelBreakoutStrategy(),
-]
+def create_default_strategies() -> list[Strategy]:
+    """Create isolated stateful strategy instances for one engine."""
+    return [
+        TrendStructureStrategy(),
+        WeakLevelRejectionStrategy(),
+        DensityBounceStrategy(),
+        LevelBreakoutStrategy(),
+    ]
+
+
+# Compatibility snapshot for external research imports. TradingEngine must use
+# the factory above so mutable strategy state never leaks between engines.
+DEFAULT_STRATEGIES: list[Strategy] = create_default_strategies()
 
 __all__ = [
     "Strategy",
@@ -147,4 +154,5 @@ __all__ = [
     "build_market_structure",
     "BreakoutStage",
     "DEFAULT_STRATEGIES",
+    "create_default_strategies",
 ]

@@ -691,9 +691,13 @@ def assess_session_candidates(
         blockers = list(assessment.blockers)
         reasons = list(assessment.reasons)
         if opposite:
-            blockers.append("opposing_playbook_conflict")
+            # Keep the conflict explicit for selection/telemetry, but do not
+            # veto both candidates symmetrically. The global arbiter already
+            # compares flow, liquidity, freshness, payoff and drift and must
+            # be allowed to choose one side.
             reasons.append(
-                "opposite tradeable playbook exists at the same market location"
+                "opposite tradeable playbook exists at the same market "
+                "location; defer side choice to global selection priority"
             )
         if same_side:
             reasons.append(

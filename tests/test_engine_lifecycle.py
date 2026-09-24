@@ -5,7 +5,7 @@ from time import perf_counter_ns, time
 
 from scalp_bot.bybit import MarketMessage
 from scalp_bot.config import Settings
-from scalp_bot.domain import Action, Candidate, Candle, OrderBook, Side, StrategyDecision, TradePlan, TradeTick, Trend
+from scalp_bot.domain import Action, Candidate, Candle, InstrumentRules, OrderBook, Side, StrategyDecision, TradePlan, TradeTick, Trend
 from scalp_bot.engine import ActiveSymbolSession, TradingEngine
 from scalp_bot.research_policy import (
     create_policy_manifest,
@@ -466,7 +466,7 @@ def test_arbiter_blocks_trend_long_into_mature_resistance(tmp_path) -> None:
         close_rest(engine)
 
 
-def test_arbiter_waits_when_viable_playbooks_conflict_on_direction(tmp_path) -> None:
+def test_arbiter_selects_one_viable_playbook_when_directions_conflict(tmp_path) -> None:
     engine = make_engine(tmp_path, max_leverage=1, risk_fraction=0.01)
     try:
         now = time()
@@ -513,18 +513,15 @@ def test_arbiter_waits_when_viable_playbooks_conflict_on_direction(tmp_path) -> 
 
         engine._arbitrate_once()
 
-        assert not engine.broker.positions
-        blocked = [
-            event
-            for event in engine.events
-            if event["event"] == "arbiter_blocked"
+        assert len(engine.broker.positions) == 1
+        position = engine.broker.positions["AAAUSDT"]
+        arbitration = position.strategy_details[
+            "semanticArbitration"
         ]
-        assert len(blocked) >= 2
-        assert all(
-            "opposing_playbook_conflict"
-            in event["payload"]["blockers"]
-            for event in blocked[-2:]
-        )
+        assert arbitration["conflictingStrategies"]
+        assert "opposing_playbook_conflict" not in arbitration[
+            "blockers"
+        ]
     finally:
         close_rest(engine)
 
@@ -958,7 +955,17 @@ async def test_bootstrap_loads_direct_multi_timeframe_context(tmp_path) -> None:
             for i in range(count)
         ]
 
+    async def fake_instrument_rules(symbol: str) -> InstrumentRules:
+        return InstrumentRules(
+            symbol=symbol,
+            tick_size=0.01,
+            qty_step=0.001,
+            min_order_qty=0.001,
+            min_notional_value=5.0,
+        )
+
     engine.rest.klines = fake_klines  # type: ignore[method-assign]
+    engine.rest.instrument_rules = fake_instrument_rules  # type: ignore[method-assign]
     try:
         await engine._bootstrap_symbol("TESTUSDT")
         session = engine.sessions["TESTUSDT"]
@@ -1655,7 +1662,7 @@ def test_strategy_expectancy_remains_observational_until_sample_ready(tmp_path) 
 
 
 
-def test_arbiter_uses_pending_maker_entry_for_tradeable_playbook_and_fills_after_trade_through(tmp_path) -> None:
+def test_arbiter_executes_confirmed_rejection_as_taker_even_when_passive_enabled(tmp_path) -> None:
     engine = make_engine(
         tmp_path,
         passive_entry_enabled=True,
@@ -1684,29 +1691,31 @@ def test_arbiter_uses_pending_maker_entry_for_tradeable_playbook_and_fills_after
             entry=100.0,
             stop=99.5,
             target=101.0,
-            setup_id="rejection-passive-1",
+            setup_id="rejection-taker-1",
             details={"allowRunner": True, "state": "reaction"},
         )
         engine.sessions = {session.symbol: session}
         engine.candidates = [
             Candidate("AAAUSDT", 200_000_000, 0, 100, activity_rank=1)
         ]
+
         engine._arbitrate_once()
-        assert "AAAUSDT" in engine.broker.pending_entries
-        assert "AAAUSDT" not in engine.broker.positions
-        assert any(event["event"] == "entry_pending" for event in engine.events)
-        pending = engine.broker.pending_entries["AAAUSDT"]
-        session.last_price = pending.limit_price * (
-            1 - engine.config.maker_fill_confirmation_bps / 10_000
-        )
-        engine._mark_execution_from_market(
-            session,
-            trade_ts_ms=int(time() * 1000),
-        )
+
         assert "AAAUSDT" not in engine.broker.pending_entries
         assert "AAAUSDT" in engine.broker.positions
-        assert any(event["event"] == "trade_opened" for event in engine.events)
-        assert engine.strategy_stats["weak_level_rejection"]["tradesOpened"] == 1
+        assert any(
+            event["event"] == "trade_opened"
+            for event in engine.events
+        )
+        assert (
+            engine.broker.positions["AAAUSDT"]
+            .strategy_details["economics"]["entryMode"]
+            == "taker_market"
+        )
+        assert (
+            engine.strategy_stats["weak_level_rejection"]["tradesOpened"]
+            == 1
+        )
     finally:
         close_rest(engine)
 
@@ -2566,6 +2575,79 @@ def test_execution_uses_specific_public_trade_price_for_maker_fill(
 
 
 
+@pytest.mark.asyncio
+async def test_public_trade_batch_fills_resting_maker_before_later_tick_invalidation(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        passive_entry_enabled=True,
+        maker_fill_confirmation_bps=0.0,
+        maker_queue_ahead_fraction=0.0,
+        event_driven_evaluation_enabled=False,
+    )
+    try:
+        pending_plan = plan("AAAUSDT")
+        pending_plan.strategy = "weak_level_rejection"
+        pending_plan.entry_mode = "maker_limit"
+        pending_plan.market_entry = 99.99
+        pending_plan.notional = 1_000.0
+        pending_plan.setup_id = "reject:g1"
+        engine.broker.place_pending(
+            pending_plan,
+            min_trade_ts_ms=1_000,
+        )
+
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(99.99, 100.01),
+            last_price=100.0,
+        )
+        engine.sessions[session.symbol] = session
+
+        evaluations: list[float] = []
+
+        async def invalidate_after_tick(current):
+            evaluations.append(current.last_price)
+            engine.broker.cancel_pending(
+                current.symbol,
+                "test_invalidation",
+            )
+
+        engine._evaluate = invalidate_after_tick  # type: ignore[method-assign]
+
+        await engine._process_public_trade_rows(
+            session,
+            [
+                {
+                    "T": 1_001,
+                    "p": "99.98",
+                    "v": "20",
+                    "S": "Sell",
+                },
+                {
+                    "T": 1_002,
+                    "p": "100.10",
+                    "v": "20",
+                    "S": "Buy",
+                },
+            ],
+            wall_now=time(),
+        )
+
+        assert "AAAUSDT" not in engine.broker.pending_entries
+        assert "AAAUSDT" in engine.broker.positions
+        assert engine.broker.positions["AAAUSDT"].entry == pytest.approx(
+            99.99
+        )
+        # The fill removed the resting order on the first trade. A later
+        # trade from the same websocket batch must not retroactively cancel it.
+        assert evaluations == []
+    finally:
+        await engine.rest.close()
+
+
 def test_trade_overlay_makes_forming_ohlc_tick_native_without_double_volume() -> None:
     forming = Candle(
         60_000,
@@ -3191,6 +3273,72 @@ async def test_density_evaluation_consumes_deep_book_not_fast_book(
         assert captured[-1] is deep
     finally:
         await engine.rest.close()
+
+
+def test_execution_depth_falls_back_when_deep_book_exchange_time_is_old(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        deep_book_execution_max_lag_seconds=0.35,
+    )
+    now = time()
+    fast = OrderBook(
+        bids=[(99.99, 10)],
+        asks=[(100.01, 10)],
+    )
+    deep = OrderBook(
+        bids=[(99.90, 500)],
+        asks=[(100.10, 500)],
+    )
+    session = ActiveSymbolSession(
+        symbol="SYNCUSDT",
+        candles=[candle()],
+        orderbook=fast,
+        deep_orderbook=deep,
+        last_book_at=now,
+        last_deep_book_at=now,
+        book_synced=True,
+        deep_book_synced=True,
+        fast_book_seq=10_000,
+        deep_book_seq=9_900,
+        fast_book_cts_ms=1_000_000,
+        deep_book_cts_ms=999_500,
+        deep_book_execution_max_lag_seconds=0.35,
+    )
+    try:
+        assert session.deep_book_is_fresh(now)
+        assert not session.deep_book_execution_is_current(now)
+        assert session.execution_depth_orderbook(now) is fast
+        health = session.deep_book_health(now)
+        assert health["executionCurrent"] is False
+        assert health["executionLagSeconds"] == pytest.approx(0.5)
+        assert health["sequenceLag"] == 100
+
+        session.deep_book_cts_ms = 999_900
+        session.deep_book_seq = 9_995
+        assert session.deep_book_execution_is_current(now)
+        assert session.execution_depth_orderbook(now) is deep
+    finally:
+        close_rest(engine)
+
+
+def test_trading_engines_do_not_share_stateful_strategy_instances(
+    tmp_path,
+) -> None:
+    first = make_engine(tmp_path / "first")
+    second = make_engine(tmp_path / "second")
+    try:
+        for key in first.strategies:
+            assert first.strategies[key] is not second.strategies[key]
+
+        first_breakout = first.strategies["level_breakout"]
+        second_breakout = second.strategies["level_breakout"]
+        first_breakout._states["AAAUSDT"] = object()  # type: ignore[attr-defined]
+        assert "AAAUSDT" not in second_breakout._states  # type: ignore[attr-defined]
+    finally:
+        close_rest(first)
+        close_rest(second)
 
 
 def test_order_latency_helpers_complete_paper_taker_chain(

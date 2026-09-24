@@ -36,6 +36,8 @@ class Position:
     entry_fee_total_usd: float
     last_price: float
     setup_id: str
+    original_qty: float = 0.0
+    qty: float = 0.0
     strategy_details: dict[str, Any] = field(default_factory=dict)
     partial_taken: bool = False
     realized_gross_usd: float = 0.0
@@ -214,13 +216,42 @@ class PaperBroker:
             )
         )
 
+    @staticmethod
+    def _maker_entry_trade_side_matches(
+        side: Side,
+        trade_side: str | None,
+    ) -> bool:
+        if not trade_side:
+            return True
+        aggressor = trade_side.strip().lower()
+        expected = "sell" if side == Side.LONG else "buy"
+        return aggressor == expected
+
+    @staticmethod
+    def _maker_exit_trade_side_matches(
+        pos: Position,
+        trade_side: str | None,
+    ) -> bool:
+        if not trade_side:
+            return True
+        aggressor = trade_side.strip().lower()
+        expected = "buy" if pos.side == Side.LONG else "sell"
+        return aggressor == expected
+
     @property
     def total_pnl(self) -> float:
         return self.balance - self.start_balance
 
     @property
     def total_exposure(self) -> float:
-        return sum(x.notional for x in self.positions.values())
+        return sum(
+            (
+                x.qty * x.last_price
+                if x.qty > 0 and x.last_price > 0
+                else x.notional
+            )
+            for x in self.positions.values()
+        )
 
     @property
     def open_structural_risk_usd(self) -> float:
@@ -266,8 +297,10 @@ class PaperBroker:
             return False, "symbol already has an open position"
         if symbol in self.pending_entries:
             return False, "symbol already has a pending entry"
-        if len(self.positions) + len(self.pending_entries) >= self.config.max_open_positions:
+        if len(self.positions) >= self.config.max_open_positions:
             return False, "maximum open positions reached"
+        if len(self.pending_entries) >= self.config.max_pending_entries:
+            return False, "maximum pending entries reached"
         if (
             self.config.enforce_session_loss_limit
             and self.config.max_daily_loss_fraction > 0
@@ -342,17 +375,33 @@ class PaperBroker:
                 "reason": "invalid staged add fill",
             }
 
-        combined_notional = pos.notional + plan.notional
-        if combined_notional <= 0:
+        existing_qty = (
+            pos.qty
+            if pos.qty > 0
+            else (
+                pos.notional / pos.entry
+                if pos.entry > 0
+                else 0.0
+            )
+        )
+        add_qty = (
+            float(plan.base_qty)
+            if plan.base_qty is not None
+            and plan.base_qty > 0
+            else plan.notional / resolved_fill
+        )
+        combined_qty = existing_qty + add_qty
+        if combined_qty <= 0:
             return {
                 "allowed": False,
-                "reason": "invalid combined staged notional",
+                "reason": "invalid combined staged quantity",
             }
 
         combined_entry = (
-            pos.entry * pos.notional
-            + resolved_fill * plan.notional
-        ) / combined_notional
+            pos.entry * existing_qty
+            + resolved_fill * add_qty
+        ) / combined_qty
+        combined_notional = combined_entry * combined_qty
         if pos.side == Side.LONG:
             combined_stop = max(pos.stop, plan.stop)
             combined_target = plan.target
@@ -461,6 +510,7 @@ class PaperBroker:
             "combinedStop": combined_stop,
             "combinedTarget": combined_target,
             "combinedNotional": combined_notional,
+            "combinedQty": combined_qty,
             "grossAtTargetUsd": gross_target,
             "allInLossUsd": all_in_loss,
             "netAtTargetUsd": net_target,
@@ -474,8 +524,19 @@ class PaperBroker:
         fill: float,
         entry_fee: float,
     ) -> Position:
+        base_qty = (
+            float(plan.base_qty)
+            if plan.base_qty is not None
+            and plan.base_qty > 0
+            else (
+                plan.notional / fill
+                if fill > 0
+                else 0.0
+            )
+        )
+        actual_notional = base_qty * fill
         structural_risk_usd = (
-            plan.notional * abs(fill - plan.stop) / fill
+            base_qty * abs(fill - plan.stop)
             if fill > 0
             else 0.0
         )
@@ -483,8 +544,8 @@ class PaperBroker:
             symbol=plan.symbol,
             strategy=plan.strategy,
             side=plan.side,
-            original_notional=plan.notional,
-            notional=plan.notional,
+            original_notional=actual_notional,
+            notional=actual_notional,
             setup_entry=plan.setup_entry,
             entry=fill,
             initial_stop=plan.stop,
@@ -495,6 +556,8 @@ class PaperBroker:
             entry_fee_total_usd=entry_fee,
             last_price=fill,
             setup_id=plan.setup_id,
+            original_qty=base_qty,
+            qty=base_qty,
             strategy_details=dict(plan.strategy_details),
             initial_risk_budget_usd=structural_risk_usd,
             entry_legs=[{
@@ -504,7 +567,8 @@ class PaperBroker:
                         or {}
                     ).get("phase") or "full"
                 ),
-                "notional": plan.notional,
+                "notional": actual_notional,
+                "qty": base_qty,
                 "fill": fill,
                 "entryFeeUsd": entry_fee,
                 "structuralRiskUsd": structural_risk_usd,
@@ -536,22 +600,43 @@ class PaperBroker:
                     or "combined staged economics rejected"
                 )
             )
-        previous_notional = pos.notional
-        combined_notional = previous_notional + plan.notional
-        if combined_notional <= 0:
-            raise RuntimeError("invalid combined staged position size")
+        previous_qty = (
+            pos.qty
+            if pos.qty > 0
+            else (
+                pos.notional / pos.entry
+                if pos.entry > 0
+                else 0.0
+            )
+        )
+        add_qty = (
+            float(plan.base_qty)
+            if plan.base_qty is not None
+            and plan.base_qty > 0
+            else (
+                plan.notional / fill
+                if fill > 0
+                else 0.0
+            )
+        )
+        combined_qty = previous_qty + add_qty
+        if combined_qty <= 0:
+            raise RuntimeError("invalid combined staged position quantity")
 
         weighted_entry = (
-            pos.entry * previous_notional
-            + fill * plan.notional
-        ) / combined_notional
+            pos.entry * previous_qty
+            + fill * add_qty
+        ) / combined_qty
+        combined_notional = weighted_entry * combined_qty
         incremental_structural_risk = (
-            plan.notional * abs(fill - plan.stop) / fill
+            add_qty * abs(fill - plan.stop)
             if fill > 0
             else 0.0
         )
 
-        pos.original_notional += plan.notional
+        pos.original_qty += add_qty
+        pos.qty = combined_qty
+        pos.original_notional = combined_notional
         pos.notional = combined_notional
         pos.entry = weighted_entry
         pos.entry_fee_remaining += entry_fee
@@ -582,6 +667,7 @@ class PaperBroker:
             "stop": pos.stop,
             "target": pos.target,
             "notional": pos.notional,
+            "qty": pos.qty,
         }
         pos.strategy_details = merged_details
         pos.entry_legs.append({
@@ -591,7 +677,8 @@ class PaperBroker:
                     or {}
                 ).get("phase") or "add"
             ),
-            "notional": plan.notional,
+            "notional": add_qty * fill,
+            "qty": add_qty,
             "fill": fill,
             "entryFeeUsd": entry_fee,
             "structuralRiskUsd": incremental_structural_risk,
@@ -726,6 +813,7 @@ class PaperBroker:
         *,
         trade_ts_ms: int | None = None,
         trade_notional_usd: float | None = None,
+        trade_side: str | None = None,
     ) -> list[dict]:
         pending = self.pending_entries.get(symbol)
         if pending is None:
@@ -753,6 +841,11 @@ class PaperBroker:
         else:
             filled = last_trade_price >= pending.limit_price * (1 + confirm)
         if not filled:
+            return []
+        if not self._maker_entry_trade_side_matches(
+            pending.plan.side,
+            trade_side,
+        ):
             return []
         if trade_notional_usd is not None:
             pending.eligible_trade_notional_usd += max(
@@ -976,6 +1069,7 @@ class PaperBroker:
         depth_book: OrderBook | None = None,
         trade_price: float | None | object = _UNSET_TRADE_PRICE,
         trade_notional_usd: float | None = None,
+        trade_side: str | None = None,
     ) -> list[dict]:
         pos = self.positions.get(symbol)
         if pos is None:
@@ -1052,6 +1146,7 @@ class PaperBroker:
                 else None
             ),
             trade_notional_usd=trade_notional_usd,
+            trade_side=trade_side,
         )
         economics = (
             pos.strategy_details.get("economics")
@@ -1104,11 +1199,17 @@ class PaperBroker:
                 )
                 else None
             )
-            target_price_through = self._maker_exit_trade_through(
-                pos,
-                pos.target,
-                resolved_trade_price,
-                self.config.maker_fill_confirmation_bps,
+            target_price_through = (
+                self._maker_exit_trade_side_matches(
+                    pos,
+                    trade_side,
+                )
+                and self._maker_exit_trade_through(
+                    pos,
+                    pos.target,
+                    resolved_trade_price,
+                    self.config.maker_fill_confirmation_bps,
+                )
             )
             if (
                 target_price_through
@@ -1192,6 +1293,20 @@ class PaperBroker:
             "setupEntry": pos.setup_entry,
             "entry": pos.entry,
             "exit": final_leg["fill"],
+            "executionDepth": {
+                "insufficient": bool(
+                    final_leg.get("depthInsufficient")
+                ),
+                "visibleDepthUsd": (
+                    final_leg.get("visibleDepthUsd")
+                ),
+                "missingDepthUsd": (
+                    final_leg.get("missingDepthUsd")
+                ),
+                "tailPenaltyBps": (
+                    final_leg.get("tailPenaltyBps")
+                ),
+            },
             "exitMovePct": exit_move_pct,
             "exitMoveBps": exit_move_pct * 10_000,
             "currentMovePct": pos.current_move_pct,
@@ -1280,6 +1395,7 @@ class PaperBroker:
         *,
         trade_price: float | None = None,
         trade_notional_usd: float | None = None,
+        trade_side: str | None = None,
     ) -> bool:
         if pos.initial_risk_usd <= 0:
             return False
@@ -1293,6 +1409,11 @@ class PaperBroker:
             self.config.maker_fill_confirmation_bps,
         )
         if not price_through:
+            return False
+        if not self._maker_exit_trade_side_matches(
+            pos,
+            trade_side,
+        ):
             return False
         if trade_notional_usd is None:
             return True
@@ -1490,6 +1611,10 @@ class PaperBroker:
 
         close_notional = min(close_notional, pos.notional)
         profile = execution_profile(pos.strategy)
+        depth_insufficient = False
+        visible_depth = close_notional
+        missing_depth_usd = 0.0
+        tail_penalty_bps = 0.0
         target_limit = (
             reason in {"target", "runner_target"}
             and profile.target_exit == "maker_limit"
@@ -1509,12 +1634,16 @@ class PaperBroker:
                 pos.side,
                 close_notional,
             )
+            depth_insufficient = False
+            missing_depth_usd = 0.0
+            tail_penalty_bps = 0.0
             if raw is None:
                 raw = book.executable_exit(pos.side) or pos.last_price
             elif (
                 visible_depth + max(1e-9, close_notional * 1e-9)
                 < close_notional
             ):
+                depth_insufficient = True
                 levels = (
                     book.bids
                     if pos.side == Side.LONG
@@ -1522,18 +1651,40 @@ class PaperBroker:
                 )
                 if levels:
                     worst = levels[-1][0]
+                    missing_depth_usd = max(
+                        0.0,
+                        close_notional - visible_depth,
+                    )
+                    missing_fraction = min(
+                        1.0,
+                        missing_depth_usd
+                        / max(close_notional, 1e-9),
+                    )
+                    base_penalty = max(
+                        0.0,
+                        self.config
+                        .paper_insufficient_depth_penalty_bps,
+                    )
+                    # Penalize a larger missing tail more strongly while
+                    # keeping the model deterministic and auditable.
+                    tail_penalty_bps = (
+                        base_penalty
+                        * (1.0 + missing_fraction)
+                    )
+                    penalty = tail_penalty_bps / 10_000
+                    tail_price = (
+                        worst * max(1e-9, 1.0 - penalty)
+                        if pos.side == Side.LONG
+                        else worst * (1.0 + penalty)
+                    )
                     visible_base = (
                         visible_depth / raw
                         if raw > 0
                         else 0.0
                     )
-                    missing = max(
-                        0.0,
-                        close_notional - visible_depth,
-                    )
                     total_base = visible_base + (
-                        missing / worst
-                        if worst > 0
+                        missing_depth_usd / tail_price
+                        if tail_price > 0
                         else 0.0
                     )
                     if total_base > 0:
@@ -1571,6 +1722,10 @@ class PaperBroker:
             "gross": gross,
             "fees": fees,
             "net": gross - fees,
+            "depthInsufficient": depth_insufficient,
+            "visibleDepthUsd": visible_depth,
+            "missingDepthUsd": missing_depth_usd,
+            "tailPenaltyBps": tail_penalty_bps,
         }
 
     def _realize(
@@ -1598,14 +1753,31 @@ class PaperBroker:
         share = close_notional / pos.notional
         allocated_entry_fee = pos.entry_fee_remaining * share
 
+        close_qty = (
+            close_notional / pos.entry
+            if pos.entry > 0
+            else 0.0
+        )
         pos.notional -= close_notional
+        pos.qty = max(0.0, pos.qty - close_qty)
         pos.entry_fee_remaining -= allocated_entry_fee
         pos.realized_gross_usd += gross
         pos.realized_net_usd += net
         pos.fees_paid_usd += fees
         self.balance += net
 
-        return {"fill": fill, "gross": gross, "fees": fees, "net": net}
+        return {
+            "fill": fill,
+            "gross": gross,
+            "fees": fees,
+            "net": net,
+            "depthInsufficient": bool(
+                leg.get("depthInsufficient")
+            ),
+            "visibleDepthUsd": leg.get("visibleDepthUsd"),
+            "missingDepthUsd": leg.get("missingDepthUsd"),
+            "tailPenaltyBps": leg.get("tailPenaltyBps"),
+        }
 
     def _should_cut_no_follow_through(self, pos: Position, gross_mark_original: float) -> bool:
         age = time() - pos.opened_at

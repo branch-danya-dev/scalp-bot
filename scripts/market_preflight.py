@@ -3,32 +3,79 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+from time import monotonic
 
 import websockets
 
 from scalp_bot.config import settings
-from scalp_bot.bybit import BybitError, BybitRestClient
+from scalp_bot.bybit import (
+    BybitError,
+    BybitRestClient,
+    OrderBookState,
+    runtime_stream_topics,
+)
+
+
+async def _probe_topic_group(
+    symbol: str,
+    topics: list[str],
+    *,
+    timeout_seconds: float = 20.0,
+) -> set[str]:
+    if not topics:
+        return set()
+
+    orderbooks: dict[str, OrderBookState] = {}
+    for topic in topics:
+        if topic.startswith("orderbook."):
+            depth = int(topic.split(".")[1])
+            orderbooks[topic] = OrderBookState(depth)
+
+    received: set[str] = set()
+    deadline = monotonic() + timeout_seconds
+    async with websockets.connect(
+        settings.bybit_public_ws_url,
+        open_timeout=10,
+        close_timeout=5,
+        ping_interval=20,
+        ping_timeout=20,
+    ) as ws:
+        await ws.send(json.dumps({
+            "op": "subscribe",
+            "args": topics,
+        }))
+        while monotonic() < deadline:
+            remaining = max(0.1, deadline - monotonic())
+            raw = await asyncio.wait_for(
+                ws.recv(),
+                timeout=min(5.0, remaining),
+            )
+            message = json.loads(raw)
+            topic = str(message.get("topic") or "")
+            if topic not in topics:
+                continue
+            state = orderbooks.get(topic)
+            if state is not None:
+                state.apply(message)
+                if not state.synced:
+                    continue
+            received.add(topic)
+            if received.issuperset(topics):
+                return received
+    return received
 
 
 async def probe_public_websocket(symbol: str) -> None:
+    fast_topics, deep_topics = runtime_stream_topics(
+        symbol,
+        fast_orderbook_depth=settings.fast_orderbook_depth,
+        deep_orderbook_depth=settings.deep_orderbook_depth,
+    )
     try:
-        async with websockets.connect(
-            settings.bybit_public_ws_url,
-            open_timeout=10,
-            close_timeout=5,
-            ping_interval=20,
-            ping_timeout=20,
-        ) as ws:
-            topic = f"orderbook.1.{symbol}"
-            await ws.send(json.dumps({
-                "op": "subscribe",
-                "args": [topic],
-            }))
-            for _ in range(6):
-                raw = await asyncio.wait_for(ws.recv(), timeout=10)
-                message = json.loads(raw)
-                if message.get("topic") == topic:
-                    return
+        fast_received, deep_received = await asyncio.gather(
+            _probe_topic_group(symbol, fast_topics),
+            _probe_topic_group(symbol, deep_topics),
+        )
     except Exception as exc:
         raise RuntimeError(
             (
@@ -37,8 +84,19 @@ async def probe_public_websocket(symbol: str) -> None:
                 f"{type(exc).__name__}: {exc}"
             )
         ) from exc
-    raise RuntimeError(
-        "Bybit public WebSocket connected but no order-book data arrived"
+
+    expected = set(fast_topics + deep_topics)
+    received = set(fast_received) | set(deep_received)
+    missing = sorted(expected - received)
+    if missing:
+        raise RuntimeError(
+            "Bybit runtime WebSocket preflight did not receive: "
+            + ", ".join(missing)
+        )
+
+    print(
+        "WebSocket runtime topics passed: "
+        + ", ".join(sorted(received))
     )
 
 
@@ -71,8 +129,7 @@ async def main() -> None:
         print("")
         print(
             "The research run was not started because its configured "
-            "Bybit Global linear market is not reachable from this "
-            "connection."
+            "Bybit Global linear runtime feeds are not ready."
         )
         raise SystemExit(2) from None
     finally:

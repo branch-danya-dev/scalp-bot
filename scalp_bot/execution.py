@@ -33,7 +33,10 @@ _PROFILES = {
     "weak_level_rejection": ExecutionProfile(
         name="rejection_confirmation",
         partial_exit="maker_limit",
-        passive_entry_eligible=True,
+        # Production rejection FIRE already requires post-absorption price
+        # response. Waiting for a passive retrace after confirmation reverses
+        # the strategy semantics and creates avoidable missed fills.
+        passive_entry_eligible=False,
     ),
     "orderbook_density": ExecutionProfile(
         name="density_confirmation",

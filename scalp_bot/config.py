@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     # but it cannot consume the whole portfolio leverage budget.
     max_position_leverage: float = 5.0
     max_open_positions: int = 4
+    max_pending_entries: int = 4
     max_position_exposure_fraction: float = 1.0
     max_daily_loss_fraction: float = 0.03
     enforce_session_loss_limit: bool = False
@@ -123,6 +124,14 @@ class Settings(BaseSettings):
     max_stop_cost_share: float = 1.0
     enforce_stop_cost_share_gate: bool = False
     stop_depth_stress_multiplier: float = 2.0
+    # Current L1000 depth cannot predict liquidity at a future stop. Reserve
+    # a small explicit floor in addition to observed current-book impact and
+    # expose the model as a proxy rather than false precision.
+    stop_liquidity_stress_floor_bps: float = 1.0
+    # When a market exit exceeds the visible execution book, do not assume
+    # the missing tail exists at the last visible level. Price that tail
+    # beyond the visible book with an explicit adverse paper penalty.
+    paper_insufficient_depth_penalty_bps: float = 25.0
 
     partial_take_enabled: bool = True
     partial_take_at_r: float = 1.0
@@ -164,6 +173,10 @@ class Settings(BaseSettings):
     market_stale_seconds: float = 3.0
     book_stale_seconds: float = 1.5
     deep_book_stale_seconds: float = 1.5
+    # L1000 is slower than L50. It may remain useful for context while being
+    # too old for a latency-sensitive fill. Market execution falls back to
+    # the fresh L50 book when exchange timestamps diverge beyond this bound.
+    deep_book_execution_max_lag_seconds: float = 0.35
     # Disabled in bare Settings for deterministic unit tests; research/live
     # profiles explicitly enable this safety gate.
     confirmed_candle_stale_seconds: float = 0.0
@@ -197,6 +210,7 @@ class Settings(BaseSettings):
     replay_recent_trades: int = 250
     research_trade_delta_enabled: bool = False
     replay_trade_delta_enabled: bool = False
+    recorder_bulk_queue_max_rows: int = 20_000
 
     run_label: str = "paper-v3-scalp-econ-4h"
     paper_run_duration_seconds: float = 14_400.0

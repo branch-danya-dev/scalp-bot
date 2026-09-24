@@ -57,6 +57,65 @@ def test_rejected_trade_is_classified_by_future_target_stop_order() -> None:
     assert candidate["maeR"] < 1.0
 
 
+def test_rejected_trade_ignores_pre_event_forming_candle_extreme_when_tape_exists() -> None:
+    rows = [
+        {
+            "ts": 100.0,
+            "event": "risk_reject",
+            "symbol": "AAAUSDT",
+            "payload": {
+                "strategy": "level_breakout",
+                "reason": "economic gate",
+                "decision": {
+                    "strategy": "level_breakout",
+                    "action": "long",
+                    "entry": 100.0,
+                    "stop": 99.0,
+                    "target": 102.0,
+                },
+            },
+        },
+        {
+            "ts": 105.0,
+            "event": "research_frame",
+            "symbol": "AAAUSDT",
+            "payload": {
+                # The 1m high happened before ts=100 and must not be reused
+                # as a future target hit.
+                "candle": {
+                    "open": 100.0,
+                    "high": 102.5,
+                    "low": 99.8,
+                    "close": 100.4,
+                },
+                "recentTrades": [
+                    {
+                        "ts": 99_000,
+                        "price": 102.5,
+                        "size": 1.0,
+                        "side": "Buy",
+                        "sequence": 1,
+                    },
+                    {
+                        "ts": 105_000,
+                        "price": 100.4,
+                        "size": 1.0,
+                        "side": "Buy",
+                        "sequence": 2,
+                    },
+                ],
+            },
+        },
+    ]
+
+    report = analyze_session_rows(rows, horizon_seconds=60)
+
+    candidate = report["candidates"][0]
+    assert candidate["classification"] == "unresolved"
+    assert candidate["priceSource"] == "post_event_public_trades"
+    assert candidate["mfeR"] < 1.0
+
+
 def test_rejected_trade_with_stop_first_is_reviewed_as_correct_reject_candidate() -> None:
     rows = [
         {

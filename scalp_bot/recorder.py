@@ -4,8 +4,7 @@ import json
 from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path
-from queue import SimpleQueue
-from threading import Event, Lock, Thread
+from threading import Condition, Event, Lock, Thread
 from time import time
 
 import msgspec
@@ -21,18 +20,35 @@ class _FlushBarrier:
 
 
 class SessionRecorder:
-    def __init__(self, directory: str) -> None:
+    _BULK_EVENTS = {
+        "market_frame",
+        "research_frame",
+    }
+
+    def __init__(
+        self,
+        directory: str,
+        *,
+        max_bulk_pending_rows: int = 20_000,
+    ) -> None:
         self.root = Path(directory)
         self.root.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         self.path = self.root / f"session-{stamp}.jsonl"
         self._lock = Lock()
-        self._write_queue: SimpleQueue = SimpleQueue()
+        self._queue_condition = Condition()
+        self._write_queue: deque[tuple[object, bool]] = deque()
+        self._max_bulk_pending_rows = max(
+            1,
+            int(max_bulk_pending_rows),
+        )
+        self._bulk_pending_rows = 0
         self._writer_thread: Thread | None = None
         self._writer_error: BaseException | None = None
         self._queued_rows = 0
         self._written_rows = 0
         self._dropped_rows = 0
+        self._dropped_bulk_rows = 0
         # Live trade-review cache. The UI must never re-read a multi-GB
         # research JSONL simply because a user opened a closed trade.
         self._live_review_pre_roll: dict[str, deque[dict]] = {}
@@ -62,6 +78,41 @@ class SessionRecorder:
         with self.path.open("ab") as fh:
             fh.write(encoded)
 
+    def _dequeue_writer_item(
+        self,
+    ) -> tuple[object, bool]:
+        with self._queue_condition:
+            while not self._write_queue:
+                self._queue_condition.wait()
+            item, is_bulk = self._write_queue.popleft()
+            if is_bulk:
+                self._bulk_pending_rows = max(
+                    0,
+                    self._bulk_pending_rows - 1,
+                )
+            return item, is_bulk
+
+    def _enqueue_background(
+        self,
+        item: object,
+        *,
+        is_bulk: bool = False,
+    ) -> bool:
+        with self._queue_condition:
+            if (
+                is_bulk
+                and self._bulk_pending_rows
+                >= self._max_bulk_pending_rows
+            ):
+                self._dropped_rows += 1
+                self._dropped_bulk_rows += 1
+                return False
+            self._write_queue.append((item, is_bulk))
+            if is_bulk:
+                self._bulk_pending_rows += 1
+            self._queue_condition.notify()
+            return True
+
     def _writer_loop(self) -> None:
         try:
             with self.path.open(
@@ -69,7 +120,7 @@ class SessionRecorder:
                 buffering=1024 * 1024,
             ) as fh:
                 while True:
-                    item = self._write_queue.get()
+                    item, _ = self._dequeue_writer_item()
                     if item is _RECORDER_STOP:
                         fh.flush()
                         return
@@ -93,7 +144,7 @@ class SessionRecorder:
                 ) from self._writer_error
             return
         barrier = _FlushBarrier()
-        self._write_queue.put(barrier)
+        self._enqueue_background(barrier)
         if not barrier.done.wait(max(0.0, timeout)):
             raise TimeoutError(
                 "recorder background writer flush timed out"
@@ -109,23 +160,26 @@ class SessionRecorder:
             return
         if thread.is_alive():
             self.flush(timeout)
-            self._write_queue.put(_RECORDER_STOP)
+            self._enqueue_background(_RECORDER_STOP)
             thread.join(max(0.0, timeout))
         self._writer_thread = None
 
     def health(self) -> dict:
         thread = self._writer_thread
+        with self._queue_condition:
+            queue_depth = len(self._write_queue)
+            bulk_pending = self._bulk_pending_rows
         return {
             "background": bool(
                 thread is not None and thread.is_alive()
             ),
             "queuedRows": self._queued_rows,
             "writtenRows": self._written_rows,
-            "pendingRows": max(
-                0,
-                self._queued_rows - self._written_rows,
-            ),
+            "pendingRows": queue_depth,
+            "bulkPendingRows": bulk_pending,
+            "maxBulkPendingRows": self._max_bulk_pending_rows,
             "droppedRows": self._dropped_rows,
+            "droppedBulkRows": self._dropped_bulk_rows,
             "writerError": (
                 f"{type(self._writer_error).__name__}: "
                 f"{self._writer_error}"
@@ -161,8 +215,12 @@ class SessionRecorder:
             thread is not None
             and thread.is_alive()
         ):
-            self._queued_rows += 1
-            self._write_queue.put(row)
+            accepted = self._enqueue_background(
+                row,
+                is_bulk=event in self._BULK_EVENTS,
+            )
+            if accepted:
+                self._queued_rows += 1
             return
 
         # Deterministic synchronous fallback for unit tests and callers that

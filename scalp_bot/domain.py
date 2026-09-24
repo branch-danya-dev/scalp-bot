@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
 from enum import StrEnum
 from typing import Any
 
@@ -151,6 +152,75 @@ class OrderBook:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class InstrumentRules:
+    symbol: str
+    tick_size: float
+    qty_step: float
+    min_order_qty: float
+    min_notional_value: float
+
+    @staticmethod
+    def _step(
+        value: float,
+        step: float,
+        *,
+        up: bool,
+    ) -> float:
+        if value <= 0 or step <= 0:
+            return float(value)
+        raw = Decimal(str(value))
+        quantum = Decimal(str(step))
+        units = (raw / quantum).to_integral_value(
+            rounding=ROUND_CEILING if up else ROUND_FLOOR
+        )
+        return float(units * quantum)
+
+    def quantize_stop(
+        self,
+        side: Side,
+        value: float,
+    ) -> float:
+        return self._step(
+            value,
+            self.tick_size,
+            up=side == Side.SHORT,
+        )
+
+    def quantize_target(
+        self,
+        side: Side,
+        value: float,
+    ) -> float:
+        # Conservative reward rounding: long target down, short target up.
+        return self._step(
+            value,
+            self.tick_size,
+            up=side == Side.SHORT,
+        )
+
+    def quantize_maker_entry(
+        self,
+        side: Side,
+        value: float,
+    ) -> float:
+        return self._step(
+            value,
+            self.tick_size,
+            up=side == Side.SHORT,
+        )
+
+    def quantize_qty(self, value: float) -> float:
+        return self._step(
+            value,
+            self.qty_step,
+            up=False,
+        )
+
+    def public(self) -> dict[str, Any]:
+        return asdict(self)
+
+
 @dataclass(slots=True)
 class Candidate:
     symbol: str
@@ -230,6 +300,7 @@ class TradePlan:
     entry_drift_pct: float
     setup_id: str
     entry_mode: str = "taker_market"
+    base_qty: float | None = None
     strategy_details: dict[str, Any] = field(default_factory=dict)
 
     def public(self) -> dict[str, Any]:

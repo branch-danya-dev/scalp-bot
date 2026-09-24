@@ -1,7 +1,7 @@
 import pytest
 
 from scalp_bot.config import Settings
-from scalp_bot.domain import Action, OrderBook, StrategyDecision
+from scalp_bot.domain import Action, InstrumentRules, OrderBook, StrategyDecision
 from scalp_bot.paper import PaperBroker
 from scalp_bot.risk import RiskEngine
 
@@ -917,6 +917,47 @@ def test_winner_cost_share_gate_accepts_roomy_breakout() -> None:
 
 
 
+def test_stop_liquidity_proxy_reserves_floor_when_current_book_has_no_impact() -> None:
+    cfg = economic_settings(
+        enforce_min_net_profit_gate=False,
+        enforce_net_reward_risk_gate=False,
+        enforce_winner_cost_share_gate=False,
+        enforce_stop_cost_share_gate=False,
+        stop_depth_stress_multiplier=2.0,
+        stop_liquidity_stress_floor_bps=1.0,
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "FLOORUSDT",
+        StrategyDecision(
+            strategy="level_breakout",
+            action=Action.LONG,
+            reasons=["confirmed"],
+            entry=100.0,
+            stop=99.50,
+            target=101.50,
+            details={"allowRunner": False},
+        ),
+        1000,
+        OrderBook(
+            bids=[(99.99, 1_000)],
+            asks=[(100.00, 1_000)],
+        ),
+        10_000,
+        100,
+    )
+
+    assert result.allowed
+    economics = result.plan.strategy_details["economics"]
+    assert economics["currentExitDepthImpactBps"] == pytest.approx(0.0)
+    assert economics["stressedStopDepthImpactBps"] == pytest.approx(1.0)
+    assert economics["stopLiquidityStressModel"] == (
+        "current_depth_proxy_plus_floor"
+    )
+
+
 def test_passive_eligible_strategy_prices_maker_entry_when_enabled() -> None:
     cfg = economic_settings(
         passive_entry_enabled=True,
@@ -951,6 +992,93 @@ def test_passive_eligible_strategy_prices_maker_entry_when_enabled() -> None:
     assert economics["entryFeeRate"] == pytest.approx(cfg.maker_fee_rate)
     assert economics["entrySlippageRate"] == 0
 
+
+
+def test_confirmed_rejection_uses_taker_entry_even_when_passive_enabled() -> None:
+    cfg = economic_settings(
+        passive_entry_enabled=True,
+        enforce_min_net_profit_gate=False,
+        enforce_net_reward_risk_gate=False,
+        enforce_winner_cost_share_gate=False,
+        enforce_stop_cost_share_gate=False,
+        maker_fee_rate=0.00020,
+        taker_fee_rate=0.00055,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "REJECTUSDT",
+        StrategyDecision(
+            strategy="weak_level_rejection",
+            action=Action.LONG,
+            reasons=["confirmed rejection response"],
+            entry=100.0,
+            stop=99.50,
+            target=101.0,
+            details={"allowRunner": True},
+        ),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.entry_mode == "taker_market"
+    economics = result.plan.strategy_details["economics"]
+    assert economics["entryMode"] == "taker_market"
+    assert economics["entryFeeRate"] == pytest.approx(
+        cfg.taker_fee_rate
+    )
+
+
+def test_risk_plan_applies_exchange_tick_and_quantity_rules() -> None:
+    cfg = economic_settings(
+        enforce_min_net_profit_gate=False,
+        enforce_net_reward_risk_gate=False,
+        enforce_winner_cost_share_gate=False,
+        enforce_stop_cost_share_gate=False,
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+    )
+    rules = InstrumentRules(
+        symbol="RULEUSDT",
+        tick_size=0.05,
+        qty_step=0.1,
+        min_order_qty=0.1,
+        min_notional_value=5.0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "RULEUSDT",
+        StrategyDecision(
+            strategy="level_breakout",
+            action=Action.LONG,
+            reasons=["confirmed"],
+            entry=100.0,
+            stop=99.53,
+            target=101.07,
+            details={"allowRunner": False},
+        ),
+        1000,
+        book(99.95, 100.00),
+        10_000,
+        20,
+        instrument_rules=rules,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.stop == pytest.approx(99.50)
+    assert result.plan.target == pytest.approx(101.05)
+    assert result.plan.base_qty is not None
+    assert result.plan.base_qty * 10 == pytest.approx(
+        round(result.plan.base_qty * 10)
+    )
+    assert result.plan.notional == pytest.approx(
+        result.plan.base_qty * result.plan.market_entry
+    )
+    assert result.plan.strategy_details["economics"][
+        "instrumentRules"
+    ]["tick_size"] == pytest.approx(0.05)
 
 
 def test_first_take_movement_gate_rejects_sub_30bps_scalp() -> None:
