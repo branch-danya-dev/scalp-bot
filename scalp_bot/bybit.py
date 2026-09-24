@@ -518,14 +518,23 @@ async def _process_market_queue(
                 message.processor_started_mono_ns = (
                     perf_counter_ns()
                 )
-                lag_seconds = max(
-                    0.0,
-                    (
-                        message.processor_started_mono_ns
-                        - message.parsed_mono_ns
+                queue_anchor_ns = int(
+                    message.parsed_mono_ns
+                    or message.received_at_ns
+                    or 0
+                )
+                lag_seconds = (
+                    max(
+                        0.0,
+                        (
+                            message.processor_started_mono_ns
+                            - queue_anchor_ns
+                        )
+                        / 1_000_000_000,
                     )
-                    / 1_000_000_000,
-                ) if message.parsed_mono_ns > 0 else 0.0
+                    if queue_anchor_ns > 0
+                    else 0.0
+                )
                 message.queue_lag_ms = (
                     lag_seconds * 1000
                 )
