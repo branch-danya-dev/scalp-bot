@@ -3748,6 +3748,10 @@ class TradingEngine:
         opportunities: list[Opportunity] = []
         now = time()
         for event in self.broker.expire_pending(now):
+            self._pop_pending_order_latency(
+                str(event.get("symbol") or ""),
+                str(event.get("setupId") or ""),
+            )
             self._emit(
                 "entry_cancelled",
                 event.get("symbol"),
@@ -4871,6 +4875,10 @@ class TradingEngine:
             f"setup_invalidated:{reason}",
         )
         if event is not None:
+            self._pop_pending_order_latency(
+                session.symbol,
+                str(event.get("setupId") or ""),
+            )
             self._emit(
                 "entry_cancelled",
                 session.symbol,
@@ -5219,6 +5227,10 @@ class TradingEngine:
 
     def _cancel_all_pending(self, reason: str) -> None:
         for event in self.broker.cancel_all_pending(reason):
+            self._pop_pending_order_latency(
+                str(event.get("symbol") or ""),
+                str(event.get("setupId") or ""),
+            )
             self._emit(
                 "entry_cancelled",
                 event.get("symbol"),
