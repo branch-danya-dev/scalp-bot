@@ -848,6 +848,7 @@ class TradingEngine:
         self.sessions: dict[str, ActiveSymbolSession] = {}
         self.events: deque[dict] = deque(maxlen=260)
         self._tasks: list[asyncio.Task] = []
+        self._event_tasks: set[asyncio.Task] = set()
         self._worker_tasks: dict[str, tuple[asyncio.Task, asyncio.Event]] = {}
         self._stop = asyncio.Event()
         self._paper_timer_task: asyncio.Task | None = None
@@ -883,11 +884,15 @@ class TradingEngine:
             task.cancel()
         for task in self._tasks:
             task.cancel()
+        for task in list(self._event_tasks):
+            task.cancel()
         await asyncio.gather(
             *(x[0] for x in self._worker_tasks.values()),
             *self._tasks,
+            *list(self._event_tasks),
             return_exceptions=True,
         )
+        self._event_tasks.clear()
         await self.rest.close()
 
     def set_running(self, value: bool) -> None:
