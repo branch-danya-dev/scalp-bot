@@ -146,6 +146,10 @@ class Settings(BaseSettings):
     evaluation_idle_interval_seconds: float = 0.8
     evaluation_engaged_interval_seconds: float = 0.20
     arbiter_interval_seconds: float = 0.25
+    # Strategy-specific manage_position logic already requires persistent
+    # invalidation. Keep only a tiny post-fill guard instead of the previous
+    # hardcoded 5s blind window.
+    strategy_invalidation_grace_seconds: float = 0.50
     # market_context_changed is diagnostic telemetry, not the trading clock.
     # Full causal context is already attached to decisions/state transitions
     # and research frames; throttle minor context churn to keep long sessions
