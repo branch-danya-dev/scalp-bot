@@ -60,6 +60,8 @@ class RejectionWatchState:
     armed_price: float = 0.0
     absorption_at: float = 0.0
     absorption_price: float = 0.0
+    fire_at: float = 0.0
+    fire_price: float = 0.0
     probe_opened: bool = False
 
 
@@ -111,6 +113,8 @@ class WeakLevelRejectionStrategy(Strategy):
         state.armed_price = 0.0
         state.absorption_at = 0.0
         state.absorption_price = 0.0
+        state.fire_at = 0.0
+        state.fire_price = 0.0
 
     @staticmethod
     def _key(zone: LevelZone) -> tuple[str, float, float, int]:
@@ -231,6 +235,8 @@ class WeakLevelRejectionStrategy(Strategy):
             state.armed_price = 0.0
             state.absorption_at = 0.0
             state.absorption_price = 0.0
+            state.fire_at = 0.0
+            state.fire_price = 0.0
             state.probe_opened = False
 
         if generation_id in state.used_generations:
@@ -815,6 +821,10 @@ class WeakLevelRejectionStrategy(Strategy):
             staged_risk_fraction = 1.0
             state.stage = RejectionStage.REJECT
 
+        if state.fire_at <= 0:
+            state.fire_at = now
+            state.fire_price = price
+
         return StrategyDecision(
             strategy=self.key,
             action=action,
@@ -880,9 +890,18 @@ class WeakLevelRejectionStrategy(Strategy):
                     "preparedOpportunity": prepared_opportunity,
                 "fireTrigger": {
                     "observedAtMs": (
-                        observed_at_ms
-                        if observed_at_ms is not None
-                        else int(now * 1000)
+                        int(state.fire_at * 1000)
+                        if state.fire_at > 0
+                        else (
+                            observed_at_ms
+                            if observed_at_ms is not None
+                            else int(now * 1000)
+                        )
+                    ),
+                    "price": (
+                        state.fire_price
+                        if state.fire_price > 0
+                        else price
                     ),
                     "source": (
                         "rejection_absorption_probe"
@@ -1186,6 +1205,8 @@ class WeakLevelRejectionStrategy(Strategy):
             state.armed_price = 0.0
             state.absorption_at = 0.0
             state.absorption_price = 0.0
+            state.fire_at = 0.0
+            state.fire_price = 0.0
             state.probe_opened = False
             state.stage = RejectionStage.SEARCH
             state.zone_key = None
