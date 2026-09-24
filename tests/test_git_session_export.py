@@ -7,6 +7,7 @@ import pytest
 
 from scalp_bot.git_session_export import (
     _RollingTradeDeltaNormalizer,
+    _sample_trade_payload,
     _build_compact_session_summary,
     _build_navigation_index,
     _scan_session,
@@ -320,3 +321,36 @@ def test_scan_session_is_lightweight_and_finds_focus(
     assert last_ts == 102.0
     assert focus["AAAUSDT"]
     assert run_summary == {"netPnl": 1.5}
+
+
+
+def test_native_delta_trades_accumulate_until_sample() -> None:
+    normalizer = _RollingTradeDeltaNormalizer()
+    pending = {(0, "AAAUSDT"): [
+        {"sequence": 10},
+        {"sequence": 11},
+    ]}
+    row = {
+        "event": "research_frame",
+        "symbol": "AAAUSDT",
+        "payload": {
+            "tradeEncoding": "delta_v1",
+            "recentTrades": [{"sequence": 11}],
+        },
+    }
+
+    payload = _sample_trade_payload(
+        row,
+        normalizer=normalizer,
+        pending_native_trades=pending,
+        shard_key=(0, "AAAUSDT"),
+    )
+
+    assert [
+        trade["sequence"]
+        for trade in payload["recentTrades"]
+    ] == [10, 11]
+    assert payload["tradeEncoding"] == (
+        "delta_v1_export_compacted"
+    )
+    assert pending[(0, "AAAUSDT")] == []
