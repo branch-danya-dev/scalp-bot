@@ -193,6 +193,19 @@ class ActiveSymbolSession:
             "askLevels": len(self.orderbook.asks),
         }
 
+    def depth_orderbook(self) -> OrderBook:
+        # Manually-constructed sessions in deterministic tests/replay predate
+        # the dual-book runtime. Live sessions explicitly start deep sync as
+        # False, so only legacy/test sessions may fall back to the fast book.
+        if (
+            self.deep_orderbook.bids
+            and self.deep_orderbook.asks
+        ):
+            return self.deep_orderbook
+        if self.deep_book_synced is None:
+            return self.orderbook
+        return self.deep_orderbook
+
     def deep_book_age_seconds(
         self,
         now: float | None = None,
@@ -209,6 +222,12 @@ class ActiveSymbolSession:
         self,
         now: float | None = None,
     ) -> bool:
+        if (
+            self.deep_book_synced is None
+            and not self.deep_orderbook.bids
+            and not self.deep_orderbook.asks
+        ):
+            return self.book_is_fresh(now)
         age = self.deep_book_age_seconds(now)
         if age is None:
             return False
@@ -232,8 +251,13 @@ class ActiveSymbolSession:
             "staleAfterSeconds": (
                 self.deep_book_stale_after_seconds
             ),
-            "bidLevels": len(self.deep_orderbook.bids),
-            "askLevels": len(self.deep_orderbook.asks),
+            "bidLevels": len(self.depth_orderbook().bids),
+            "askLevels": len(self.depth_orderbook().asks),
+            "source": (
+                "deep_l1000"
+                if self.deep_book_synced is not None
+                else "legacy_fast_fallback"
+            ),
         }
 
     def confirmed_candle_age_seconds(
@@ -590,7 +614,7 @@ class ActiveSymbolSession:
             "chartSeries": self.chart_series(now_ms),
             "orderbook": self.orderbook.public(50),
             "fastOrderbook": self.orderbook.public(50),
-            "deepOrderbook": self.deep_orderbook.public(50),
+            "deepOrderbook": self.depth_orderbook().public(50),
             "densityContext": self.density_context(now_ms),
             "bookHealth": self.book_health(),
             "fastBookHealth": self.book_health(),
@@ -639,7 +663,7 @@ class ActiveSymbolSession:
             "fastOrderbook": self.orderbook.public(
                 min(book_depth, 50)
             ),
-            "deepOrderbook": self.deep_orderbook.public(
+            "deepOrderbook": self.depth_orderbook().public(
                 book_depth
             ),
             "bookHealth": self.book_health(),
@@ -1483,6 +1507,11 @@ class TradingEngine:
             context_15m=[x for x in context_15m if x.confirmed],
             context_1h=[x for x in context_1h if x.confirmed],
             book_stale_after_seconds=self.config.book_stale_seconds,
+            deep_book_stale_after_seconds=(
+                self.config.deep_book_stale_seconds
+            ),
+            book_synced=False,
+            deep_book_synced=False,
             confirmed_candle_stale_after_seconds=(
                 self.config.confirmed_candle_stale_seconds
             ),
@@ -2257,7 +2286,7 @@ class TradingEngine:
                 try:
                     raw_density = density.evaluate(
                         closed_1m,
-                        session.deep_orderbook,
+                        session.depth_orderbook(),
                         session.trend,
                         symbol=session.symbol,
                         trades=list(session.trades),
@@ -3249,7 +3278,7 @@ class TradingEngine:
             session.orderbook,
             self.broker.available_notional,
             self.broker.available_risk_usd,
-            depth_book=session.deep_orderbook,
+            depth_book=session.depth_orderbook(),
             setup_id=setup_id,
             existing_position_notional=(
                 existing_position.notional
@@ -3881,7 +3910,7 @@ class TradingEngine:
         if best.position_action == "add":
             position = self.broker.add(
                 best.plan,
-                best.session.deep_orderbook,
+                best.session.depth_orderbook(),
             )
             self._record_added_position(
                 best.session,
@@ -4369,7 +4398,7 @@ class TradingEngine:
             session.symbol,
             session.orderbook,
             reason,
-            depth_book=session.deep_orderbook,
+            depth_book=session.depth_orderbook(),
         )
         self._handle_broker_events(session, [event])
 
@@ -4660,7 +4689,7 @@ class TradingEngine:
             session = self.sessions.get(symbol)
             book = session.orderbook if session else OrderBook()
             deep_book = (
-                session.deep_orderbook
+                session.depth_orderbook()
                 if session
                 else book
             )
