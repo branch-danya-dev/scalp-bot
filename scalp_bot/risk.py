@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import ceil, floor
 
 from .config import Settings
-from .domain import OrderBook, Side, StrategyDecision, TradePlan
+from .domain import InstrumentSpec, OrderBook, Side, StrategyDecision, TradePlan
 from .execution import (
     apply_entry_slippage,
     execution_profile,
@@ -25,6 +26,18 @@ class RiskResult:
 class RiskEngine:
     def __init__(self, config: Settings) -> None:
         self.config = config
+
+    @staticmethod
+    def _floor_to_step(value: float, step: float) -> float:
+        if step <= 0:
+            return value
+        return floor((value + step * 1e-12) / step) * step
+
+    @staticmethod
+    def _ceil_to_step(value: float, step: float) -> float:
+        if step <= 0:
+            return value
+        return ceil((value - step * 1e-12) / step) * step
 
     def _stop_depth_stress(
         self,
@@ -60,6 +73,7 @@ class RiskEngine:
         available_risk_usd: float,
         *,
         depth_book: OrderBook | None = None,
+        instrument: InstrumentSpec | None = None,
         setup_id: str | None = None,
         existing_position_notional: float = 0.0,
         existing_position_all_in_risk_usd: float = 0.0,
@@ -83,12 +97,30 @@ class RiskEngine:
             self.config,
             entry_mode,
         )
+        if instrument is not None and instrument.status != "Trading":
+            return RiskResult(
+                False,
+                f"instrument is not tradeable: status={instrument.status}",
+            )
+
         if entry_mode == "maker_limit":
             raw_market_entry = float(
                 min(setup_entry, book.best_bid)
                 if side == Side.LONG
                 else max(setup_entry, book.best_ask)
             )
+            if instrument is not None and instrument.tick_size > 0:
+                raw_market_entry = (
+                    self._floor_to_step(
+                        raw_market_entry,
+                        instrument.tick_size,
+                    )
+                    if side == Side.LONG
+                    else self._ceil_to_step(
+                        raw_market_entry,
+                        instrument.tick_size,
+                    )
+                )
         else:
             raw_market_entry = float(
                 book.executable_entry(side) or 0
@@ -101,6 +133,25 @@ class RiskEngine:
         best_raw_entry = raw_market_entry
         stop = float(decision.stop)
         target = float(decision.target)
+        if instrument is not None and instrument.tick_size > 0:
+            if side == Side.LONG:
+                stop = self._floor_to_step(
+                    stop,
+                    instrument.tick_size,
+                )
+                target = self._floor_to_step(
+                    target,
+                    instrument.tick_size,
+                )
+            else:
+                stop = self._ceil_to_step(
+                    stop,
+                    instrument.tick_size,
+                )
+                target = self._ceil_to_step(
+                    target,
+                    instrument.tick_size,
+                )
         if market_entry <= 0:
             return RiskResult(False, "executable market entry is unavailable")
 
@@ -529,6 +580,45 @@ class RiskEngine:
             )
         )
 
+        quantity = (
+            notional / market_entry
+            if market_entry > 0
+            else 0.0
+        )
+        if instrument is not None:
+            if instrument.qty_step <= 0:
+                return RiskResult(
+                    False,
+                    "instrument qtyStep is unavailable",
+                )
+            quantity = self._floor_to_step(
+                quantity,
+                instrument.qty_step,
+            )
+            if quantity + 1e-12 < instrument.min_order_qty:
+                return RiskResult(
+                    False,
+                    (
+                        "instrument minimum order quantity: "
+                        f"{quantity:.12g} < "
+                        f"{instrument.min_order_qty:.12g}"
+                    ),
+                )
+            notional = quantity * market_entry
+            if (
+                instrument.min_notional_value > 0
+                and notional + 1e-9
+                < instrument.min_notional_value
+            ):
+                return RiskResult(
+                    False,
+                    (
+                        "instrument minimum notional: "
+                        f"USD {notional:.4f} < "
+                        f"USD {instrument.min_notional_value:.4f}"
+                    ),
+                )
+
         target_fee_cost = notional * (
             entry_fee_rate + target_exit_fee_rate
         )
@@ -758,6 +848,12 @@ class RiskEngine:
             "notionalByTradeAllInCapUsd": notional_by_trade_all_in_cap,
             "notionalByAllInPortfolioRiskUsd": notional_by_all_in_portfolio_risk,
             "effectiveLeverage": notional / balance if balance else 0.0,
+            "quantity": quantity,
+            "instrument": (
+                instrument.public()
+                if instrument is not None
+                else None
+            ),
             "setupEntry": setup_entry,
             "marketEntry": market_entry,
             "rawExecutableEntry": float(raw_depth_entry),
@@ -1020,6 +1116,7 @@ class RiskEngine:
             net_reward_risk=net_rr,
             entry_drift_pct=entry_drift,
             setup_id=resolved_setup_id,
+            quantity=quantity,
             entry_mode=entry_mode,
             strategy_details=strategy_details,
         )

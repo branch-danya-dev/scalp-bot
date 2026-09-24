@@ -1,7 +1,7 @@
 import pytest
 
 from scalp_bot.config import Settings
-from scalp_bot.domain import Action, OrderBook, StrategyDecision
+from scalp_bot.domain import Action, InstrumentSpec, OrderBook, StrategyDecision
 from scalp_bot.paper import PaperBroker
 from scalp_bot.risk import RiskEngine
 
@@ -19,6 +19,84 @@ def decision(target: float, *, entry: float = 100.0, stop: float = 99.8) -> Stra
 
 def book(bid: float, ask: float) -> OrderBook:
     return OrderBook(bids=[(bid, 100)], asks=[(ask, 100)])
+
+
+def test_instrument_constraints_quantize_price_and_quantity() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_position_leverage=5,
+        risk_fraction=0.01,
+        min_net_profit_usd=0,
+        min_net_reward_risk=0,
+        absolute_min_net_reward_risk=0,
+        taker_fee_rate=0,
+        slippage_bps=0,
+    )
+    spec = InstrumentSpec(
+        symbol="BTCUSDT",
+        status="Trading",
+        tick_size=0.1,
+        qty_step=0.01,
+        min_order_qty=0.01,
+        min_notional_value=5.0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        decision(101.07, stop=99.83),
+        1000,
+        book(99.99, 100.00),
+        5000,
+        100,
+        instrument=spec,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.stop == pytest.approx(99.8)
+    assert result.plan.target == pytest.approx(101.0)
+    assert result.plan.quantity > 0
+    assert (
+        result.plan.quantity / spec.qty_step
+    ) == pytest.approx(
+        round(result.plan.quantity / spec.qty_step)
+    )
+    assert result.plan.notional == pytest.approx(
+        result.plan.quantity * result.plan.market_entry
+    )
+
+
+def test_instrument_minimum_notional_blocks_impossible_order() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        risk_fraction=0.01,
+        min_net_profit_usd=0,
+        min_net_reward_risk=0,
+        absolute_min_net_reward_risk=0,
+        taker_fee_rate=0,
+        slippage_bps=0,
+    )
+    spec = InstrumentSpec(
+        symbol="BTCUSDT",
+        status="Trading",
+        tick_size=0.01,
+        qty_step=0.001,
+        min_order_qty=0.001,
+        min_notional_value=10.0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "BTCUSDT",
+        decision(101.0, stop=99.5),
+        1000,
+        book(99.99, 100.00),
+        5.0,
+        100,
+        instrument=spec,
+    )
+
+    assert not result.allowed
+    assert "minimum notional" in result.reason
 
 
 def test_rejects_prediction_smaller_than_costs_and_minimum_profit() -> None:

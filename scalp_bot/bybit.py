@@ -18,7 +18,7 @@ from .activity import (
     opportunity_readiness,
 )
 from .config import Settings
-from .domain import Candidate, Candle, OrderBook
+from .domain import Candidate, Candle, InstrumentSpec, OrderBook
 from .latency_observability import (
     exchange_receive_seconds,
     observe_latency,
@@ -372,6 +372,32 @@ class BybitRestClient:
         for index, item in enumerate(rows, start=1):
             item.activity_rank = index
         return rows
+
+    async def instrument_spec(self, symbol: str) -> InstrumentSpec:
+        result = await self._get(
+            "/v5/market/instruments-info",
+            {"category": "linear", "symbol": symbol},
+        )
+        rows = result.get("list") or []
+        if not rows:
+            raise BybitError(
+                f"instrument metadata is unavailable for {symbol}"
+            )
+        item = rows[0]
+        price_filter = item.get("priceFilter") or {}
+        lot_filter = item.get("lotSizeFilter") or {}
+        return InstrumentSpec(
+            symbol=symbol,
+            status=str(item.get("status") or ""),
+            tick_size=float(price_filter.get("tickSize") or 0.0),
+            qty_step=float(lot_filter.get("qtyStep") or 0.0),
+            min_order_qty=float(
+                lot_filter.get("minOrderQty") or 0.0
+            ),
+            min_notional_value=float(
+                lot_filter.get("minNotionalValue") or 0.0
+            ),
+        )
 
     async def klines(self, symbol: str, interval: str, limit: int = 240) -> list[Candle]:
         result = await self._get(

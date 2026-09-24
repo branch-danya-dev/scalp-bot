@@ -152,6 +152,19 @@ class OrderBook:
 
 
 @dataclass(slots=True)
+class InstrumentSpec:
+    symbol: str
+    status: str
+    tick_size: float
+    qty_step: float
+    min_order_qty: float
+    min_notional_value: float
+
+    def public(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
 class Candidate:
     symbol: str
     turnover_24h: float
@@ -229,6 +242,7 @@ class TradePlan:
     net_reward_risk: float
     entry_drift_pct: float
     setup_id: str
+    quantity: float = 0.0
     entry_mode: str = "taker_market"
     strategy_details: dict[str, Any] = field(default_factory=dict)
 

@@ -13,7 +13,7 @@ from .bybit import (
     stream_symbol,
 )
 from .config import Settings
-from .domain import Action, Candle, Candidate, OrderBook, Side, StrategyDecision, TradeTick, Trend
+from .domain import Action, Candle, Candidate, InstrumentSpec, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .paper import PaperBroker, Position
 from .expectancy import StrategyExpectancyBook
 from .strategy_policy import minimum_expectancy_r
@@ -104,6 +104,7 @@ class ActiveSymbolSession:
     context_5m: list[Candle] = field(default_factory=list)
     context_15m: list[Candle] = field(default_factory=list)
     context_1h: list[Candle] = field(default_factory=list)
+    instrument_spec: InstrumentSpec | None = None
     # orderbook is the latency-sensitive L50 book kept under the legacy name
     # for compatibility with existing strategy/test code.
     orderbook: OrderBook = field(default_factory=OrderBook)
@@ -660,6 +661,11 @@ class ActiveSymbolSession:
             "schemaVersion": 1,
             "symbol": self.symbol,
             "lastPrice": self.last_price,
+            "instrument": (
+                self.instrument_spec.public()
+                if self.instrument_spec is not None
+                else None
+            ),
             "legacyTrend": self.trend.value,
             "htfBias": (
                 self.htf_bias.public()
@@ -1805,7 +1811,13 @@ class TradingEngine:
         self.sessions.pop(symbol, None)
 
     async def _bootstrap_symbol(self, symbol: str) -> None:
-        candles, context_5m, context_15m, context_1h = await asyncio.gather(
+        (
+            candles,
+            context_5m,
+            context_15m,
+            context_1h,
+            instrument_spec,
+        ) = await asyncio.gather(
             self.rest.klines(
                 symbol,
                 "1",
@@ -1826,6 +1838,7 @@ class TradingEngine:
                 "60",
                 self.config.bootstrap_1h_candles,
             ),
+            self.rest.instrument_spec(symbol),
         )
         now = time()
         session = ActiveSymbolSession(
@@ -1834,6 +1847,7 @@ class TradingEngine:
             context_5m=[x for x in context_5m if x.confirmed],
             context_15m=[x for x in context_15m if x.confirmed],
             context_1h=[x for x in context_1h if x.confirmed],
+            instrument_spec=instrument_spec,
             book_stale_after_seconds=self.config.book_stale_seconds,
             deep_book_stale_after_seconds=(
                 self.config.deep_book_stale_seconds
@@ -3835,6 +3849,7 @@ class TradingEngine:
             self.broker.available_notional,
             self.broker.available_risk_usd,
             depth_book=session.depth_orderbook(),
+            instrument=session.instrument_spec,
             setup_id=setup_id,
             existing_position_notional=(
                 existing_position.notional
