@@ -763,3 +763,69 @@ def test_structural_path_uses_final_target_when_partial_is_not_economically_plan
         "mature_structural_obstacle_before_first_take"
         in without_partial.blockers
     )
+
+
+
+def test_arbiter_skips_weak_nearest_level_and_finds_next_mature_obstacle() -> None:
+    weak_nearest = StructuralLevel(
+        kind="resistance",
+        low=100.10,
+        high=100.15,
+        touches=1,
+        timeframe="1m",
+        score=0.3,
+        lifecycle="fresh",
+        distinct_approaches=1,
+    )
+    mature_farther = mature_level(
+        "day_high",
+        100.35,
+        100.35,
+        generation="R:day_high:g1",
+    )
+    structure = StructureContext(
+        reference_price=100.0,
+        level_count=2,
+        trendline_count=0,
+        nearest_support=None,
+        nearest_resistance=weak_nearest,
+        support_distance_pct=None,
+        resistance_distance_pct=0.001,
+        support_trendline=None,
+        resistance_trendline=None,
+        support_levels=(),
+        resistance_levels=(
+            weak_nearest,
+            mature_farther,
+        ),
+    )
+    ctx = MarketContext(
+        symbol="AAAUSDT",
+        observed_at_ms=100_000,
+        last_price=100.0,
+        legacy_trend=Trend.FLAT,
+        htf_bias=None,
+        local_regime=None,
+        flow=None,
+        liquidity=None,
+        structure=structure,
+        execution=execution_ready(),
+    )
+    trade = decision(
+        "weak_level_rejection",
+        Action.LONG,
+        entry=100.0,
+        stop=99.50,
+        target=101.0,
+    )
+
+    assessment = assess_candidate(
+        trade,
+        ctx,
+        partial_take_at_r=1.0,
+        partial_take_enabled=True,
+    )
+
+    assert assessment.allowed is False
+    assert assessment.structural_path.obstacle["kind"] == "day_high"
+    assert assessment.structural_path.obstacle_before_first_take is True
