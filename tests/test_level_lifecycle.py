@@ -256,9 +256,21 @@ def test_current_day_extreme_identity_survives_intraday_extension() -> None:
         timeframe="1D",
         score=0.92,
     )
+    next_day_rows = [
+        *rows,
+        Candle(
+            86_400_000,
+            101.8,
+            102.1,
+            101.7,
+            102.0,
+            100,
+            10_200,
+        ),
+    ]
     tracker.update(
         MarketStructure(levels=[next_day]),
-        rows,
+        next_day_rows,
         101.8,
         86_401_000,
     )
