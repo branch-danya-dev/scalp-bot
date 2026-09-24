@@ -84,7 +84,7 @@ def test_rejected_trade_with_stop_first_is_reviewed_as_correct_reject_candidate(
                     "open": 100.0,
                     "high": 100.2,
                     "low": 98.8,
-                    "close": 99.1,
+                    "close": 98.8,
                 }
             },
         },
@@ -122,7 +122,7 @@ def test_early_exit_is_flagged_when_original_target_hits_after_exit() -> None:
                     "open": 100.1,
                     "high": 102.1,
                     "low": 100.0,
-                    "close": 101.9,
+                    "close": 102.1,
                 }
             },
         },
@@ -135,6 +135,64 @@ def test_early_exit_is_flagged_when_original_target_hits_after_exit() -> None:
     assert review["targetHitAfterExit"] is True
     assert review["postExitMfeR"] >= 2.0
 
+
+
+def test_rejected_trade_does_not_reuse_pre_event_forming_candle_high() -> None:
+    rows = [
+        {
+            "ts": 100.0,
+            "event": "risk_reject",
+            "symbol": "AAAUSDT",
+            "payload": {
+                "strategy": "level_breakout",
+                "reason": "test",
+                "decision": {
+                    "strategy": "level_breakout",
+                    "action": "long",
+                    "entry": 100.0,
+                    "stop": 99.0,
+                    "target": 102.0,
+                },
+            },
+        },
+        {
+            "ts": 101.0,
+            "event": "research_frame",
+            "symbol": "AAAUSDT",
+            "payload": {
+                "lastPrice": 100.2,
+                "candle": {
+                    "open": 100.0,
+                    "high": 102.5,
+                    "low": 99.8,
+                    "close": 100.2,
+                    "confirmed": False,
+                },
+            },
+        },
+        {
+            "ts": 110.0,
+            "event": "research_frame",
+            "symbol": "AAAUSDT",
+            "payload": {
+                "lastPrice": 100.4,
+                "candle": {
+                    "open": 100.0,
+                    "high": 102.5,
+                    "low": 99.8,
+                    "close": 100.4,
+                    "confirmed": False,
+                },
+            },
+        },
+    ]
+
+    report = analyze_session_rows(rows, horizon_seconds=60)
+    candidate = report["candidates"][0]
+
+    assert candidate["classification"] == "unresolved"
+    assert report["summary"]["missedTargetFirst"] == 0
+    assert candidate["mfeR"] == 0.4
 
 
 def test_legacy_setup_blocked_uses_latest_recorded_decision() -> None:

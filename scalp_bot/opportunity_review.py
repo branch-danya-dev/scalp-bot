@@ -34,9 +34,9 @@ def _observation(row: dict) -> dict | None:
         )
         return {
             "ts": _row_ts(row),
-            "high": float(candle.get("high") or close),
-            "low": float(candle.get("low") or close),
-            "close": float(close),
+            "high": sampled_price,
+            "low": sampled_price,
+            "close": sampled_price,
             "price": sampled_price,
         }
     market = payload.get("market")
@@ -54,9 +54,9 @@ def _observation(row: dict) -> dict | None:
                 )
                 return {
                     "ts": _row_ts(row),
-                    "high": float(candle.get("high") or close),
-                    "low": float(candle.get("low") or close),
-                    "close": float(close),
+                    "high": sampled_price,
+                    "low": sampled_price,
+                    "close": sampled_price,
                     "price": sampled_price,
                 }
     return None
@@ -723,7 +723,7 @@ def analyze_session_rows(
             "decisionLookbackSeconds": market_move_decision_lookback_seconds,
             "priceSource": (
                 "research/market frame lastPrice, candle close fallback; "
-                "forming-candle high/low is not used for move discovery"
+                "frame high/low is never used for post-event outcomes"
             ),
         },
         "summary": {
