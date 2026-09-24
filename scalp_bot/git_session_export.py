@@ -526,6 +526,74 @@ def _shard_id(index: int, shard_minutes: float) -> str:
     return f"{start_minute:04d}-{end_minute:04d}"
 
 
+def _find_run_summary(
+    run_dir: Path,
+    critical_parts: list[dict],
+) -> dict | None:
+    result = None
+    for part in critical_parts:
+        path = run_dir / str(part["path"])
+        with path.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if (
+                    isinstance(row, dict)
+                    and row.get("event") == "run_summary"
+                    and isinstance(row.get("payload"), dict)
+                ):
+                    result = dict(row["payload"])
+    return result
+
+
+def _build_compact_session_summary(
+    *,
+    bundle_manifest: dict,
+    shard_rows: list[dict],
+    run_summary: dict | None,
+) -> dict:
+    event_counts: Counter[str] = Counter()
+    symbols: set[str] = set()
+    activity: Counter[str] = Counter()
+
+    for shard in shard_rows:
+        event_counts.update(shard.get("eventCounts") or {})
+        symbols.update(shard.get("symbols") or [])
+        for key, value in (shard.get("activity") or {}).items():
+            if isinstance(value, int):
+                activity[key] += value
+
+    return {
+        "schemaVersion": 1,
+        "generatedAt": datetime.now(UTC).isoformat(),
+        "source": bundle_manifest.get("source"),
+        "runSummary": run_summary,
+        "eventCounts": dict(sorted(event_counts.items())),
+        "activity": dict(sorted(activity.items())),
+        "symbols": sorted(symbols),
+        "shards": [
+            {
+                "id": shard.get("id"),
+                "coreStartTs": shard.get("coreStartTs"),
+                "coreEndTs": shard.get("coreEndTs"),
+                "activity": shard.get("activity"),
+                "symbols": shard.get("symbols"),
+            }
+            for shard in shard_rows
+        ],
+        "detailPolicy": (
+            "Detailed opportunity/review/market data is stored in bounded "
+            "indexes and time shards; no unbounded monolithic report is "
+            "published to Git."
+        ),
+    }
+
+
 def build_git_session_export(
     session_path: str | Path,
     *,
@@ -592,7 +660,6 @@ def build_git_session_export(
         with zipfile.ZipFile(overview_zip, "r") as archive:
             for member, target_name in (
                 ("manifest.json", "source-manifest.json"),
-                ("session-report.json", "session-report.json"),
                 ("latency-summary.json", "latency-summary.json"),
                 ("shard-index.json", "source-shard-index.json"),
                 ("README.txt", "README.txt"),
@@ -672,6 +739,18 @@ def build_git_session_export(
         shard_rows,
         max_file_bytes=max_file_bytes,
     )
+    compact_summary = _build_compact_session_summary(
+        bundle_manifest=bundle_manifest,
+        shard_rows=shard_rows,
+        run_summary=_find_run_summary(
+            run_dir,
+            critical_parts,
+        ),
+    )
+    _write_json(
+        run_dir / "overview" / "session-summary.json",
+        compact_summary,
+    )
 
     manifest = {
         "schemaVersion": 1,
@@ -690,7 +769,7 @@ def build_git_session_export(
             "nativeDeltaV1": "preserved",
         },
         "overview": {
-            "sessionReport": "overview/session-report.json",
+            "sessionSummary": "overview/session-summary.json",
             "latencySummary": "overview/latency-summary.json",
             "sourceManifest": "overview/source-manifest.json",
             "sourceShardIndex": (
@@ -709,7 +788,7 @@ def build_git_session_export(
             "# Scalp bot session export\n\n"
             "This directory is an analysis-grade export. The lossless raw "
             "session remains local and is intentionally not committed.\n\n"
-            "Start with manifest.json, overview/session-report.json, "
+            "Start with manifest.json, overview/session-summary.json, "
             "and overview/latency-summary.json. Open only the referenced "
             "time shards when deeper tick/order-book inspection is needed.\n"
         ),
