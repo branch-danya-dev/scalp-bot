@@ -2529,17 +2529,25 @@ class TradingEngine:
                     },
                 )
             else:
+                density_started_ns = perf_counter_ns()
                 try:
-                    raw_density = density.evaluate(
-                        closed_1m,
-                        session.depth_orderbook(),
-                        session.trend,
-                        symbol=session.symbol,
-                        trades=list(session.trades),
-                        structure=session.structure,
-                        market_context=session.market_context,
-                        observed_at_ms=now_ms,
-                    )
+                    with span(
+                        "strategy.evaluate",
+                        **{
+                            "strategy.name": "orderbook_density",
+                            "market.symbol": session.symbol,
+                        },
+                    ):
+                        raw_density = density.evaluate(
+                            closed_1m,
+                            session.depth_orderbook(),
+                            session.trend,
+                            symbol=session.symbol,
+                            trades=list(session.trades),
+                            structure=session.structure,
+                            market_context=session.market_context,
+                            observed_at_ms=now_ms,
+                        )
                 except Exception as exc:
                     error = f"{type(exc).__name__}: {exc}"
                     previous = session.decisions.get(
@@ -2568,6 +2576,19 @@ class TradingEngine:
                             "evidenceOnly": True,
                         },
                     )
+                finally:
+                    observe_latency(
+                        "strategy_function",
+                        max(
+                            0.0,
+                            (
+                                perf_counter_ns()
+                                - density_started_ns
+                            )
+                            / 1_000_000_000,
+                        ),
+                        strategy="orderbook_density",
+                    )
 
             self._annotate_flow_context(
                 session,
@@ -2589,6 +2610,35 @@ class TradingEngine:
             observed_at_ms=now_ms,
         )
 
+        latency_message = session.pending_latency_message
+        if latency_message is not None:
+            latency_message.features_ready_mono_ns = perf_counter_ns()
+            observe_latency(
+                "parse_to_features",
+                max(
+                    0.0,
+                    (
+                        latency_message.features_ready_mono_ns
+                        - latency_message.parsed_mono_ns
+                    )
+                    / 1_000_000_000,
+                ),
+                stream=stream_name(latency_message.topic),
+            )
+            if latency_message.book_updated_mono_ns > 0:
+                observe_latency(
+                    "book_to_features",
+                    max(
+                        0.0,
+                        (
+                            latency_message.features_ready_mono_ns
+                            - latency_message.book_updated_mono_ns
+                        )
+                        / 1_000_000_000,
+                    ),
+                    stream=stream_name(latency_message.topic),
+                )
+
         if density_decision is not None:
             self._annotate_decision_context(
                 session,
@@ -2605,17 +2655,25 @@ class TradingEngine:
                 continue
             if not self.strategy_enabled.get(key, False):
                 continue
+            strategy_started_ns = perf_counter_ns()
             try:
-                decision = strategy.evaluate(
-                    closed_1m,
-                    session.orderbook,
-                    session.trend,
-                    symbol=session.symbol,
-                    trades=list(session.trades),
-                    structure=session.structure,
-                    market_context=session.market_context,
-                    observed_at_ms=now_ms,
-                )
+                with span(
+                    "strategy.evaluate",
+                    **{
+                        "strategy.name": key,
+                        "market.symbol": session.symbol,
+                    },
+                ):
+                    decision = strategy.evaluate(
+                        closed_1m,
+                        session.orderbook,
+                        session.trend,
+                        symbol=session.symbol,
+                        trades=list(session.trades),
+                        structure=session.structure,
+                        market_context=session.market_context,
+                        observed_at_ms=now_ms,
+                    )
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"
                 previous = session.decisions.get(key)
@@ -2631,6 +2689,19 @@ class TradingEngine:
                     action=Action.WAIT,
                     reasons=[f"Ошибка стратегии: {error}"],
                     details={"state": "error", "error": error},
+                )
+            finally:
+                observe_latency(
+                    "strategy_function",
+                    max(
+                        0.0,
+                        (
+                            perf_counter_ns()
+                            - strategy_started_ns
+                        )
+                        / 1_000_000_000,
+                    ),
+                    strategy=key,
                 )
 
             self._annotate_flow_context(
