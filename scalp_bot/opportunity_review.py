@@ -757,6 +757,12 @@ def analyze_session_rows(
             "hindsightMissed": hindsight["summary"]["botMissed"],
             "hindsightMapped": hindsight["summary"]["mappedToExistingStrategy"],
             "hindsightUnmapped": hindsight["summary"]["unmappedToExistingStrategy"],
+            "hindsightMappedToTradeable": hindsight["summary"][
+                "mappedToTradeablePlaybook"
+            ],
+            "hindsightUnmappedToTradeable": hindsight["summary"][
+                "unmappedToTradeablePlaybook"
+            ],
             "hindsightLateEntry": hindsight["summary"]["botLateEntry"],
             "hindsightEarlyExit": hindsight["summary"]["botEarlyExit"],
         },
