@@ -505,8 +505,15 @@ def test_arbiter_blocks_trend_long_into_mature_resistance(tmp_path) -> None:
         close_rest(engine)
 
 
-def test_arbiter_waits_when_viable_playbooks_conflict_on_direction(tmp_path) -> None:
-    engine = make_engine(tmp_path, max_leverage=1, risk_fraction=0.01)
+def test_arbiter_selects_one_when_viable_playbooks_conflict_on_direction(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        max_leverage=1,
+        risk_fraction=0.01,
+        partial_take_enabled=False,
+    )
     try:
         now = time()
         session = ActiveSymbolSession(
@@ -527,6 +534,17 @@ def test_arbiter_waits_when_viable_playbooks_conflict_on_direction(tmp_path) -> 
             target=101.0,
             watched_level=100.0,
             setup_id="trend-long",
+            details={
+                "flowAlignment": {
+                    "classification": "strongly_aligned",
+                },
+                "liquidityAlignment": {
+                    "classification": "supportive",
+                },
+                "entryFreshness": {
+                    "classification": "fresh",
+                },
+            },
         )
         session.decisions["weak_level_rejection"] = StrategyDecision(
             strategy="weak_level_rejection",
@@ -538,6 +556,17 @@ def test_arbiter_waits_when_viable_playbooks_conflict_on_direction(tmp_path) -> 
             target=99.0,
             watched_level=100.1,
             setup_id="rejection-short",
+            details={
+                "flowAlignment": {
+                    "classification": "mixed",
+                },
+                "liquidityAlignment": {
+                    "classification": "neutral",
+                },
+                "entryFreshness": {
+                    "classification": "acceptable",
+                },
+            },
         )
         engine.sessions = {"AAAUSDT": session}
         engine.candidates = [
@@ -552,17 +581,15 @@ def test_arbiter_waits_when_viable_playbooks_conflict_on_direction(tmp_path) -> 
 
         engine._arbitrate_once()
 
-        assert not engine.broker.positions
-        blocked = [
-            event
+        assert set(engine.broker.positions) == {"AAAUSDT"}
+        position = engine.broker.positions["AAAUSDT"]
+        assert position.strategy == "trend_structure"
+        assert position.side == Side.LONG
+        assert not any(
+            event["event"] == "arbiter_blocked"
+            and "opposing_playbook_conflict"
+            in event["payload"].get("blockers", [])
             for event in engine.events
-            if event["event"] == "arbiter_blocked"
-        ]
-        assert len(blocked) >= 2
-        assert all(
-            "opposing_playbook_conflict"
-            in event["payload"]["blockers"]
-            for event in blocked[-2:]
         )
     finally:
         close_rest(engine)
