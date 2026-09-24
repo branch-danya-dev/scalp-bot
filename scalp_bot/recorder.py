@@ -4,8 +4,20 @@ import json
 from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path
-from threading import Lock
+from queue import SimpleQueue
+from threading import Event, Lock, Thread
 from time import time
+
+import msgspec
+
+
+_ROW_ENCODER = msgspec.json.Encoder()
+_RECORDER_STOP = object()
+
+
+class _FlushBarrier:
+    def __init__(self) -> None:
+        self.done = Event()
 
 
 class SessionRecorder:
@@ -15,6 +27,11 @@ class SessionRecorder:
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         self.path = self.root / f"session-{stamp}.jsonl"
         self._lock = Lock()
+        self._write_queue: SimpleQueue = SimpleQueue()
+        self._writer_thread: Thread | None = None
+        self._writer_error: BaseException | None = None
+        self._queued_rows = 0
+        self._written_rows = 0
         # Live trade-review cache. The UI must never re-read a multi-GB
         # research JSONL simply because a user opened a closed trade.
         self._live_review_pre_roll: dict[str, deque[dict]] = {}
@@ -25,7 +42,102 @@ class SessionRecorder:
         self._live_reviews: list[dict] = []
         self._live_reviews_by_id: dict[str, dict] = {}
 
-    def record(self, event: str, symbol: str | None, payload: dict) -> None:
+    def start_background_writer(self) -> None:
+        if (
+            self._writer_thread is not None
+            and self._writer_thread.is_alive()
+        ):
+            return
+        self._writer_error = None
+        self._writer_thread = Thread(
+            target=self._writer_loop,
+            name=f"recorder:{self.path.name}",
+            daemon=True,
+        )
+        self._writer_thread.start()
+
+    def _write_row_sync(self, row: dict) -> None:
+        encoded = _ROW_ENCODER.encode(row) + b"\n"
+        with self.path.open("ab") as fh:
+            fh.write(encoded)
+
+    def _writer_loop(self) -> None:
+        try:
+            with self.path.open(
+                "ab",
+                buffering=1024 * 1024,
+            ) as fh:
+                while True:
+                    item = self._write_queue.get()
+                    if item is _RECORDER_STOP:
+                        fh.flush()
+                        return
+                    if isinstance(item, _FlushBarrier):
+                        fh.flush()
+                        item.done.set()
+                        continue
+                    fh.write(
+                        _ROW_ENCODER.encode(item) + b"\n"
+                    )
+                    self._written_rows += 1
+        except BaseException as exc:
+            self._writer_error = exc
+
+    def flush(self, timeout: float = 5.0) -> None:
+        thread = self._writer_thread
+        if thread is None or not thread.is_alive():
+            if self._writer_error is not None:
+                raise RuntimeError(
+                    "recorder background writer failed"
+                ) from self._writer_error
+            return
+        barrier = _FlushBarrier()
+        self._write_queue.put(barrier)
+        if not barrier.done.wait(max(0.0, timeout)):
+            raise TimeoutError(
+                "recorder background writer flush timed out"
+            )
+        if self._writer_error is not None:
+            raise RuntimeError(
+                "recorder background writer failed"
+            ) from self._writer_error
+
+    def close(self, timeout: float = 5.0) -> None:
+        thread = self._writer_thread
+        if thread is None:
+            return
+        if thread.is_alive():
+            self.flush(timeout)
+            self._write_queue.put(_RECORDER_STOP)
+            thread.join(max(0.0, timeout))
+        self._writer_thread = None
+
+    def health(self) -> dict:
+        thread = self._writer_thread
+        return {
+            "background": bool(
+                thread is not None and thread.is_alive()
+            ),
+            "queuedRows": self._queued_rows,
+            "writtenRows": self._written_rows,
+            "pendingRows": max(
+                0,
+                self._queued_rows - self._written_rows,
+            ),
+            "writerError": (
+                f"{type(self._writer_error).__name__}: "
+                f"{self._writer_error}"
+                if self._writer_error is not None
+                else None
+            ),
+        }
+
+    def record(
+        self,
+        event: str,
+        symbol: str | None,
+        payload: dict,
+    ) -> None:
         row = {
             "ts": time(),
             "iso": datetime.now(UTC).isoformat(),
@@ -33,9 +145,24 @@ class SessionRecorder:
             "symbol": symbol,
             "payload": payload,
         }
-        with self._lock, self.path.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
+        with self._lock:
             self._capture_live_review_row(row)
+
+        thread = self._writer_thread
+        if (
+            thread is not None
+            and thread.is_alive()
+            and self._writer_error is None
+        ):
+            self._queued_rows += 1
+            self._write_queue.put(row)
+            return
+
+        # Deterministic synchronous fallback for unit tests and callers that
+        # use SessionRecorder without starting the engine.
+        self._write_row_sync(row)
+        self._queued_rows += 1
+        self._written_rows += 1
 
     @staticmethod
     def _review_row_relevant(row: dict) -> bool:
@@ -134,6 +261,7 @@ class SessionRecorder:
             pre_roll.popleft()
 
     def list_sessions(self) -> list[dict]:
+        self.flush()
         sessions: list[dict] = []
         for path in sorted(self.root.glob("session-*.jsonl"), key=lambda x: x.stat().st_mtime, reverse=True):
             stat = path.stat()
@@ -147,6 +275,7 @@ class SessionRecorder:
         return sessions
 
     def replay_bundle(self, name: str, symbol: str | None = None) -> dict:
+        self.flush()
         path = self._safe_path(name)
         rows = self._read_rows(path)
         symbols = sorted({row.get("symbol") for row in rows if row.get("symbol")})
