@@ -1627,8 +1627,17 @@ class TradingEngine:
             except Exception as exc:
                 self._emit("context_error", None, {"error": str(exc)})
 
-    async def _symbol_worker(self, symbol: str, stop_event: asyncio.Event) -> None:
-        book_state = OrderBookState(self.config.orderbook_depth)
+    async def _symbol_worker(
+        self,
+        symbol: str,
+        stop_event: asyncio.Event,
+    ) -> None:
+        fast_depth = self.config.fast_orderbook_depth
+        deep_depth = self.config.deep_orderbook_depth
+        fast_book_state = OrderBookState(fast_depth)
+        deep_book_state = OrderBookState(deep_depth)
+        fast_topic = f"orderbook.{fast_depth}."
+        deep_topic = f"orderbook.{deep_depth}."
 
         async def on_message(message: dict) -> None:
             session = self.sessions.get(symbol)
@@ -1637,39 +1646,91 @@ class TradingEngine:
 
             wall_now = time()
             session.last_market_at = wall_now
-            topic = message.get("topic", "")
-            if topic.startswith("orderbook."):
+            topic = str(message.get("topic") or "")
+            is_fast_book = topic.startswith(fast_topic)
+            is_deep_book = topic.startswith(deep_topic)
+            deep_only = (
+                is_deep_book
+                and not is_fast_book
+            )
+
+            if is_fast_book:
                 previous_book = session.orderbook
                 try:
-                    session.orderbook = book_state.apply(message)
+                    session.orderbook = fast_book_state.apply(
+                        message
+                    )
                 except OrderBookSequenceError:
                     session.last_book_at = 0.0
                     session.book_synced = False
                     session.orderbook = OrderBook()
                     raise
-                session.book_synced = book_state.synced
+                session.book_synced = fast_book_state.synced
                 session.last_book_at = wall_now
+
+                # If both configured depths are identical, the same stream is
+                # authoritative for both roles.
+                if fast_depth == deep_depth:
+                    session.deep_orderbook = session.orderbook
+                    session.deep_book_synced = (
+                        fast_book_state.synced
+                    )
+                    session.last_deep_book_at = wall_now
+
                 data = message.get("data") or {}
+                ofi_usd = 0.0
+                event_ms = int(
+                    message.get("cts")
+                    or message.get("ts")
+                    or wall_now * 1000
+                )
                 if (
                     message.get("type") != "snapshot"
                     and int(data.get("u") or 0) != 1
                     and previous_book.bids
                     and previous_book.asks
                 ):
-                    event_ms = int(
-                        message.get("cts")
-                        or message.get("ts")
-                        or wall_now * 1000
+                    ofi_usd = best_level_ofi_usd(
+                        previous_book,
+                        session.orderbook,
                     )
                     session.record_book_flow(
                         event_ms,
-                        best_level_ofi_usd(
-                            previous_book,
-                            session.orderbook,
-                        ),
+                        ofi_usd,
                     )
+
+                # Stop/target checks consume the fast executable quote while
+                # market-exit VWAP still uses the deep book.
                 self._mark_position_from_book(session)
-            elif topic.startswith("kline."):
+                reason = self._fast_book_event_reason(
+                    session,
+                    previous_book,
+                    session.orderbook,
+                    ofi_usd=ofi_usd,
+                )
+                if reason is not None:
+                    self._schedule_event_evaluation(
+                        session,
+                        reason,
+                        observed_at_ms=event_ms,
+                    )
+
+            if deep_only:
+                try:
+                    session.deep_orderbook = (
+                        deep_book_state.apply(message)
+                    )
+                except OrderBookSequenceError:
+                    session.last_deep_book_at = 0.0
+                    session.deep_book_synced = False
+                    session.deep_orderbook = OrderBook()
+                    raise
+                session.deep_book_synced = (
+                    deep_book_state.synced
+                )
+                session.last_deep_book_at = wall_now
+
+            if topic.startswith("kline."):
                 self._apply_kline(session, message)
                 session.last_kline_at = wall_now
             elif topic.startswith("publicTrade."):
@@ -1679,7 +1740,8 @@ class TradingEngine:
                     for row in rows:
                         tick = TradeTick(
                             ts_ms=int(
-                                row.get("T") or time() * 1000
+                                row.get("T")
+                                or time() * 1000
                             ),
                             price=float(row["p"]),
                             size=float(row["v"]),
@@ -1700,18 +1762,12 @@ class TradingEngine:
                         self.config.trade_buffer_seconds,
                     )
 
-                    # Pending maker orders must consume the newest tape before
-                    # they are allowed to fill. Otherwise the same trade batch
-                    # can invalidate a setup and fill its stale limit before
-                    # the next 0.20s strategy evaluation.
+                    # Pending maker entries must be invalidated against the
+                    # newest tape before the same trade is allowed to fill.
                     if symbol in self.broker.pending_entries:
                         session.last_eval = monotonic()
                         await self._evaluate(session)
 
-                    # A publicTrade websocket payload may contain several
-                    # executions. Replay them in order so a maker entry/target
-                    # crossing in an earlier row is not lost just because the
-                    # final trade retraced.
                     for tick in ticks:
                         session.last_price = tick.price
                         self._mark_execution_from_market(
@@ -1722,57 +1778,84 @@ class TradingEngine:
                         )
                     session.last_price = ticks[-1].price
 
-            now = monotonic()
-            evaluation_interval = self._evaluation_interval_seconds(
-                session
-            )
-            if now - session.last_eval >= evaluation_interval:
-                session.last_eval = now
-                await self._evaluate(session)
+                    self._schedule_event_evaluation(
+                        session,
+                        "public_trade",
+                        observed_at_ms=ticks[-1].ts_ms,
+                    )
 
-            position = self.broker.positions.get(symbol)
+            # Periodic evaluation remains a fallback, but deep-book-only
+            # context updates never drive the latency-sensitive strategy loop.
+            if not deep_only:
+                now = monotonic()
+                evaluation_interval = (
+                    self._evaluation_interval_seconds(
+                        session
+                    )
+                )
+                if (
+                    not session.event_eval_pending
+                    and now - session.last_eval
+                    >= evaluation_interval
+                ):
+                    session.last_eval = now
+                    await self._evaluate(session)
 
-            if (
-                now - session.last_research_frame
-                >= self.config.research_frame_seconds
-            ):
-                session.last_research_frame = now
-                self.recorder.record(
-                    "research_frame",
-                    symbol,
-                    session.frame(
-                        self._research_book_depth(
-                            session,
-                            position,
+                position = self.broker.positions.get(symbol)
+
+                if (
+                    now - session.last_research_frame
+                    >= self.config.research_frame_seconds
+                ):
+                    session.last_research_frame = now
+                    self.recorder.record(
+                        "research_frame",
+                        symbol,
+                        session.frame(
+                            self._research_book_depth(
+                                session,
+                                position,
+                            ),
+                            (
+                                position.public()
+                                if position
+                                else None
+                            ),
+                            self.config.research_recent_trades,
                         ),
-                        position.public() if position else None,
-                        self.config.research_recent_trades,
-                    ),
-                )
+                    )
 
-            frame_interval = (
-                self.config.replay_engaged_frame_seconds
-                if position is not None or self._session_engaged(session)
-                else self.config.replay_idle_frame_seconds
-            )
-            if now - session.last_frame >= frame_interval:
-                session.last_frame = now
-                self.recorder.record(
-                    "market_frame",
-                    symbol,
-                    session.frame(
-                        self.config.replay_book_depth,
-                        position.public() if position else None,
-                        self.config.replay_recent_trades,
-                    ),
+                frame_interval = (
+                    self.config.replay_engaged_frame_seconds
+                    if (
+                        position is not None
+                        or self._session_engaged(session)
+                    )
+                    else self.config.replay_idle_frame_seconds
                 )
+                if now - session.last_frame >= frame_interval:
+                    session.last_frame = now
+                    self.recorder.record(
+                        "market_frame",
+                        symbol,
+                        session.frame(
+                            self.config.replay_book_depth,
+                            (
+                                position.public()
+                                if position
+                                else None
+                            ),
+                            self.config.replay_recent_trades,
+                        ),
+                    )
 
         await stream_symbol(
             self.config.bybit_public_ws_url,
             symbol,
             on_message,
             stop_event,
-            self.config.orderbook_depth,
+            fast_orderbook_depth=fast_depth,
+            deep_orderbook_depth=deep_depth,
         )
 
     @staticmethod
