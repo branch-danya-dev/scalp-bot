@@ -2,16 +2,33 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import shutil
-import tempfile
-import zipfile
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import BinaryIO
+from typing import Any, BinaryIO, Iterable
 
-from .long_run_pack import build_long_run_analysis_bundle
+import msgspec
 
+from .analysis_pack import (
+    FOCUS_WINDOWS,
+    FRAME_EVENTS,
+    INTERACTION_FOCUS_STATES,
+    _in_windows,
+    _merge_windows,
+    _row_ts,
+    _trim_book,
+)
+from .long_run_pack import (
+    CRITICAL_EVENTS,
+    _compact_frame,
+    _find_latency_trace,
+    _prometheus_latency_summary,
+)
+
+
+_DECODER = msgspec.json.Decoder(type=dict)
 
 DEFAULT_MAX_FILE_BYTES = 20 * 1024 * 1024
 
@@ -37,6 +54,48 @@ PROBLEM_INDEX_EVENTS = {
 }
 
 
+def _iter_rows(path: Path) -> Iterable[dict]:
+    with path.open("rb") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                value = _DECODER.decode(line)
+            except Exception:
+                continue
+            if isinstance(value, dict):
+                yield value
+
+
+def _write_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _part_metadata(
+    *,
+    path: Path,
+    root: Path,
+    size_bytes: int,
+    line_count: int,
+    digest: str,
+) -> dict:
+    return {
+        "path": path.relative_to(root).as_posix(),
+        "sizeBytes": size_bytes,
+        "lines": line_count,
+        "sha256": digest,
+    }
+
+
 class _JsonlPartWriter:
     def __init__(
         self,
@@ -45,6 +104,8 @@ class _JsonlPartWriter:
         root: Path,
         max_file_bytes: int,
     ) -> None:
+        if max_file_bytes <= 0:
+            raise ValueError("max_file_bytes must be positive")
         self.output_dir = output_dir
         self.root = root
         self.max_file_bytes = max_file_bytes
@@ -87,7 +148,7 @@ class _JsonlPartWriter:
         )
         if len(raw) > self.max_file_bytes:
             raise ValueError(
-                "single index row exceeds configured Git part size "
+                "single JSONL row exceeds configured Git part size "
                 f"({len(raw)} > {self.max_file_bytes} bytes)"
             )
         if (
@@ -112,6 +173,115 @@ class _JsonlPartWriter:
     def close(self) -> list[dict]:
         self._close_part()
         return list(self.parts)
+
+
+def _split_jsonl_stream(
+    source: BinaryIO,
+    *,
+    output_dir: Path,
+    root: Path,
+    max_file_bytes: int,
+) -> list[dict]:
+    writer = _JsonlPartWriter(
+        output_dir=output_dir,
+        root=root,
+        max_file_bytes=max_file_bytes,
+    )
+    for raw_line in source:
+        raw_line = raw_line.strip()
+        if not raw_line:
+            continue
+        try:
+            value = json.loads(raw_line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            writer.write(value)
+    return writer.close()
+
+
+class _RollingTradeDeltaNormalizer:
+    def __init__(self) -> None:
+        self._last_sequence: dict[str, int] = {}
+        self._seen_fallback: dict[str, set[tuple]] = {}
+
+    @staticmethod
+    def _trade_key(trade: dict) -> tuple:
+        return (
+            trade.get("ts"),
+            trade.get("price"),
+            trade.get("size"),
+            trade.get("side"),
+        )
+
+    def transform(self, row: dict) -> dict:
+        if row.get("event") != "research_frame":
+            return row
+        symbol = str(row.get("symbol") or "")
+        payload = row.get("payload")
+        if not symbol or not isinstance(payload, dict):
+            return row
+
+        encoding = str(
+            payload.get("tradeEncoding") or "rolling_v1"
+        )
+        trades = payload.get("recentTrades")
+        if (
+            encoding.startswith("delta_v1")
+            or not isinstance(trades, list)
+        ):
+            return row
+
+        last_sequence = self._last_sequence.get(symbol, 0)
+        max_sequence = last_sequence
+        fallback_seen = self._seen_fallback.setdefault(
+            symbol,
+            set(),
+        )
+        selected: list[dict] = []
+        for trade in trades:
+            if not isinstance(trade, dict):
+                continue
+            raw_sequence = trade.get("sequence")
+            try:
+                sequence = int(raw_sequence or 0)
+            except (TypeError, ValueError):
+                sequence = 0
+
+            if sequence > 0:
+                max_sequence = max(max_sequence, sequence)
+                if sequence <= last_sequence:
+                    continue
+                selected.append(trade)
+                continue
+
+            key = self._trade_key(trade)
+            if key in fallback_seen:
+                continue
+            fallback_seen.add(key)
+            selected.append(trade)
+
+        if max_sequence > 0:
+            self._last_sequence[symbol] = max_sequence
+        if len(fallback_seen) > 5000:
+            fallback_seen.clear()
+            for trade in trades[-1000:]:
+                if isinstance(trade, dict):
+                    fallback_seen.add(
+                        self._trade_key(trade)
+                    )
+
+        new_payload = dict(payload)
+        new_payload["recentTrades"] = selected
+        new_payload["tradeEncoding"] = (
+            "delta_v1_exported_from_rolling"
+        )
+        new_payload["tradeDeltaFromSequence"] = (
+            last_sequence if last_sequence > 0 else None
+        )
+        new_row = dict(row)
+        new_row["payload"] = new_payload
+        return new_row
 
 
 def _compact_index_event(
@@ -168,6 +338,29 @@ def _is_trade_index_event(
         return False
     action = str(payload.get("action") or "").lower()
     return action in {"long", "short"}
+
+
+def _activity_from_counts(counts: Counter[str]) -> dict:
+    return {
+        "signals": counts.get("decision", 0),
+        "entriesPending": (
+            counts.get("entry_pending", 0)
+            + counts.get("entry_add_pending", 0)
+        ),
+        "tradesOpened": counts.get("trade_opened", 0),
+        "tradesClosed": counts.get("trade_closed", 0),
+        "partialTakes": counts.get("partial_take", 0),
+        "riskRejects": counts.get("risk_reject", 0),
+        "setupBlocks": counts.get("setup_blocked", 0),
+        "arbiterBlocks": counts.get("arbiter_blocked", 0),
+        "entryCancels": counts.get("entry_cancelled", 0),
+        "errors": (
+            counts.get("scanner_error", 0)
+            + counts.get("context_error", 0)
+            + counts.get("fast_path_error", 0)
+            + counts.get("strategy_error", 0)
+        ),
+    }
 
 
 def _build_navigation_index(
@@ -238,36 +431,16 @@ def _build_navigation_index(
             sorted(counts.items())
         )
         shard["symbols"] = sorted(symbols)
-        shard["activity"] = {
-            "signals": counts.get("decision", 0),
-            "entriesPending": (
-                counts.get("entry_pending", 0)
-                + counts.get("entry_add_pending", 0)
-            ),
-            "tradesOpened": counts.get("trade_opened", 0),
-            "tradesClosed": counts.get("trade_closed", 0),
-            "partialTakes": counts.get("partial_take", 0),
-            "riskRejects": counts.get("risk_reject", 0),
-            "setupBlocks": counts.get("setup_blocked", 0),
-            "arbiterBlocks": counts.get("arbiter_blocked", 0),
-            "entryCancels": counts.get("entry_cancelled", 0),
-            "errors": (
-                counts.get("scanner_error", 0)
-                + counts.get("context_error", 0)
-                + counts.get("fast_path_error", 0)
-                + counts.get("strategy_error", 0)
-            ),
-        }
+        shard["activity"] = _activity_from_counts(counts)
 
     trade_parts = trade_writer.close()
     problem_parts = problem_writer.close()
-    shard_index = {
-        "schemaVersion": 1,
-        "shards": shard_rows,
-    }
     _write_json(
         index_dir / "shards.json",
-        shard_index,
+        {
+            "schemaVersion": 2,
+            "shards": shard_rows,
+        },
     )
     return {
         "shards": "index/shards.json",
@@ -276,248 +449,86 @@ def _build_navigation_index(
     }
 
 
-def _write_json(path: Path, payload: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(
-            payload,
-            ensure_ascii=False,
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
+def _scan_session(
+    source: Path,
+) -> tuple[
+    Counter[str],
+    set[str],
+    dict[str, list[tuple[float, float]]],
+    float,
+    float,
+    int,
+    dict | None,
+]:
+    event_counts: Counter[str] = Counter()
+    symbols: set[str] = set()
+    focus: dict[str, list[tuple[float, float]]] = defaultdict(list)
+    first_ts: float | None = None
+    last_ts: float | None = None
+    row_count = 0
+    run_summary: dict | None = None
 
+    for row in _iter_rows(source):
+        row_count += 1
+        ts = _row_ts(row)
+        if ts > 0:
+            first_ts = ts if first_ts is None else min(first_ts, ts)
+            last_ts = ts if last_ts is None else max(last_ts, ts)
 
-def _copy_member(
-    archive: zipfile.ZipFile,
-    member: str,
-    target: Path,
-) -> None:
-    target.parent.mkdir(parents=True, exist_ok=True)
-    with archive.open(member, "r") as source, target.open("wb") as out:
-        shutil.copyfileobj(source, out)
-
-
-def _part_metadata(
-    *,
-    path: Path,
-    root: Path,
-    size_bytes: int,
-    line_count: int,
-    digest: str,
-) -> dict:
-    return {
-        "path": path.relative_to(root).as_posix(),
-        "sizeBytes": size_bytes,
-        "lines": line_count,
-        "sha256": digest,
-    }
-
-
-def _split_jsonl_stream(
-    source: BinaryIO,
-    *,
-    output_dir: Path,
-    root: Path,
-    max_file_bytes: int,
-) -> list[dict]:
-    if max_file_bytes <= 0:
-        raise ValueError("max_file_bytes must be positive")
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-    parts: list[dict] = []
-    out = None
-    out_path: Path | None = None
-    digest = hashlib.sha256()
-    size_bytes = 0
-    line_count = 0
-    part_index = -1
-
-    def close_part() -> None:
-        nonlocal out, out_path, digest, size_bytes, line_count
-        if out is None or out_path is None:
-            return
-        out.close()
-        parts.append(
-            _part_metadata(
-                path=out_path,
-                root=root,
-                size_bytes=size_bytes,
-                line_count=line_count,
-                digest=digest.hexdigest(),
-            )
-        )
-        out = None
-        out_path = None
-        digest = hashlib.sha256()
-        size_bytes = 0
-        line_count = 0
-
-    try:
-        for raw_line in source:
-            if not raw_line:
-                continue
-            if not raw_line.endswith(b"\n"):
-                raw_line += b"\n"
-            if len(raw_line) > max_file_bytes:
-                raise ValueError(
-                    "single JSONL row exceeds configured Git part size "
-                    f"({len(raw_line)} > {max_file_bytes} bytes)"
-                )
-            if (
-                out is not None
-                and size_bytes > 0
-                and size_bytes + len(raw_line) > max_file_bytes
-            ):
-                close_part()
-
-            if out is None:
-                part_index += 1
-                out_path = output_dir / f"part-{part_index:04d}.jsonl"
-                out = out_path.open("wb")
-
-            out.write(raw_line)
-            digest.update(raw_line)
-            size_bytes += len(raw_line)
-            line_count += 1
-    finally:
-        close_part()
-
-    return parts
-
-
-def _extract_jsonl_member(
-    archive: zipfile.ZipFile,
-    member: str,
-    *,
-    output_dir: Path,
-    root: Path,
-    max_file_bytes: int,
-) -> list[dict]:
-    with archive.open(member, "r") as source:
-        return _split_jsonl_stream(
-            source,
-            output_dir=output_dir,
-            root=root,
-            max_file_bytes=max_file_bytes,
-        )
-
-
-class _RollingTradeDeltaNormalizer:
-    def __init__(self) -> None:
-        self._last_sequence: dict[str, int] = {}
-        self._seen_fallback: dict[str, set[tuple]] = {}
-
-    @staticmethod
-    def _trade_key(trade: dict) -> tuple:
-        return (
-            trade.get("ts"),
-            trade.get("price"),
-            trade.get("size"),
-            trade.get("side"),
-        )
-
-    def transform(self, row: dict) -> dict:
-        if row.get("event") != "research_frame":
-            return row
+        event = str(row.get("event") or "")
         symbol = str(row.get("symbol") or "")
-        payload = row.get("payload")
-        if not symbol or not isinstance(payload, dict):
-            return row
+        event_counts[event] += 1
+        if symbol:
+            symbols.add(symbol)
 
-        encoding = str(
-            payload.get("tradeEncoding") or "rolling_v1"
-        )
-        trades = payload.get("recentTrades")
-        if (
-            encoding.startswith("delta_v1")
-            or not isinstance(trades, list)
-        ):
-            return row
-
-        last_sequence = self._last_sequence.get(symbol, 0)
-        max_sequence = last_sequence
-        fallback_seen = self._seen_fallback.setdefault(
-            symbol,
-            set(),
-        )
-        selected: list[dict] = []
-        for trade in trades:
-            if not isinstance(trade, dict):
-                continue
-            raw_sequence = trade.get("sequence")
-            try:
-                sequence = int(raw_sequence or 0)
-            except (TypeError, ValueError):
-                sequence = 0
-
-            if sequence > 0:
-                max_sequence = max(max_sequence, sequence)
-                if sequence <= last_sequence:
-                    continue
-                selected.append(trade)
-                continue
-
-            key = self._trade_key(trade)
-            if key in fallback_seen:
-                continue
-            fallback_seen.add(key)
-            selected.append(trade)
-
-        if max_sequence > 0:
-            self._last_sequence[symbol] = max_sequence
-        if len(fallback_seen) > 5000:
-            # Sequence-less trades are a legacy fallback. Bound memory while
-            # retaining enough recent identity to remove rolling duplication.
-            fallback_seen.clear()
-            for trade in trades[-1000:]:
-                if isinstance(trade, dict):
-                    fallback_seen.add(
-                        self._trade_key(trade)
-                    )
-
-        new_payload = dict(payload)
-        new_payload["recentTrades"] = selected
-        new_payload["tradeEncoding"] = (
-            "delta_v1_exported_from_rolling"
-        )
-        new_payload["tradeDeltaFromSequence"] = (
-            last_sequence if last_sequence > 0 else None
-        )
-        new_row = dict(row)
-        new_row["payload"] = new_payload
-        return new_row
-
-
-def _extract_analysis_member(
-    archive: zipfile.ZipFile,
-    member: str,
-    *,
-    output_dir: Path,
-    root: Path,
-    max_file_bytes: int,
-) -> list[dict]:
-    normalizer = _RollingTradeDeltaNormalizer()
-    writer = _JsonlPartWriter(
-        output_dir=output_dir,
-        root=root,
-        max_file_bytes=max_file_bytes,
-    )
-    with archive.open(member, "r") as source:
-        for raw_line in source:
-            raw_line = raw_line.strip()
-            if not raw_line:
-                continue
-            try:
-                row = json.loads(raw_line)
-            except json.JSONDecodeError:
-                continue
-            if not isinstance(row, dict):
-                continue
-            writer.write(
-                normalizer.transform(row)
+        window = FOCUS_WINDOWS.get(event)
+        if symbol and window:
+            before, after = window
+            focus[symbol].append(
+                (ts - before, ts + after)
             )
-    return writer.close()
+
+        if event == "decision" and symbol:
+            payload = row.get("payload") or {}
+            strategy = str(payload.get("strategy") or "")
+            details = payload.get("details") or {}
+            trace = payload.get("trace") or {}
+            state = str(
+                details.get("state")
+                or trace.get("state")
+                or ""
+            )
+            if state in INTERACTION_FOCUS_STATES.get(
+                strategy,
+                set(),
+            ):
+                focus[symbol].append(
+                    (ts - 3.0, ts + 12.0)
+                )
+
+        if (
+            event == "run_summary"
+            and isinstance(row.get("payload"), dict)
+        ):
+            run_summary = dict(row["payload"])
+
+    if first_ts is None:
+        first_ts = 0.0
+    if last_ts is None:
+        last_ts = first_ts
+
+    return (
+        event_counts,
+        symbols,
+        {
+            symbol: _merge_windows(windows)
+            for symbol, windows in focus.items()
+        },
+        first_ts,
+        last_ts,
+        row_count,
+        run_summary,
+    )
 
 
 def _shard_id(index: int, shard_minutes: float) -> str:
@@ -526,34 +537,71 @@ def _shard_id(index: int, shard_minutes: float) -> str:
     return f"{start_minute:04d}-{end_minute:04d}"
 
 
-def _find_run_summary(
-    run_dir: Path,
-    critical_parts: list[dict],
-) -> dict | None:
-    result = None
-    for part in critical_parts:
-        path = run_dir / str(part["path"])
-        with path.open("r", encoding="utf-8") as fh:
-            for line in fh:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    row = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if (
-                    isinstance(row, dict)
-                    and row.get("event") == "run_summary"
-                    and isinstance(row.get("payload"), dict)
-                ):
-                    result = dict(row["payload"])
-    return result
+class _LatencyAccumulator:
+    def __init__(self) -> None:
+        self.trace_events = 0
+        self._stages: dict[str, dict[str, float]] = {}
+
+    def observe(self, trace: dict) -> None:
+        durations = trace.get("durationsMs")
+        if not isinstance(durations, dict):
+            return
+        self.trace_events += 1
+        for stage, raw in durations.items():
+            if not isinstance(raw, (int, float)) or raw < 0:
+                continue
+            value = float(raw)
+            bucket = self._stages.setdefault(
+                str(stage),
+                {
+                    "samples": 0.0,
+                    "sumMs": 0.0,
+                    "maxMs": 0.0,
+                },
+            )
+            bucket["samples"] += 1
+            bucket["sumMs"] += value
+            bucket["maxMs"] = max(
+                bucket["maxMs"],
+                value,
+            )
+
+    def summary(
+        self,
+        *,
+        prometheus_snapshot: dict | None,
+    ) -> dict:
+        stages = {}
+        for stage, bucket in sorted(self._stages.items()):
+            samples = int(bucket["samples"])
+            stages[stage] = {
+                "samples": samples,
+                "meanMs": (
+                    bucket["sumMs"] / samples
+                    if samples
+                    else None
+                ),
+                "maxMs": bucket["maxMs"],
+            }
+        return {
+            "schemaVersion": 2,
+            "traceEvents": self.trace_events,
+            "stages": stages,
+            "prometheusSummary": (
+                _prometheus_latency_summary(
+                    prometheus_snapshot
+                )
+            ),
+            "detailPolicy": (
+                "Individual latency traces are stored in bounded "
+                "overview/latency-events JSONL parts."
+            ),
+        }
 
 
 def _build_compact_session_summary(
     *,
-    bundle_manifest: dict,
+    source_meta: dict,
     shard_rows: list[dict],
     run_summary: dict | None,
 ) -> dict:
@@ -569,9 +617,9 @@ def _build_compact_session_summary(
                 activity[key] += value
 
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "generatedAt": datetime.now(UTC).isoformat(),
-        "source": bundle_manifest.get("source"),
+        "source": source_meta,
         "runSummary": run_summary,
         "eventCounts": dict(sorted(event_counts.items())),
         "activity": dict(sorted(activity.items())),
@@ -587,9 +635,9 @@ def _build_compact_session_summary(
             for shard in shard_rows
         ],
         "detailPolicy": (
-            "Detailed opportunity/review/market data is stored in bounded "
-            "indexes and time shards; no unbounded monolithic report is "
-            "published to Git."
+            "Detailed events, trade tape, market frames and order books are "
+            "stored in bounded indexes and time shards. No unbounded "
+            "monolithic report is generated."
         ),
     }
 
@@ -608,17 +656,21 @@ def build_git_session_export(
     horizon_seconds: float = 120.0,
     overwrite: bool = False,
 ) -> Path:
-    """Build a Git-friendly analysis tree from a raw research session.
+    """Stream a raw session into a bounded Git-friendly analysis tree.
 
-    The raw session remains local. Only compact analysis-grade text is emitted.
-    Every JSONL stream is split into bounded parts so no individual Git object
-    grows with the total run duration.
+    The exporter performs a lightweight first pass for focus-window discovery,
+    then a streaming second pass that writes bounded files directly. It never
+    builds the legacy monolithic session report or temporary ZIP bundles.
     """
+    del horizon_seconds  # retained for CLI compatibility; no global hindsight report.
+
     source = Path(session_path)
     if not source.is_file():
         raise FileNotFoundError(source)
     if shard_minutes <= 0:
         raise ValueError("shard_minutes must be positive")
+    if max_file_bytes <= 0:
+        raise ValueError("max_file_bytes must be positive")
 
     output_root = Path(output_root)
     run_dir = output_root / source.stem
@@ -630,133 +682,370 @@ def build_git_session_export(
         shutil.rmtree(run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    with tempfile.TemporaryDirectory(
-        prefix="scalp-git-export-",
-    ) as temp_name:
-        temp_root = Path(temp_name)
-        bundle_dir = build_long_run_analysis_bundle(
-            source,
-            output_dir=temp_root / "bundle",
-            shard_seconds=shard_minutes * 60.0,
-            overview_frame_seconds=overview_frame_seconds,
-            shard_frame_seconds=shard_frame_seconds,
-            shard_book_depth=book_depth,
-            focus_book_depth=focus_book_depth,
-            orderbook_sample_seconds=book_sample_seconds,
-            opportunity_horizon_seconds=horizon_seconds,
-        )
+    (
+        source_event_counts,
+        source_symbols,
+        focus,
+        first_ts,
+        last_ts,
+        row_count,
+        run_summary,
+    ) = _scan_session(source)
 
-        bundle_manifest = json.loads(
-            (bundle_dir / "bundle-manifest.json").read_text(
-                encoding="utf-8"
-            )
-        )
+    shard_seconds = shard_minutes * 60.0
+    duration = max(0.0, last_ts - first_ts)
+    shard_count = max(
+        1,
+        int(math.floor(duration / shard_seconds)) + 1,
+    )
+    source_meta = {
+        "file": source.name,
+        "sizeBytes": source.stat().st_size,
+        "rows": row_count,
+        "eventCounts": dict(source_event_counts),
+        "symbols": sorted(source_symbols),
+        "firstTs": first_ts,
+        "lastTs": last_ts,
+        "durationSeconds": duration,
+    }
 
-        overview_name = str(
-            bundle_manifest["overviewArchive"]
-        )
-        overview_zip = bundle_dir / overview_name
-        overview_dir = run_dir / "overview"
-        with zipfile.ZipFile(overview_zip, "r") as archive:
-            for member, target_name in (
-                ("manifest.json", "source-manifest.json"),
-                ("latency-summary.json", "latency-summary.json"),
-                ("shard-index.json", "source-shard-index.json"),
-                ("README.txt", "README.txt"),
-            ):
-                _copy_member(
-                    archive,
-                    member,
-                    overview_dir / target_name,
-                )
+    overview_dir = run_dir / "overview"
+    overview_writer = _JsonlPartWriter(
+        output_dir=overview_dir / "frames",
+        root=run_dir,
+        max_file_bytes=max_file_bytes,
+    )
+    critical_writer = _JsonlPartWriter(
+        output_dir=overview_dir / "critical-events",
+        root=run_dir,
+        max_file_bytes=max_file_bytes,
+    )
+    latency_writer = _JsonlPartWriter(
+        output_dir=overview_dir / "latency-events",
+        root=run_dir,
+        max_file_bytes=max_file_bytes,
+    )
+    latency = _LatencyAccumulator()
 
-            critical_parts = _extract_jsonl_member(
-                archive,
-                "critical-events.jsonl",
-                output_dir=overview_dir / "critical-events",
+    analysis_writers: list[_JsonlPartWriter] = []
+    book_writers: list[_JsonlPartWriter] = []
+    shard_dirs: list[Path] = []
+    for index in range(shard_count):
+        shard_dir = (
+            run_dir
+            / "shards"
+            / _shard_id(index, shard_minutes)
+        )
+        shard_dirs.append(shard_dir)
+        analysis_writers.append(
+            _JsonlPartWriter(
+                output_dir=shard_dir / "analysis",
                 root=run_dir,
                 max_file_bytes=max_file_bytes,
             )
-            overview_parts = _extract_jsonl_member(
-                archive,
-                "overview-analysis.jsonl",
-                output_dir=overview_dir / "frames",
+        )
+        book_writers.append(
+            _JsonlPartWriter(
+                output_dir=shard_dir / "orderbooks",
                 root=run_dir,
                 max_file_bytes=max_file_bytes,
             )
+        )
 
-        shard_rows: list[dict] = []
-        for shard in bundle_manifest.get("shards") or []:
-            index = int(shard.get("shard") or 0)
-            shard_name = _shard_id(index, shard_minutes)
-            shard_dir = run_dir / "shards" / shard_name
-            archive_name = str(shard["archive"])
-            archive_path = bundle_dir / archive_name
+    shard_rows_count = [0] * shard_count
+    shard_frame_rows = [0] * shard_count
+    shard_book_rows = [0] * shard_count
+    shard_trade_gap_rows = [0] * shard_count
+    last_overview_frame: dict[str, float] = {}
+    last_shard_frame: dict[tuple[int, str], float] = {}
+    last_book_sample: dict[tuple[int, str], float] = {}
+    normalizer = _RollingTradeDeltaNormalizer()
 
-            with zipfile.ZipFile(archive_path, "r") as archive:
-                _copy_member(
-                    archive,
-                    "manifest.json",
-                    shard_dir / "manifest.json",
-                )
-                analysis_parts = _extract_analysis_member(
-                    archive,
-                    "session-analysis.jsonl",
-                    output_dir=shard_dir / "analysis",
-                    root=run_dir,
-                    max_file_bytes=max_file_bytes,
-                )
-                orderbook_parts = _extract_jsonl_member(
-                    archive,
-                    "focus-orderbooks.jsonl",
-                    output_dir=shard_dir / "orderbooks",
-                    root=run_dir,
-                    max_file_bytes=max_file_bytes,
-                )
+    for raw_row in _iter_rows(source):
+        event = str(raw_row.get("event") or "")
+        symbol = str(raw_row.get("symbol") or "")
+        ts = _row_ts(raw_row)
+        payload = raw_row.get("payload")
+        if not isinstance(payload, dict):
+            payload = {}
 
-            shard_rows.append(
+        shard_index = min(
+            shard_count - 1,
+            max(
+                0,
+                int((ts - first_ts) // shard_seconds)
+                if ts >= first_ts
+                else 0,
+            ),
+        )
+
+        if event not in FRAME_EVENTS:
+            overview_writer.write(raw_row)
+            analysis_writers[shard_index].write(raw_row)
+            shard_rows_count[shard_index] += 1
+
+            if event in CRITICAL_EVENTS:
+                critical_writer.write(raw_row)
+
+            for trace in _find_latency_trace(payload):
+                compact_trace = {
+                    "ts": raw_row.get("ts"),
+                    "iso": raw_row.get("iso"),
+                    "symbol": raw_row.get("symbol"),
+                    "eventId": trace.get("eventId"),
+                    "traceId": trace.get("traceId"),
+                    "topic": trace.get("topic"),
+                    "exchangeTsMs": trace.get("exchangeTsMs"),
+                    "durationsMs": trace.get("durationsMs"),
+                }
+                latency_writer.write(compact_trace)
+                latency.observe(trace)
+            continue
+
+        if not symbol:
+            continue
+
+        normalized_row = normalizer.transform(raw_row)
+        normalized_payload = normalized_row.get("payload")
+        if not isinstance(normalized_payload, dict):
+            normalized_payload = payload
+
+        if bool(normalized_payload.get("tradeDeltaGap")):
+            shard_trade_gap_rows[shard_index] += 1
+
+        previous = last_overview_frame.get(symbol)
+        if (
+            previous is None
+            or ts - previous >= overview_frame_seconds
+        ):
+            overview_writer.write(
                 {
-                    "id": shard_name,
-                    "index": index,
-                    "coreStartTs": shard.get("coreStartTs"),
-                    "coreEndTs": shard.get("coreEndTs"),
-                    "rows": shard.get("rows"),
-                    "frameRows": shard.get("frameRows"),
-                    "orderbookRows": shard.get("orderbookRows"),
-                    "tradeDeltaGapRows": shard.get(
-                        "tradeDeltaGapRows"
+                    "ts": raw_row.get("ts"),
+                    "iso": raw_row.get("iso"),
+                    "event": "research_frame",
+                    "symbol": symbol,
+                    "payload": _compact_frame(
+                        normalized_payload,
+                        fast_depth=5,
+                        deep_depth=5,
+                        include_trade_delta=False,
                     ),
-                    "manifest": (
-                        shard_dir / "manifest.json"
-                    ).relative_to(run_dir).as_posix(),
-                    "analysisParts": analysis_parts,
-                    "orderbookParts": orderbook_parts,
                 }
             )
+            last_overview_frame[symbol] = ts
+
+        shard_key = (shard_index, symbol)
+        previous = last_shard_frame.get(shard_key)
+        if (
+            previous is None
+            or ts - previous >= shard_frame_seconds
+        ):
+            analysis_writers[shard_index].write(
+                {
+                    "ts": raw_row.get("ts"),
+                    "iso": raw_row.get("iso"),
+                    "event": "research_frame",
+                    "symbol": symbol,
+                    "payload": _compact_frame(
+                        normalized_payload,
+                        fast_depth=min(book_depth, 50),
+                        deep_depth=book_depth,
+                        include_trade_delta=True,
+                    ),
+                }
+            )
+            shard_rows_count[shard_index] += 1
+            shard_frame_rows[shard_index] += 1
+            last_shard_frame[shard_key] = ts
+
+        is_focus = _in_windows(
+            ts,
+            focus.get(symbol, []),
+        )
+        previous_book = last_book_sample.get(shard_key)
+        due_sample = (
+            previous_book is None
+            or ts - previous_book >= book_sample_seconds
+        )
+        if not is_focus and not due_sample:
+            continue
+
+        deep = (
+            normalized_payload.get("deepOrderbook")
+            or normalized_payload.get("orderbook")
+        )
+        if not isinstance(deep, dict):
+            continue
+        if not (deep.get("bids") or deep.get("asks")):
+            continue
+
+        depth = (
+            focus_book_depth
+            if is_focus
+            else book_depth
+        )
+        book_writers[shard_index].write(
+            {
+                "ts": raw_row.get("ts"),
+                "iso": raw_row.get("iso"),
+                "event": "orderbook_sample",
+                "symbol": symbol,
+                "payload": {
+                    "focus": is_focus,
+                    "lastPrice": normalized_payload.get(
+                        "lastPrice"
+                    ),
+                    "marketContext": normalized_payload.get(
+                        "marketContext"
+                    ),
+                    "fastOrderbook": _trim_book(
+                        normalized_payload.get(
+                            "fastOrderbook"
+                        )
+                        or normalized_payload.get(
+                            "orderbook"
+                        ),
+                        min(depth, 50),
+                    ),
+                    "deepOrderbook": _trim_book(
+                        deep,
+                        depth,
+                    ),
+                    "fastBookHealth": normalized_payload.get(
+                        "fastBookHealth"
+                    ),
+                    "deepBookHealth": normalized_payload.get(
+                        "deepBookHealth"
+                    ),
+                    "tradeFlow": normalized_payload.get(
+                        "tradeFlow"
+                    ),
+                    "bookFlow": normalized_payload.get(
+                        "bookFlow"
+                    ),
+                    "position": normalized_payload.get(
+                        "position"
+                    ),
+                },
+            }
+        )
+        shard_book_rows[shard_index] += 1
+        last_book_sample[shard_key] = ts
+
+    overview_parts = overview_writer.close()
+    critical_parts = critical_writer.close()
+    latency_parts = latency_writer.close()
+
+    shard_rows: list[dict] = []
+    for index, shard_dir in enumerate(shard_dirs):
+        analysis_parts = analysis_writers[index].close()
+        orderbook_parts = book_writers[index].close()
+        core_start = first_ts + index * shard_seconds
+        core_end = min(
+            last_ts,
+            core_start + shard_seconds,
+        )
+        shard_manifest = {
+            "schemaVersion": 2,
+            "source": source.name,
+            "shard": index,
+            "id": _shard_id(index, shard_minutes),
+            "coreStartTs": core_start,
+            "coreEndTs": core_end,
+            "rows": shard_rows_count[index],
+            "frameRows": shard_frame_rows[index],
+            "orderbookRows": shard_book_rows[index],
+            "tradeDeltaGapRows": shard_trade_gap_rows[index],
+            "analysisParts": analysis_parts,
+            "orderbookParts": orderbook_parts,
+        }
+        _write_json(
+            shard_dir / "manifest.json",
+            shard_manifest,
+        )
+        shard_rows.append(
+            {
+                **shard_manifest,
+                "manifest": (
+                    shard_dir / "manifest.json"
+                ).relative_to(run_dir).as_posix(),
+            }
+        )
 
     navigation_index = _build_navigation_index(
         run_dir,
         shard_rows,
         max_file_bytes=max_file_bytes,
     )
-    compact_summary = _build_compact_session_summary(
-        bundle_manifest=bundle_manifest,
-        shard_rows=shard_rows,
-        run_summary=_find_run_summary(
-            run_dir,
-            critical_parts,
-        ),
+
+    prometheus_snapshot = (
+        run_summary.get("latencyMetrics")
+        if isinstance(run_summary, dict)
+        and isinstance(run_summary.get("latencyMetrics"), dict)
+        else None
+    )
+    latency_summary = latency.summary(
+        prometheus_snapshot=prometheus_snapshot,
     )
     _write_json(
-        run_dir / "overview" / "session-summary.json",
+        overview_dir / "latency-summary.json",
+        latency_summary,
+    )
+
+    source_manifest = {
+        "schemaVersion": 2,
+        "generatedAt": datetime.now(UTC).isoformat(),
+        "source": source_meta,
+        "sharding": {
+            "shardMinutes": shard_minutes,
+            "shardCount": shard_count,
+            "frameSeconds": shard_frame_seconds,
+            "bookDepth": book_depth,
+            "focusBookDepth": focus_book_depth,
+            "orderbookSampleSeconds": book_sample_seconds,
+        },
+    }
+    _write_json(
+        overview_dir / "source-manifest.json",
+        source_manifest,
+    )
+    _write_json(
+        overview_dir / "source-shard-index.json",
+        {
+            "schemaVersion": 2,
+            "shards": [
+                {
+                    "id": row["id"],
+                    "coreStartTs": row["coreStartTs"],
+                    "coreEndTs": row["coreEndTs"],
+                    "rows": row["rows"],
+                    "frameRows": row["frameRows"],
+                    "orderbookRows": row["orderbookRows"],
+                    "tradeDeltaGapRows": row[
+                        "tradeDeltaGapRows"
+                    ],
+                }
+                for row in shard_rows
+            ],
+        },
+    )
+
+    compact_summary = _build_compact_session_summary(
+        source_meta=source_meta,
+        shard_rows=shard_rows,
+        run_summary=run_summary,
+    )
+    _write_json(
+        overview_dir / "session-summary.json",
         compact_summary,
     )
 
     manifest = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "format": "scalp-bot-git-session-export",
         "generatedAt": datetime.now(UTC).isoformat(),
-        "source": bundle_manifest.get("source"),
+        "source": source_meta,
+        "exportMode": "two-pass-streaming",
         "rawSessionPolicy": (
             "raw session JSONL stays local and is not committed"
         ),
@@ -771,6 +1060,7 @@ def build_git_session_export(
         "overview": {
             "sessionSummary": "overview/session-summary.json",
             "latencySummary": "overview/latency-summary.json",
+            "latencyEventParts": latency_parts,
             "sourceManifest": "overview/source-manifest.json",
             "sourceShardIndex": (
                 "overview/source-shard-index.json"
@@ -786,11 +1076,13 @@ def build_git_session_export(
     (run_dir / "README.md").write_text(
         (
             "# Scalp bot session export\n\n"
-            "This directory is an analysis-grade export. The lossless raw "
-            "session remains local and is intentionally not committed.\n\n"
+            "This directory is a bounded analysis-grade export produced "
+            "directly from the raw session without temporary ZIP bundles or "
+            "a monolithic session report.\n\n"
             "Start with manifest.json, overview/session-summary.json, "
-            "and overview/latency-summary.json. Open only the referenced "
-            "time shards when deeper tick/order-book inspection is needed.\n"
+            "overview/latency-summary.json and index/shards.json. Open only "
+            "the referenced time shards when deeper tick/order-book "
+            "inspection is needed.\n"
         ),
         encoding="utf-8",
     )
