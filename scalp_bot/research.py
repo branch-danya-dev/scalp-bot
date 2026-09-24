@@ -109,8 +109,17 @@ class OfflineStrategyReplay:
             ]
             if not closed_candles:
                 continue
-            book = _book_from_public(payload.get("orderbook") or {})
-            if not book.bids or not book.asks:
+            fast_book = _book_from_public(
+                payload.get("fastOrderbook")
+                or payload.get("orderbook")
+                or {}
+            )
+            deep_book = _book_from_public(
+                payload.get("deepOrderbook")
+                or payload.get("orderbook")
+                or {}
+            )
+            if not fast_book.bids or not fast_book.asks:
                 continue
             trades = _trades_from_public(payload.get("recentTrades") or [])
             try:
@@ -120,9 +129,16 @@ class OfflineStrategyReplay:
             structure = market_structure_from_public(payload.get("structure"))
             for strategy in self.strategies.values():
                 observed_at_ms = int(float(row.get("ts") or 0) * 1000)
+                strategy_book = (
+                    deep_book
+                    if strategy.key == "orderbook_density"
+                    and deep_book.bids
+                    and deep_book.asks
+                    else fast_book
+                )
                 decision = strategy.evaluate(
                     closed_candles,
-                    book,
+                    strategy_book,
                     trend,
                     symbol=row_symbol,
                     trades=trades,
