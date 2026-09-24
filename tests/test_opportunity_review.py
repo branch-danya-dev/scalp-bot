@@ -1,3 +1,4 @@
+import pytest
 from scalp_bot.opportunity_review import analyze_session_rows
 
 
@@ -192,7 +193,7 @@ def test_rejected_trade_does_not_reuse_pre_event_forming_candle_high() -> None:
 
     assert candidate["classification"] == "unresolved"
     assert report["summary"]["missedTargetFirst"] == 0
-    assert candidate["mfeR"] == 0.4
+    assert candidate["mfeR"] == pytest.approx(0.4)
 
 
 def test_legacy_setup_blocked_uses_latest_recorded_decision() -> None:
