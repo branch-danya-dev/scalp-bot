@@ -763,6 +763,25 @@ async def _stream_topics(
                         queue.task_done()
 
 
+def runtime_stream_topics(
+    symbol: str,
+    *,
+    fast_orderbook_depth: int,
+    deep_orderbook_depth: int,
+) -> tuple[list[str], list[str]]:
+    fast_topics = [
+        f"orderbook.{fast_orderbook_depth}.{symbol}",
+        f"kline.1.{symbol}",
+        f"publicTrade.{symbol}",
+    ]
+    deep_topics = (
+        []
+        if deep_orderbook_depth == fast_orderbook_depth
+        else [f"orderbook.{deep_orderbook_depth}.{symbol}"]
+    )
+    return fast_topics, deep_topics
+
+
 async def stream_symbol(
     ws_url: str,
     symbol: str,
@@ -790,12 +809,12 @@ async def stream_symbol(
             "Bybit deep orderbook depth must be one of 1, 50, 200, 1000"
         )
 
-    fast_topics = [
-        f"orderbook.{fast_orderbook_depth}.{symbol}",
-        f"kline.1.{symbol}",
-        f"publicTrade.{symbol}",
-    ]
-    if deep_orderbook_depth == fast_orderbook_depth:
+    fast_topics, deep_topics = runtime_stream_topics(
+        symbol,
+        fast_orderbook_depth=fast_orderbook_depth,
+        deep_orderbook_depth=deep_orderbook_depth,
+    )
+    if not deep_topics:
         await _stream_topics(
             ws_url,
             fast_topics,
@@ -829,7 +848,7 @@ async def stream_symbol(
         ),
         _stream_topics(
             ws_url,
-            [f"orderbook.{deep_orderbook_depth}.{symbol}"],
+            deep_topics,
             callback,
             stop_event,
             queue_size=market_queue_size,

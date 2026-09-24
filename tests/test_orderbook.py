@@ -13,7 +13,30 @@ from scalp_bot.bybit import (
     _process_market_queue,
     _stream_topics,
     decode_market_message,
+    runtime_stream_topics,
 )
+
+
+def test_runtime_stream_topics_match_dual_book_trading_path() -> None:
+    fast, deep = runtime_stream_topics(
+        "BTCUSDT",
+        fast_orderbook_depth=50,
+        deep_orderbook_depth=1000,
+    )
+    assert fast == [
+        "orderbook.50.BTCUSDT",
+        "kline.1.BTCUSDT",
+        "publicTrade.BTCUSDT",
+    ]
+    assert deep == ["orderbook.1000.BTCUSDT"]
+
+    same_fast, same_deep = runtime_stream_topics(
+        "BTCUSDT",
+        fast_orderbook_depth=50,
+        deep_orderbook_depth=50,
+    )
+    assert same_fast == fast
+    assert same_deep == []
 
 
 def test_orderbook_sequence_gap_is_detected() -> None:
