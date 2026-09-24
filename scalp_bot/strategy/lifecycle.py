@@ -95,8 +95,17 @@ class LevelLifecycleTracker:
             else reference_price * 0.001
         )
 
+        identity_ms = (
+            latest.start_ms
+            if latest is not None
+            else now_ms
+        )
         for level in structure.levels:
-            level_id = self._id(level, reference_price, now_ms)
+            level_id = self._id(
+                level,
+                reference_price,
+                identity_ms,
+            )
             life = self._levels.get(level_id)
             if life is None:
                 historical_approaches = max(
