@@ -1,10 +1,13 @@
 # Git session export for long research runs
 
 The raw `session-*.jsonl` file remains the local lossless source of truth.
-It is intentionally **not** committed to GitHub.
+It is intentionally **not** committed to GitHub. See `docs/session-preservation.md`
+for the immutable zstd + checksum workflow.
 
 For ChatGPT/Claude analysis, the bot creates a smaller text-only analysis tree
-that is safe to browse through GitHub and scales to 10-20+ hour runs.
+that is safe to browse through GitHub and scales to 10-20+ hour runs. The
+export is written directly from the raw JSONL in two streaming passes; no
+monolithic session report or temporary ZIP bundle is generated.
 
 ## Layout
 
@@ -14,7 +17,7 @@ runs/
     manifest.json
     README.md
     overview/
-      session-report.json
+      session-summary.json
       latency-summary.json
       critical-events/
         part-0000.jsonl
