@@ -2197,12 +2197,15 @@ class TradingEngine:
                             self.config.research_recent_trades,
                             trade_after_sequence=(
                                 session.last_research_trade_sequence
+                                if self.config.research_trade_delta_enabled
+                                else None
                             ),
                         ),
                     )
-                    session.last_research_trade_sequence = (
-                        session.trade_sequence
-                    )
+                    if self.config.research_trade_delta_enabled:
+                        session.last_research_trade_sequence = (
+                            session.trade_sequence
+                        )
 
                 frame_interval = (
                     self.config.replay_engaged_frame_seconds
@@ -2227,12 +2230,15 @@ class TradingEngine:
                             self.config.replay_recent_trades,
                             trade_after_sequence=(
                                 session.last_replay_trade_sequence
+                                if self.config.replay_trade_delta_enabled
+                                else None
                             ),
                         ),
                     )
-                    session.last_replay_trade_sequence = (
-                        session.trade_sequence
-                    )
+                    if self.config.replay_trade_delta_enabled:
+                        session.last_replay_trade_sequence = (
+                            session.trade_sequence
+                        )
 
         await stream_symbol(
             self.config.bybit_public_ws_url,
