@@ -3028,3 +3028,125 @@ def test_deep_book_stale_blocks_planning_but_fast_observation_remains_ready(
         assert session.symbol not in engine.broker.positions
     finally:
         close_rest(engine)
+
+
+def test_fast_book_significant_event_gate_filters_minor_size_churn(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        fast_event_min_ofi_fraction=0.02,
+    )
+    try:
+        session = ActiveSymbolSession(
+            symbol="GATEUSDT",
+            candles=[candle()],
+            decisions={
+                "level_breakout": StrategyDecision(
+                    strategy="level_breakout",
+                    action=Action.WAIT,
+                    reasons=["armed"],
+                    confidence=0.8,
+                    watched_level=100.0,
+                    details={"state": "armed"},
+                )
+            },
+        )
+        previous = OrderBook(
+            bids=[(99.99, 100)],
+            asks=[(100.01, 100)],
+        )
+        same_quotes = OrderBook(
+            bids=[(99.99, 99.9)],
+            asks=[(100.01, 100)],
+        )
+
+        assert engine._fast_book_event_reason(
+            session,
+            previous,
+            same_quotes,
+            ofi_usd=10.0,
+        ) is None
+
+        changed_quote = OrderBook(
+            bids=[(100.00, 100)],
+            asks=[(100.02, 100)],
+        )
+        assert engine._fast_book_event_reason(
+            session,
+            previous,
+            changed_quote,
+            ofi_usd=0.0,
+        ) == "best_quote"
+    finally:
+        close_rest(engine)
+
+
+@pytest.mark.asyncio
+async def test_density_evaluation_consumes_deep_book_not_fast_book(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        trend_structure_enabled=False,
+        weak_level_rejection_enabled=False,
+        breakout_enabled=False,
+        density_enabled=True,
+        confirmed_candle_stale_seconds=0.0,
+    )
+    captured: list[OrderBook] = []
+
+    class CaptureDensity:
+        key = "orderbook_density"
+
+        def evaluate(
+            self,
+            candles,
+            orderbook,
+            trend,
+            **kwargs,
+        ):
+            captured.append(orderbook)
+            return StrategyDecision(
+                strategy=self.key,
+                action=Action.WAIT,
+                reasons=["captured"],
+                details={
+                    "state": "search",
+                    "evidenceOnly": True,
+                },
+            )
+
+        def reset(self, symbol):
+            return None
+
+    now = time()
+    fast = OrderBook(
+        bids=[(99.99, 10)],
+        asks=[(100.01, 10)],
+    )
+    deep = OrderBook(
+        bids=[(99.90, 500), (99.80, 500)],
+        asks=[(100.10, 500), (100.20, 500)],
+    )
+    session = ActiveSymbolSession(
+        symbol="DENSDEEPUSDT",
+        candles=[candle()],
+        orderbook=fast,
+        deep_orderbook=deep,
+        last_price=100.0,
+        last_book_at=now,
+        last_deep_book_at=now,
+        book_synced=True,
+        deep_book_synced=True,
+        confirmed_candle_stale_after_seconds=0.0,
+    )
+    engine.sessions[session.symbol] = session
+    engine.strategies["orderbook_density"] = CaptureDensity()  # type: ignore[assignment]
+
+    try:
+        await engine._evaluate(session)
+        assert captured
+        assert captured[-1] is deep
+    finally:
+        await engine.rest.close()
