@@ -1908,7 +1908,20 @@ class TradingEngine:
         fast_topic = f"orderbook.{fast_depth}."
         deep_topic = f"orderbook.{deep_depth}."
 
-        async def on_message(message: dict) -> None:
+        async def on_message(
+            message: MarketMessage | dict,
+        ) -> None:
+            if isinstance(message, dict):
+                message = MarketMessage(
+                    topic=message.get("topic"),
+                    type=message.get("type"),
+                    ts=message.get("ts"),
+                    cts=message.get("cts"),
+                    data=message.get("data"),
+                    success=message.get("success"),
+                    op=message.get("op"),
+                )
+
             session = self.sessions.get(symbol)
             if session is None:
                 return
