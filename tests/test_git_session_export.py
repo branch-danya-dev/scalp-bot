@@ -217,11 +217,9 @@ def test_rolling_trade_tape_is_exported_as_delta() -> None:
 
 def test_compact_session_summary_has_no_unbounded_report_payloads() -> None:
     summary = _build_compact_session_summary(
-        bundle_manifest={
-            "source": {
-                "file": "session-test.jsonl",
-                "durationSeconds": 3600,
-            }
+        source_meta={
+            "file": "session-test.jsonl",
+            "durationSeconds": 3600,
         },
         shard_rows=[
             {
