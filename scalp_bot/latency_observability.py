@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from typing import Any
 
 from opentelemetry import trace
@@ -376,14 +376,28 @@ def latency_snapshot(message: Any | None) -> dict | None:
 
 
 @contextmanager
-def span(name: str, **attributes: Any):
+def span(
+    name: str,
+    *,
+    parent_span=None,
+    **attributes: Any,
+):
     clean = {
         key: value
         for key, value in attributes.items()
         if value is not None
     }
-    with tracer().start_as_current_span(
-        name,
-        attributes=clean,
-    ) as active:
-        yield active
+    parent_context = (
+        trace.use_span(
+            parent_span,
+            end_on_exit=False,
+        )
+        if parent_span is not None
+        else nullcontext()
+    )
+    with parent_context:
+        with tracer().start_as_current_span(
+            name,
+            attributes=clean,
+        ) as active:
+            yield active
