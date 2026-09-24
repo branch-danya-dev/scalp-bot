@@ -32,6 +32,7 @@ class SessionRecorder:
         self._writer_error: BaseException | None = None
         self._queued_rows = 0
         self._written_rows = 0
+        self._dropped_rows = 0
         # Live trade-review cache. The UI must never re-read a multi-GB
         # research JSONL simply because a user opened a closed trade.
         self._live_review_pre_roll: dict[str, deque[dict]] = {}
@@ -124,6 +125,7 @@ class SessionRecorder:
                 0,
                 self._queued_rows - self._written_rows,
             ),
+            "droppedRows": self._dropped_rows,
             "writerError": (
                 f"{type(self._writer_error).__name__}: "
                 f"{self._writer_error}"
@@ -149,10 +151,15 @@ class SessionRecorder:
             self._capture_live_review_row(row)
 
         thread = self._writer_thread
+        if self._writer_error is not None:
+            # Recording must fail open for the trading loop. Health telemetry
+            # exposes the loss explicitly; never make market processing wait
+            # on a broken filesystem.
+            self._dropped_rows += 1
+            return
         if (
             thread is not None
             and thread.is_alive()
-            and self._writer_error is None
         ):
             self._queued_rows += 1
             self._write_queue.put(row)
