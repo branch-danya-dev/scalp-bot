@@ -2521,3 +2521,44 @@ def test_strategy_invalidation_no_longer_waits_five_seconds(tmp_path) -> None:
         )
     finally:
         close_rest(engine)
+
+
+
+def test_execution_uses_specific_public_trade_price_for_maker_fill(
+    tmp_path,
+) -> None:
+    engine = make_engine(
+        tmp_path,
+        passive_entry_enabled=True,
+        maker_fill_confirmation_bps=0.0,
+    )
+    try:
+        pending_plan = plan("AAAUSDT")
+        pending_plan.strategy = "weak_level_rejection"
+        pending_plan.entry_mode = "maker_limit"
+        pending_plan.market_entry = 99.99
+        pending_plan.setup_id = "reject:g1"
+        engine.broker.place_pending(pending_plan)
+
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(99.99, 100.01),
+            # Final batch price can be back above the resting bid.
+            last_price=100.10,
+        )
+        engine.sessions[session.symbol] = session
+
+        engine._mark_execution_from_market(
+            session,
+            trade_ts_ms=1_001,
+            trade_price=99.98,
+        )
+
+        assert "AAAUSDT" not in engine.broker.pending_entries
+        assert "AAAUSDT" in engine.broker.positions
+        assert engine.broker.positions[
+            "AAAUSDT"
+        ].entry == pytest.approx(99.99)
+    finally:
+        close_rest(engine)
