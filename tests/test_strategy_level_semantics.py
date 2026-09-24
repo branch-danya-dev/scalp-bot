@@ -1103,3 +1103,146 @@ def test_previous_day_low_can_be_rejection_setup_with_micro_response() -> None:
         fired.details["levelLifecycle"]["generation_id"]
         == level.generation_id
     )
+
+
+def test_breakout_same_generation_cannot_reopen_after_detector_drift() -> None:
+    strategy = LevelBreakoutStrategy()
+    strategy.staged_entries_enabled = False
+    rows = mature_breakout_candles()
+    book = OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)])
+    structure = mature_structure("R:100:g1")
+
+    strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="DRIFTBREAKUSDT",
+        trades=aggressive_buy_flow(),
+        structure=structure,
+    )
+    strategy._states[
+        "DRIFTBREAKUSDT"
+    ].break_started_at -= strategy.hold_without_retest_seconds + 1
+    opened = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="DRIFTBREAKUSDT",
+        trades=aggressive_buy_flow(),
+        structure=structure,
+    )
+    assert opened.action == Action.LONG
+    strategy.mark_opened("DRIFTBREAKUSDT", opened)
+
+    shifted = mature_structure("R:100:g1")
+    shifted.levels[0].low += 0.01
+    shifted.levels[0].high += 0.01
+    blocked = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="DRIFTBREAKUSDT",
+        trades=aggressive_buy_flow(),
+        structure=shifted,
+    )
+
+    assert blocked.action == Action.WAIT
+    assert blocked.details["alreadyUsed"] is True
+    assert opened.details["zoneGeneration"] == (
+        "resistance",
+        "R:100:g1",
+    )
+
+
+def test_rejection_setup_id_uses_exact_level_generation() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    strategy.staged_entries_enabled = True
+    decision = strategy.evaluate(
+        rejection_candles(),
+        OrderBook(bids=[(100.09, 50)], asks=[(100.10, 50)]),
+        Trend.UP,
+        symbol="REJECTSETUPIDUSDT",
+        trades=buy_flow(),
+        structure=young_support("S:100:g7"),
+    )
+
+    assert decision.action == Action.LONG
+    assert decision.details["levelGeneration"] == "S:100:g7"
+    assert decision.setup_id == (
+        "weak_level_rejection:long:S:100:g7"
+    )
+
+
+def test_rejection_rolling_forming_move_before_absorption_cannot_fire() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    strategy.staged_entries_enabled = False
+    rows = rejection_candles()
+    observed = 20_002_200
+    absorption = [
+        TradeTick(20_000_000 + i * 200, 100.00, 4, "Sell")
+        for i in range(10)
+    ]
+    absorption.append(
+        TradeTick(observed, 99.95, 2, "Sell")
+    )
+    forming = FormingCandleContext(
+        start_ms=19_980_000,
+        observed_at_ms=observed,
+        age_seconds=22.2,
+        progress_ratio=0.37,
+        open=100.00,
+        high=100.15,
+        low=99.94,
+        close=100.10,
+        volume=100.0,
+        turnover=10_000.0,
+        body_pct=0.001,
+        range_pct=0.0021,
+        body_to_range=0.48,
+        upper_wick_pct=0.0005,
+        lower_wick_pct=0.0006,
+        close_position=0.76,
+        volume_pace_ratio=1.2,
+        range_expansion_ratio=1.1,
+        velocity_bps_per_second=0.45,
+        direction=Trend.UP,
+        micro_move_5s_bps=5.0,
+        micro_range_5s_bps=5.0,
+    )
+    context = SimpleNamespace(
+        local_regime=None,
+        forming_candle=forming,
+    )
+    book = OrderBook(
+        bids=[(100.09, 50)],
+        asks=[(100.10, 50)],
+    )
+
+    armed = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="CAUSALREJECTUSDT",
+        trades=absorption,
+        structure=young_support(),
+        market_context=context,
+        observed_at_ms=observed,
+    )
+    assert armed.action == Action.WAIT
+    assert armed.details["attackAbsorbed"] is True
+
+    still_wait = strategy.evaluate(
+        rows,
+        book,
+        Trend.UP,
+        symbol="CAUSALREJECTUSDT",
+        trades=absorption,
+        structure=young_support(),
+        market_context=context,
+        observed_at_ms=observed + 1_000,
+    )
+
+    assert still_wait.action == Action.WAIT
+    assert still_wait.details["microResponseReady"] is False
+    assert still_wait.details["tapeResponseAligned"] is False
+    assert still_wait.details["postAbsorptionTapeTradeCount"] < 2
