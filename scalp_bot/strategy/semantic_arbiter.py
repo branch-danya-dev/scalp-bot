@@ -299,12 +299,68 @@ def assess_structural_path(
     )
     if decision.action == Action.LONG:
         first_take = entry + first_take_distance
-        obstacle = context.structure.nearest_resistance
+        directional_rows = (
+            list(context.structure.resistance_levels)
+            if context.structure.resistance_levels
+            else (
+                [context.structure.nearest_resistance]
+                if context.structure.nearest_resistance is not None
+                else []
+            )
+        )
+        mature_rows = [
+            level
+            for level in directional_rows
+            if (
+                level.high >= entry
+                and _mature_obstacle(level)
+            )
+        ]
+        obstacle = (
+            min(
+                mature_rows,
+                key=lambda level: (
+                    max(0.0, level.low - entry),
+                    abs(level.center - entry),
+                    -level.score,
+                ),
+            )
+            if mature_rows
+            else None
+        )
     else:
         first_take = entry - first_take_distance
-        obstacle = context.structure.nearest_support
+        directional_rows = (
+            list(context.structure.support_levels)
+            if context.structure.support_levels
+            else (
+                [context.structure.nearest_support]
+                if context.structure.nearest_support is not None
+                else []
+            )
+        )
+        mature_rows = [
+            level
+            for level in directional_rows
+            if (
+                level.low <= entry
+                and _mature_obstacle(level)
+            )
+        ]
+        obstacle = (
+            min(
+                mature_rows,
+                key=lambda level: (
+                    max(0.0, entry - level.high),
+                    abs(level.center - entry),
+                    -level.score,
+                ),
+            )
+            if mature_rows
+            else None
+        )
 
-    if obstacle is None or not _mature_obstacle(obstacle):
+    if obstacle is None:
         return StructuralPathAssessment(
             blocked=False,
             side=side,
