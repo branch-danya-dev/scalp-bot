@@ -1500,3 +1500,78 @@ def test_exit_fee_uses_filled_quantity_times_exit_price() -> None:
     assert trade["fees"] == pytest.approx(
         10.0 * 110.0 * cfg.maker_fee_rate
     )
+
+
+def test_pending_entries_do_not_consume_open_position_slots() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=1.0,
+        max_open_positions=1,
+        max_pending_entries=2,
+        passive_entry_enabled=True,
+        maker_fill_confirmation_bps=0,
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+    )
+    broker = PaperBroker(cfg)
+
+    for symbol in ("PEND1USDT", "PEND2USDT"):
+        pending_plan = plan(
+            symbol,
+            Side.LONG,
+            100,
+        )
+        pending_plan.entry_mode = "maker_limit"
+        pending_plan.market_entry = 99.99
+        pending_plan.expected_net_loss = 1
+        broker.place_pending(pending_plan)
+
+    assert len(broker.pending_entries) == 2
+    allowed, reason = broker.can_open("TAKERUSDT")
+    assert allowed
+    assert reason == "allowed"
+
+    taker = plan("TAKERUSDT", Side.LONG, 100)
+    taker.expected_net_loss = 1
+    broker.open(
+        taker,
+        book(99.99, 100.0),
+    )
+
+    assert len(broker.positions) == 1
+    assert len(broker.pending_entries) == 2
+
+
+def test_pending_entries_have_separate_concurrency_cap() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=1.0,
+        max_open_positions=4,
+        max_pending_entries=1,
+        passive_entry_enabled=True,
+        maker_fill_confirmation_bps=0,
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+    )
+    broker = PaperBroker(cfg)
+
+    first = plan("PEND1USDT", Side.LONG, 100)
+    first.entry_mode = "maker_limit"
+    first.market_entry = 99.99
+    first.expected_net_loss = 1
+    broker.place_pending(first)
+
+    second = plan("PEND2USDT", Side.LONG, 100)
+    second.entry_mode = "maker_limit"
+    second.market_entry = 99.99
+    second.expected_net_loss = 1
+
+    with pytest.raises(
+        RuntimeError,
+        match="maximum pending entries reached",
+    ):
+        broker.place_pending(second)

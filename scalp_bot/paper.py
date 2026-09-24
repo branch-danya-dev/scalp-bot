@@ -318,7 +318,7 @@ class PaperBroker:
             return False, "symbol already has an open position"
         if symbol in self.pending_entries:
             return False, "symbol already has a pending entry"
-        if len(self.positions) + len(self.pending_entries) >= self.config.max_open_positions:
+        if len(self.positions) >= self.config.max_open_positions:
             return False, "maximum open positions reached"
         if (
             self.config.enforce_session_loss_limit
@@ -330,6 +330,20 @@ class PaperBroker:
             return False, "portfolio exposure budget exhausted"
         if self.available_risk_usd <= 0:
             return False, "portfolio risk budget exhausted"
+        return True, "allowed"
+
+    def can_place_pending(
+        self,
+        symbol: str,
+    ) -> tuple[bool, str]:
+        allowed, reason = self.can_open(symbol)
+        if not allowed:
+            return allowed, reason
+        if (
+            len(self.pending_entries)
+            >= max(0, self.config.max_pending_entries)
+        ):
+            return False, "maximum pending entries reached"
         return True, "allowed"
 
     def can_add(self, plan: TradePlan) -> tuple[bool, str]:
@@ -696,7 +710,9 @@ class PaperBroker:
     ) -> PendingEntry:
         if plan.entry_mode != "maker_limit":
             raise RuntimeError("pending entry requires maker_limit plan")
-        allowed, reason = self.can_open(plan.symbol)
+        allowed, reason = self.can_place_pending(
+            plan.symbol
+        )
         if not allowed:
             raise RuntimeError(reason)
         if plan.notional > self.available_notional + 1e-9:

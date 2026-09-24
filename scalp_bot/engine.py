@@ -4359,6 +4359,28 @@ class TradingEngine:
                         )
                         continue
 
+                if (
+                    position_action == "open"
+                    and result.plan.entry_mode == "maker_limit"
+                ):
+                    allowed, pending_reason = (
+                        self.broker.can_place_pending(
+                            session.symbol
+                        )
+                    )
+                    if not allowed:
+                        self._risk_reject_if_changed(
+                            session,
+                            decision,
+                            pending_reason,
+                            diagnostics={
+                                "semanticArbitration": (
+                                    base_assessment.public()
+                                ),
+                            },
+                        )
+                        continue
+
                 economics = (
                     result.plan.strategy_details.get(
                         "economics"
@@ -4534,6 +4556,10 @@ class TradingEngine:
         if best.position_action == "add":
             allowed, reason = self.broker.can_add(
                 best.plan
+            )
+        elif best.plan.entry_mode == "maker_limit":
+            allowed, reason = self.broker.can_place_pending(
+                best.session.symbol
             )
         else:
             allowed, reason = self.broker.can_open(
