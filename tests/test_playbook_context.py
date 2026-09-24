@@ -229,7 +229,7 @@ def test_rejection_range_is_two_sided() -> None:
     assert set(plan.allowed_directions) == {Trend.UP, Trend.DOWN}
 
 
-def test_rejection_transition_waits_for_stable_regime() -> None:
+def test_rejection_transition_is_two_sided_with_directional_preference() -> None:
     ctx = context(
         LocalRegime.TRANSITION,
         direction=Trend.DOWN,
@@ -238,7 +238,12 @@ def test_rejection_transition_waits_for_stable_regime() -> None:
 
     plan = rejection_direction_plan(ctx, Trend.UP)
 
-    assert plan.allowed_directions == ()
+    assert plan.primary_direction == Trend.DOWN
+    assert set(plan.allowed_directions) == {
+        Trend.DOWN,
+        Trend.UP,
+    }
+    assert plan.source == "transition_preference_two_sided"
 
 
 def test_trend_strategy_is_not_disabled_by_legacy_flat_when_local_is_bullish() -> None:
@@ -392,3 +397,54 @@ def test_rejection_bullish_regime_is_preference_not_long_only() -> None:
         Trend.DOWN,
     }
     assert plan.source == "local_regime_preference_two_sided"
+
+
+def test_breakout_unclear_regime_allows_evidence_to_choose_direction() -> None:
+    ctx = context(
+        LocalRegime.UNCLEAR,
+        direction=Trend.FLAT,
+        parent=Trend.FLAT,
+    )
+
+    plan = breakout_direction_plan(ctx, Trend.FLAT)
+
+    assert set(plan.allowed_directions) == {
+        Trend.UP,
+        Trend.DOWN,
+    }
+    assert plan.primary_direction == Trend.FLAT
+    assert plan.source == "unclear_two_sided"
+
+
+def test_rejection_unclear_regime_allows_failed_break_evidence() -> None:
+    ctx = context(
+        LocalRegime.UNCLEAR,
+        direction=Trend.FLAT,
+        parent=Trend.FLAT,
+    )
+
+    plan = rejection_direction_plan(ctx, Trend.FLAT)
+
+    assert set(plan.allowed_directions) == {
+        Trend.UP,
+        Trend.DOWN,
+    }
+    assert plan.primary_direction == Trend.FLAT
+    assert plan.source == "unclear_two_sided"
+
+
+def test_symmetric_range_has_no_fake_primary_direction() -> None:
+    ctx = context(
+        LocalRegime.RANGE,
+        direction=Trend.FLAT,
+        parent=Trend.FLAT,
+    )
+
+    assert breakout_direction_plan(
+        ctx,
+        Trend.FLAT,
+    ).primary_direction == Trend.FLAT
+    assert rejection_direction_plan(
+        ctx,
+        Trend.FLAT,
+    ).primary_direction == Trend.FLAT
