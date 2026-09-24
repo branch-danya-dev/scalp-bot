@@ -59,6 +59,7 @@ class RiskEngine:
         available_notional: float,
         available_risk_usd: float,
         *,
+        depth_book: OrderBook | None = None,
         setup_id: str | None = None,
         existing_position_notional: float = 0.0,
         existing_position_all_in_risk_usd: float = 0.0,
@@ -66,7 +67,10 @@ class RiskEngine:
         if not decision.tradeable or decision.side is None:
             return RiskResult(False, "strategy decision is not tradeable")
         if not book.best_bid or not book.best_ask:
-            return RiskResult(False, "order book is not ready")
+            return RiskResult(False, "fast order book is not ready")
+        depth = depth_book or book
+        if not depth.best_bid or not depth.best_ask:
+            return RiskResult(False, "deep order book is not ready")
 
         side = decision.side
         setup_entry = float(decision.entry)
@@ -266,7 +270,7 @@ class RiskEngine:
             visible_entry_depth = notional
         else:
             raw_depth_entry, visible_entry_depth = (
-                book.entry_vwap(
+                depth.entry_vwap(
                     side,
                     notional,
                 )
@@ -342,7 +346,7 @@ class RiskEngine:
                 visible_entry_depth = notional
             else:
                 raw_depth_entry, visible_entry_depth = (
-                    book.entry_vwap(
+                    depth.entry_vwap(
                         side,
                         notional,
                     )
@@ -382,7 +386,7 @@ class RiskEngine:
                 visible_stop_depth,
                 raw_stop_exit_vwap,
             ) = self._stop_depth_stress(
-                book,
+                depth,
                 side,
                 notional,
             )
@@ -436,7 +440,7 @@ class RiskEngine:
                 raw_depth_entry = raw_market_entry
                 visible_entry_depth = notional
             else:
-                raw_depth_entry, visible_entry_depth = book.entry_vwap(
+                raw_depth_entry, visible_entry_depth = depth.entry_vwap(
                     side,
                     notional,
                 )
@@ -844,6 +848,12 @@ class RiskEngine:
                 stop_total_friction_usd
             ),
             "entrySpreadPct": max(book.spread_pct, 0.0),
+            "fastEntrySpreadPct": max(book.spread_pct, 0.0),
+            "deepEntrySpreadPct": max(depth.spread_pct, 0.0),
+            "fastBookBestBid": book.best_bid,
+            "fastBookBestAsk": book.best_ask,
+            "deepBookBestBid": depth.best_bid,
+            "deepBookBestAsk": depth.best_ask,
             "entryDepthImpactBps": entry_depth_impact_bps,
             "visibleEntryDepthUsd": visible_entry_depth,
             "grossAtTargetUsd": gross_profit,
