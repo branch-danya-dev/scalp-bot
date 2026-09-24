@@ -284,6 +284,7 @@ class BybitRestClient:
                     candidate.activity_compression_ratio,
                     candidate.activity_expansion_ratio,
                     candidate.activity_move_spent_ratio,
+                    candidate.activity_level_proximity_score,
                 ) = opportunity_readiness(closed)
                 candidate.activity_score = activity_score(
                     candidate,
