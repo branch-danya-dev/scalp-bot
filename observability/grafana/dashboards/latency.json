@@ -1,0 +1,278 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Decision latency — exchange → FIRE",
+      "id": 1,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "p50",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(scalp_latency_seconds_bucket{stage=\"exchange_to_fire\"}[$__rate_interval]))) * 1000"
+        },
+        {
+          "refId": "B",
+          "legendFormat": "p95",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(scalp_latency_seconds_bucket{stage=\"exchange_to_fire\"}[$__rate_interval]))) * 1000"
+        },
+        {
+          "refId": "C",
+          "legendFormat": "p99",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(scalp_latency_seconds_bucket{stage=\"exchange_to_fire\"}[$__rate_interval]))) * 1000"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Hot-path stage p95",
+      "id": 2,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "exchange → receive",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(scalp_latency_seconds_bucket{stage=\"exchange_to_receive\"}[$__rate_interval]))) * 1000"
+        },
+        {
+          "refId": "B",
+          "legendFormat": "receive → parse",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(scalp_latency_seconds_bucket{stage=\"receive_to_parse\"}[$__rate_interval]))) * 1000"
+        },
+        {
+          "refId": "C",
+          "legendFormat": "parse → processor",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(scalp_latency_seconds_bucket{stage=\"parse_to_processor\"}[$__rate_interval]))) * 1000"
+        },
+        {
+          "refId": "D",
+          "legendFormat": "parse → strategy",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(scalp_latency_seconds_bucket{stage=\"parse_to_strategy\"}[$__rate_interval]))) * 1000"
+        },
+        {
+          "refId": "E",
+          "legendFormat": "strategy → FIRE",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(scalp_latency_seconds_bucket{stage=\"strategy_to_fire\"}[$__rate_interval]))) * 1000"
+        },
+        {
+          "refId": "F",
+          "legendFormat": "FIRE → order",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(scalp_latency_seconds_bucket{stage=\"fire_to_order\"}[$__rate_interval]))) * 1000"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Per-strategy evaluate p95",
+      "id": 3,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{strategy}}",
+          "expr": "histogram_quantile(0.95, sum by (strategy, le) (rate(scalp_latency_seconds_bucket{stage=\"strategy_function\",strategy!=\"\"}[$__rate_interval]))) * 1000"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Order latency p95",
+      "id": 4,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "ack {{execution_mode}}",
+          "expr": "histogram_quantile(0.95, sum by (execution_mode, le) (rate(scalp_latency_seconds_bucket{stage=\"order_to_ack\"}[$__rate_interval]))) * 1000"
+        },
+        {
+          "refId": "B",
+          "legendFormat": "fill {{execution_mode}}",
+          "expr": "histogram_quantile(0.95, sum by (execution_mode, le) (rate(scalp_latency_seconds_bucket{stage=\"order_to_fill\"}[$__rate_interval]))) * 1000"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Market queue lag p95",
+      "id": 5,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{stream}}",
+          "expr": "histogram_quantile(0.95, sum by (stream, le) (rate(scalp_market_queue_lag_seconds_bucket[$__rate_interval]))) * 1000"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Market queue depth",
+      "id": 6,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{symbol}} {{stream}}",
+          "expr": "scalp_market_queue_depth"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Recorder backlog / drops",
+      "id": 7,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "pending rows",
+          "expr": "scalp_recorder_pending_rows"
+        },
+        {
+          "refId": "B",
+          "legendFormat": "dropped rows",
+          "expr": "scalp_recorder_dropped_rows"
+        }
+      ]
+    }
+  ],
+  "refresh": "2s",
+  "schemaVersion": 41,
+  "tags": [
+    "scalp-bot",
+    "latency"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Scalp Bot — Latency",
+  "uid": "scalp-bot-latency",
+  "version": 1
+}
