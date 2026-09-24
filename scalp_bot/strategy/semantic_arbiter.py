@@ -213,6 +213,13 @@ def _decision_owns_level(
     decision: StrategyDecision,
     level: StructuralLevel,
 ) -> bool:
+    # Daily/session extremes are independent structural market objects.
+    # They can overlap the traded detector zone, but must never inherit its
+    # own-level exemption even if malformed/replayed telemetry accidentally
+    # reuses a generation id.
+    if level.kind not in {"support", "resistance"}:
+        return False
+
     details = decision.details or {}
     lifecycle = details.get("levelLifecycle")
     if isinstance(lifecycle, dict):
@@ -227,10 +234,7 @@ def _decision_owns_level(
             )
 
     # Fallback only for ordinary detector zones that predate exact generation
-    # telemetry. Day/previous-day references are separate market objects and
-    # must never be exempted merely because they overlap a breakout zone.
-    if level.kind not in {"support", "resistance"}:
-        return False
+    # telemetry.
     return _zone_overlaps_level(decision, level)
 
 
