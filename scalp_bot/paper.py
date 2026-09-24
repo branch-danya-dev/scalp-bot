@@ -36,6 +36,8 @@ class Position:
     entry_fee_total_usd: float
     last_price: float
     setup_id: str
+    original_qty: float = 0.0
+    qty: float = 0.0
     strategy_details: dict[str, Any] = field(default_factory=dict)
     partial_taken: bool = False
     realized_gross_usd: float = 0.0
@@ -242,7 +244,14 @@ class PaperBroker:
 
     @property
     def total_exposure(self) -> float:
-        return sum(x.notional for x in self.positions.values())
+        return sum(
+            (
+                x.qty * x.last_price
+                if x.qty > 0 and x.last_price > 0
+                else x.notional
+            )
+            for x in self.positions.values()
+        )
 
     @property
     def open_structural_risk_usd(self) -> float:
@@ -364,17 +373,33 @@ class PaperBroker:
                 "reason": "invalid staged add fill",
             }
 
-        combined_notional = pos.notional + plan.notional
-        if combined_notional <= 0:
+        existing_qty = (
+            pos.qty
+            if pos.qty > 0
+            else (
+                pos.notional / pos.entry
+                if pos.entry > 0
+                else 0.0
+            )
+        )
+        add_qty = (
+            float(plan.base_qty)
+            if plan.base_qty is not None
+            and plan.base_qty > 0
+            else plan.notional / resolved_fill
+        )
+        combined_qty = existing_qty + add_qty
+        if combined_qty <= 0:
             return {
                 "allowed": False,
-                "reason": "invalid combined staged notional",
+                "reason": "invalid combined staged quantity",
             }
 
         combined_entry = (
-            pos.entry * pos.notional
-            + resolved_fill * plan.notional
-        ) / combined_notional
+            pos.entry * existing_qty
+            + resolved_fill * add_qty
+        ) / combined_qty
+        combined_notional = combined_entry * combined_qty
         if pos.side == Side.LONG:
             combined_stop = max(pos.stop, plan.stop)
             combined_target = plan.target
@@ -483,6 +508,7 @@ class PaperBroker:
             "combinedStop": combined_stop,
             "combinedTarget": combined_target,
             "combinedNotional": combined_notional,
+            "combinedQty": combined_qty,
             "grossAtTargetUsd": gross_target,
             "allInLossUsd": all_in_loss,
             "netAtTargetUsd": net_target,
@@ -496,8 +522,19 @@ class PaperBroker:
         fill: float,
         entry_fee: float,
     ) -> Position:
+        base_qty = (
+            float(plan.base_qty)
+            if plan.base_qty is not None
+            and plan.base_qty > 0
+            else (
+                plan.notional / fill
+                if fill > 0
+                else 0.0
+            )
+        )
+        actual_notional = base_qty * fill
         structural_risk_usd = (
-            plan.notional * abs(fill - plan.stop) / fill
+            base_qty * abs(fill - plan.stop)
             if fill > 0
             else 0.0
         )
@@ -505,8 +542,8 @@ class PaperBroker:
             symbol=plan.symbol,
             strategy=plan.strategy,
             side=plan.side,
-            original_notional=plan.notional,
-            notional=plan.notional,
+            original_notional=actual_notional,
+            notional=actual_notional,
             setup_entry=plan.setup_entry,
             entry=fill,
             initial_stop=plan.stop,
@@ -517,6 +554,8 @@ class PaperBroker:
             entry_fee_total_usd=entry_fee,
             last_price=fill,
             setup_id=plan.setup_id,
+            original_qty=base_qty,
+            qty=base_qty,
             strategy_details=dict(plan.strategy_details),
             initial_risk_budget_usd=structural_risk_usd,
             entry_legs=[{
@@ -526,7 +565,8 @@ class PaperBroker:
                         or {}
                     ).get("phase") or "full"
                 ),
-                "notional": plan.notional,
+                "notional": actual_notional,
+                "qty": base_qty,
                 "fill": fill,
                 "entryFeeUsd": entry_fee,
                 "structuralRiskUsd": structural_risk_usd,
@@ -558,22 +598,43 @@ class PaperBroker:
                     or "combined staged economics rejected"
                 )
             )
-        previous_notional = pos.notional
-        combined_notional = previous_notional + plan.notional
-        if combined_notional <= 0:
-            raise RuntimeError("invalid combined staged position size")
+        previous_qty = (
+            pos.qty
+            if pos.qty > 0
+            else (
+                pos.notional / pos.entry
+                if pos.entry > 0
+                else 0.0
+            )
+        )
+        add_qty = (
+            float(plan.base_qty)
+            if plan.base_qty is not None
+            and plan.base_qty > 0
+            else (
+                plan.notional / fill
+                if fill > 0
+                else 0.0
+            )
+        )
+        combined_qty = previous_qty + add_qty
+        if combined_qty <= 0:
+            raise RuntimeError("invalid combined staged position quantity")
 
         weighted_entry = (
-            pos.entry * previous_notional
-            + fill * plan.notional
-        ) / combined_notional
+            pos.entry * previous_qty
+            + fill * add_qty
+        ) / combined_qty
+        combined_notional = weighted_entry * combined_qty
         incremental_structural_risk = (
-            plan.notional * abs(fill - plan.stop) / fill
+            add_qty * abs(fill - plan.stop)
             if fill > 0
             else 0.0
         )
 
-        pos.original_notional += plan.notional
+        pos.original_qty += add_qty
+        pos.qty = combined_qty
+        pos.original_notional = combined_notional
         pos.notional = combined_notional
         pos.entry = weighted_entry
         pos.entry_fee_remaining += entry_fee
@@ -604,6 +665,7 @@ class PaperBroker:
             "stop": pos.stop,
             "target": pos.target,
             "notional": pos.notional,
+            "qty": pos.qty,
         }
         pos.strategy_details = merged_details
         pos.entry_legs.append({
@@ -613,7 +675,8 @@ class PaperBroker:
                     or {}
                 ).get("phase") or "add"
             ),
-            "notional": plan.notional,
+            "notional": add_qty * fill,
+            "qty": add_qty,
             "fill": fill,
             "entryFeeUsd": entry_fee,
             "structuralRiskUsd": incremental_structural_risk,
@@ -1688,7 +1751,13 @@ class PaperBroker:
         share = close_notional / pos.notional
         allocated_entry_fee = pos.entry_fee_remaining * share
 
+        close_qty = (
+            close_notional / pos.entry
+            if pos.entry > 0
+            else 0.0
+        )
         pos.notional -= close_notional
+        pos.qty = max(0.0, pos.qty - close_qty)
         pos.entry_fee_remaining -= allocated_entry_fee
         pos.realized_gross_usd += gross
         pos.realized_net_usd += net

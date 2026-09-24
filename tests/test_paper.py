@@ -913,6 +913,10 @@ def test_staged_add_aggregates_position_without_widening_stop() -> None:
 
     assert position.notional == pytest.approx(700)
     assert position.original_notional == pytest.approx(700)
+    expected_qty = 300 / 100.00 + 400 / 100.20
+    assert position.qty == pytest.approx(expected_qty)
+    assert position.original_qty == pytest.approx(expected_qty)
+    assert position.entry == pytest.approx(700 / expected_qty)
     assert position.entry > first_entry
     assert position.stop == pytest.approx(99.6)
     assert position.target == pytest.approx(101.20)
@@ -935,6 +939,49 @@ def test_staged_add_aggregates_position_without_widening_stop() -> None:
     )
     assert closed["scaleInCount"] == 1
     assert len(closed["entryLegs"]) == 2
+
+
+def test_realized_pnl_uses_base_quantity_after_scale_in() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.10,
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+    )
+    broker = PaperBroker(cfg)
+
+    first = plan("QTYPOSUSDT", Side.LONG, 300)
+    first.strategy = "level_breakout"
+    first.setup_id = "qty:g1"
+    first.stop = 99.5
+    first.target = 102.0
+    broker.open(first, book(99.99, 100.00))
+
+    add = plan("QTYPOSUSDT", Side.LONG, 400)
+    add.strategy = first.strategy
+    add.setup_id = first.setup_id
+    add.stop = 99.6
+    add.target = 102.0
+    position = broker.add(
+        add,
+        book(100.19, 100.20),
+    )
+    expected_qty = 300 / 100.00 + 400 / 100.20
+    expected_entry = 700 / expected_qty
+    assert position.qty == pytest.approx(expected_qty)
+    assert position.entry == pytest.approx(expected_entry)
+
+    closed = broker.close(
+        "QTYPOSUSDT",
+        book(100.50, 100.51),
+        "test",
+    )
+    expected_gross = expected_qty * (100.50 - expected_entry)
+    assert closed["grossPnl"] == pytest.approx(expected_gross)
 
 
 def test_staged_add_rejects_wrong_setup_and_side() -> None:
