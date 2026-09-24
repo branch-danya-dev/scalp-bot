@@ -2475,3 +2475,49 @@ def test_pending_maker_entry_cancels_when_freshness_turns_late(
         )
     finally:
         close_rest(engine)
+
+
+
+def test_strategy_invalidation_no_longer_waits_five_seconds(tmp_path) -> None:
+    engine = make_engine(
+        tmp_path,
+        strategy_invalidation_grace_seconds=0.5,
+        partial_take_enabled=False,
+    )
+
+    class ImmediateInvalidation:
+        key = "orderbook_density"
+        label = "fixture"
+
+        def manage_position(self, **kwargs):
+            return "fixture_structural_invalidation"
+
+        def reset(self, symbol: str) -> None:
+            return None
+
+        def mark_opened(self, symbol: str, decision) -> None:
+            return None
+
+    try:
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100.0,
+        )
+        engine.sessions[session.symbol] = session
+        engine.strategies["orderbook_density"] = ImmediateInvalidation()  # type: ignore[assignment]
+        opened = engine.broker.open(
+            plan(session.symbol),
+            session.orderbook,
+        )
+        opened.opened_at = time() - 1.0
+
+        engine._maybe_strategy_invalidation(session)
+
+        assert session.symbol not in engine.broker.positions
+        assert engine.broker.closed_trades[-1]["reason"] == (
+            "fixture_structural_invalidation"
+        )
+    finally:
+        close_rest(engine)
