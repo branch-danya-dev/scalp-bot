@@ -1571,23 +1571,31 @@ class PaperBroker:
                     else book.asks
                 )
                 if levels:
-                    worst = levels[-1][0]
-                    visible_base = (
-                        visible_depth / raw
-                        if raw > 0
-                        else 0.0
-                    )
+                    worst = float(levels[-1][0])
                     missing = max(
                         0.0,
                         close_notional - visible_depth,
                     )
-                    total_base = visible_base + (
-                        missing / worst
-                        if worst > 0
-                        else 0.0
+                    missing_fraction = min(
+                        1.0,
+                        missing / close_notional,
                     )
-                    if total_base > 0:
-                        raw = close_notional / total_base
+                    tail_penalty = (
+                        max(
+                            0.0,
+                            self.config.paper_missing_depth_penalty_bps,
+                        )
+                        / 10_000
+                        * missing_fraction
+                    )
+                    # The unseen tail is explicitly adverse. This is still a
+                    # paper approximation, but it cannot silently invent
+                    # unlimited liquidity at the final visible level.
+                    raw = worst * (
+                        1 - tail_penalty
+                        if pos.side == Side.LONG
+                        else 1 + tail_penalty
+                    )
             exit_mode = (
                 profile.partial_exit
                 if reason == "partial_take"

@@ -1324,6 +1324,46 @@ def test_maker_partial_requires_cumulative_trade_through_volume() -> None:
     assert pos.partial_taken is True
 
 
+def test_market_exit_penalizes_unseen_depth_tail() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        paper_missing_depth_penalty_bps=25.0,
+        max_leverage=2,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("TAILUSDT", Side.LONG, 1000)
+    p.stop = 99.5
+    p.target = 102.0
+    broker.open(
+        p,
+        OrderBook(
+            bids=[(99.99, 100)],
+            asks=[(100.00, 100)],
+        ),
+    )
+
+    shallow = OrderBook(
+        bids=[(99.00, 1.0)],
+        asks=[(99.10, 1.0)],
+    )
+    trade = broker.close(
+        "TAILUSDT",
+        shallow,
+        "manual_test",
+    )
+
+    visible_quote = 99.0
+    missing_fraction = (1000.0 - visible_quote) / 1000.0
+    expected = 99.0 * (
+        1 - (25.0 / 10_000) * missing_fraction
+    )
+    assert trade["exit"] == pytest.approx(expected)
+    assert trade["exit"] < 99.0
+
+
 def test_fast_book_triggers_stop_while_deep_book_sets_exit_vwap() -> None:
     cfg = Settings(
         taker_fee_rate=0,

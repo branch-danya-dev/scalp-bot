@@ -123,6 +123,9 @@ class Settings(BaseSettings):
     max_stop_cost_share: float = 1.0
     enforce_stop_cost_share_gate: bool = False
     stop_depth_stress_multiplier: float = 2.0
+    # When requested market exit size exceeds visible deep-book depth, never
+    # assume the missing tail is available at the last visible level.
+    paper_missing_depth_penalty_bps: float = 25.0
 
     partial_take_enabled: bool = True
     partial_take_at_r: float = 1.0
