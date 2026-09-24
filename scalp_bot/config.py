@@ -164,6 +164,9 @@ class Settings(BaseSettings):
     market_stale_seconds: float = 3.0
     book_stale_seconds: float = 1.5
     deep_book_stale_seconds: float = 1.5
+    # L1000 is intentionally slower than L50, but execution/risk must not mix
+    # a fresh fast quote with a materially older depth snapshot.
+    deep_book_max_skew_seconds: float = 0.50
     # Disabled in bare Settings for deterministic unit tests; research/live
     # profiles explicitly enable this safety gate.
     confirmed_candle_stale_seconds: float = 0.0

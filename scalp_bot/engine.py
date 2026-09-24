@@ -164,6 +164,11 @@ class ActiveSymbolSession:
     confirmed_candle_stale_after_seconds: float = 150.0
     book_synced: bool | None = None
     deep_book_synced: bool | None = None
+    fast_book_seq: int | None = None
+    deep_book_seq: int | None = None
+    fast_book_exchange_ts_ms: int = 0
+    deep_book_exchange_ts_ms: int = 0
+    deep_book_max_skew_seconds: float = 0.50
     last_trade_stream_at: float = 0.0
     last_kline_at: float = 0.0
     last_eval: float = 0.0
@@ -244,6 +249,30 @@ class ActiveSymbolSession:
             resolved_now - self.last_deep_book_at,
         )
 
+    def deep_book_skew_seconds(self) -> float | None:
+        if (
+            self.fast_book_exchange_ts_ms <= 0
+            or self.deep_book_exchange_ts_ms <= 0
+        ):
+            return None
+        return max(
+            0.0,
+            (
+                self.fast_book_exchange_ts_ms
+                - self.deep_book_exchange_ts_ms
+            )
+            / 1000.0,
+        )
+
+    def deep_book_is_coherent_with_fast(self) -> bool:
+        skew = self.deep_book_skew_seconds()
+        if skew is None:
+            return True
+        return skew <= max(
+            0.0,
+            self.deep_book_max_skew_seconds,
+        )
+
     def deep_book_is_fresh(
         self,
         now: float | None = None,
@@ -264,6 +293,8 @@ class ActiveSymbolSession:
             or not self.deep_orderbook.asks
         ):
             return False
+        if not self.deep_book_is_coherent_with_fast():
+            return False
         return age <= self.deep_book_stale_after_seconds
 
     def deep_book_health(
@@ -283,6 +314,19 @@ class ActiveSymbolSession:
                 "deep_l1000"
                 if self.deep_book_synced is not None
                 else "legacy_fast_fallback"
+            ),
+            "fastSeq": self.fast_book_seq,
+            "deepSeq": self.deep_book_seq,
+            "fastExchangeTsMs": (
+                self.fast_book_exchange_ts_ms or None
+            ),
+            "deepExchangeTsMs": (
+                self.deep_book_exchange_ts_ms or None
+            ),
+            "skewSeconds": self.deep_book_skew_seconds(),
+            "maxSkewSeconds": self.deep_book_max_skew_seconds,
+            "coherentWithFast": (
+                self.deep_book_is_coherent_with_fast()
             ),
         }
 
@@ -1790,6 +1834,9 @@ class TradingEngine:
             ),
             book_synced=False,
             deep_book_synced=False,
+            deep_book_max_skew_seconds=(
+                self.config.deep_book_max_skew_seconds
+            ),
             confirmed_candle_stale_after_seconds=(
                 self.config.confirmed_candle_stale_seconds
             ),
@@ -2069,6 +2116,12 @@ class TradingEngine:
                     session.orderbook = OrderBook()
                     raise
                 session.book_synced = fast_book_state.synced
+                session.fast_book_seq = fast_book_state.last_seq
+                session.fast_book_exchange_ts_ms = int(
+                    message.get("cts")
+                    or message.get("ts")
+                    or wall_now * 1000
+                )
                 session.last_book_at = wall_now
                 message.book_updated_mono_ns = perf_counter_ns()
                 observe_latency(
@@ -2092,6 +2145,10 @@ class TradingEngine:
                     session.deep_orderbook = session.orderbook
                     session.deep_book_synced = (
                         fast_book_state.synced
+                    )
+                    session.deep_book_seq = fast_book_state.last_seq
+                    session.deep_book_exchange_ts_ms = (
+                        session.fast_book_exchange_ts_ms
                     )
                     session.last_deep_book_at = wall_now
 
@@ -2146,6 +2203,12 @@ class TradingEngine:
                     raise
                 session.deep_book_synced = (
                     deep_book_state.synced
+                )
+                session.deep_book_seq = deep_book_state.last_seq
+                session.deep_book_exchange_ts_ms = int(
+                    message.get("cts")
+                    or message.get("ts")
+                    or wall_now * 1000
                 )
                 session.last_deep_book_at = wall_now
                 message.book_updated_mono_ns = perf_counter_ns()

@@ -1091,6 +1091,53 @@ async def test_density_is_not_evaluated_when_book_is_stale(tmp_path) -> None:
         await engine.rest.close()
 
 
+def test_deep_book_is_rejected_when_exchange_snapshot_lags_fast_book() -> None:
+    now = time()
+    session = ActiveSymbolSession(
+        symbol="SKEWUSDT",
+        candles=[candle()],
+        orderbook=book(),
+        deep_orderbook=book(99.98, 100.02),
+        last_book_at=now,
+        last_deep_book_at=now,
+        book_synced=True,
+        deep_book_synced=True,
+        fast_book_seq=120,
+        deep_book_seq=100,
+        fast_book_exchange_ts_ms=10_000,
+        deep_book_exchange_ts_ms=9_300,
+        deep_book_max_skew_seconds=0.50,
+    )
+
+    assert session.book_is_fresh(now)
+    assert not session.deep_book_is_fresh(now)
+    health = session.deep_book_health(now)
+    assert health["coherentWithFast"] is False
+    assert health["skewSeconds"] == pytest.approx(0.7)
+    assert health["fastSeq"] == 120
+    assert health["deepSeq"] == 100
+
+
+def test_deep_book_accepts_expected_l1000_update_skew() -> None:
+    now = time()
+    session = ActiveSymbolSession(
+        symbol="SKEWUSDT",
+        candles=[candle()],
+        orderbook=book(),
+        deep_orderbook=book(99.98, 100.02),
+        last_book_at=now,
+        last_deep_book_at=now,
+        book_synced=True,
+        deep_book_synced=True,
+        fast_book_exchange_ts_ms=10_000,
+        deep_book_exchange_ts_ms=9_800,
+        deep_book_max_skew_seconds=0.50,
+    )
+
+    assert session.deep_book_is_fresh(now)
+    assert session.deep_book_skew_seconds() == pytest.approx(0.2)
+
+
 def test_book_health_is_exposed_in_market_snapshot(tmp_path) -> None:
     engine = make_engine(tmp_path, book_stale_seconds=1)
     try:
