@@ -134,6 +134,8 @@ class OfflineStrategyReplay:
             )
             if trade_encoding == "delta_v1":
                 buffer = trades_by_symbol[row_symbol]
+                if bool(payload.get("tradeDeltaGap")):
+                    buffer.clear()
                 seen_sequences = {
                     trade.sequence
                     for trade in buffer
