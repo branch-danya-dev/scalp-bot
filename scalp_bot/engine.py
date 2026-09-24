@@ -1604,6 +1604,14 @@ class TradingEngine:
                             stream=stream_name(latency_message.topic),
                             strategy=strategy_name,
                         )
+                    trace_snapshot = latency_snapshot(
+                        latency_message
+                    )
+                    for decision in session.decisions.values():
+                        if decision.tradeable:
+                            decision.details[
+                                "latencyTrace"
+                            ] = trace_snapshot
                 self._arbiter_latency_message = latency_message
                 self._arbiter_trigger_symbol = symbol
                 try:
@@ -3713,6 +3721,18 @@ class TradingEngine:
             execution_mode=execution_mode,
         )
 
+    def _pop_pending_order_latency(
+        self,
+        symbol: str,
+        setup_id: str | None,
+    ) -> MarketMessage | None:
+        if not setup_id:
+            return None
+        return self._pending_order_latency.pop(
+            (symbol, str(setup_id)),
+            None,
+        )
+
     async def _arbiter_loop(self) -> None:
         while not self._stop.is_set():
             try:
@@ -4928,6 +4948,26 @@ class TradingEngine:
                 plan = dict(event.get("plan") or {})
                 decision = session.decisions.get(strategy_key)
                 plan_setup_id = str(plan.get("setup_id") or "")
+                latency_message = self._pop_pending_order_latency(
+                    session.symbol,
+                    plan_setup_id,
+                )
+                if latency_message is not None:
+                    self._mark_order_fill(
+                        latency_message,
+                        strategy=strategy_key,
+                        execution_mode="paper_maker",
+                    )
+                    strategy_details = (
+                        dict(plan.get("strategy_details") or {})
+                    )
+                    strategy_details[
+                        "latencyTrace"
+                    ] = latency_snapshot(latency_message)
+                    plan["strategy_details"] = strategy_details
+                    event["latencyTrace"] = (
+                        latency_snapshot(latency_message)
+                    )
                 if (
                     decision is None
                     or str(decision.setup_id or "") != plan_setup_id
@@ -4962,6 +5002,10 @@ class TradingEngine:
                         dict(event.get("position") or {}),
                     )
             elif event.get("event") == "entry_cancelled":
+                self._pop_pending_order_latency(
+                    session.symbol,
+                    str(event.get("setupId") or ""),
+                )
                 self._emit(
                     "entry_cancelled",
                     session.symbol,
