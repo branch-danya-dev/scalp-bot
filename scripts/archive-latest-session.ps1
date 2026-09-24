@@ -2,6 +2,7 @@ param(
     [string]$RawArchiveRoot = "data\raw-archives",
     [string]$RawArchiveMirrorPath = "",
     [string]$RunProfile = "",
+    [string]$BotCommit = "",
     [int]$CompressionLevel = 10,
     [switch]$OverwriteArchive
 )
