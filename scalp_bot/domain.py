@@ -125,6 +125,45 @@ class OrderBook:
             return None, 0.0
         return filled_quote / filled_base, filled_quote
 
+    @staticmethod
+    def _vwap_for_quantity(
+        levels: list[tuple[float, float]],
+        quantity: float,
+    ) -> tuple[float | None, float]:
+        if quantity <= 0:
+            return None, 0.0
+        remaining = quantity
+        filled_base = 0.0
+        filled_quote = 0.0
+        for price, qty in levels:
+            if price <= 0 or qty <= 0:
+                continue
+            take_base = min(remaining, qty)
+            filled_base += take_base
+            filled_quote += take_base * price
+            remaining -= take_base
+            if remaining <= max(1e-12, quantity * 1e-12):
+                break
+        if filled_base <= 0:
+            return None, 0.0
+        return filled_quote / filled_base, filled_base
+
+    def entry_vwap_quantity(
+        self,
+        side: Side,
+        quantity: float,
+    ) -> tuple[float | None, float]:
+        levels = self.asks if side == Side.LONG else self.bids
+        return self._vwap_for_quantity(levels, quantity)
+
+    def exit_vwap_quantity(
+        self,
+        side: Side,
+        quantity: float,
+    ) -> tuple[float | None, float]:
+        levels = self.bids if side == Side.LONG else self.asks
+        return self._vwap_for_quantity(levels, quantity)
+
     def entry_vwap(
         self,
         side: Side,

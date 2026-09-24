@@ -60,11 +60,18 @@ class Position:
     maker_partial_trade_notional_usd: float = 0.0
     maker_target_trade_notional_usd: float = 0.0
     entry_legs: list[dict[str, Any]] = field(default_factory=list)
+    original_quantity: float = 0.0
+    quantity: float = 0.0
 
     @property
     def initial_risk_usd(self) -> float:
         if self.initial_risk_budget_usd > 0:
             return self.initial_risk_budget_usd
+        if self.original_quantity > 0:
+            return (
+                self.original_quantity
+                * abs(self.entry - self.initial_stop)
+            )
         return (
             self.original_notional
             * abs(self.entry - self.initial_stop)
@@ -79,6 +86,8 @@ class Position:
             adverse = max(0.0, self.entry - self.stop)
         else:
             adverse = max(0.0, self.stop - self.entry)
+        if self.quantity > 0:
+            return self.quantity * adverse
         return self.notional * adverse / self.entry
 
     def cost_reserve_usd(self, config: Settings) -> float:
@@ -370,17 +379,34 @@ class PaperBroker:
                 "reason": "invalid staged add fill",
             }
 
-        combined_notional = pos.notional + plan.notional
-        if combined_notional <= 0:
+        existing_quantity = (
+            pos.quantity
+            if pos.quantity > 0
+            else (
+                pos.notional / pos.entry
+                if pos.entry > 0
+                else 0.0
+            )
+        )
+        add_quantity = (
+            plan.quantity
+            if plan.quantity > 0
+            else plan.notional / resolved_fill
+        )
+        combined_quantity = existing_quantity + add_quantity
+        if combined_quantity <= 0:
             return {
                 "allowed": False,
-                "reason": "invalid combined staged notional",
+                "reason": "invalid combined staged quantity",
             }
 
         combined_entry = (
-            pos.entry * pos.notional
-            + resolved_fill * plan.notional
-        ) / combined_notional
+            pos.entry * existing_quantity
+            + resolved_fill * add_quantity
+        ) / combined_quantity
+        combined_notional = (
+            combined_entry * combined_quantity
+        )
         if pos.side == Side.LONG:
             combined_stop = max(pos.stop, plan.stop)
             combined_target = plan.target
@@ -502,8 +528,18 @@ class PaperBroker:
         fill: float,
         entry_fee: float,
     ) -> Position:
+        fill_quantity = (
+            plan.quantity
+            if plan.quantity > 0
+            else (
+                plan.notional / fill
+                if fill > 0
+                else 0.0
+            )
+        )
+        actual_notional = fill_quantity * fill
         structural_risk_usd = (
-            plan.notional * abs(fill - plan.stop) / fill
+            fill_quantity * abs(fill - plan.stop)
             if fill > 0
             else 0.0
         )
@@ -511,8 +547,8 @@ class PaperBroker:
             symbol=plan.symbol,
             strategy=plan.strategy,
             side=plan.side,
-            original_notional=plan.notional,
-            notional=plan.notional,
+            original_notional=actual_notional,
+            notional=actual_notional,
             setup_entry=plan.setup_entry,
             entry=fill,
             initial_stop=plan.stop,
@@ -525,6 +561,8 @@ class PaperBroker:
             setup_id=plan.setup_id,
             strategy_details=dict(plan.strategy_details),
             initial_risk_budget_usd=structural_risk_usd,
+            original_quantity=fill_quantity,
+            quantity=fill_quantity,
             entry_legs=[{
                 "phase": str(
                     (
@@ -532,7 +570,8 @@ class PaperBroker:
                         or {}
                     ).get("phase") or "full"
                 ),
-                "notional": plan.notional,
+                "notional": actual_notional,
+                "quantity": fill_quantity,
                 "fill": fill,
                 "entryFeeUsd": entry_fee,
                 "structuralRiskUsd": structural_risk_usd,
@@ -564,22 +603,36 @@ class PaperBroker:
                     or "combined staged economics rejected"
                 )
             )
-        previous_notional = pos.notional
-        combined_notional = previous_notional + plan.notional
-        if combined_notional <= 0:
+        previous_quantity = (
+            pos.quantity
+            if pos.quantity > 0
+            else pos.notional / pos.entry
+        )
+        add_quantity = (
+            plan.quantity
+            if plan.quantity > 0
+            else plan.notional / fill
+        )
+        combined_quantity = previous_quantity + add_quantity
+        if combined_quantity <= 0:
             raise RuntimeError("invalid combined staged position size")
 
         weighted_entry = (
-            pos.entry * previous_notional
-            + fill * plan.notional
-        ) / combined_notional
+            pos.entry * previous_quantity
+            + fill * add_quantity
+        ) / combined_quantity
+        combined_notional = weighted_entry * combined_quantity
         incremental_structural_risk = (
-            plan.notional * abs(fill - plan.stop) / fill
+            add_quantity * abs(fill - plan.stop)
             if fill > 0
             else 0.0
         )
 
-        pos.original_notional += plan.notional
+        pos.original_quantity += add_quantity
+        pos.quantity = combined_quantity
+        pos.original_notional = (
+            pos.original_quantity * weighted_entry
+        )
         pos.notional = combined_notional
         pos.entry = weighted_entry
         pos.entry_fee_remaining += entry_fee
@@ -619,7 +672,8 @@ class PaperBroker:
                     or {}
                 ).get("phase") or "add"
             ),
-            "notional": plan.notional,
+            "notional": add_quantity * fill,
+            "quantity": add_quantity,
             "fill": fill,
             "entryFeeUsd": entry_fee,
             "structuralRiskUsd": incremental_structural_risk,
@@ -835,7 +889,15 @@ class PaperBroker:
                 "limitPrice": pending.limit_price,
                 "positionAction": pending.position_action,
             }]
-        fee = pending.plan.notional * fee_rate(
+        pending_quantity = (
+            pending.plan.quantity
+            if pending.plan.quantity > 0
+            else pending.plan.notional / pending.limit_price
+        )
+        filled_notional = (
+            pending_quantity * pending.limit_price
+        )
+        fee = filled_notional * fee_rate(
             self.config,
             "maker_limit",
         )
@@ -920,15 +982,29 @@ class PaperBroker:
             raise RuntimeError(
                 "plan exceeds remaining all-in portfolio risk budget"
             )
-        raw, visible_depth = book.entry_vwap(
-            plan.side,
-            plan.notional,
-        )
-        if (
-            raw is None
-            or visible_depth + max(1e-9, plan.notional * 1e-9)
-            < plan.notional
-        ):
+        if plan.quantity > 0:
+            raw, visible_quantity = book.entry_vwap_quantity(
+                plan.side,
+                plan.quantity,
+            )
+            insufficient = (
+                raw is None
+                or visible_quantity
+                + max(1e-12, plan.quantity * 1e-12)
+                < plan.quantity
+            )
+        else:
+            raw, visible_depth = book.entry_vwap(
+                plan.side,
+                plan.notional,
+            )
+            insufficient = (
+                raw is None
+                or visible_depth
+                + max(1e-9, plan.notional * 1e-9)
+                < plan.notional
+            )
+        if insufficient:
             raise RuntimeError("insufficient visible entry depth")
         profile = execution_profile(plan.strategy)
         slip = slippage_rate(self.config, profile.entry)
@@ -937,9 +1013,18 @@ class PaperBroker:
             plan.side,
             slip,
         )
-        fee = plan.notional * fee_rate(
-            self.config,
-            profile.entry,
+        fill_quantity = (
+            plan.quantity
+            if plan.quantity > 0
+            else plan.notional / fill
+        )
+        fee = (
+            fill_quantity
+            * fill
+            * fee_rate(
+                self.config,
+                profile.entry,
+            )
         )
         return self._position_from_fill(plan, fill, fee)
 
@@ -959,16 +1044,29 @@ class PaperBroker:
             raise RuntimeError(
                 "staged add exceeds remaining all-in portfolio risk budget"
             )
-        raw, visible_depth = book.entry_vwap(
-            plan.side,
-            plan.notional,
-        )
-        if (
-            raw is None
-            or visible_depth
-            + max(1e-9, plan.notional * 1e-9)
-            < plan.notional
-        ):
+        if plan.quantity > 0:
+            raw, visible_quantity = book.entry_vwap_quantity(
+                plan.side,
+                plan.quantity,
+            )
+            insufficient = (
+                raw is None
+                or visible_quantity
+                + max(1e-12, plan.quantity * 1e-12)
+                < plan.quantity
+            )
+        else:
+            raw, visible_depth = book.entry_vwap(
+                plan.side,
+                plan.notional,
+            )
+            insufficient = (
+                raw is None
+                or visible_depth
+                + max(1e-9, plan.notional * 1e-9)
+                < plan.notional
+            )
+        if insufficient:
             raise RuntimeError(
                 "insufficient visible entry depth for staged add"
             )
@@ -979,9 +1077,18 @@ class PaperBroker:
             plan.side,
             slip,
         )
-        fee = plan.notional * fee_rate(
-            self.config,
-            profile.entry,
+        fill_quantity = (
+            plan.quantity
+            if plan.quantity > 0
+            else plan.notional / fill
+        )
+        fee = (
+            fill_quantity
+            * fill
+            * fee_rate(
+                self.config,
+                profile.entry,
+            )
         )
         economics = self.staged_add_economics(
             plan,
@@ -1555,15 +1662,22 @@ class PaperBroker:
             raw = self._partial_limit_price(pos)
             exit_mode = profile.partial_exit
         else:
-            raw, visible_depth = book.exit_vwap(
+            share = close_notional / pos.notional
+            close_quantity = (
+                pos.quantity * share
+                if pos.quantity > 0
+                else close_notional / pos.entry
+            )
+            raw, visible_quantity = book.exit_vwap_quantity(
                 pos.side,
-                close_notional,
+                close_quantity,
             )
             if raw is None:
                 raw = book.executable_exit(pos.side) or pos.last_price
             elif (
-                visible_depth + max(1e-9, close_notional * 1e-9)
-                < close_notional
+                visible_quantity
+                + max(1e-12, close_quantity * 1e-12)
+                < close_quantity
             ):
                 levels = (
                     book.bids
@@ -1574,11 +1688,11 @@ class PaperBroker:
                     worst = float(levels[-1][0])
                     missing = max(
                         0.0,
-                        close_notional - visible_depth,
+                        close_quantity - visible_quantity,
                     )
                     missing_fraction = min(
                         1.0,
-                        missing / close_notional,
+                        missing / close_quantity,
                     )
                     tail_penalty = (
                         max(
@@ -1611,17 +1725,25 @@ class PaperBroker:
             slip,
         )
         direction = 1 if pos.side == Side.LONG else -1
+        share = close_notional / pos.notional
+        close_quantity = (
+            pos.quantity * share
+            if pos.quantity > 0
+            else close_notional / pos.entry
+        )
         gross = (
             direction
             * (fill - pos.entry)
-            / pos.entry
-            * close_notional
+            * close_quantity
         )
-        share = close_notional / pos.notional
         allocated_entry_fee = pos.entry_fee_remaining * share
-        exit_fee = close_notional * fee_rate(
-            self.config,
-            exit_mode,
+        exit_fee = (
+            close_quantity
+            * fill
+            * fee_rate(
+                self.config,
+                exit_mode,
+            )
         )
         fees = allocated_entry_fee + exit_fee
         return {
@@ -1629,6 +1751,7 @@ class PaperBroker:
             "gross": gross,
             "fees": fees,
             "net": gross - fees,
+            "quantity": close_quantity,
         }
 
     def _realize(
@@ -1656,7 +1779,11 @@ class PaperBroker:
         share = close_notional / pos.notional
         allocated_entry_fee = pos.entry_fee_remaining * share
 
-        pos.notional -= close_notional
+        pos.quantity = max(
+            0.0,
+            pos.quantity - float(leg.get("quantity") or 0.0),
+        )
+        pos.notional = pos.quantity * pos.entry
         pos.entry_fee_remaining -= allocated_entry_fee
         pos.realized_gross_usd += gross
         pos.realized_net_usd += net

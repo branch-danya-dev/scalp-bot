@@ -937,6 +937,60 @@ def test_staged_add_aggregates_position_without_widening_stop() -> None:
     assert len(closed["entryLegs"]) == 2
 
 
+def test_staged_add_weights_entry_by_base_quantity() -> None:
+    cfg = Settings(
+        start_balance=5000,
+        max_leverage=10,
+        max_total_risk_fraction=0.50,
+        absolute_min_net_reward_risk=0,
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+    )
+    broker = PaperBroker(cfg)
+
+    probe = plan("QTYUSDT", Side.LONG, 1000)
+    probe.strategy = "weak_level_rejection"
+    probe.setup_id = "qty:one"
+    probe.quantity = 10.0
+    probe.market_entry = 100.0
+    probe.stop = 90.0
+    probe.target = 130.0
+    broker.open(
+        probe,
+        OrderBook(
+            bids=[(99.99, 100)],
+            asks=[(100.0, 100)],
+        ),
+    )
+
+    add = plan("QTYUSDT", Side.LONG, 550)
+    add.strategy = probe.strategy
+    add.setup_id = probe.setup_id
+    add.quantity = 5.0
+    add.market_entry = 110.0
+    add.stop = 90.0
+    add.target = 130.0
+    broker.add(
+        add,
+        OrderBook(
+            bids=[(109.99, 100)],
+            asks=[(110.0, 100)],
+        ),
+    )
+
+    pos = broker.positions["QTYUSDT"]
+    assert pos.quantity == pytest.approx(15.0)
+    assert pos.original_quantity == pytest.approx(15.0)
+    assert pos.entry == pytest.approx(
+        (100.0 * 10.0 + 110.0 * 5.0) / 15.0
+    )
+    assert pos.notional == pytest.approx(
+        pos.entry * pos.quantity
+    )
+
+
 def test_staged_add_rejects_wrong_setup_and_side() -> None:
     cfg = Settings(
         start_balance=1000,
