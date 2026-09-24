@@ -97,6 +97,10 @@ class ActiveSymbolSession:
     flow_context: MultiHorizonFlowContext | None = None
     liquidity_evidence: LiquidityEvidence | None = None
     forming_candle_context: FormingCandleContext | None = None
+    forming_kline_start_ms: int = 0
+    forming_kline_observed_at_ms: int = 0
+    forming_trade_overlay_updates: int = 0
+    forming_trade_last_ts_ms: int = 0
     market_context: MarketContext | None = None
     market_context_fingerprint: tuple | None = None
     market_context_semantic_fingerprint: tuple | None = None
@@ -1391,6 +1395,10 @@ class TradingEngine:
                             side=str(row.get("S") or ""),
                         )
                         session.trades.append(tick)
+                        self._overlay_trade_on_forming_candle(
+                            session,
+                            tick,
+                        )
                         ticks.append(tick)
 
                     session.last_price = ticks[-1].price
@@ -1475,6 +1483,41 @@ class TradingEngine:
             self.config.orderbook_depth,
         )
 
+    @staticmethod
+    def _overlay_trade_on_forming_candle(
+        session: ActiveSymbolSession,
+        trade: TradeTick,
+    ) -> bool:
+        minute_start = (
+            trade.ts_ms // 60_000 * 60_000
+        )
+        forming = next(
+            (
+                candle
+                for candle in reversed(session.candles)
+                if (
+                    not candle.confirmed
+                    and candle.start_ms == minute_start
+                )
+            ),
+            None,
+        )
+        if forming is None:
+            return False
+
+        # Keep cumulative volume/turnover authoritative from the Bybit kline
+        # snapshot. Public trades only make OHLC geometry and close tick-native,
+        # avoiding cumulative-volume double counting across websocket topics.
+        forming.high = max(forming.high, trade.price)
+        forming.low = min(forming.low, trade.price)
+        forming.close = trade.price
+        session.forming_trade_overlay_updates += 1
+        session.forming_trade_last_ts_ms = max(
+            session.forming_trade_last_ts_ms,
+            trade.ts_ms,
+        )
+        return True
+
     def _apply_kline(
         self,
         session: ActiveSymbolSession,
@@ -1531,6 +1574,49 @@ class TradingEngine:
         latest = max(incoming, key=lambda candle: candle.start_ms)
         session.last_price = latest.close
 
+        forming = max(
+            (
+                candle
+                for candle in session.candles
+                if not candle.confirmed
+            ),
+            key=lambda candle: candle.start_ms,
+            default=None,
+        )
+        if forming is not None:
+            snapshot_observed_at_ms = int(
+                message.get("ts")
+                or time() * 1000
+            )
+            session.forming_kline_start_ms = (
+                forming.start_ms
+            )
+            session.forming_kline_observed_at_ms = (
+                snapshot_observed_at_ms
+            )
+            session.forming_trade_overlay_updates = 0
+            session.forming_trade_last_ts_ms = 0
+
+            # If a kline update is delivered after newer public trades, do not
+            # let the slower topic move live OHLC backwards. Re-apply only the
+            # tape executions newer than the kline snapshot timestamp.
+            for trade in session.trades:
+                if (
+                    trade.ts_ms > snapshot_observed_at_ms
+                    and forming.start_ms
+                    <= trade.ts_ms
+                    < forming.start_ms + 60_000
+                ):
+                    self._overlay_trade_on_forming_candle(
+                        session,
+                        trade,
+                    )
+        else:
+            session.forming_kline_start_ms = 0
+            session.forming_kline_observed_at_ms = 0
+            session.forming_trade_overlay_updates = 0
+            session.forming_trade_last_ts_ms = 0
+
     @staticmethod
     def _closed_candle_source_key(
         candles: list[Candle],
@@ -1585,6 +1671,32 @@ class TradingEngine:
             forming_1m,
             closed_1m,
             observed_at_ms=now_ms,
+            recent_trades=list(session.trades),
+            tape_updates=(
+                session.forming_trade_overlay_updates
+                if (
+                    forming_1m is not None
+                    and (
+                        session.forming_kline_start_ms
+                        in {0, forming_1m.start_ms}
+                    )
+                )
+                else 0
+            ),
+            last_trade_ts_ms=(
+                session.forming_trade_last_ts_ms
+                or None
+            ),
+            kline_snapshot_observed_at_ms=(
+                session.forming_kline_observed_at_ms
+                if (
+                    forming_1m is not None
+                    and session.forming_kline_start_ms
+                    == forming_1m.start_ms
+                    and session.forming_kline_observed_at_ms > 0
+                )
+                else None
+            ),
         )
 
         trade_flow = compute_trade_flow(
@@ -2148,6 +2260,27 @@ class TradingEngine:
                         forming.velocity_bps_per_second
                     ),
                     "direction": forming.direction.value,
+                    "priceSource": forming.price_source,
+                    "volumeSource": forming.volume_source,
+                    "tapeUpdates": forming.tape_updates,
+                    "lastTradeAgeSeconds": (
+                        forming.last_trade_age_seconds
+                    ),
+                    "klineSnapshotAgeSeconds": (
+                        forming.kline_snapshot_age_seconds
+                    ),
+                    "microMove5sBps": (
+                        forming.micro_move_5s_bps
+                    ),
+                    "microRange5sBps": (
+                        forming.micro_range_5s_bps
+                    ),
+                    "microMove15sBps": (
+                        forming.micro_move_15s_bps
+                    ),
+                    "microRange15sBps": (
+                        forming.micro_range_15s_bps
+                    ),
                 }
                 if forming is not None
                 else None
