@@ -433,5 +433,44 @@ def test_hindsight_does_not_count_density_only_as_tradeable_coverage() -> None:
     assert fit["mappedToExistingStrategy"] is True
     assert fit["mappedToTradeablePlaybook"] is False
     assert fit["closestTradeablePlaybook"] is None
+    assert opportunity["coverageClassification"] == "uncovered"
     assert report["summary"]["mappedToTradeablePlaybook"] == 0
     assert report["summary"]["unmappedToTradeablePlaybook"] == 1
+    assert report["summary"]["uncoveredOpportunities"] == 1
+    assert report["summary"]["observedUnconfirmedOpportunities"] == 0
+    assert report["summary"]["tradeableSetupSeenOpportunities"] == 0
+
+
+def test_hindsight_distinguishes_observed_unconfirmed_from_tradeable_setup() -> None:
+    rows = [
+        activated(),
+        decision(
+            5.0,
+            "level_breakout",
+            "armed",
+            reason="prepared",
+        ),
+        frame(10.0, 100.0),
+        frame(20.0, 100.25),
+        frame(30.0, 100.55),
+        deactivated(40.0),
+    ]
+
+    report = analyze_hindsight_opportunities(
+        rows,
+        taker_fee_rate=0.0005,
+        slippage_bps=0.0,
+        minimum_net_move_pct=0.001,
+    )
+
+    opportunity = report["opportunities"][0]
+    assert (
+        opportunity["coverageClassification"]
+        == "observed_unconfirmed"
+    )
+    assert report["summary"][
+        "observedUnconfirmedOpportunities"
+    ] == 1
+    assert report["summary"][
+        "tradeableSetupSeenOpportunities"
+    ] == 0
