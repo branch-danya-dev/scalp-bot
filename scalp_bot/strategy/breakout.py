@@ -22,7 +22,7 @@ from .common import (
     typical_range_pct,
     zone_visual,
 )
-from .flow import flow_at_level, flow_beyond_level
+from .flow import flow_at_level, flow_beyond_level, price_response_bps_since
 from .liquidity import find_liquidity_targets
 from .structure import (
     RESISTANCE_LEVEL_KINDS,
@@ -48,9 +48,9 @@ class BreakoutStage(StrEnum):
 
 @dataclass(slots=True)
 class BreakoutWatchState:
-    zone_key: tuple[str, str, float] | None = None
+    zone_key: tuple[str, ...] | None = None
     stage: BreakoutStage = BreakoutStage.SEARCH
-    used_generations: set[tuple[str, str, float]] = field(default_factory=set)
+    used_generations: set[tuple[str, ...]] = field(default_factory=set)
     armed_at: float = 0.0
     armed_until: float = 0.0
     armed_price: float = 0.0
@@ -170,7 +170,7 @@ class LevelBreakoutStrategy(Strategy):
         state.armed_generation_id = None
 
     @staticmethod
-    def _generation(zone: LevelZone) -> tuple[str, str, float]:
+    def _generation(zone: LevelZone) -> tuple[str, ...]:
         return (
             zone.kind,
             str(zone.last_touch_index),
@@ -615,7 +615,6 @@ class LevelBreakoutStrategy(Strategy):
             generation = (
                 zone.kind,
                 matched.generation_id,
-                round(zone.center, 8),
             )
         if state.zone_key != generation:
             state.zone_key = generation
@@ -1066,13 +1065,23 @@ class LevelBreakoutStrategy(Strategy):
             if forming is not None
             else None
         )
+        post_retest_tape_response_bps, post_retest_tape_trade_count = (
+            price_response_bps_since(
+                trades,
+                int(state.retest_at * 1000),
+                now_ms=observed_at_ms,
+            )
+            if state.retest_seen and state.retest_at > 0
+            else (None, 0)
+        )
         tape_retest_response_ready = (
-            forming_micro_move_5s_bps is not None
+            post_retest_tape_response_bps is not None
+            and post_retest_tape_trade_count >= 2
             and (
-                forming_micro_move_5s_bps
+                post_retest_tape_response_bps
                 >= self.retest_response_min_bps
                 if long_side
-                else forming_micro_move_5s_bps
+                else post_retest_tape_response_bps
                 <= -self.retest_response_min_bps
             )
         )
@@ -1193,6 +1202,12 @@ class LevelBreakoutStrategy(Strategy):
                         ),
                         "tapeRetestResponseReady": (
                             tape_retest_response_ready
+                        ),
+                        "postRetestTapeResponseBps": (
+                            post_retest_tape_response_bps
+                        ),
+                        "postRetestTapeTradeCount": (
+                            post_retest_tape_trade_count
                         ),
                         "retestResponseReady": (
                             retest_response_ready
@@ -1361,9 +1376,9 @@ class LevelBreakoutStrategy(Strategy):
             if staged_phase == "probe"
             else BreakoutStage.IMPULSE
         )
+        setup_identity = ":".join(str(part) for part in generation)
         setup_id = (
-            f"{self.key}:{action.value}:{generation[0]}:"
-            f"{generation[1]}:{generation[2]:.10g}"
+            f"{self.key}:{action.value}:{setup_identity}"
         )
         return StrategyDecision(
             strategy=self.key,
@@ -1495,6 +1510,12 @@ class LevelBreakoutStrategy(Strategy):
                 ),
                 "tapeRetestResponseReady": (
                     tape_retest_response_ready
+                ),
+                "postRetestTapeResponseBps": (
+                    post_retest_tape_response_bps
+                ),
+                "postRetestTapeTradeCount": (
+                    post_retest_tape_trade_count
                 ),
                 "retestResponseReady": retest_response_ready,
                 "requiredRetestResponseBps": (
