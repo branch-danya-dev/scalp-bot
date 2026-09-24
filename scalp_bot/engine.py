@@ -1116,6 +1116,7 @@ class TradingEngine:
             if session.last_market_at > 0
             and now - session.last_market_at <= self.config.market_stale_seconds
             and session.book_is_fresh(now)
+            and session.deep_book_is_fresh(now)
             and session.confirmed_candle_is_fresh(
                 self.config.confirmed_candle_stale_seconds,
                 now,
@@ -1137,11 +1138,24 @@ class TradingEngine:
                     now,
                 )
             ]
+            stale_deep_books = [
+                session.symbol
+                for session in self.sessions.values()
+                if (
+                    session.book_is_fresh(now)
+                    and not session.deep_book_is_fresh(now)
+                )
+            ]
             reason = (
                 "confirmed 1m candle history is stale: "
                 + ", ".join(stale_candles[:6])
                 if stale_candles
-                else "waiting for fresh synchronized websocket market data"
+                else (
+                    "waiting for synchronized deep L1000 book: "
+                    + ", ".join(stale_deep_books[:6])
+                    if stale_deep_books
+                    else "waiting for fresh synchronized websocket market data"
+                )
             )
         else:
             reason = None
@@ -1154,6 +1168,16 @@ class TradingEngine:
             "candidateCount": len(self.candidates),
             "activeSymbolCount": len(self.sessions),
             "liveSymbolCount": len(live_sessions),
+            "fastBookReadyCount": sum(
+                1
+                for session in self.sessions.values()
+                if session.book_is_fresh(now)
+            ),
+            "deepBookReadyCount": sum(
+                1
+                for session in self.sessions.values()
+                if session.deep_book_is_fresh(now)
+            ),
         }
 
     def start_block_reason(self) -> str | None:
