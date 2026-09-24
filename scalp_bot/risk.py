@@ -44,10 +44,17 @@ class RiskEngine:
             if side == Side.LONG
             else max(0.0, (raw_vwap - best) / best)
         )
-        stress = impact * max(
+        observed_stress = impact * max(
             0.0,
             self.config.stop_depth_stress_multiplier,
         )
+        floor = max(
+            0.0,
+            self.config.stop_liquidity_stress_floor_bps,
+        ) / 10_000
+        # This is deliberately a conservative proxy. The current book is an
+        # observable lower-bound input, not a claim about future stop depth.
+        stress = max(observed_stress, floor)
         return stress, impact, visible, raw_vwap
 
     def build_plan(
@@ -844,6 +851,15 @@ class RiskEngine:
             "baseStopCostPct": stop_cost_pct,
             "stopDepthStressMultiplier": (
                 self.config.stop_depth_stress_multiplier
+            ),
+            "stopLiquidityStressModel": (
+                "current_depth_proxy_plus_floor"
+            ),
+            "stopLiquidityStressFloorBps": (
+                self.config.stop_liquidity_stress_floor_bps
+            ),
+            "currentExitDepthImpactBps": (
+                stop_depth_impact_rate * 10_000
             ),
             "stopDepthImpactBps": (
                 stop_depth_impact_rate * 10_000

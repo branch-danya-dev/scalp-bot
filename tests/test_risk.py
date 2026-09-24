@@ -917,6 +917,47 @@ def test_winner_cost_share_gate_accepts_roomy_breakout() -> None:
 
 
 
+def test_stop_liquidity_proxy_reserves_floor_when_current_book_has_no_impact() -> None:
+    cfg = economic_settings(
+        enforce_min_net_profit_gate=False,
+        enforce_net_reward_risk_gate=False,
+        enforce_winner_cost_share_gate=False,
+        enforce_stop_cost_share_gate=False,
+        stop_depth_stress_multiplier=2.0,
+        stop_liquidity_stress_floor_bps=1.0,
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "FLOORUSDT",
+        StrategyDecision(
+            strategy="level_breakout",
+            action=Action.LONG,
+            reasons=["confirmed"],
+            entry=100.0,
+            stop=99.50,
+            target=101.50,
+            details={"allowRunner": False},
+        ),
+        1000,
+        OrderBook(
+            bids=[(99.99, 1_000)],
+            asks=[(100.00, 1_000)],
+        ),
+        10_000,
+        100,
+    )
+
+    assert result.allowed
+    economics = result.plan.strategy_details["economics"]
+    assert economics["currentExitDepthImpactBps"] == pytest.approx(0.0)
+    assert economics["stressedStopDepthImpactBps"] == pytest.approx(1.0)
+    assert economics["stopLiquidityStressModel"] == (
+        "current_depth_proxy_plus_floor"
+    )
+
+
 def test_passive_eligible_strategy_prices_maker_entry_when_enabled() -> None:
     cfg = economic_settings(
         passive_entry_enabled=True,

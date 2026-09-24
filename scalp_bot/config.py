@@ -124,6 +124,10 @@ class Settings(BaseSettings):
     max_stop_cost_share: float = 1.0
     enforce_stop_cost_share_gate: bool = False
     stop_depth_stress_multiplier: float = 2.0
+    # Current L1000 depth cannot predict liquidity at a future stop. Reserve
+    # a small explicit floor in addition to observed current-book impact and
+    # expose the model as a proxy rather than false precision.
+    stop_liquidity_stress_floor_bps: float = 1.0
     # When a market exit exceeds the visible execution book, do not assume
     # the missing tail exists at the last visible level. Price that tail
     # beyond the visible book with an explicit adverse paper penalty.
