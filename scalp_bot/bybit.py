@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
-from time import perf_counter_ns, time
+from contextlib import nullcontext
+from itertools import count
+from time import perf_counter_ns, time, time_ns
 from typing import Any
 
 import httpx
 import msgspec
 import websockets
+from opentelemetry import trace
 
 from .activity import (
     activity_score,
@@ -16,6 +19,14 @@ from .activity import (
 )
 from .config import Settings
 from .domain import Candidate, Candle, OrderBook
+from .latency_observability import (
+    exchange_receive_seconds,
+    observe_latency,
+    observe_market_queue,
+    span,
+    stream_name,
+    tracer,
+)
 
 
 class BybitError(RuntimeError):
@@ -43,6 +54,20 @@ class MarketMessage(msgspec.Struct):
     received_at_ns: int = 0
     queue_depth: int = 0
     queue_lag_ms: float = 0.0
+    event_id: str | None = None
+    receipt_wall_ns: int = 0
+    receipt_mono_ns: int = 0
+    parsed_mono_ns: int = 0
+    processor_started_mono_ns: int = 0
+    book_updated_mono_ns: int = 0
+    features_ready_mono_ns: int = 0
+    strategy_eval_started_mono_ns: int = 0
+    strategy_eval_finished_mono_ns: int = 0
+    fire_mono_ns: int = 0
+    order_sent_mono_ns: int = 0
+    order_ack_mono_ns: int = 0
+    fill_mono_ns: int = 0
+    otel_span: Any = None
 
     def get(self, key: str, default=None):
         return getattr(self, key, default)
@@ -53,6 +78,7 @@ _MARKET_DECODER = msgspec.json.Decoder(
     strict=False,
 )
 _JSON_ENCODER = msgspec.json.Encoder()
+_MARKET_EVENT_IDS = count(1)
 
 
 def decode_market_message(raw: bytes | str) -> MarketMessage:
@@ -476,32 +502,77 @@ async def _process_market_queue(
 ) -> None:
     while not stop_event.is_set():
         message = await queue.get()
+        active_root = message.otel_span
+        context = (
+            trace.use_span(
+                active_root,
+                end_on_exit=False,
+            )
+            if active_root is not None
+            else nullcontext()
+        )
         try:
-            message.queue_depth = queue.qsize()
-            if message.received_at_ns > 0:
+            with context:
+                message.queue_depth = queue.qsize()
+                message.processor_started_mono_ns = (
+                    perf_counter_ns()
+                )
                 lag_seconds = max(
                     0.0,
                     (
-                        perf_counter_ns()
-                        - message.received_at_ns
+                        message.processor_started_mono_ns
+                        - message.parsed_mono_ns
                     )
                     / 1_000_000_000,
-                )
+                ) if message.parsed_mono_ns > 0 else 0.0
                 message.queue_lag_ms = (
                     lag_seconds * 1000
+                )
+                stream = stream_name(message.topic)
+                observe_market_queue(
+                    stream=stream,
+                    symbol=(
+                        str(message.topic or "").split(".")[-1]
+                        if message.topic
+                        else ""
+                    ),
+                    depth=message.queue_depth,
+                    lag_seconds=lag_seconds,
+                )
+                observe_latency(
+                    "parse_to_processor",
+                    lag_seconds,
+                    stream=stream,
                 )
                 if (
                     max_lag_seconds > 0
                     and lag_seconds > max_lag_seconds
                 ):
+                    observe_latency(
+                        "parse_to_processor",
+                        lag_seconds,
+                        stream=stream,
+                        status="stale",
+                    )
                     raise MarketDataBackpressureError(
                         "market processor lag exceeded "
                         f"{max_lag_seconds:.3f}s "
                         f"(lag={lag_seconds:.3f}s, "
                         f"queue={message.queue_depth})"
                     )
-            await callback(message)
+                with span(
+                    "market.process",
+                    **{
+                        "market.event_id": message.event_id,
+                        "market.topic": message.topic,
+                        "market.queue_depth": message.queue_depth,
+                        "market.queue_lag_ms": message.queue_lag_ms,
+                    },
+                ):
+                    await callback(message)
         finally:
+            if active_root is not None:
+                active_root.end()
             queue.task_done()
 
 
@@ -559,16 +630,78 @@ async def _stream_topics(
                             "market processor stopped unexpectedly"
                         )
 
+                    receipt_wall_ns = time_ns()
+                    receipt_mono_ns = perf_counter_ns()
                     raw = await asyncio.wait_for(
                         ws.recv(decode=False),
                         timeout=35,
                     )
+                    # Receipt is captured immediately after recv returns so
+                    # socket wait time isn't counted as parser work.
+                    receipt_wall_ns = time_ns()
+                    receipt_mono_ns = perf_counter_ns()
                     message = decode_market_message(raw)
+                    parsed_mono_ns = perf_counter_ns()
                     if not message.topic:
                         continue
-                    message.received_at_ns = (
-                        perf_counter_ns()
+
+                    message.receipt_wall_ns = receipt_wall_ns
+                    message.receipt_mono_ns = receipt_mono_ns
+                    message.received_at_ns = receipt_mono_ns
+                    message.parsed_mono_ns = parsed_mono_ns
+                    message.event_id = (
+                        f"m{next(_MARKET_EVENT_IDS)}"
                     )
+                    stream = stream_name(message.topic)
+                    receive_parse = max(
+                        0.0,
+                        (
+                            parsed_mono_ns
+                            - receipt_mono_ns
+                        )
+                        / 1_000_000_000,
+                    )
+                    observe_latency(
+                        "receive_to_parse",
+                        receive_parse,
+                        stream=stream,
+                    )
+                    exchange_receive = (
+                        exchange_receive_seconds(message)
+                    )
+                    observe_latency(
+                        "exchange_to_receive",
+                        exchange_receive,
+                        stream=stream,
+                    )
+
+                    root = tracer().start_span(
+                        "market.event",
+                        start_time=receipt_wall_ns,
+                        attributes={
+                            "market.event_id": message.event_id,
+                            "market.topic": message.topic,
+                            "market.stream": stream,
+                            "market.exchange_ts_ms": int(
+                                message.cts
+                                or message.ts
+                                or 0
+                            ),
+                        },
+                    )
+                    root.add_event(
+                        "received",
+                        timestamp=receipt_wall_ns,
+                    )
+                    root.add_event(
+                        "parsed",
+                        timestamp=(
+                            receipt_wall_ns
+                            + parsed_mono_ns
+                            - receipt_mono_ns
+                        ),
+                    )
+                    message.otel_span = root
                     try:
                         queue.put_nowait(message)
                     except asyncio.QueueFull:
