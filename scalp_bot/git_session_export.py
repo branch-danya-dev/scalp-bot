@@ -284,6 +284,36 @@ class _RollingTradeDeltaNormalizer:
         return new_row
 
 
+def _sample_trade_payload(
+    row: dict,
+    *,
+    normalizer: _RollingTradeDeltaNormalizer,
+    pending_native_trades: dict[tuple[int, str], list[dict]],
+    shard_key: tuple[int, str],
+) -> dict:
+    payload = row.get("payload")
+    if not isinstance(payload, dict):
+        return {}
+    encoding = str(
+        payload.get("tradeEncoding") or "rolling_v1"
+    )
+    if encoding.startswith("delta_v1"):
+        result = dict(payload)
+        result["recentTrades"] = list(
+            pending_native_trades.get(shard_key, [])
+        )
+        result["tradeEncoding"] = "delta_v1_export_compacted"
+        pending_native_trades[shard_key] = []
+        return result
+    normalized = normalizer.transform(row)
+    normalized_payload = normalized.get("payload")
+    return (
+        normalized_payload
+        if isinstance(normalized_payload, dict)
+        else payload
+    )
+
+
 def _compact_index_event(
     row: dict,
     *,
@@ -760,6 +790,14 @@ def build_git_session_export(
     last_shard_frame: dict[tuple[int, str], float] = {}
     last_book_sample: dict[tuple[int, str], float] = {}
     normalizer = _RollingTradeDeltaNormalizer()
+    pending_native_trades: dict[
+        tuple[int, str],
+        list[dict],
+    ] = defaultdict(list)
+    last_research_row: dict[
+        tuple[int, str],
+        dict,
+    ] = {}
 
     for raw_row in _iter_rows(source):
         event = str(raw_row.get("event") or "")
@@ -805,12 +843,20 @@ def build_git_session_export(
         if not symbol:
             continue
 
-        normalized_row = normalizer.transform(raw_row)
-        normalized_payload = normalized_row.get("payload")
-        if not isinstance(normalized_payload, dict):
-            normalized_payload = payload
+        shard_key = (shard_index, symbol)
+        if event == "research_frame":
+            last_research_row[shard_key] = raw_row
+            encoding = str(
+                payload.get("tradeEncoding") or "rolling_v1"
+            )
+            if encoding.startswith("delta_v1"):
+                for trade in payload.get("recentTrades") or []:
+                    if isinstance(trade, dict):
+                        pending_native_trades[
+                            shard_key
+                        ].append(trade)
 
-        if bool(normalized_payload.get("tradeDeltaGap")):
+        if bool(payload.get("tradeDeltaGap")):
             shard_trade_gap_rows[shard_index] += 1
 
         previous = last_overview_frame.get(symbol)
@@ -825,7 +871,7 @@ def build_git_session_export(
                     "event": "research_frame",
                     "symbol": symbol,
                     "payload": _compact_frame(
-                        normalized_payload,
+                        payload,
                         fast_depth=5,
                         deep_depth=5,
                         include_trade_delta=False,
@@ -834,12 +880,23 @@ def build_git_session_export(
             )
             last_overview_frame[symbol] = ts
 
-        shard_key = (shard_index, symbol)
         previous = last_shard_frame.get(shard_key)
         if (
             previous is None
             or ts - previous >= shard_frame_seconds
         ):
+            sampled_payload = (
+                _sample_trade_payload(
+                    raw_row,
+                    normalizer=normalizer,
+                    pending_native_trades=(
+                        pending_native_trades
+                    ),
+                    shard_key=shard_key,
+                )
+                if event == "research_frame"
+                else payload
+            )
             analysis_writers[shard_index].write(
                 {
                     "ts": raw_row.get("ts"),
@@ -847,7 +904,7 @@ def build_git_session_export(
                     "event": "research_frame",
                     "symbol": symbol,
                     "payload": _compact_frame(
-                        normalized_payload,
+                        sampled_payload,
                         fast_depth=min(book_depth, 50),
                         deep_depth=book_depth,
                         include_trade_delta=True,
@@ -871,8 +928,8 @@ def build_git_session_export(
             continue
 
         deep = (
-            normalized_payload.get("deepOrderbook")
-            or normalized_payload.get("orderbook")
+            payload.get("deepOrderbook")
+            or payload.get("orderbook")
         )
         if not isinstance(deep, dict):
             continue
@@ -892,17 +949,17 @@ def build_git_session_export(
                 "symbol": symbol,
                 "payload": {
                     "focus": is_focus,
-                    "lastPrice": normalized_payload.get(
+                    "lastPrice": payload.get(
                         "lastPrice"
                     ),
-                    "marketContext": normalized_payload.get(
+                    "marketContext": payload.get(
                         "marketContext"
                     ),
                     "fastOrderbook": _trim_book(
-                        normalized_payload.get(
+                        payload.get(
                             "fastOrderbook"
                         )
-                        or normalized_payload.get(
+                        or payload.get(
                             "orderbook"
                         ),
                         min(depth, 50),
@@ -911,19 +968,19 @@ def build_git_session_export(
                         deep,
                         depth,
                     ),
-                    "fastBookHealth": normalized_payload.get(
+                    "fastBookHealth": payload.get(
                         "fastBookHealth"
                     ),
-                    "deepBookHealth": normalized_payload.get(
+                    "deepBookHealth": payload.get(
                         "deepBookHealth"
                     ),
-                    "tradeFlow": normalized_payload.get(
+                    "tradeFlow": payload.get(
                         "tradeFlow"
                     ),
-                    "bookFlow": normalized_payload.get(
+                    "bookFlow": payload.get(
                         "bookFlow"
                     ),
-                    "position": normalized_payload.get(
+                    "position": payload.get(
                         "position"
                     ),
                 },
@@ -931,6 +988,36 @@ def build_git_session_export(
         )
         shard_book_rows[shard_index] += 1
         last_book_sample[shard_key] = ts
+
+    for shard_key, final_row in last_research_row.items():
+        final_ts = _row_ts(final_row)
+        previous = last_shard_frame.get(shard_key)
+        if previous is not None and final_ts <= previous:
+            continue
+        shard_index, symbol = shard_key
+        final_payload = _sample_trade_payload(
+            final_row,
+            normalizer=normalizer,
+            pending_native_trades=pending_native_trades,
+            shard_key=shard_key,
+        )
+        analysis_writers[shard_index].write(
+            {
+                "ts": final_row.get("ts"),
+                "iso": final_row.get("iso"),
+                "event": "research_frame",
+                "symbol": symbol,
+                "payload": _compact_frame(
+                    final_payload,
+                    fast_depth=min(book_depth, 50),
+                    deep_depth=book_depth,
+                    include_trade_delta=True,
+                ),
+            }
+        )
+        shard_rows_count[shard_index] += 1
+        shard_frame_rows[shard_index] += 1
+        last_shard_frame[shard_key] = final_ts
 
     overview_parts = overview_writer.close()
     critical_parts = critical_writer.close()
