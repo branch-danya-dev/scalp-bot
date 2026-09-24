@@ -974,6 +974,7 @@ class PaperBroker:
         book: OrderBook,
         *,
         trade_price: float | None | object = _UNSET_TRADE_PRICE,
+        trade_notional_usd: float | None = None,
     ) -> list[dict]:
         pos = self.positions.get(symbol)
         if pos is None:
@@ -1041,6 +1042,7 @@ class PaperBroker:
                 )
                 else None
             ),
+            trade_notional_usd=trade_notional_usd,
         )
         economics = (
             pos.strategy_details.get("economics")
@@ -1093,12 +1095,29 @@ class PaperBroker:
                 )
                 else None
             )
-            hit_target = self._maker_exit_trade_through(
+            target_price_through = self._maker_exit_trade_through(
                 pos,
                 pos.target,
                 resolved_trade_price,
                 self.config.maker_fill_confirmation_bps,
             )
+            if (
+                target_price_through
+                and trade_notional_usd is not None
+            ):
+                pos.maker_target_trade_notional_usd += max(
+                    0.0,
+                    float(trade_notional_usd),
+                )
+                hit_target = (
+                    pos.maker_target_trade_notional_usd
+                    + 1e-9
+                    >= self._maker_required_trade_notional(
+                        pos.notional
+                    )
+                )
+            else:
+                hit_target = target_price_through
         else:
             hit_target = (
                 executable >= pos.target
@@ -1230,17 +1249,35 @@ class PaperBroker:
         exit_mode: str,
         *,
         trade_price: float | None = None,
+        trade_notional_usd: float | None = None,
     ) -> bool:
         if pos.initial_risk_usd <= 0:
             return False
         if exit_mode != "maker_limit":
             return pos.mfe_r >= self.config.partial_take_at_r
         limit_price = self._partial_limit_price(pos)
-        return self._maker_exit_trade_through(
+        price_through = self._maker_exit_trade_through(
             pos,
             limit_price,
             trade_price,
             self.config.maker_fill_confirmation_bps,
+        )
+        if not price_through:
+            return False
+        if trade_notional_usd is None:
+            return True
+
+        pos.maker_partial_trade_notional_usd += max(
+            0.0,
+            float(trade_notional_usd),
+        )
+        required = self._maker_required_trade_notional(
+            self._partial_close_notional(pos)
+        )
+        return (
+            pos.maker_partial_trade_notional_usd
+            + 1e-9
+            >= required
         )
 
     def _partial_close_notional(self, pos: Position) -> float:
