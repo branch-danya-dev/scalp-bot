@@ -27,6 +27,8 @@ Endpoints:
 
 Grafana provisions the **Scalp Bot — Latency** dashboard automatically.
 
+The checked-in observability profile samples 5% of OpenTelemetry traces to limit tracing overhead while Prometheus latency histograms still observe the full metric stream. For a short targeted trace-capture run, override `SCALP_OTEL_TRACE_SAMPLE_RATIO=1.0`.
+
 ## Latency stages
 
 Prometheus histogram `scalp_latency_seconds` records:
