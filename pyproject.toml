@@ -8,6 +8,7 @@ dependencies = [
   "uvicorn[standard]>=0.35,<1",
   "httpx>=0.28,<1",
   "websockets>=15,<16",
+  "msgspec>=0.19,<1",
   "pydantic-settings>=2.10,<3",
 ]
 
