@@ -1903,6 +1903,21 @@ class TradingEngine:
                     raise
                 session.book_synced = fast_book_state.synced
                 session.last_book_at = wall_now
+                message.book_updated_mono_ns = perf_counter_ns()
+                observe_latency(
+                    "processor_to_book",
+                    max(
+                        0.0,
+                        (
+                            message.book_updated_mono_ns
+                            - message.processor_started_mono_ns
+                        )
+                        / 1_000_000_000,
+                    )
+                    if message.processor_started_mono_ns > 0
+                    else None,
+                    stream=stream_name(message.topic),
+                )
 
                 # If both configured depths are identical, the same stream is
                 # authoritative for both roles.
@@ -1949,6 +1964,7 @@ class TradingEngine:
                         session,
                         reason,
                         observed_at_ms=event_ms,
+                        market_message=message,
                     )
 
             if deep_only:
@@ -1965,6 +1981,21 @@ class TradingEngine:
                     deep_book_state.synced
                 )
                 session.last_deep_book_at = wall_now
+                message.book_updated_mono_ns = perf_counter_ns()
+                observe_latency(
+                    "processor_to_book",
+                    max(
+                        0.0,
+                        (
+                            message.book_updated_mono_ns
+                            - message.processor_started_mono_ns
+                        )
+                        / 1_000_000_000,
+                    )
+                    if message.processor_started_mono_ns > 0
+                    else None,
+                    stream=stream_name(message.topic),
+                )
 
             if topic.startswith("kline."):
                 self._apply_kline(session, message)
@@ -2018,6 +2049,7 @@ class TradingEngine:
                         session,
                         "public_trade",
                         observed_at_ms=ticks[-1].ts_ms,
+                        market_message=message,
                     )
 
             # Periodic evaluation remains a fallback, but deep-book-only
