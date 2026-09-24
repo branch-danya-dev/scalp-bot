@@ -174,6 +174,79 @@ def _percentile(values: list[float], q: float) -> float | None:
     return rows[lo] * (1 - weight) + rows[hi] * weight
 
 
+def _histogram_percentile_ms(
+    row: dict,
+    q: float,
+) -> float | None:
+    count = row.get("count")
+    buckets = row.get("buckets")
+    if (
+        not isinstance(count, (int, float))
+        or count <= 0
+        or not isinstance(buckets, dict)
+    ):
+        return None
+    target = float(count) * q
+    finite = []
+    for raw_le, raw_count in buckets.items():
+        if raw_le == "+Inf":
+            continue
+        try:
+            upper = float(raw_le)
+            cumulative = float(raw_count)
+        except (TypeError, ValueError):
+            continue
+        finite.append((upper, cumulative))
+    for upper, cumulative in sorted(finite):
+        if cumulative >= target:
+            return upper * 1000
+    return None
+
+
+def _prometheus_latency_summary(
+    snapshot: dict | None,
+) -> list[dict]:
+    if not isinstance(snapshot, dict):
+        return []
+    rows = snapshot.get("latencyHistogram")
+    if not isinstance(rows, list):
+        return []
+    result = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        labels = row.get("labels")
+        if not isinstance(labels, dict):
+            labels = {}
+        result.append({
+            "labels": labels,
+            "samples": row.get("count"),
+            "meanMs": (
+                float(row.get("sum")) * 1000
+                / float(row.get("count"))
+                if (
+                    isinstance(row.get("sum"), (int, float))
+                    and isinstance(row.get("count"), (int, float))
+                    and float(row.get("count")) > 0
+                )
+                else None
+            ),
+            "p50Ms": _histogram_percentile_ms(
+                row,
+                0.50,
+            ),
+            "p95Ms": _histogram_percentile_ms(
+                row,
+                0.95,
+            ),
+            "p99Ms": _histogram_percentile_ms(
+                row,
+                0.99,
+            ),
+        })
+    return result
+
+
 def _latency_summary(
     traces: dict[str, dict],
     *,
@@ -213,6 +286,11 @@ def _latency_summary(
         "traceEvents": len(rows),
         "stages": stages,
         "events": rows,
+        "prometheusSummary": (
+            _prometheus_latency_summary(
+                histogram_snapshot
+            )
+        ),
         "prometheusSnapshot": (
             histogram_snapshot
             if isinstance(histogram_snapshot, dict)
