@@ -125,6 +125,7 @@ class BybitRestClient:
         self.client = httpx.AsyncClient(timeout=10.0)
         self._request_lock = asyncio.Lock()
         self._last_request_at = 0.0
+        self._instrument_rules: dict[str, InstrumentRules] = {}
 
     @property
     def active_rest_url(self) -> str:
@@ -372,6 +373,46 @@ class BybitRestClient:
         for index, item in enumerate(rows, start=1):
             item.activity_rank = index
         return rows
+
+    async def instrument_rules(
+        self,
+        symbol: str,
+    ) -> InstrumentRules:
+        cached = self._instrument_rules.get(symbol)
+        if cached is not None:
+            return cached
+        result = await self._get(
+            "/v5/market/instruments-info",
+            {
+                "category": "linear",
+                "symbol": symbol,
+            },
+        )
+        rows = result.get("list") or []
+        if not rows:
+            raise BybitError(
+                f"Bybit instrument metadata unavailable for {symbol}"
+            )
+        item = rows[0]
+        price_filter = item.get("priceFilter") or {}
+        lot_filter = item.get("lotSizeFilter") or {}
+        rules = InstrumentRules(
+            symbol=symbol,
+            tick_size=float(price_filter.get("tickSize") or 0),
+            qty_step=float(lot_filter.get("qtyStep") or 0),
+            min_order_qty=float(
+                lot_filter.get("minOrderQty") or 0
+            ),
+            min_notional_value=float(
+                lot_filter.get("minNotionalValue") or 0
+            ),
+        )
+        if rules.tick_size <= 0 or rules.qty_step <= 0:
+            raise BybitError(
+                f"Bybit instrument metadata is incomplete for {symbol}"
+            )
+        self._instrument_rules[symbol] = rules
+        return rules
 
     async def klines(self, symbol: str, interval: str, limit: int = 240) -> list[Candle]:
         result = await self._get(

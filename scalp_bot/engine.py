@@ -13,7 +13,7 @@ from .bybit import (
     stream_symbol,
 )
 from .config import Settings
-from .domain import Action, Candle, Candidate, OrderBook, Side, StrategyDecision, TradeTick, Trend
+from .domain import Action, Candle, Candidate, InstrumentRules, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .paper import PaperBroker, Position
 from .expectancy import StrategyExpectancyBook
 from .strategy_policy import minimum_expectancy_r
@@ -125,6 +125,7 @@ class ActiveSymbolSession:
     forming_price_source: str = "kline"
     forming_volume_source: str = "kline_snapshot"
     market_context: MarketContext | None = None
+    instrument_rules: InstrumentRules | None = None
     market_context_fingerprint: tuple | None = None
     market_context_semantic_fingerprint: tuple | None = None
     last_market_context_event_at: float = 0.0
@@ -726,6 +727,11 @@ class ActiveSymbolSession:
             "fastOrderbook": self.orderbook.public(50),
             "deepOrderbook": self.depth_orderbook().public(50),
             "densityContext": self.density_context(now_ms),
+            "instrumentRules": (
+                self.instrument_rules.public()
+                if self.instrument_rules is not None
+                else None
+            ),
             "bookHealth": self.book_health(),
             "fastBookHealth": self.book_health(),
             "deepBookHealth": self.deep_book_health(),
@@ -1835,7 +1841,13 @@ class TradingEngine:
         self.sessions.pop(symbol, None)
 
     async def _bootstrap_symbol(self, symbol: str) -> None:
-        candles, context_5m, context_15m, context_1h = await asyncio.gather(
+        (
+            candles,
+            context_5m,
+            context_15m,
+            context_1h,
+            instrument_rules,
+        ) = await asyncio.gather(
             self.rest.klines(
                 symbol,
                 "1",
@@ -1856,6 +1868,7 @@ class TradingEngine:
                 "60",
                 self.config.bootstrap_1h_candles,
             ),
+            self.rest.instrument_rules(symbol),
         )
         now = time()
         session = ActiveSymbolSession(
@@ -1876,6 +1889,7 @@ class TradingEngine:
             confirmed_candle_stale_after_seconds=(
                 self.config.confirmed_candle_stale_seconds
             ),
+            instrument_rules=instrument_rules,
             activated_at=now,
             last_ranked_at=now,
         )
@@ -3874,6 +3888,7 @@ class TradingEngine:
             self.broker.available_notional,
             self.broker.available_risk_usd,
             depth_book=session.execution_depth_orderbook(),
+            instrument_rules=session.instrument_rules,
             setup_id=setup_id,
             existing_position_notional=(
                 existing_position.notional
