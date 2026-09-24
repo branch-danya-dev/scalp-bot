@@ -22,6 +22,11 @@ class StructureContext:
     resistance_distance_pct: float | None
     support_trendline: TrendLine | None
     resistance_trendline: TrendLine | None
+    # Full internal directional rows let semantic arbitration skip a weak
+    # nearest level and still see the next mature obstacle. They are omitted
+    # from public telemetry to keep MarketContext compact.
+    support_levels: tuple[StructuralLevel, ...] = ()
+    resistance_levels: tuple[StructuralLevel, ...] = ()
 
     def public(self) -> dict[str, Any]:
         return {
@@ -250,6 +255,12 @@ def build_structure_context(
         resistance_distance_pct=resistance_distance,
         support_trendline=structure.trendline("support"),
         resistance_trendline=structure.trendline("resistance"),
+        support_levels=tuple(
+            structure.directional_levels("support")
+        ),
+        resistance_levels=tuple(
+            structure.directional_levels("resistance")
+        ),
     )
 
 

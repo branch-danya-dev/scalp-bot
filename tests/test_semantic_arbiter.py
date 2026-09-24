@@ -667,3 +667,165 @@ def test_fresh_single_touch_day_high_is_still_structural_obstacle() -> None:
     assert path.obstacle_before_first_take is True
     assert path.blocked is True
     assert path.obstacle["kind"] == "day_high"
+
+
+
+def test_day_high_is_not_owned_even_if_generation_id_is_reused() -> None:
+    shared_generation = "R:resistance:100:g1"
+    day_high = mature_level(
+        "day_high",
+        100.05,
+        100.05,
+        generation=shared_generation,
+    )
+    ctx = context(resistance=day_high)
+    trade = decision(
+        "level_breakout",
+        Action.LONG,
+        entry=100.0,
+        stop=99.50,
+        target=101.0,
+        watched_level=100.0,
+        details={
+            "state": "impulse",
+            "zone": {
+                "kind": "resistance",
+                "low": 99.95,
+                "high": 100.10,
+            },
+            "levelLifecycle": {
+                "generation_id": shared_generation,
+            },
+            "opportunityFreshness": {
+                "classification": "fresh",
+            },
+            "flowAlignment": {
+                "classification": "strongly_aligned",
+            },
+            "liquidityAlignment": {
+                "classification": "supportive",
+            },
+        },
+    )
+
+    assessment = assess_candidate(trade, ctx)
+
+    assert (
+        assessment.structural_path.own_breakout_level_exempted
+        is False
+    )
+    assert assessment.structural_path.obstacle_before_first_take
+
+
+
+def test_structural_path_uses_final_target_when_partial_is_not_economically_planned() -> None:
+    resistance = mature_level(
+        "resistance",
+        100.65,
+        100.75,
+        generation="R:g-partial-gap",
+    )
+    ctx = context(resistance=resistance)
+    trade = decision(
+        "weak_level_rejection",
+        Action.LONG,
+        entry=100.0,
+        stop=99.50,
+        target=101.0,
+    )
+
+    with_partial = assess_candidate(
+        trade,
+        ctx,
+        partial_take_at_r=1.0,
+        partial_take_enabled=True,
+    )
+    assert with_partial.allowed is True
+    assert (
+        with_partial.structural_path.obstacle_before_first_take
+        is False
+    )
+
+    trade.details["plannedPartialEnabled"] = False
+    without_partial = assess_candidate(
+        trade,
+        ctx,
+        partial_take_at_r=1.0,
+        partial_take_enabled=True,
+    )
+
+    assert without_partial.allowed is False
+    assert (
+        without_partial.structural_path.obstacle_before_first_take
+        is True
+    )
+    assert (
+        "mature_structural_obstacle_before_first_take"
+        in without_partial.blockers
+    )
+
+
+
+def test_arbiter_skips_weak_nearest_level_and_finds_next_mature_obstacle() -> None:
+    weak_nearest = StructuralLevel(
+        kind="resistance",
+        low=100.10,
+        high=100.15,
+        touches=1,
+        timeframe="1m",
+        score=0.3,
+        lifecycle="fresh",
+        distinct_approaches=1,
+    )
+    mature_farther = mature_level(
+        "day_high",
+        100.35,
+        100.35,
+        generation="R:day_high:g1",
+    )
+    structure = StructureContext(
+        reference_price=100.0,
+        level_count=2,
+        trendline_count=0,
+        nearest_support=None,
+        nearest_resistance=weak_nearest,
+        support_distance_pct=None,
+        resistance_distance_pct=0.001,
+        support_trendline=None,
+        resistance_trendline=None,
+        support_levels=(),
+        resistance_levels=(
+            weak_nearest,
+            mature_farther,
+        ),
+    )
+    ctx = MarketContext(
+        symbol="AAAUSDT",
+        observed_at_ms=100_000,
+        last_price=100.0,
+        legacy_trend=Trend.FLAT,
+        htf_bias=None,
+        local_regime=None,
+        flow=None,
+        liquidity=None,
+        structure=structure,
+        execution=execution_ready(),
+    )
+    trade = decision(
+        "weak_level_rejection",
+        Action.LONG,
+        entry=100.0,
+        stop=99.50,
+        target=101.0,
+    )
+
+    assessment = assess_candidate(
+        trade,
+        ctx,
+        partial_take_at_r=1.0,
+        partial_take_enabled=True,
+    )
+
+    assert assessment.allowed is False
+    assert assessment.structural_path.obstacle["kind"] == "day_high"
+    assert assessment.structural_path.obstacle_before_first_take is True

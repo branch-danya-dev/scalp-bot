@@ -42,9 +42,24 @@ class LevelLifecycleTracker:
     @staticmethod
     def _id(level: StructuralLevel, reference_price: float) -> str:
         ratio = 1.0006
-        bucket = floor(log(max(level.center, 1e-12)) / log(ratio))
-        side = "S" if level.kind in {"support", "day_low", "previous_day_low"} else "R"
-        return f"{side}:{bucket}"
+        bucket = floor(
+            log(max(level.center, 1e-12)) / log(ratio)
+        )
+        side = (
+            "S"
+            if level.kind in {
+                "support",
+                "day_low",
+                "previous_day_low",
+            }
+            else "R"
+        )
+        # Price buckets stabilize detector drift, but structurally different
+        # market objects must never share one generation. In particular a
+        # local resistance and day_high at the same price are separate
+        # obstacles and have different ownership semantics in the arbiter.
+        object_kind = str(level.kind or "unknown")
+        return f"{side}:{object_kind}:{bucket}"
 
     def update(
         self,

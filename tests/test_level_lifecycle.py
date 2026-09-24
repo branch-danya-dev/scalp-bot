@@ -180,3 +180,33 @@ def test_lifecycle_timestamps_are_exposed_on_level() -> None:
     assert level.first_seen_ms == 10_000
     assert level.last_seen_ms == 20_000
     assert level.last_approach_ms == 20_000
+
+
+
+def test_daily_extreme_and_local_level_never_share_generation_identity() -> None:
+    tracker = LevelLifecycleTracker()
+    rows = [candle(i, 99.0) for i in range(20)]
+    local = StructuralLevel(
+        kind="resistance",
+        low=100.00,
+        high=100.05,
+        touches=4,
+        timeframe="5m",
+        score=0.8,
+    )
+    day_high = StructuralLevel(
+        kind="day_high",
+        low=100.02,
+        high=100.02,
+        touches=1,
+        timeframe="1D",
+        score=0.92,
+    )
+    structure = MarketStructure(levels=[local, day_high])
+
+    tracker.update(structure, rows, 99.5, 1_000)
+
+    assert local.level_id != day_high.level_id
+    assert local.generation_id != day_high.generation_id
+    assert ":resistance:" in str(local.level_id)
+    assert ":day_high:" in str(day_high.level_id)

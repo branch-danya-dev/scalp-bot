@@ -213,6 +213,13 @@ def _decision_owns_level(
     decision: StrategyDecision,
     level: StructuralLevel,
 ) -> bool:
+    # Daily/session extremes are independent structural market objects.
+    # They can overlap the traded detector zone, but must never inherit its
+    # own-level exemption even if malformed/replayed telemetry accidentally
+    # reuses a generation id.
+    if level.kind not in {"support", "resistance"}:
+        return False
+
     details = decision.details or {}
     lifecycle = details.get("levelLifecycle")
     if isinstance(lifecycle, dict):
@@ -227,10 +234,7 @@ def _decision_owns_level(
             )
 
     # Fallback only for ordinary detector zones that predate exact generation
-    # telemetry. Day/previous-day references are separate market objects and
-    # must never be exempted merely because they overlap a breakout zone.
-    if level.kind not in {"support", "resistance"}:
-        return False
+    # telemetry.
     return _zone_overlaps_level(decision, level)
 
 
@@ -241,6 +245,14 @@ def assess_structural_path(
     partial_take_at_r: float = 1.0,
     partial_take_enabled: bool = True,
 ) -> StructuralPathAssessment:
+    planned_partial = (
+        (decision.details or {}).get(
+            "plannedPartialEnabled"
+        )
+    )
+    if isinstance(planned_partial, bool):
+        partial_take_enabled = planned_partial
+
     side = decision.action.value
     if (
         not decision.tradeable
@@ -287,12 +299,68 @@ def assess_structural_path(
     )
     if decision.action == Action.LONG:
         first_take = entry + first_take_distance
-        obstacle = context.structure.nearest_resistance
+        directional_rows = (
+            list(context.structure.resistance_levels)
+            if context.structure.resistance_levels
+            else (
+                [context.structure.nearest_resistance]
+                if context.structure.nearest_resistance is not None
+                else []
+            )
+        )
+        mature_rows = [
+            level
+            for level in directional_rows
+            if (
+                level.high >= entry
+                and _mature_obstacle(level)
+            )
+        ]
+        obstacle = (
+            min(
+                mature_rows,
+                key=lambda level: (
+                    max(0.0, level.low - entry),
+                    abs(level.center - entry),
+                    -level.score,
+                ),
+            )
+            if mature_rows
+            else None
+        )
     else:
         first_take = entry - first_take_distance
-        obstacle = context.structure.nearest_support
+        directional_rows = (
+            list(context.structure.support_levels)
+            if context.structure.support_levels
+            else (
+                [context.structure.nearest_support]
+                if context.structure.nearest_support is not None
+                else []
+            )
+        )
+        mature_rows = [
+            level
+            for level in directional_rows
+            if (
+                level.low <= entry
+                and _mature_obstacle(level)
+            )
+        ]
+        obstacle = (
+            min(
+                mature_rows,
+                key=lambda level: (
+                    max(0.0, entry - level.high),
+                    abs(level.center - entry),
+                    -level.score,
+                ),
+            )
+            if mature_rows
+            else None
+        )
 
-    if obstacle is None or not _mature_obstacle(obstacle):
+    if obstacle is None:
         return StructuralPathAssessment(
             blocked=False,
             side=side,

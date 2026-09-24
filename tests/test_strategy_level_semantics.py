@@ -810,3 +810,89 @@ def test_breakout_sustained_hold_fires_only_with_real_price_response(
         fired.details["fireTrigger"]["source"]
         == "breakout_sustained_price_response"
     )
+
+
+
+def test_rejection_keeps_exact_selected_structural_generation() -> None:
+    strategy = WeakLevelRejectionStrategy()
+    strategy.staged_entries_enabled = True
+    support = StructuralLevel(
+        kind="support",
+        low=99.96,
+        high=100.05,
+        touches=2,
+        timeframe="1m",
+        score=0.72,
+        reaction_pct=0.003,
+        volume_ratio=1.10,
+        last_touch_index=48,
+        level_id="S:selected",
+        generation_id="S:selected:g4",
+        distinct_approaches=2,
+        dwell_bars=2,
+        acceptance_bars=1,
+        failed_breaks=1,
+        sweeps=1,
+        lifecycle="tested",
+    )
+    # Deliberately place a resistance even closer to current price. The
+    # support zone is the only context-allowed LONG rejection object and its
+    # lifecycle may not be proximity-rematched to this resistance.
+    resistance = StructuralLevel(
+        kind="resistance",
+        low=100.08,
+        high=100.11,
+        touches=2,
+        timeframe="1m",
+        score=0.75,
+        reaction_pct=0.003,
+        volume_ratio=1.10,
+        last_touch_index=48,
+        level_id="R:nearby",
+        generation_id="R:nearby:g9",
+        distinct_approaches=2,
+        dwell_bars=2,
+        acceptance_bars=1,
+        failed_breaks=0,
+        sweeps=0,
+        lifecycle="tested",
+    )
+    structure = MarketStructure(
+        levels=[resistance, support],
+    )
+
+    decision = strategy.evaluate(
+        rejection_candles(),
+        OrderBook(
+            bids=[(100.09, 50)],
+            asks=[(100.10, 50)],
+        ),
+        Trend.UP,
+        symbol="REJECTIDENTITYUSDT",
+        trades=buy_flow(),
+        structure=structure,
+    )
+
+    assert decision.action == Action.LONG
+    assert decision.details["levelGeneration"] == "S:selected:g4"
+    assert (
+        decision.details["levelLifecycle"]["generation_id"]
+        == "S:selected:g4"
+    )
+
+    # Pinning must preserve the same lifecycle object on the next evaluation.
+    second = strategy.evaluate(
+        rejection_candles(),
+        OrderBook(
+            bids=[(100.09, 50)],
+            asks=[(100.10, 50)],
+        ),
+        Trend.UP,
+        symbol="REJECTIDENTITYUSDT",
+        trades=buy_flow(),
+        structure=structure,
+    )
+    assert (
+        second.details["levelLifecycle"]["generation_id"]
+        == "S:selected:g4"
+    )

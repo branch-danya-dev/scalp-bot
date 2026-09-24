@@ -38,9 +38,88 @@ def correlation_1h(candles: list[Candle], benchmark: list[Candle]) -> float | No
     return max(-1.0, min(1.0, value))
 
 
+def _level_proximity_score(
+    candles: list[Candle],
+    *,
+    baseline_range_pct: float,
+) -> float:
+    if len(candles) < 12 or candles[-1].close <= 0:
+        return 0.0
+
+    window = candles[-40:]
+    pivots: list[float] = []
+    span = 2
+    for index in range(span, len(window) - span):
+        row = window[index]
+        left = window[index - span:index]
+        right = window[index + 1:index + span + 1]
+        if (
+            row.high >= max(item.high for item in left)
+            and row.high >= max(item.high for item in right)
+        ):
+            pivots.append(row.high)
+        if (
+            row.low <= min(item.low for item in left)
+            and row.low <= min(item.low for item in right)
+        ):
+            pivots.append(row.low)
+
+    if len(pivots) < 2:
+        return 0.0
+
+    current = candles[-1].close
+    cluster_tolerance = max(
+        baseline_range_pct * 0.75,
+        0.0005,
+    )
+    clusters: list[list[float]] = []
+    for price in pivots:
+        match = next(
+            (
+                cluster
+                for cluster in clusters
+                if abs(
+                    price
+                    - sum(cluster) / len(cluster)
+                )
+                / max(
+                    sum(cluster) / len(cluster),
+                    1e-9,
+                )
+                <= cluster_tolerance
+            ),
+            None,
+        )
+        if match is None:
+            clusters.append([price])
+        else:
+            match.append(price)
+
+    significant = [
+        sum(cluster) / len(cluster)
+        for cluster in clusters
+        if len(cluster) >= 2
+    ]
+    if not significant:
+        return 0.0
+
+    distance = min(
+        abs(current - level) / current
+        for level in significant
+    )
+    approach_window = max(
+        0.004,
+        baseline_range_pct * 3.0,
+    )
+    return max(
+        0.0,
+        min(1.0, 1.0 - distance / approach_window),
+    )
+
+
 def opportunity_readiness(
     candles: list[Candle],
-) -> tuple[float, float, float, float]:
+) -> tuple[float, float, float, float, float]:
     """Estimate pre-opportunity state without predicting a direction.
 
     The scanner should prefer markets transitioning from compression into
@@ -49,7 +128,7 @@ def opportunity_readiness(
     """
     confirmed = [row for row in candles if row.confirmed]
     if len(confirmed) < 12:
-        return 0.0, 1.0, 1.0, 0.0
+        return 0.0, 1.0, 1.0, 0.0, 0.0
 
     def range_pct(row: Candle) -> float:
         return (
@@ -67,7 +146,7 @@ def opportunity_readiness(
         if value > 0
     ]
     if len(ranges) < 10:
-        return 0.0, 1.0, 1.0, 0.0
+        return 0.0, 1.0, 1.0, 0.0, 0.0
 
     recent_rows = confirmed[-7:]
     compression_rows = recent_rows[:5]
@@ -138,16 +217,22 @@ def opportunity_readiness(
             1.0 - max(0.0, move_spent_ratio - 0.35) / 1.0,
         ),
     )
+    level_proximity_score = _level_proximity_score(
+        confirmed,
+        baseline_range_pct=baseline,
+    )
     readiness = 100.0 * (
-        compression_score * 0.40
-        + expansion_score * 0.35
+        compression_score * 0.30
+        + expansion_score * 0.25
         + unspent_score * 0.25
+        + level_proximity_score * 0.20
     )
     return (
         readiness,
         compression_ratio,
         expansion_ratio,
         move_spent_ratio,
+        level_proximity_score,
     )
 
 

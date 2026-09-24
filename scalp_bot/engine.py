@@ -1380,28 +1380,47 @@ class TradingEngine:
             elif topic.startswith("publicTrade."):
                 rows = message.get("data") or []
                 if rows:
+                    ticks: list[TradeTick] = []
                     for row in rows:
-                        session.trades.append(
-                            TradeTick(
-                                ts_ms=int(row.get("T") or time() * 1000),
-                                price=float(row["p"]),
-                                size=float(row["v"]),
-                                side=str(row.get("S") or ""),
-                            )
+                        tick = TradeTick(
+                            ts_ms=int(
+                                row.get("T") or time() * 1000
+                            ),
+                            price=float(row["p"]),
+                            size=float(row["v"]),
+                            side=str(row.get("S") or ""),
                         )
-                    session.last_price = float(rows[-1]["p"])
+                        session.trades.append(tick)
+                        ticks.append(tick)
+
+                    session.last_price = ticks[-1].price
                     session.last_trade_stream_at = wall_now
                     prune_trades(
                         session.trades,
-                        int(rows[-1].get("T") or time() * 1000),
+                        ticks[-1].ts_ms,
                         self.config.trade_buffer_seconds,
                     )
-                    self._mark_execution_from_market(
-                        session,
-                        trade_ts_ms=int(
-                            rows[-1].get("T") or time() * 1000
-                        ),
-                    )
+
+                    # Pending maker orders must consume the newest tape before
+                    # they are allowed to fill. Otherwise the same trade batch
+                    # can invalidate a setup and fill its stale limit before
+                    # the next 0.20s strategy evaluation.
+                    if symbol in self.broker.pending_entries:
+                        session.last_eval = monotonic()
+                        await self._evaluate(session)
+
+                    # A publicTrade websocket payload may contain several
+                    # executions. Replay them in order so a maker entry/target
+                    # crossing in an earlier row is not lost just because the
+                    # final trade retraced.
+                    for tick in ticks:
+                        session.last_price = tick.price
+                        self._mark_execution_from_market(
+                            session,
+                            trade_ts_ms=tick.ts_ms,
+                            trade_price=tick.price,
+                        )
+                    session.last_price = ticks[-1].price
 
             now = monotonic()
             evaluation_interval = self._evaluation_interval_seconds(
@@ -2652,6 +2671,38 @@ class TradingEngine:
         bucket = session.candles[-1].start_ms // 300_000 if session.candles else 0
         return f"{decision.strategy}:{decision.action.value}:window:{bucket}"
 
+    def _build_risk_plan_for_opportunity(
+        self,
+        session: ActiveSymbolSession,
+        decision: StrategyDecision,
+        setup_id: str,
+        position_action: str,
+        existing_position: Position | None,
+    ):
+        return self.risk.build_plan(
+            session.symbol,
+            decision,
+            self.broker.balance,
+            session.orderbook,
+            self.broker.available_notional,
+            self.broker.available_risk_usd,
+            setup_id=setup_id,
+            existing_position_notional=(
+                existing_position.notional
+                if position_action == "add"
+                and existing_position is not None
+                else 0.0
+            ),
+            existing_position_all_in_risk_usd=(
+                existing_position.all_in_risk_usd(
+                    self.config
+                )
+                if position_action == "add"
+                and existing_position is not None
+                else 0.0
+            ),
+        )
+
     async def _arbiter_loop(self) -> None:
         while not self._stop.is_set():
             try:
@@ -2867,28 +2918,12 @@ class TradingEngine:
                     )
                     continue
 
-                result = self.risk.build_plan(
-                    session.symbol,
+                result = self._build_risk_plan_for_opportunity(
+                    session,
                     decision,
-                    self.broker.balance,
-                    session.orderbook,
-                    self.broker.available_notional,
-                    self.broker.available_risk_usd,
-                    setup_id=setup_id,
-                    existing_position_notional=(
-                        existing_position.notional
-                        if position_action == "add"
-                        and existing_position is not None
-                        else 0.0
-                    ),
-                    existing_position_all_in_risk_usd=(
-                        existing_position.all_in_risk_usd(
-                            self.config
-                        )
-                        if position_action == "add"
-                        and existing_position is not None
-                        else 0.0
-                    ),
+                    setup_id,
+                    position_action,
+                    existing_position,
                 )
                 if not result.allowed or result.plan is None:
                     diagnostics = dict(
@@ -2904,6 +2939,113 @@ class TradingEngine:
                         diagnostics=diagnostics,
                     )
                     continue
+
+                # RiskEngine knows whether a 1R partial is actually
+                # economically executable. Feed that lifecycle back into the
+                # semantic path check before any order can be selected. If the
+                # longer real path exposes a new structural obstacle and
+                # reduces riskScale, rebuild the plan at the stricter size.
+                post_plan_assessment = base_assessment
+                post_plan_blocked = False
+                for _ in range(3):
+                    economics = (
+                        result.plan.strategy_details.get(
+                            "economics"
+                        )
+                        if isinstance(
+                            result.plan.strategy_details,
+                            dict,
+                        )
+                        else None
+                    )
+                    planned_partial = (
+                        bool(economics.get("partialPlanned"))
+                        if isinstance(economics, dict)
+                        and "partialPlanned" in economics
+                        else self.config.partial_take_enabled
+                    )
+                    decision.details[
+                        "plannedPartialEnabled"
+                    ] = planned_partial
+                    if isinstance(economics, dict):
+                        decision.details[
+                            "plannedFirstTakeMovePct"
+                        ] = economics.get(
+                            "firstTakeMovePct"
+                        )
+
+                    revised = assess_candidate(
+                        decision,
+                        session.market_context,
+                        partial_take_at_r=(
+                            self.config.partial_take_at_r
+                        ),
+                        partial_take_enabled=planned_partial,
+                    )
+                    if not revised.allowed:
+                        self._record_arbiter_blocked(
+                            session,
+                            decision,
+                            revised,
+                        )
+                        post_plan_assessment = revised
+                        post_plan_blocked = True
+                        break
+
+                    current_scale = float(
+                        decision.details.get(
+                            "riskScale",
+                            1.0,
+                        )
+                    )
+                    stricter_scale = min(
+                        current_scale,
+                        revised.risk_scale,
+                    )
+                    post_plan_assessment = revised
+                    if stricter_scale >= current_scale - 1e-9:
+                        break
+
+                    decision.details["riskScale"] = (
+                        stricter_scale
+                    )
+                    decision.details["riskScaleSource"] = (
+                        "semantic_arbiter_post_economics"
+                    )
+                    result = (
+                        self._build_risk_plan_for_opportunity(
+                            session,
+                            decision,
+                            setup_id,
+                            position_action,
+                            existing_position,
+                        )
+                    )
+                    if (
+                        not result.allowed
+                        or result.plan is None
+                    ):
+                        diagnostics = dict(
+                            result.diagnostics or {}
+                        )
+                        diagnostics[
+                            "semanticArbitration"
+                        ] = revised.public()
+                        self._risk_reject_if_changed(
+                            session,
+                            decision,
+                            result.reason,
+                            diagnostics=diagnostics,
+                        )
+                        post_plan_blocked = True
+                        break
+
+                if post_plan_blocked or result.plan is None:
+                    continue
+                base_assessment = post_plan_assessment
+                decision.details["semanticArbitration"] = (
+                    base_assessment.public()
+                )
 
                 if position_action == "add":
                     allowed, add_reason = self.broker.can_add(
@@ -3631,7 +3773,13 @@ class TradingEngine:
         pos = self.broker.positions.get(session.symbol)
         if pos is None:
             return
-        if time() - pos.opened_at < 5:
+        if (
+            time() - pos.opened_at
+            < max(
+                0.0,
+                self.config.strategy_invalidation_grace_seconds,
+            )
+        ):
             return
         strategy = self.strategies.get(pos.strategy)
         if strategy is None:
@@ -3663,10 +3811,16 @@ class TradingEngine:
         session: ActiveSymbolSession,
         *,
         trade_ts_ms: int | None = None,
+        trade_price: float | None = None,
     ) -> None:
+        resolved_trade_price = (
+            float(trade_price)
+            if isinstance(trade_price, (int, float))
+            else session.last_price
+        )
         pending_events = self.broker.mark_pending(
             session.symbol,
-            session.last_price,
+            resolved_trade_price,
             trade_ts_ms=trade_ts_ms,
         )
         for event in pending_events:
@@ -3721,7 +3875,7 @@ class TradingEngine:
                 )
         self._mark_position_from_book(
             session,
-            trade_price=session.last_price,
+            trade_price=resolved_trade_price,
         )
 
     def _mark_position_from_book(

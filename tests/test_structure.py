@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import pytest
+
 from scalp_bot.domain import Candle
 from scalp_bot.strategy.structure import (
     aggregate_candles,
@@ -149,3 +151,51 @@ def test_nearest_directional_includes_day_and_previous_day_levels() -> None:
 
     assert resistance is previous_day
     assert support is current_day_low
+
+
+
+def test_current_day_extremes_include_newer_confirmed_one_minute_data() -> None:
+    day = int(
+        datetime(
+            2026,
+            9,
+            22,
+            tzinfo=timezone.utc,
+        ).timestamp()
+        * 1000
+    )
+    context = [
+        Candle(
+            day + i * 900_000,
+            100,
+            101.0,
+            99.0,
+            100,
+            100,
+            10_000,
+            confirmed=True,
+        )
+        for i in range(8)
+    ]
+    one_min = [
+        Candle(
+            day + 8 * 900_000 + i * 60_000,
+            100,
+            103.0 if i == 5 else 100.5,
+            97.5 if i == 7 else 99.5,
+            100,
+            100,
+            10_000,
+            confirmed=True,
+        )
+        for i in range(20)
+    ]
+
+    structure = build_market_structure(
+        one_min,
+        context,
+        100,
+    )
+
+    assert structure.day_high == pytest.approx(103.0)
+    assert structure.day_low == pytest.approx(97.5)

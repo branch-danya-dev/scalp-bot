@@ -167,6 +167,7 @@ class Candidate:
     activity_compression_ratio: float = 1.0
     activity_expansion_ratio: float = 1.0
     activity_move_spent_ratio: float = 0.0
+    activity_level_proximity_score: float = 0.0
     opportunity_readiness: float = 0.0
     activity_score: float = 0.0
     activity_rank: int | None = None
