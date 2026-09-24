@@ -74,12 +74,14 @@ from .structure import MarketStructure, StructuralLevel, TrendLine, build_market
 from .trend_structure import TrendStructureStrategy
 from .weak_level_rejection import RejectionStage, WeakLevelRejectionStrategy
 
-DEFAULT_STRATEGIES: list[Strategy] = [
-    TrendStructureStrategy(),
-    WeakLevelRejectionStrategy(),
-    DensityBounceStrategy(),
-    LevelBreakoutStrategy(),
-]
+def create_default_strategies() -> list[Strategy]:
+    """Return fresh stateful strategy instances for one engine."""
+    return [
+        TrendStructureStrategy(),
+        WeakLevelRejectionStrategy(),
+        DensityBounceStrategy(),
+        LevelBreakoutStrategy(),
+    ]
 
 __all__ = [
     "Strategy",
@@ -146,5 +148,5 @@ __all__ = [
     "TrendLine",
     "build_market_structure",
     "BreakoutStage",
-    "DEFAULT_STRATEGIES",
+    "create_default_strategies",
 ]

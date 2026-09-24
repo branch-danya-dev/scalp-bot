@@ -130,6 +130,45 @@ def policy_file(
     return str(path)
 
 
+def test_trading_engines_do_not_share_stateful_strategy_instances(
+    tmp_path,
+) -> None:
+    first = make_engine(
+        tmp_path / "first",
+        breakout_retest_tolerance_bps=1.0,
+    )
+    second = make_engine(
+        tmp_path / "second",
+        breakout_retest_tolerance_bps=9.0,
+    )
+    try:
+        first_breakout = first.strategies["level_breakout"]
+        second_breakout = second.strategies["level_breakout"]
+
+        assert first_breakout is not second_breakout
+        assert getattr(
+            first_breakout,
+            "retest_tolerance_bps",
+        ) == pytest.approx(1.0)
+        assert getattr(
+            second_breakout,
+            "retest_tolerance_bps",
+        ) == pytest.approx(9.0)
+
+        setattr(
+            first_breakout,
+            "retest_tolerance_bps",
+            77.0,
+        )
+        assert getattr(
+            second_breakout,
+            "retest_tolerance_bps",
+        ) == pytest.approx(9.0)
+    finally:
+        close_rest(first)
+        close_rest(second)
+
+
 def test_consumed_setup_is_blocked_until_wait_rearms_it(tmp_path) -> None:
     engine = make_engine(tmp_path, setup_rearm_seconds=0, setup_reset_wait_seconds=1)
     try:
