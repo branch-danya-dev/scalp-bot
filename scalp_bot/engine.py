@@ -1471,6 +1471,17 @@ class TradingEngine:
                 and after != before
             ):
                 self._arbitrate_once()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            self._emit(
+                "fast_path_error",
+                symbol,
+                {
+                    "reason": reason,
+                    "error": f"{type(exc).__name__}: {exc}",
+                },
+            )
         finally:
             current = self.sessions.get(symbol)
             if current is not None:
