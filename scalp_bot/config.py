@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     # but it cannot consume the whole portfolio leverage budget.
     max_position_leverage: float = 5.0
     max_open_positions: int = 4
+    max_pending_entries: int = 4
     max_position_exposure_fraction: float = 1.0
     max_daily_loss_fraction: float = 0.03
     enforce_session_loss_limit: bool = False

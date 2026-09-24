@@ -677,6 +677,40 @@ def test_breakout_no_follow_through_waits_longer_than_density() -> None:
 
 
 
+def test_pending_entries_do_not_consume_open_position_slots() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.20,
+        max_open_positions=1,
+        max_pending_entries=2,
+        passive_entry_enabled=True,
+        maker_fee_rate=0,
+        taker_fee_rate=0,
+    )
+    broker = PaperBroker(cfg)
+
+    first = plan("PEND1USDT", Side.LONG, 100)
+    first.entry_mode = "maker_limit"
+    first.strategy = "orderbook_density"
+    first.expected_net_loss = 1
+    broker.place_pending(first)
+
+    allowed, reason = broker.can_open("OPENUSDT")
+    assert allowed
+    assert reason == "allowed"
+
+    second = plan("PEND2USDT", Side.LONG, 100)
+    second.entry_mode = "maker_limit"
+    second.strategy = "orderbook_density"
+    second.expected_net_loss = 1
+    broker.place_pending(second)
+
+    allowed, reason = broker.can_open("PEND3USDT")
+    assert not allowed
+    assert reason == "maximum pending entries reached"
+
+
 def test_pending_maker_entry_reserves_budget_and_requires_trade_through() -> None:
     cfg = Settings(
         start_balance=1000,
