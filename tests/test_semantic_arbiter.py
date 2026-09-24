@@ -715,3 +715,51 @@ def test_day_high_is_not_owned_even_if_generation_id_is_reused() -> None:
         is False
     )
     assert assessment.structural_path.obstacle_before_first_take
+
+
+
+def test_structural_path_uses_final_target_when_partial_is_not_economically_planned() -> None:
+    resistance = mature_level(
+        "resistance",
+        100.65,
+        100.75,
+        generation="R:g-partial-gap",
+    )
+    ctx = context(resistance=resistance)
+    trade = decision(
+        "weak_level_rejection",
+        Action.LONG,
+        entry=100.0,
+        stop=99.50,
+        target=101.0,
+    )
+
+    with_partial = assess_candidate(
+        trade,
+        ctx,
+        partial_take_at_r=1.0,
+        partial_take_enabled=True,
+    )
+    assert with_partial.allowed is True
+    assert (
+        with_partial.structural_path.obstacle_before_first_take
+        is False
+    )
+
+    trade.details["plannedPartialEnabled"] = False
+    without_partial = assess_candidate(
+        trade,
+        ctx,
+        partial_take_at_r=1.0,
+        partial_take_enabled=True,
+    )
+
+    assert without_partial.allowed is False
+    assert (
+        without_partial.structural_path.obstacle_before_first_take
+        is True
+    )
+    assert (
+        "mature_structural_obstacle_before_first_take"
+        in without_partial.blockers
+    )
