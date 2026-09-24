@@ -96,7 +96,7 @@ Write-Host "Risk: base $riskPct% structural; $allInPct% max all-in loss; ${posit
 Write-Host "Economics gates: movement >=$moveFloorPct% ($moveFloorGate); winner-cost=$winnerGate; min-net=$netProfitGate; net-RR=$rrGate."
 Write-Host "Staged entries: $staged; breakout probe ${breakoutProbePct}% / rejection probe ${rejectionProbePct}% of setup risk."
 Write-Host "Evaluation cadence: event-driven=$eventDriven (min ${eventMinInterval}s); polling fallback idle ${idleEval}s / engaged ${engagedEval}s."
-Write-Host "Execution: density/rejection can use PostOnly maker entry; staged adds preserve the same setup risk envelope."
+Write-Host "Execution: confirmed breakout/rejection entries are taker; density remains research-only maker-capable evidence."
 Write-Host "Lifecycle: strategy-specific partial size and no-follow timeout; runner protected at net breakeven."
 Write-Host "Live:   http://127.0.0.1:8000/"
 Write-Host "Replay: http://127.0.0.1:8000/replay"

@@ -1655,7 +1655,7 @@ def test_strategy_expectancy_remains_observational_until_sample_ready(tmp_path) 
 
 
 
-def test_arbiter_uses_pending_maker_entry_for_tradeable_playbook_and_fills_after_trade_through(tmp_path) -> None:
+def test_arbiter_executes_confirmed_rejection_as_taker_even_when_passive_enabled(tmp_path) -> None:
     engine = make_engine(
         tmp_path,
         passive_entry_enabled=True,
@@ -1684,29 +1684,31 @@ def test_arbiter_uses_pending_maker_entry_for_tradeable_playbook_and_fills_after
             entry=100.0,
             stop=99.5,
             target=101.0,
-            setup_id="rejection-passive-1",
+            setup_id="rejection-taker-1",
             details={"allowRunner": True, "state": "reaction"},
         )
         engine.sessions = {session.symbol: session}
         engine.candidates = [
             Candidate("AAAUSDT", 200_000_000, 0, 100, activity_rank=1)
         ]
+
         engine._arbitrate_once()
-        assert "AAAUSDT" in engine.broker.pending_entries
-        assert "AAAUSDT" not in engine.broker.positions
-        assert any(event["event"] == "entry_pending" for event in engine.events)
-        pending = engine.broker.pending_entries["AAAUSDT"]
-        session.last_price = pending.limit_price * (
-            1 - engine.config.maker_fill_confirmation_bps / 10_000
-        )
-        engine._mark_execution_from_market(
-            session,
-            trade_ts_ms=int(time() * 1000),
-        )
+
         assert "AAAUSDT" not in engine.broker.pending_entries
         assert "AAAUSDT" in engine.broker.positions
-        assert any(event["event"] == "trade_opened" for event in engine.events)
-        assert engine.strategy_stats["weak_level_rejection"]["tradesOpened"] == 1
+        assert any(
+            event["event"] == "trade_opened"
+            for event in engine.events
+        )
+        assert (
+            engine.broker.positions["AAAUSDT"]
+            .strategy_details["economics"]["entryMode"]
+            == "taker_market"
+        )
+        assert (
+            engine.strategy_stats["weak_level_rejection"]["tradesOpened"]
+            == 1
+        )
     finally:
         close_rest(engine)
 

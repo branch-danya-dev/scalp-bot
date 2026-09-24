@@ -953,6 +953,42 @@ def test_passive_eligible_strategy_prices_maker_entry_when_enabled() -> None:
 
 
 
+def test_confirmed_rejection_uses_taker_entry_even_when_passive_enabled() -> None:
+    cfg = economic_settings(
+        passive_entry_enabled=True,
+        enforce_min_net_profit_gate=False,
+        enforce_net_reward_risk_gate=False,
+        enforce_winner_cost_share_gate=False,
+        enforce_stop_cost_share_gate=False,
+        maker_fee_rate=0.00020,
+        taker_fee_rate=0.00055,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "REJECTUSDT",
+        StrategyDecision(
+            strategy="weak_level_rejection",
+            action=Action.LONG,
+            reasons=["confirmed rejection response"],
+            entry=100.0,
+            stop=99.50,
+            target=101.0,
+            details={"allowRunner": True},
+        ),
+        1000,
+        book(99.99, 100.00),
+        10_000,
+        20,
+    )
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.entry_mode == "taker_market"
+    economics = result.plan.strategy_details["economics"]
+    assert economics["entryMode"] == "taker_market"
+    assert economics["entryFeeRate"] == pytest.approx(
+        cfg.taker_fee_rate
+    )
+
+
 def test_first_take_movement_gate_rejects_sub_30bps_scalp() -> None:
     cfg = economic_settings(
         enforce_min_net_profit_gate=False,
