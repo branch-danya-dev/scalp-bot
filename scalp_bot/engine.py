@@ -88,7 +88,10 @@ class ActiveSymbolSession:
     context_5m: list[Candle] = field(default_factory=list)
     context_15m: list[Candle] = field(default_factory=list)
     context_1h: list[Candle] = field(default_factory=list)
+    # orderbook is the latency-sensitive L50 book kept under the legacy name
+    # for compatibility with existing strategy/test code.
     orderbook: OrderBook = field(default_factory=OrderBook)
+    deep_orderbook: OrderBook = field(default_factory=OrderBook)
     last_price: float = 0.0
     # Legacy strategy direction remains unchanged during Stage 1.
     trend: Trend = Trend.FLAT
@@ -136,12 +139,22 @@ class ActiveSymbolSession:
     last_trade_at: float = 0.0
     last_market_at: float = 0.0
     last_book_at: float = 0.0
+    last_deep_book_at: float = 0.0
     book_stale_after_seconds: float = 1.5
+    deep_book_stale_after_seconds: float = 1.5
     confirmed_candle_stale_after_seconds: float = 150.0
     book_synced: bool | None = None
+    deep_book_synced: bool | None = None
     last_trade_stream_at: float = 0.0
     last_kline_at: float = 0.0
     last_eval: float = 0.0
+    last_event_eval_at: float = 0.0
+    event_eval_pending: bool = False
+    fast_event_requests: int = 0
+    fast_event_evaluations: int = 0
+    fast_event_coalesced: int = 0
+    last_fast_event_reason: str | None = None
+    last_fast_event_at_ms: int = 0
     last_frame: float = 0.0
     last_research_frame: float = 0.0
     last_risk_fingerprint: tuple | None = None
@@ -178,6 +191,49 @@ class ActiveSymbolSession:
             "staleAfterSeconds": self.book_stale_after_seconds,
             "bidLevels": len(self.orderbook.bids),
             "askLevels": len(self.orderbook.asks),
+        }
+
+    def deep_book_age_seconds(
+        self,
+        now: float | None = None,
+    ) -> float | None:
+        if self.last_deep_book_at <= 0:
+            return None
+        resolved_now = time() if now is None else now
+        return max(
+            0.0,
+            resolved_now - self.last_deep_book_at,
+        )
+
+    def deep_book_is_fresh(
+        self,
+        now: float | None = None,
+    ) -> bool:
+        age = self.deep_book_age_seconds(now)
+        if age is None:
+            return False
+        if self.deep_book_synced is False:
+            return False
+        if (
+            not self.deep_orderbook.bids
+            or not self.deep_orderbook.asks
+        ):
+            return False
+        return age <= self.deep_book_stale_after_seconds
+
+    def deep_book_health(
+        self,
+        now: float | None = None,
+    ) -> dict:
+        return {
+            "fresh": self.deep_book_is_fresh(now),
+            "synced": self.deep_book_synced,
+            "ageSeconds": self.deep_book_age_seconds(now),
+            "staleAfterSeconds": (
+                self.deep_book_stale_after_seconds
+            ),
+            "bidLevels": len(self.deep_orderbook.bids),
+            "askLevels": len(self.deep_orderbook.asks),
         }
 
     def confirmed_candle_age_seconds(
@@ -405,9 +461,9 @@ class ActiveSymbolSession:
         wall_price = float(wall_price)
         wall_side = str(details.get("wallSide") or "")
         rows = (
-            self.orderbook.bids
+            self.deep_orderbook.bids
             if wall_side == "bid"
-            else self.orderbook.asks
+            else self.deep_orderbook.asks
         )
         nearest_index = None
         if rows:
