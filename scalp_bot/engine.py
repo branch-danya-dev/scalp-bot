@@ -1455,6 +1455,7 @@ class TradingEngine:
                             session,
                             trade_ts_ms=tick.ts_ms,
                             trade_price=tick.price,
+                            trade_notional_usd=tick.notional,
                         )
                     session.last_price = ticks[-1].price
 
@@ -4027,6 +4028,7 @@ class TradingEngine:
         *,
         trade_ts_ms: int | None = None,
         trade_price: float | None = None,
+        trade_notional_usd: float | None = None,
     ) -> None:
         resolved_trade_price = (
             float(trade_price)
@@ -4037,6 +4039,7 @@ class TradingEngine:
             session.symbol,
             resolved_trade_price,
             trade_ts_ms=trade_ts_ms,
+            trade_notional_usd=trade_notional_usd,
         )
         for event in pending_events:
             if event.get("event") in {
@@ -4091,6 +4094,7 @@ class TradingEngine:
         self._mark_position_from_book(
             session,
             trade_price=resolved_trade_price,
+            trade_notional_usd=trade_notional_usd,
         )
 
     def _mark_position_from_book(
@@ -4098,6 +4102,7 @@ class TradingEngine:
         session: ActiveSymbolSession,
         *,
         trade_price: float | None = None,
+        trade_notional_usd: float | None = None,
     ) -> None:
         if session.symbol not in self.broker.positions:
             return
@@ -4113,6 +4118,7 @@ class TradingEngine:
             mark,
             session.orderbook,
             trade_price=trade_price,
+            trade_notional_usd=trade_notional_usd,
         )
         self._handle_broker_events(session, events)
 
