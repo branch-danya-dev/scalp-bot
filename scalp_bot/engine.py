@@ -537,6 +537,13 @@ class ActiveSymbolSession:
                 if self.static_analysis_key is not None
                 else None
             ),
+            "fastEventRequests": self.fast_event_requests,
+            "fastEventEvaluations": self.fast_event_evaluations,
+            "fastEventCoalesced": self.fast_event_coalesced,
+            "lastFastEventReason": self.last_fast_event_reason,
+            "lastFastEventAtMs": (
+                self.last_fast_event_at_ms or None
+            ),
         }
 
     def market_context_public(self) -> dict:
@@ -582,8 +589,12 @@ class ActiveSymbolSession:
             "candles": [x.public() for x in self.candles[-240:]],
             "chartSeries": self.chart_series(now_ms),
             "orderbook": self.orderbook.public(50),
+            "fastOrderbook": self.orderbook.public(50),
+            "deepOrderbook": self.deep_orderbook.public(50),
             "densityContext": self.density_context(now_ms),
             "bookHealth": self.book_health(),
+            "fastBookHealth": self.book_health(),
+            "deepBookHealth": self.deep_book_health(),
             "candleHealth": self.candle_health(
                 self.confirmed_candle_stale_after_seconds
             ),
@@ -622,8 +633,18 @@ class ActiveSymbolSession:
             "marketContext": self.market_context_public(),
             "analysisRuntime": self.analysis_runtime_public(),
             "candle": self.candles[-1].public() if self.candles else None,
-            "orderbook": self.orderbook.public(book_depth),
+            "orderbook": self.orderbook.public(
+                min(book_depth, 50)
+            ),
+            "fastOrderbook": self.orderbook.public(
+                min(book_depth, 50)
+            ),
+            "deepOrderbook": self.deep_orderbook.public(
+                book_depth
+            ),
             "bookHealth": self.book_health(),
+            "fastBookHealth": self.book_health(),
+            "deepBookHealth": self.deep_book_health(),
             "candleHealth": self.candle_health(
                 self.confirmed_candle_stale_after_seconds
             ),
