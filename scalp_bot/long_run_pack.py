@@ -476,6 +476,8 @@ def build_long_run_analysis_bundle(
         shard_rows = [0] * shard_count
         shard_frame_rows = [0] * shard_count
         shard_book_rows = [0] * shard_count
+        shard_trade_gap_rows = [0] * shard_count
+        total_trade_gap_rows = 0
         last_overview_frame: dict[str, float] = {}
         last_shard_frame: dict[tuple[int, str], float] = {}
         last_book_sample: dict[tuple[int, str], float] = {}
@@ -521,6 +523,12 @@ def build_long_run_analysis_bundle(
 
                     if not symbol:
                         continue
+
+                    if bool(payload.get("tradeDeltaGap")):
+                        total_trade_gap_rows += 1
+                        shard_trade_gap_rows[
+                            shard_index
+                        ] += 1
 
                     previous = last_overview_frame.get(
                         symbol
@@ -724,6 +732,9 @@ def build_long_run_analysis_bundle(
                 "rows": shard_rows[index],
                 "frameRows": shard_frame_rows[index],
                 "orderbookRows": shard_book_rows[index],
+                "tradeDeltaGapRows": (
+                    shard_trade_gap_rows[index]
+                ),
                 "symbols": sorted(symbols),
                 "tradeTape": (
                     "delta_v1 preserved in "
@@ -803,6 +814,7 @@ def build_long_run_analysis_bundle(
                 "bookDepth": overview_book_depth,
                 "rows": overview_rows,
                 "criticalRows": critical_rows,
+                "tradeDeltaGapRows": total_trade_gap_rows,
                 "report": "session-report.json",
                 "latencySummary": "latency-summary.json",
             },
