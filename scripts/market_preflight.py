@@ -11,6 +11,13 @@ from scalp_bot.bybit import BybitError, BybitRestClient
 
 
 async def probe_public_websocket(symbol: str) -> None:
+    required_topics = {
+        f"orderbook.{settings.fast_orderbook_depth}.{symbol}",
+        f"orderbook.{settings.deep_orderbook_depth}.{symbol}",
+        f"kline.1.{symbol}",
+        f"publicTrade.{symbol}",
+    }
+    received: set[str] = set()
     try:
         async with websockets.connect(
             settings.bybit_public_ws_url,
@@ -19,16 +26,24 @@ async def probe_public_websocket(symbol: str) -> None:
             ping_interval=20,
             ping_timeout=20,
         ) as ws:
-            topic = f"orderbook.1.{symbol}"
             await ws.send(json.dumps({
                 "op": "subscribe",
-                "args": [topic],
+                "args": sorted(required_topics),
             }))
-            for _ in range(6):
-                raw = await asyncio.wait_for(ws.recv(), timeout=10)
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + 20.0
+            while required_topics - received:
+                remaining = deadline - loop.time()
+                if remaining <= 0:
+                    break
+                raw = await asyncio.wait_for(
+                    ws.recv(),
+                    timeout=min(10.0, remaining),
+                )
                 message = json.loads(raw)
-                if message.get("topic") == topic:
-                    return
+                topic = str(message.get("topic") or "")
+                if topic in required_topics:
+                    received.add(topic)
     except Exception as exc:
         raise RuntimeError(
             (
@@ -37,9 +52,13 @@ async def probe_public_websocket(symbol: str) -> None:
                 f"{type(exc).__name__}: {exc}"
             )
         ) from exc
-    raise RuntimeError(
-        "Bybit public WebSocket connected but no order-book data arrived"
-    )
+
+    missing = sorted(required_topics - received)
+    if missing:
+        raise RuntimeError(
+            "Bybit runtime market preflight did not receive: "
+            + ", ".join(missing)
+        )
 
 
 async def main() -> None:
