@@ -203,6 +203,8 @@ class Settings(BaseSettings):
     replay_recent_trades: int = 250
     research_trade_delta_enabled: bool = False
     replay_trade_delta_enabled: bool = False
+    recorder_queue_size: int = 8192
+    recorder_critical_enqueue_timeout_seconds: float = 0.01
 
     run_label: str = "paper-v3-scalp-econ-4h"
     paper_run_duration_seconds: float = 14_400.0
