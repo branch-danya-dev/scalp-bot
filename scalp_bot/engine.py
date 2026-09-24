@@ -3625,7 +3625,48 @@ class TradingEngine:
         if not decision.tradeable:
             return
 
-        anchor = session.entry_freshness_anchors.get(strategy)
+        # Execution freshness must start at the first stable FIRE, not at the
+        # much earlier ARMED/prepared timestamp. Otherwise a correctly patient
+        # setup can become "late" merely because it waited for the confirmation
+        # that the strategy itself requires.
+        preparation_anchor = session.entry_freshness_anchors.get(
+            strategy
+        )
+        fire_trigger = details.get("fireTrigger")
+        fire_ms = (
+            fire_trigger.get("observedAtMs")
+            if isinstance(fire_trigger, dict)
+            else None
+        )
+        fire_price = (
+            fire_trigger.get("price")
+            if isinstance(fire_trigger, dict)
+            else None
+        )
+        if isinstance(fire_ms, (int, float)) and fire_ms > 0:
+            resolved_fire_price = (
+                float(fire_price)
+                if isinstance(fire_price, (int, float))
+                and fire_price > 0
+                else (
+                    float(decision.entry)
+                    if isinstance(decision.entry, (int, float))
+                    and decision.entry > 0
+                    else None
+                )
+            )
+            anchor = {
+                "objectKey": object_key,
+                "triggerPrice": resolved_fire_price,
+                "triggerTs": float(fire_ms) / 1000,
+                "source": str(
+                    fire_trigger.get("source")
+                    or "strategy_fire"
+                ),
+            }
+        else:
+            anchor = preparation_anchor
+
         if anchor is None or anchor.get("objectKey") != object_key:
             trigger_price, source = self._freshness_fallback_trigger_price(
                 decision
@@ -3636,7 +3677,6 @@ class TradingEngine:
                 "triggerTs": None,
                 "source": source,
             }
-            session.entry_freshness_anchors[strategy] = anchor
 
         current_price = (
             decision.entry
@@ -3655,14 +3695,36 @@ class TradingEngine:
         freshness_public = freshness.public()
         decision.details["opportunityFreshness"] = freshness_public
         decision.details["entryFreshness"] = freshness_public
-        if (
-            decision.tradeable
-            and freshness.confirmation_age_seconds is not None
-        ):
-            decision.details["armToFireSeconds"] = (
-                freshness.confirmation_age_seconds
-            )
+        if decision.tradeable:
             decision.details["causalTriggerSource"] = freshness.source
+            prepared = details.get("preparedOpportunity")
+            prepared_ms = (
+                prepared.get("preparedAtMs")
+                if isinstance(prepared, dict)
+                else None
+            )
+            if (
+                isinstance(prepared_ms, (int, float))
+                and isinstance(fire_ms, (int, float))
+                and prepared_ms > 0
+                and fire_ms >= prepared_ms
+            ):
+                decision.details["armToFireSeconds"] = (
+                    float(fire_ms) - float(prepared_ms)
+                ) / 1000
+            elif (
+                preparation_anchor is not None
+                and isinstance(
+                    preparation_anchor.get("triggerTs"),
+                    (int, float),
+                )
+                and isinstance(fire_ms, (int, float))
+            ):
+                decision.details["armToFireSeconds"] = max(
+                    0.0,
+                    float(fire_ms) / 1000
+                    - float(preparation_anchor["triggerTs"]),
+                )
 
         fingerprint = (
             object_key,
