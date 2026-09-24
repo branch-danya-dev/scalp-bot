@@ -225,10 +225,9 @@ def exchange_receive_seconds(message: Any) -> float | None:
     )
     if exchange_ms <= 0 or receipt_wall_ns <= 0:
         return None
-    return max(
-        0.0,
+    return (
         receipt_wall_ns / 1_000_000_000
-        - exchange_ms / 1000,
+        - exchange_ms / 1000
     )
 
 
