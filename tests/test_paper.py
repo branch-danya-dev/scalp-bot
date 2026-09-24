@@ -595,7 +595,11 @@ def test_target_exit_uses_resting_maker_limit_execution() -> None:
     assert trade["reason"] == "target"
     assert trade["exit"] == pytest.approx(101.0)
     expected_entry_fee = 1000 * cfg.taker_fee_rate
-    expected_exit_fee = 1000 * cfg.maker_fee_rate
+    expected_exit_fee = (
+        (1000 / 100.0)
+        * 101.0
+        * cfg.maker_fee_rate
+    )
     assert trade["fees"] == pytest.approx(
         expected_entry_fee + expected_exit_fee
     )
@@ -639,7 +643,12 @@ def test_breakout_partial_is_resting_maker_and_uses_strategy_fraction() -> None:
     assert partial["remainingNotional"] == pytest.approx(700)
     assert partial["fill"] == pytest.approx(partial_limit)
     expected_allocated_entry_fee = 1000 * cfg.taker_fee_rate * 0.30
-    expected_maker_exit_fee = 300 * cfg.maker_fee_rate
+    expected_maker_exit_fee = (
+        (1000 / 100.0)
+        * 0.30
+        * partial_limit
+        * cfg.maker_fee_rate
+    )
     assert partial["fees"] == pytest.approx(
         expected_allocated_entry_fee + expected_maker_exit_fee
     )
@@ -1276,7 +1285,7 @@ def test_maker_target_requires_cumulative_trade_through_volume() -> None:
         101.0,
         book(101.0, 101.01),
         trade_price=101.0,
-        trade_notional_usd=1400,
+        trade_notional_usd=1415,
     )
     assert closed and closed[-1]["reason"] == "target"
 
@@ -1318,7 +1327,7 @@ def test_maker_partial_requires_cumulative_trade_through_volume() -> None:
         partial_limit,
         book(partial_limit, partial_limit + 0.01),
         trade_price=partial_limit,
-        trade_notional_usd=400,
+        trade_notional_usd=403,
     )
     assert partial and partial[0]["event"] == "partial_take"
     assert pos.partial_taken is True
@@ -1355,11 +1364,17 @@ def test_market_exit_penalizes_unseen_depth_tail() -> None:
         "manual_test",
     )
 
-    visible_quote = 99.0
-    missing_fraction = (1000.0 - visible_quote) / 1000.0
-    expected = 99.0 * (
+    visible_quantity = 1.0
+    total_quantity = 10.0
+    missing_quantity = total_quantity - visible_quantity
+    missing_fraction = missing_quantity / total_quantity
+    tail_price = 99.0 * (
         1 - (25.0 / 10_000) * missing_fraction
     )
+    expected = (
+        99.0 * visible_quantity
+        + tail_price * missing_quantity
+    ) / total_quantity
     assert trade["exit"] == pytest.approx(expected)
     assert trade["exit"] < 99.0
 
@@ -1402,3 +1417,86 @@ def test_fast_book_triggers_stop_while_deep_book_sets_exit_vwap() -> None:
 
     assert events and events[-1]["reason"] == "stop"
     assert events[-1]["exit"] == pytest.approx(99.00)
+
+
+def test_explicit_contract_quantity_controls_scale_in_average_entry() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.20,
+        taker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+    )
+    broker = PaperBroker(cfg)
+
+    first = plan("QTYUSDT", Side.LONG, 100)
+    first.strategy = "level_breakout"
+    first.setup_id = "qty:g1"
+    first.quantity = 1.0
+    first.market_entry = 100.0
+    broker.open(
+        first,
+        OrderBook(
+            bids=[(99.9, 10.0)],
+            asks=[(100.0, 10.0)],
+        ),
+    )
+
+    add = plan("QTYUSDT", Side.LONG, 200)
+    add.strategy = "level_breakout"
+    add.setup_id = first.setup_id
+    add.quantity = 1.0
+    add.market_entry = 200.0
+    add.stop = 99.6
+    add.target = 301.0
+    add.expected_net_loss = 5.0
+    position = broker.add(
+        add,
+        OrderBook(
+            bids=[(199.9, 10.0)],
+            asks=[(200.0, 10.0)],
+        ),
+    )
+
+    assert position.quantity == pytest.approx(2.0)
+    assert position.original_quantity == pytest.approx(2.0)
+    assert position.entry == pytest.approx(150.0)
+    assert position.notional == pytest.approx(300.0)
+    assert position.original_notional == pytest.approx(300.0)
+
+
+def test_exit_fee_uses_filled_quantity_times_exit_price() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        maker_fee_rate=0.001,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+        max_leverage=2,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("FEEQTYUSDT", Side.LONG, 1000)
+    p.strategy = "level_breakout"
+    p.quantity = 10.0
+    p.target = 110.0
+    broker.open(
+        p,
+        book(99.99, 100.0),
+    )
+
+    events = broker.mark(
+        "FEEQTYUSDT",
+        110.0,
+        book(110.0, 110.01),
+        trade_price=110.0,
+        trade_notional_usd=5000,
+        trade_side="Buy",
+    )
+    trade = events[-1]
+
+    assert trade["reason"] == "target"
+    assert trade["fees"] == pytest.approx(
+        10.0 * 110.0 * cfg.maker_fee_rate
+    )
