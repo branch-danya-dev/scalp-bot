@@ -1,5 +1,6 @@
 import os
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,6 +20,12 @@ class Settings(BaseSettings):
     bybit_rest_url: str = "https://api.bybit.com"
     bybit_rest_fallback_urls: str = "https://api.bytick.com"
     bybit_public_ws_url: str = "wss://stream.bybit.com/v5/public/linear"
+    # Optional read-only credentials enable exact account fee-rate lookup.
+    # Never place secrets in checked-in profiles; provide them as process env.
+    bybit_api_key: SecretStr = SecretStr("")
+    bybit_api_secret: SecretStr = SecretStr("")
+    bybit_private_recv_window_ms: int = 5000
+    fee_rate_mode: str = "account_if_available"
 
     start_balance: float = 1_000.0
     min_turnover_usd: float = 150_000_000.0
@@ -43,6 +50,7 @@ class Settings(BaseSettings):
     rest_rate_limit_backoff_seconds: float = 1.0
     rest_rate_limit_max_backoff_seconds: float = 8.0
     empty_startup_rescan_seconds: float = 10.0
+    market_preflight_timeout_seconds: float = 30.0
 
     min_net_profit_usd: float = 1.00
     min_net_profit_equity_fraction: float = 0.001
@@ -64,6 +72,9 @@ class Settings(BaseSettings):
     # but it cannot consume the whole portfolio leverage budget.
     max_position_leverage: float = 5.0
     max_open_positions: int = 4
+    # Pending maker reservations have a separate concurrency cap. They still
+    # reserve exposure/risk, but no longer consume actual position slots.
+    max_pending_entries: int = 4
     max_position_exposure_fraction: float = 1.0
     max_daily_loss_fraction: float = 0.03
     enforce_session_loss_limit: bool = False
@@ -123,6 +134,9 @@ class Settings(BaseSettings):
     max_stop_cost_share: float = 1.0
     enforce_stop_cost_share_gate: bool = False
     stop_depth_stress_multiplier: float = 2.0
+    # When requested market exit size exceeds visible deep-book depth, never
+    # assume the missing tail is available at the last visible level.
+    paper_missing_depth_penalty_bps: float = 25.0
 
     partial_take_enabled: bool = True
     partial_take_at_r: float = 1.0
@@ -164,6 +178,9 @@ class Settings(BaseSettings):
     market_stale_seconds: float = 3.0
     book_stale_seconds: float = 1.5
     deep_book_stale_seconds: float = 1.5
+    # L1000 is intentionally slower than L50, but execution/risk must not mix
+    # a fresh fast quote with a materially older depth snapshot.
+    deep_book_max_skew_seconds: float = 0.50
     # Disabled in bare Settings for deterministic unit tests; research/live
     # profiles explicitly enable this safety gate.
     confirmed_candle_stale_seconds: float = 0.0
@@ -197,6 +214,8 @@ class Settings(BaseSettings):
     replay_recent_trades: int = 250
     research_trade_delta_enabled: bool = False
     replay_trade_delta_enabled: bool = False
+    recorder_queue_size: int = 8192
+    recorder_critical_enqueue_timeout_seconds: float = 0.01
 
     run_label: str = "paper-v3-scalp-econ-4h"
     paper_run_duration_seconds: float = 14_400.0

@@ -691,9 +691,14 @@ def assess_session_candidates(
         blockers = list(assessment.blockers)
         reasons = list(assessment.reasons)
         if opposite:
-            blockers.append("opposing_playbook_conflict")
+            # Opposite hypotheses are information for the global selector,
+            # not a reason to veto both otherwise-valid opportunities. The
+            # previous symmetric block could turn two tradable setups into
+            # zero trades. Keep the conflict visible and let SelectionPriority
+            # choose exactly one candidate.
             reasons.append(
-                "opposite tradeable playbook exists at the same market location"
+                "opposite tradeable playbook exists at the same market "
+                "location; central arbitration must select one"
             )
         if same_side:
             reasons.append(

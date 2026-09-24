@@ -2,6 +2,7 @@ import pytest
 
 from scalp_bot.config import Settings
 from scalp_bot.domain import Action, OrderBook, StrategyDecision
+from scalp_bot.instrument import InstrumentSpec
 from scalp_bot.paper import PaperBroker
 from scalp_bot.risk import RiskEngine
 
@@ -509,11 +510,27 @@ def test_executable_spread_is_not_subtracted_twice() -> None:
     economics = result.plan.strategy_details["economics"]
     # Entry slippage is embedded in expectedEntryFill. Only fees/exit
     # slippage remain in TradePlan.estimated_costs.
+    assert result.plan.quantity is not None
+    quantity = result.plan.quantity
+    target_fill = result.plan.target * (
+        1 - economics["targetExitSlippageRate"]
+    )
+    expected_costs = (
+        quantity
+        * result.plan.market_entry
+        * economics["entryFeeRate"]
+        + quantity
+        * target_fill
+        * economics["targetExitFeeRate"]
+        + quantity
+        * abs(result.plan.target - target_fill)
+    )
     assert result.plan.estimated_costs == pytest.approx(
-        result.plan.notional * 0.00075
+        expected_costs
     )
     assert economics["winnerTotalFrictionUsd"] == pytest.approx(
-        result.plan.notional * 0.00085
+        expected_costs
+        + economics["embeddedEntrySlippageUsd"]
     )
     assert economics["entrySlippageEmbeddedInFill"] is True
     assert economics["entrySpreadPct"] == pytest.approx(0.0010005, rel=1e-3)
@@ -836,7 +853,10 @@ def test_breakout_economics_prices_actual_partial_runner_lifecycle() -> None:
         0.30 * economics["partialMovePct"]
         + 0.70 * economics["runnerTargetPct"]
     )
-    assert economics["lifecycleCostPct"] == pytest.approx(0.00075)
+    # Exit fees are charged on contract quantity * actual exit price, so
+    # a profitable long costs slightly more in quote terms than the legacy
+    # entry-notional approximation of exactly 0.00075.
+    assert economics["lifecycleCostPct"] > 0.00075
     assert result.plan.expected_gross_profit == pytest.approx(
         result.plan.notional * economics["lifecycleGrossPct"]
     )
@@ -1282,6 +1302,9 @@ def test_stop_side_depth_stress_reduces_size_and_stays_reserved() -> None:
     assert stressed.plan.notional < base.plan.notional
     economics = stressed.plan.strategy_details["economics"]
     assert economics["stopDepthImpactBps"] > 0
+    assert economics["stopDepthReferencePrice"] == pytest.approx(99.90)
+    assert economics["stopDepthIncludesPreTriggerLevels"] is False
+    assert economics["rawStopExitVwap"] <= 99.90
     assert economics["stressedStopDepthImpactBps"] > (
         economics["stopDepthImpactBps"]
     )
@@ -1330,3 +1353,227 @@ def test_risk_uses_fast_quote_but_deep_book_for_entry_depth() -> None:
     assert economics["deepBookBestAsk"] == pytest.approx(100.00)
     assert result.plan.market_entry > fast.best_ask
     assert economics["entryDepthImpactBps"] > 0
+
+
+def test_risk_plan_respects_exchange_tick_and_quantity_steps() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_position_leverage=5,
+        risk_fraction=0.01,
+        max_total_risk_fraction=0.10,
+        min_net_profit_usd=0,
+        min_net_reward_risk=0,
+        absolute_min_net_reward_risk=0,
+        taker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+    )
+    spec = InstrumentSpec(
+        symbol="STEPUSDT",
+        status="Trading",
+        tick_size=0.10,
+        qty_step=0.25,
+        min_order_qty=0.25,
+        min_notional_value=5.0,
+        max_order_qty=100.0,
+        max_market_order_qty=100.0,
+        funding_interval_minutes=480,
+        max_leverage=50.0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "STEPUSDT",
+        decision(
+            101.07,
+            entry=100.0,
+            stop=99.83,
+        ),
+        1000,
+        OrderBook(
+            bids=[(99.9, 100.0)],
+            asks=[(100.0, 100.0)],
+        ),
+        5000,
+        100,
+        instrument=spec,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.stop == pytest.approx(99.8)
+    assert result.plan.target == pytest.approx(101.0)
+    assert result.plan.quantity is not None
+    assert (
+        result.plan.quantity / spec.qty_step
+    ) == pytest.approx(
+        round(result.plan.quantity / spec.qty_step)
+    )
+    assert result.plan.notional == pytest.approx(
+        result.plan.quantity * result.plan.market_entry
+    )
+
+
+def test_risk_plan_rejects_below_exchange_minimum_order() -> None:
+    cfg = Settings(
+        start_balance=10,
+        max_leverage=1,
+        max_position_leverage=1,
+        risk_fraction=0.001,
+        max_total_risk_fraction=0.10,
+        min_net_profit_usd=0,
+        min_net_reward_risk=0,
+        absolute_min_net_reward_risk=0,
+        taker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+    )
+    spec = InstrumentSpec(
+        symbol="MINUSDT",
+        status="Trading",
+        tick_size=0.01,
+        qty_step=1.0,
+        min_order_qty=1.0,
+        min_notional_value=50.0,
+        max_order_qty=1000.0,
+        max_market_order_qty=1000.0,
+        funding_interval_minutes=480,
+        max_leverage=20.0,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "MINUSDT",
+        decision(101.0, entry=100.0, stop=99.0),
+        10,
+        OrderBook(
+            bids=[(99.99, 100.0)],
+            asks=[(100.0, 100.0)],
+        ),
+        10,
+        10,
+        instrument=spec,
+    )
+
+    assert not result.allowed
+    assert "instrument minimum/step" in result.reason
+
+
+def test_risk_target_fee_uses_contract_quantity_at_exit_price() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=1,
+        max_position_leverage=1,
+        risk_fraction=0.05,
+        max_total_risk_fraction=0.20,
+        min_net_profit_usd=0,
+        min_net_reward_risk=0,
+        absolute_min_net_reward_risk=0,
+        taker_fee_rate=0,
+        maker_fee_rate=0.001,
+        slippage_bps=0,
+        partial_take_enabled=False,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "FEEUSDT",
+        decision(
+            101.0,
+            entry=100.0,
+            stop=99.0,
+        ),
+        1000,
+        book(99.99, 100.0),
+        1000,
+        200,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.quantity is not None
+    expected_exit_fee = (
+        result.plan.quantity
+        * result.plan.target
+        * cfg.maker_fee_rate
+    )
+    economics = result.plan.strategy_details["economics"]
+    assert result.plan.estimated_costs == pytest.approx(
+        expected_exit_fee
+    )
+    assert economics["targetEstimatedCostsUsd"] == pytest.approx(
+        expected_exit_fee
+    )
+
+
+def test_risk_stop_fee_uses_stop_side_quote_value() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=1,
+        max_position_leverage=1,
+        risk_fraction=0.05,
+        max_total_risk_fraction=0.20,
+        min_net_profit_usd=0,
+        min_net_reward_risk=0,
+        absolute_min_net_reward_risk=0,
+        taker_fee_rate=0.001,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        stop_depth_stress_multiplier=0,
+        partial_take_enabled=False,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "STOPFEEUSDT",
+        decision(
+            102.0,
+            entry=100.0,
+            stop=99.0,
+        ),
+        1000,
+        book(99.99, 100.0),
+        1000,
+        200,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.quantity is not None
+    quantity = result.plan.quantity
+    entry_fee = quantity * result.plan.market_entry * cfg.taker_fee_rate
+    exit_fee = quantity * result.plan.stop * cfg.taker_fee_rate
+    structural_loss = quantity * (
+        result.plan.market_entry - result.plan.stop
+    )
+    assert result.plan.expected_net_loss == pytest.approx(
+        structural_loss + entry_fee + exit_fee
+    )
+
+
+def test_stop_depth_model_excludes_levels_before_trigger() -> None:
+    cfg = scalp_settings(
+        max_total_risk_fraction=0.10,
+        max_position_leverage=5.0,
+        stop_depth_stress_multiplier=1.0,
+    )
+    depth = OrderBook(
+        bids=[
+            # Huge current top liquidity must not make a stop at 99.50 look
+            # liquid because it is crossed before the trigger exists.
+            (99.99, 10_000),
+            (99.50, 1),
+            (99.40, 100),
+        ],
+        asks=[(100.00, 100)],
+    )
+
+    result = RiskEngine(cfg).build_plan(
+        "TRIGGERDEPTHUSDT",
+        decision(101.0, stop=99.50),
+        1000,
+        depth,
+        10_000,
+        100,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    economics = result.plan.strategy_details["economics"]
+    assert economics["rawStopExitVwap"] < 99.50
+    assert economics["stopDepthImpactBps"] > 0
+    # The $~1m at 99.99 is not part of visible stop-side depth.
+    assert economics["visibleStopDepthUsd"] < 20_000

@@ -125,6 +125,49 @@ class OrderBook:
             return None, 0.0
         return filled_quote / filled_base, filled_quote
 
+    @staticmethod
+    def _vwap_for_quantity(
+        levels: list[tuple[float, float]],
+        quantity: float,
+    ) -> tuple[float | None, float, float]:
+        if quantity <= 0:
+            return None, 0.0, 0.0
+        remaining = quantity
+        filled_base = 0.0
+        filled_quote = 0.0
+        for price, qty in levels:
+            if price <= 0 or qty <= 0:
+                continue
+            take_base = min(remaining, qty)
+            filled_base += take_base
+            filled_quote += take_base * price
+            remaining -= take_base
+            if remaining <= max(1e-12, quantity * 1e-12):
+                break
+        if filled_base <= 0:
+            return None, 0.0, 0.0
+        return (
+            filled_quote / filled_base,
+            filled_base,
+            filled_quote,
+        )
+
+    def entry_vwap_quantity(
+        self,
+        side: Side,
+        quantity: float,
+    ) -> tuple[float | None, float, float]:
+        levels = self.asks if side == Side.LONG else self.bids
+        return self._vwap_for_quantity(levels, quantity)
+
+    def exit_vwap_quantity(
+        self,
+        side: Side,
+        quantity: float,
+    ) -> tuple[float | None, float, float]:
+        levels = self.bids if side == Side.LONG else self.asks
+        return self._vwap_for_quantity(levels, quantity)
+
     def entry_vwap(
         self,
         side: Side,
@@ -140,6 +183,32 @@ class OrderBook:
     ) -> tuple[float | None, float]:
         levels = self.bids if side == Side.LONG else self.asks
         return self._vwap_for_notional(levels, notional)
+
+    def exit_vwap_from_trigger(
+        self,
+        side: Side,
+        notional: float,
+        trigger_price: float,
+    ) -> tuple[float | None, float]:
+        """VWAP only from levels that can remain beyond a stop trigger."""
+        if trigger_price <= 0:
+            return None, 0.0
+        if side == Side.LONG:
+            levels = [
+                (price, qty)
+                for price, qty in self.bids
+                if price <= trigger_price
+            ]
+        else:
+            levels = [
+                (price, qty)
+                for price, qty in self.asks
+                if price >= trigger_price
+            ]
+        return self._vwap_for_notional(
+            levels,
+            notional,
+        )
 
     def public(self, depth: int = 16) -> dict[str, Any]:
         return {
@@ -160,6 +229,9 @@ class Candidate:
     volume_24h: float = 0.0
     spread_bps: float = 0.0
     top_book_notional_usd: float = 0.0
+    mark_price: float = 0.0
+    funding_rate: float | None = None
+    next_funding_time_ms: int | None = None
     trade_count_24h: int | None = None
     trade_count_source: str | None = None
     correlation_1h_btc: float | None = None
@@ -230,6 +302,7 @@ class TradePlan:
     entry_drift_pct: float
     setup_id: str
     entry_mode: str = "taker_market"
+    quantity: float | None = None
     strategy_details: dict[str, Any] = field(default_factory=dict)
 
     def public(self) -> dict[str, Any]:

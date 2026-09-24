@@ -18,6 +18,7 @@ from .paper import PaperBroker, Position
 from .expectancy import StrategyExpectancyBook
 from .strategy_policy import minimum_expectancy_r
 from .observability import build_decision_trace
+from .instrument import InstrumentSpec
 from .latency_observability import (
     configure_telemetry,
     exchange_receive_seconds,
@@ -39,7 +40,7 @@ from .strategy.flow import best_level_ofi_usd, prune_trades
 from .strategy.lifecycle import LevelLifecycleTracker
 from .strategy.structure import aggregate_candles
 from .strategy import (
-    DEFAULT_STRATEGIES,
+    create_default_strategies,
     HTFBiasSnapshot,
     LocalRegimeSnapshot,
     MultiHorizonFlowContext,
@@ -101,6 +102,11 @@ ENTRY_FRESHNESS_RESET_STATES = {
 class ActiveSymbolSession:
     symbol: str
     candles: list[Candle] = field(default_factory=list)
+    instrument: InstrumentSpec | None = None
+    fee_schedule: FeeSchedule | None = None
+    mark_price: float = 0.0
+    funding_rate: float | None = None
+    next_funding_time_ms: int | None = None
     context_5m: list[Candle] = field(default_factory=list)
     context_15m: list[Candle] = field(default_factory=list)
     context_1h: list[Candle] = field(default_factory=list)
@@ -164,6 +170,11 @@ class ActiveSymbolSession:
     confirmed_candle_stale_after_seconds: float = 150.0
     book_synced: bool | None = None
     deep_book_synced: bool | None = None
+    fast_book_seq: int | None = None
+    deep_book_seq: int | None = None
+    fast_book_exchange_ts_ms: int = 0
+    deep_book_exchange_ts_ms: int = 0
+    deep_book_max_skew_seconds: float = 0.50
     last_trade_stream_at: float = 0.0
     last_kline_at: float = 0.0
     last_eval: float = 0.0
@@ -192,6 +203,15 @@ class ActiveSymbolSession:
     research_policy_fingerprints: dict[str, tuple] = field(
         default_factory=dict
     )
+
+    def funding_public(self) -> dict:
+        return {
+            "markPrice": self.mark_price or None,
+            "fundingRate": self.funding_rate,
+            "nextFundingTimeMs": self.next_funding_time_ms,
+            "source": "bybit_linear_ticker",
+            "estimatedPaperSettlement": True,
+        }
 
     def book_age_seconds(self, now: float | None = None) -> float | None:
         if self.last_book_at <= 0:
@@ -244,6 +264,30 @@ class ActiveSymbolSession:
             resolved_now - self.last_deep_book_at,
         )
 
+    def deep_book_skew_seconds(self) -> float | None:
+        if (
+            self.fast_book_exchange_ts_ms <= 0
+            or self.deep_book_exchange_ts_ms <= 0
+        ):
+            return None
+        return max(
+            0.0,
+            (
+                self.fast_book_exchange_ts_ms
+                - self.deep_book_exchange_ts_ms
+            )
+            / 1000.0,
+        )
+
+    def deep_book_is_coherent_with_fast(self) -> bool:
+        skew = self.deep_book_skew_seconds()
+        if skew is None:
+            return True
+        return skew <= max(
+            0.0,
+            self.deep_book_max_skew_seconds,
+        )
+
     def deep_book_is_fresh(
         self,
         now: float | None = None,
@@ -264,6 +308,8 @@ class ActiveSymbolSession:
             or not self.deep_orderbook.asks
         ):
             return False
+        if not self.deep_book_is_coherent_with_fast():
+            return False
         return age <= self.deep_book_stale_after_seconds
 
     def deep_book_health(
@@ -283,6 +329,19 @@ class ActiveSymbolSession:
                 "deep_l1000"
                 if self.deep_book_synced is not None
                 else "legacy_fast_fallback"
+            ),
+            "fastSeq": self.fast_book_seq,
+            "deepSeq": self.deep_book_seq,
+            "fastExchangeTsMs": (
+                self.fast_book_exchange_ts_ms or None
+            ),
+            "deepExchangeTsMs": (
+                self.deep_book_exchange_ts_ms or None
+            ),
+            "skewSeconds": self.deep_book_skew_seconds(),
+            "maxSkewSeconds": self.deep_book_max_skew_seconds,
+            "coherentWithFast": (
+                self.deep_book_is_coherent_with_fast()
             ),
         }
 
@@ -615,6 +674,17 @@ class ActiveSymbolSession:
         return {
             "schemaVersion": 1,
             "symbol": self.symbol,
+            "instrument": (
+                self.instrument.public()
+                if self.instrument is not None
+                else None
+            ),
+            "feeSchedule": (
+                self.fee_schedule.public()
+                if self.fee_schedule is not None
+                else None
+            ),
+            "funding": self.funding_public(),
             "lastPrice": self.last_price,
             "legacyTrend": self.trend.value,
             "htfBias": (
@@ -742,6 +812,7 @@ class ActiveSymbolSession:
             "tradeFlow": compute_trade_flow(list(self.trades), now_ms),
             "bookFlow": self.book_flow_snapshot(now_ms),
             "position": position,
+            "funding": self.funding_public(),
             "tradeEncoding": trade_encoding,
             "tradeCursor": self.trade_sequence,
             "tradeDeltaFromSequence": (
@@ -775,12 +846,22 @@ class TradingEngine:
         self.rest = BybitRestClient(config)
         self.risk = RiskEngine(config)
         self.broker = PaperBroker(config)
-        self.recorder = SessionRecorder(config.session_dir)
+        self.recorder = SessionRecorder(
+            config.session_dir,
+            queue_size=config.recorder_queue_size,
+            critical_enqueue_timeout_seconds=(
+                config.recorder_critical_enqueue_timeout_seconds
+            ),
+        )
         self.research_policy = ResearchPolicyRuntime.from_settings(
             path=config.research_policy_file,
             mode=config.research_policy_mode,
         )
-        self.strategies: dict[str, Strategy] = {x.key: x for x in DEFAULT_STRATEGIES}
+        default_strategies = create_default_strategies()
+        self.strategies: dict[str, Strategy] = {
+            strategy.key: strategy
+            for strategy in default_strategies
+        }
         configured_strategy_state = {
             "trend_structure": config.trend_structure_enabled,
             "weak_level_rejection": config.weak_level_rejection_enabled,
@@ -817,7 +898,7 @@ class TradingEngine:
                     "short": {},
                 },
             }
-            for x in DEFAULT_STRATEGIES
+            for x in default_strategies
         }
         for key, probe_fraction in (
             (
@@ -1300,8 +1381,17 @@ class TradingEngine:
 
         for symbol, session in self.sessions.items():
             candidate = candidate_map.get(symbol)
-            if candidate and (candidate.activity_rank or 999) <= self.config.active_keep_rank:
-                session.last_ranked_at = now
+            if candidate is not None:
+                session.mark_price = candidate.mark_price
+                session.funding_rate = candidate.funding_rate
+                session.next_funding_time_ms = (
+                    candidate.next_funding_time_ms
+                )
+                if (
+                    (candidate.activity_rank or 999)
+                    <= self.config.active_keep_rank
+                ):
+                    session.last_ranked_at = now
 
         for candidate in self.candidates[: self.config.working_symbols]:
             await self._promote_symbol(candidate.symbol, now)
@@ -1755,7 +1845,16 @@ class TradingEngine:
         self.sessions.pop(symbol, None)
 
     async def _bootstrap_symbol(self, symbol: str) -> None:
-        candles, context_5m, context_15m, context_1h = await asyncio.gather(
+        (
+            instrument,
+            fee_schedule,
+            candles,
+            context_5m,
+            context_15m,
+            context_1h,
+        ) = await asyncio.gather(
+            self.rest.instrument_info(symbol),
+            self.rest.fee_schedule(symbol),
             self.rest.klines(
                 symbol,
                 "1",
@@ -1778,9 +1877,34 @@ class TradingEngine:
             ),
         )
         now = time()
+        scanner_candidate = next(
+            (
+                item
+                for item in self.candidates
+                if item.symbol == symbol
+            ),
+            None,
+        )
         session = ActiveSymbolSession(
             symbol=symbol,
             candles=candles,
+            instrument=instrument,
+            fee_schedule=fee_schedule,
+            mark_price=(
+                scanner_candidate.mark_price
+                if scanner_candidate is not None
+                else 0.0
+            ),
+            funding_rate=(
+                scanner_candidate.funding_rate
+                if scanner_candidate is not None
+                else None
+            ),
+            next_funding_time_ms=(
+                scanner_candidate.next_funding_time_ms
+                if scanner_candidate is not None
+                else None
+            ),
             context_5m=[x for x in context_5m if x.confirmed],
             context_15m=[x for x in context_15m if x.confirmed],
             context_1h=[x for x in context_1h if x.confirmed],
@@ -1790,6 +1914,9 @@ class TradingEngine:
             ),
             book_synced=False,
             deep_book_synced=False,
+            deep_book_max_skew_seconds=(
+                self.config.deep_book_max_skew_seconds
+            ),
             confirmed_candle_stale_after_seconds=(
                 self.config.confirmed_candle_stale_seconds
             ),
@@ -1934,6 +2061,67 @@ class TradingEngine:
             except Exception as exc:
                 self._emit("context_error", None, {"error": str(exc)})
 
+    async def _process_public_trade_message(
+        self,
+        session: ActiveSymbolSession,
+        message: MarketMessage,
+    ) -> list[TradeTick]:
+        """Apply one public-trade batch without leaking later ticks backward.
+
+        A resting maker order must see each exchange trade in causal order:
+        the current tick may fill it, then strategy invalidation may react to
+        that tick. Later trades from the same websocket batch must never be
+        visible to an earlier fill/cancel decision.
+        """
+        rows = message.get("data") or []
+        if not rows:
+            return []
+
+        ticks: list[TradeTick] = []
+        wall_now = time()
+        for row in rows:
+            session.trade_sequence += 1
+            tick = TradeTick(
+                ts_ms=int(row.get("T") or time() * 1000),
+                price=float(row["p"]),
+                size=float(row["v"]),
+                side=str(row.get("S") or ""),
+                sequence=session.trade_sequence,
+            )
+            session.trades.append(tick)
+            self._overlay_trade_on_forming_candle(
+                session,
+                tick,
+            )
+            session.last_price = tick.price
+            session.last_trade_stream_at = wall_now
+            prune_trades(
+                session.trades,
+                tick.ts_ms,
+                self.config.trade_buffer_seconds,
+            )
+            ticks.append(tick)
+
+            # Execution caused by this exact trade has priority over strategy
+            # invalidation caused by the same trade. Otherwise a fill can be
+            # retroactively cancelled after the market already traded through.
+            self._mark_execution_from_market(
+                session,
+                trade_ts_ms=tick.ts_ms,
+                trade_price=tick.price,
+                trade_notional_usd=tick.notional,
+                trade_side=tick.side,
+            )
+
+            # If the resting order survived this tick, only now may the
+            # strategy use this tick to decide whether the order is still
+            # valid before the next exchange trade is processed.
+            if session.symbol in self.broker.pending_entries:
+                session.last_eval = monotonic()
+                await self._evaluate(session)
+
+        return ticks
+
     async def _symbol_worker(
         self,
         symbol: str,
@@ -2008,6 +2196,12 @@ class TradingEngine:
                     session.orderbook = OrderBook()
                     raise
                 session.book_synced = fast_book_state.synced
+                session.fast_book_seq = fast_book_state.last_seq
+                session.fast_book_exchange_ts_ms = int(
+                    message.get("cts")
+                    or message.get("ts")
+                    or wall_now * 1000
+                )
                 session.last_book_at = wall_now
                 message.book_updated_mono_ns = perf_counter_ns()
                 observe_latency(
@@ -2031,6 +2225,10 @@ class TradingEngine:
                     session.deep_orderbook = session.orderbook
                     session.deep_book_synced = (
                         fast_book_state.synced
+                    )
+                    session.deep_book_seq = fast_book_state.last_seq
+                    session.deep_book_exchange_ts_ms = (
+                        session.fast_book_exchange_ts_ms
                     )
                     session.last_deep_book_at = wall_now
 
@@ -2086,6 +2284,12 @@ class TradingEngine:
                 session.deep_book_synced = (
                     deep_book_state.synced
                 )
+                session.deep_book_seq = deep_book_state.last_seq
+                session.deep_book_exchange_ts_ms = int(
+                    message.get("cts")
+                    or message.get("ts")
+                    or wall_now * 1000
+                )
                 session.last_deep_book_at = wall_now
                 message.book_updated_mono_ns = perf_counter_ns()
                 observe_latency(
@@ -2107,52 +2311,12 @@ class TradingEngine:
                 self._apply_kline(session, message)
                 session.last_kline_at = wall_now
             elif topic.startswith("publicTrade."):
-                rows = message.get("data") or []
-                if rows:
-                    ticks: list[TradeTick] = []
-                    for row in rows:
-                        session.trade_sequence += 1
-                        tick = TradeTick(
-                            ts_ms=int(
-                                row.get("T")
-                                or time() * 1000
-                            ),
-                            price=float(row["p"]),
-                            size=float(row["v"]),
-                            side=str(row.get("S") or ""),
-                            sequence=session.trade_sequence,
-                        )
-                        session.trades.append(tick)
-                        self._overlay_trade_on_forming_candle(
-                            session,
-                            tick,
-                        )
-                        ticks.append(tick)
-
+                ticks = await self._process_public_trade_message(
+                    session,
+                    message,
+                )
+                if ticks:
                     session.last_price = ticks[-1].price
-                    session.last_trade_stream_at = wall_now
-                    prune_trades(
-                        session.trades,
-                        ticks[-1].ts_ms,
-                        self.config.trade_buffer_seconds,
-                    )
-
-                    # Pending maker entries must be invalidated against the
-                    # newest tape before the same trade is allowed to fill.
-                    if symbol in self.broker.pending_entries:
-                        session.last_eval = monotonic()
-                        await self._evaluate(session)
-
-                    for tick in ticks:
-                        session.last_price = tick.price
-                        self._mark_execution_from_market(
-                            session,
-                            trade_ts_ms=tick.ts_ms,
-                            trade_price=tick.price,
-                            trade_notional_usd=tick.notional,
-                        )
-                    session.last_price = ticks[-1].price
-
                     self._schedule_event_evaluation(
                         session,
                         "public_trade",
@@ -3809,6 +3973,9 @@ class TradingEngine:
         position_action: str,
         existing_position: Position | None,
     ):
+        decision.details["fundingSnapshot"] = (
+            session.funding_public()
+        )
         return self.risk.build_plan(
             session.symbol,
             decision,
@@ -3817,6 +3984,8 @@ class TradingEngine:
             self.broker.available_notional,
             self.broker.available_risk_usd,
             depth_book=session.depth_orderbook(),
+            instrument=session.instrument,
+            fee_schedule=session.fee_schedule,
             setup_id=setup_id,
             existing_position_notional=(
                 existing_position.notional
@@ -4311,6 +4480,28 @@ class TradingEngine:
                         )
                         continue
 
+                if (
+                    position_action == "open"
+                    and result.plan.entry_mode == "maker_limit"
+                ):
+                    allowed, pending_reason = (
+                        self.broker.can_place_pending(
+                            session.symbol
+                        )
+                    )
+                    if not allowed:
+                        self._risk_reject_if_changed(
+                            session,
+                            decision,
+                            pending_reason,
+                            diagnostics={
+                                "semanticArbitration": (
+                                    base_assessment.public()
+                                ),
+                            },
+                        )
+                        continue
+
                 economics = (
                     result.plan.strategy_details.get(
                         "economics"
@@ -4486,6 +4677,10 @@ class TradingEngine:
         if best.position_action == "add":
             allowed, reason = self.broker.can_add(
                 best.plan
+            )
+        elif best.plan.entry_mode == "maker_limit":
+            allowed, reason = self.broker.can_place_pending(
+                best.session.symbol
             )
         else:
             allowed, reason = self.broker.can_open(
@@ -5145,6 +5340,7 @@ class TradingEngine:
         trade_ts_ms: int | None = None,
         trade_price: float | None = None,
         trade_notional_usd: float | None = None,
+        trade_side: str | None = None,
     ) -> None:
         resolved_trade_price = (
             float(trade_price)
@@ -5156,6 +5352,7 @@ class TradingEngine:
             resolved_trade_price,
             trade_ts_ms=trade_ts_ms,
             trade_notional_usd=trade_notional_usd,
+            trade_side=trade_side,
         )
         for event in pending_events:
             if event.get("event") in {
@@ -5250,6 +5447,8 @@ class TradingEngine:
             session,
             trade_price=resolved_trade_price,
             trade_notional_usd=trade_notional_usd,
+            trade_side=trade_side,
+            observed_at_ms=trade_ts_ms,
         )
 
     def _mark_position_from_book(
@@ -5258,6 +5457,8 @@ class TradingEngine:
         *,
         trade_price: float | None = None,
         trade_notional_usd: float | None = None,
+        trade_side: str | None = None,
+        observed_at_ms: int | None = None,
     ) -> None:
         if session.symbol not in self.broker.positions:
             return
@@ -5275,6 +5476,18 @@ class TradingEngine:
             depth_book=session.depth_orderbook(),
             trade_price=trade_price,
             trade_notional_usd=trade_notional_usd,
+            trade_side=trade_side,
+            funding_rate=session.funding_rate,
+            funding_time_ms=session.next_funding_time_ms,
+            funding_mark_price=(
+                session.mark_price
+                or mark
+            ),
+            observed_at_ms=(
+                int(time() * 1000)
+                if observed_at_ms is None
+                else observed_at_ms
+            ),
         )
         self._handle_broker_events(session, events)
 
@@ -5283,6 +5496,14 @@ class TradingEngine:
             event_type = event.get("event")
             if event_type == "partial_take":
                 self._emit("partial_take", session.symbol, event, snapshot=True)
+                continue
+            if event_type == "funding_payment":
+                self._emit(
+                    "funding_payment",
+                    session.symbol,
+                    event,
+                    snapshot=True,
+                )
                 continue
             if event_type == "trade_closed":
                 strategy_key = str(event.get("strategy") or "")

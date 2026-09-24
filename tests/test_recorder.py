@@ -951,3 +951,75 @@ def test_background_recorder_keeps_live_trade_review_immediate(
         assert summaries[0]["setupId"] == "async-recorder-1"
     finally:
         recorder.close()
+
+
+def test_recorder_queue_bounds_bulk_memory_and_prioritizes_critical_rows(
+    tmp_path,
+) -> None:
+    recorder = SessionRecorder(
+        str(tmp_path),
+        queue_size=2,
+        critical_enqueue_timeout_seconds=0.0,
+    )
+
+    class FakeWriter:
+        @staticmethod
+        def is_alive() -> bool:
+            return True
+
+    recorder._writer_thread = FakeWriter()  # type: ignore[assignment]
+    recorder.record("market_frame", "AAAUSDT", {"n": 1})
+    recorder.record("research_frame", "AAAUSDT", {"n": 2})
+    recorder.record(
+        "decision",
+        "AAAUSDT",
+        {"strategy": "level_breakout", "action": "wait"},
+    )
+
+    health = recorder.health()
+    assert health["queueDepth"] == 2
+    assert health["queueCapacity"] == 2
+    assert health["droppedRows"] == 1
+    assert health["droppedBulkRows"] == 1
+    assert health["droppedCriticalRows"] == 0
+    assert health["pendingRows"] == 2
+
+    queued = [
+        recorder._write_queue.get(),  # noqa: SLF001
+        recorder._write_queue.get(),  # noqa: SLF001
+    ]
+    assert [row["event"] for row in queued] == [
+        "research_frame",
+        "decision",
+    ]
+    recorder._writer_thread = None
+
+
+def test_recorder_queue_drops_new_bulk_when_only_critical_rows_fill_capacity(
+    tmp_path,
+) -> None:
+    recorder = SessionRecorder(
+        str(tmp_path),
+        queue_size=1,
+        critical_enqueue_timeout_seconds=0.0,
+    )
+
+    class FakeWriter:
+        @staticmethod
+        def is_alive() -> bool:
+            return True
+
+    recorder._writer_thread = FakeWriter()  # type: ignore[assignment]
+    recorder.record(
+        "decision",
+        "AAAUSDT",
+        {"strategy": "level_breakout", "action": "wait"},
+    )
+    recorder.record("market_frame", "AAAUSDT", {"n": 1})
+
+    health = recorder.health()
+    assert health["queueDepth"] == 1
+    assert health["droppedRows"] == 1
+    assert health["droppedBulkRows"] == 1
+    assert health["droppedCriticalRows"] == 0
+    recorder._writer_thread = None

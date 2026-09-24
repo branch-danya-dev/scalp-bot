@@ -4,9 +4,12 @@ from dataclasses import dataclass
 
 from .config import Settings
 from .domain import OrderBook, Side, StrategyDecision, TradePlan
+from .instrument import InstrumentSpec
 from .execution import (
     apply_entry_slippage,
+    apply_exit_slippage,
     execution_profile,
+    FeeSchedule,
     fee_rate,
     preferred_entry_mode,
     slippage_rate,
@@ -31,24 +34,70 @@ class RiskEngine:
         book: OrderBook,
         side: Side,
         notional: float,
-    ) -> tuple[float, float, float, float | None]:
-        """Reserve adverse stop-side depth impact using the current book."""
-        if notional <= 0:
-            return 0.0, 0.0, 0.0, None
-        best = book.executable_exit(side)
-        raw_vwap, visible = book.exit_vwap(side, notional)
-        if best is None or best <= 0 or raw_vwap is None or raw_vwap <= 0:
-            return 0.0, 0.0, visible, raw_vwap
-        impact = (
-            max(0.0, (best - raw_vwap) / best)
-            if side == Side.LONG
-            else max(0.0, (raw_vwap - best) / best)
+        trigger_price: float,
+    ) -> tuple[float, float, float, float | None, str]:
+        """Estimate adverse stop execution without assuming impossible depth.
+
+        Prefer book levels already visible beyond the planned stop trigger.
+        Most normal books will not expose useful quantity that far away; in
+        that case project the *current depth impact* onto the future stop
+        price instead of rejecting every otherwise-valid setup.
+        """
+        if notional <= 0 or trigger_price <= 0:
+            return 0.0, 0.0, 0.0, None, "unavailable"
+
+        raw_vwap, visible = book.exit_vwap_from_trigger(
+            side,
+            notional,
+            trigger_price,
         )
+        if raw_vwap is not None and raw_vwap > 0 and visible > 0:
+            impact = (
+                max(
+                    0.0,
+                    (trigger_price - raw_vwap)
+                    / trigger_price,
+                )
+                if side == Side.LONG
+                else max(
+                    0.0,
+                    (raw_vwap - trigger_price)
+                    / trigger_price,
+                )
+            )
+            model = "visible_levels_beyond_stop_trigger"
+        else:
+            best = book.executable_exit(side)
+            current_vwap, visible = book.exit_vwap(
+                side,
+                notional,
+            )
+            if (
+                best is None
+                or best <= 0
+                or current_vwap is None
+                or current_vwap <= 0
+                or visible <= 0
+            ):
+                return 0.0, 0.0, visible, None, "unavailable"
+
+            impact = (
+                max(0.0, (best - current_vwap) / best)
+                if side == Side.LONG
+                else max(0.0, (current_vwap - best) / best)
+            )
+            raw_vwap = (
+                trigger_price * (1 - impact)
+                if side == Side.LONG
+                else trigger_price * (1 + impact)
+            )
+            model = "current_depth_impact_projected_to_stop"
+
         stress = impact * max(
             0.0,
             self.config.stop_depth_stress_multiplier,
         )
-        return stress, impact, visible, raw_vwap
+        return stress, impact, visible, raw_vwap, model
 
     def build_plan(
         self,
@@ -60,6 +109,8 @@ class RiskEngine:
         available_risk_usd: float,
         *,
         depth_book: OrderBook | None = None,
+        instrument: InstrumentSpec | None = None,
+        fee_schedule: FeeSchedule | None = None,
         setup_id: str | None = None,
         existing_position_notional: float = 0.0,
         existing_position_all_in_risk_usd: float = 0.0,
@@ -73,6 +124,11 @@ class RiskEngine:
             return RiskResult(False, "deep order book is not ready")
 
         side = decision.side
+        if instrument is not None and not instrument.tradeable:
+            return RiskResult(
+                False,
+                f"instrument is not tradeable: {instrument.status}",
+            )
         setup_entry = float(decision.entry)
         execution = execution_profile(decision.strategy)
         entry_mode = preferred_entry_mode(
@@ -89,6 +145,11 @@ class RiskEngine:
                 if side == Side.LONG
                 else max(setup_entry, book.best_ask)
             )
+            if instrument is not None:
+                raw_market_entry = instrument.maker_entry_price(
+                    raw_market_entry,
+                    side,
+                )
         else:
             raw_market_entry = float(
                 book.executable_entry(side) or 0
@@ -101,6 +162,9 @@ class RiskEngine:
         best_raw_entry = raw_market_entry
         stop = float(decision.stop)
         target = float(decision.target)
+        if instrument is not None:
+            stop = instrument.stop_price(stop, side)
+            target = instrument.target_price(target, side)
         if market_entry <= 0:
             return RiskResult(False, "executable market entry is unavailable")
 
@@ -187,18 +251,25 @@ class RiskEngine:
         if available_risk_usd <= 0:
             return RiskResult(False, "portfolio risk budget exhausted")
 
-        entry_fee_rate = fee_rate(self.config, entry_mode)
+        entry_fee_rate = fee_rate(
+            self.config,
+            entry_mode,
+            fee_schedule,
+        )
         target_exit_fee_rate = fee_rate(
             self.config,
             execution.target_exit,
+            fee_schedule,
         )
         stop_exit_fee_rate = fee_rate(
             self.config,
             execution.stop_exit,
+            fee_schedule,
         )
         partial_exit_fee_rate = fee_rate(
             self.config,
             execution.partial_exit,
+            fee_schedule,
         )
         target_exit_slippage_rate = slippage_rate(
             self.config,
@@ -379,16 +450,19 @@ class RiskEngine:
         stop_depth_impact_rate = 0.0
         visible_stop_depth = 0.0
         raw_stop_exit_vwap: float | None = None
+        stop_depth_model = "unavailable"
         for _ in range(3):
             (
                 stop_depth_stress_rate,
                 stop_depth_impact_rate,
                 visible_stop_depth,
                 raw_stop_exit_vwap,
+                stop_depth_model,
             ) = self._stop_depth_stress(
                 depth,
                 side,
                 notional,
+                stop,
             )
             if raw_stop_exit_vwap is None or visible_stop_depth <= 0:
                 return RiskResult(
@@ -507,6 +581,52 @@ class RiskEngine:
                 + stop_depth_stress_rate
             )
 
+        quantity = (
+            notional / market_entry
+            if market_entry > 0
+            else 0.0
+        )
+        instrument_diagnostics = None
+        if instrument is not None:
+            normalized = instrument.normalize_quantity(
+                entry_price=market_entry,
+                requested_notional=notional,
+                market_order=entry_mode != "maker_limit",
+            )
+            if normalized is None:
+                return RiskResult(
+                    False,
+                    "instrument minimum/step constraints reject order size",
+                )
+            quantity, notional = normalized
+            (
+                stop_depth_stress_rate,
+                stop_depth_impact_rate,
+                visible_stop_depth,
+                raw_stop_exit_vwap,
+                stop_depth_model,
+            ) = self._stop_depth_stress(
+                depth,
+                side,
+                notional,
+                stop,
+            )
+            if raw_stop_exit_vwap is None or visible_stop_depth <= 0:
+                return RiskResult(
+                    False,
+                    "insufficient visible stop-side depth after quantity normalization",
+                )
+            all_in_loss_pct = (
+                stop_pct
+                + round_trip_cost_pct
+                + stop_depth_stress_rate
+            )
+            instrument_diagnostics = {
+                **instrument.public(),
+                "normalizedQuantity": quantity,
+                "normalizedNotionalUsd": notional,
+            }
+
         entry_depth_impact_bps = (
             max(
                 0.0,
@@ -529,28 +649,92 @@ class RiskEngine:
             )
         )
 
-        target_fee_cost = notional * (
-            entry_fee_rate + target_exit_fee_rate
+        direction = 1 if side == Side.LONG else -1
+        entry_fee_cost = (
+            quantity * market_entry * entry_fee_rate
         )
-        target_slippage_cost = (
-            notional * target_exit_slippage_rate
+        embedded_entry_slippage_usd = (
+            quantity
+            * abs(
+                market_entry - float(raw_depth_entry)
+            )
         )
-        stop_fee_cost = notional * (
-            entry_fee_rate + stop_exit_fee_rate
+
+        stop_slipped_fill = apply_exit_slippage(
+            stop,
+            side,
+            stop_exit_slippage_rate,
+        )
+        stop_stressed_fill = stop_slipped_fill * (
+            1 - stop_depth_stress_rate
+            if side == Side.LONG
+            else 1 + stop_depth_stress_rate
         )
         stop_slippage_cost = (
-            notional * stop_exit_slippage_rate
+            quantity * abs(stop_slipped_fill - stop)
         )
         stop_depth_stress_cost = (
-            notional * stop_depth_stress_rate
+            quantity
+            * abs(
+                stop_stressed_fill - stop_slipped_fill
+            )
+        )
+        stop_exit_fee_cost = (
+            quantity
+            * stop_stressed_fill
+            * stop_exit_fee_rate
+        )
+        stop_fee_cost = (
+            entry_fee_cost + stop_exit_fee_cost
         )
         stop_estimated_costs = (
             stop_fee_cost
             + stop_slippage_cost
             + stop_depth_stress_cost
         )
+        gross_loss = (
+            quantity * abs(market_entry - stop)
+        )
+        all_in_net_loss = (
+            gross_loss + stop_estimated_costs
+        )
+        all_in_loss_pct = (
+            all_in_net_loss / notional
+            if notional > 0
+            else 0.0
+        )
         stressed_stop_cost_pct = (
-            stop_cost_pct + stop_depth_stress_rate
+            stop_estimated_costs / notional
+            if notional > 0
+            else 0.0
+        )
+        stop_cost_pct = stressed_stop_cost_pct
+        round_trip_cost_pct = stressed_stop_cost_pct
+
+        full_target_fill = apply_exit_slippage(
+            target,
+            side,
+            target_exit_slippage_rate,
+        )
+        target_exit_fee_cost = (
+            quantity
+            * full_target_fill
+            * target_exit_fee_rate
+        )
+        target_fee_cost = (
+            entry_fee_cost + target_exit_fee_cost
+        )
+        target_slippage_cost = (
+            quantity * abs(target - full_target_fill)
+        )
+        target_cost_pct = (
+            (
+                target_fee_cost
+                + target_slippage_cost
+            )
+            / notional
+            if notional > 0
+            else 0.0
         )
 
         required_net_profit = max(
@@ -561,11 +745,7 @@ class RiskEngine:
             ),
         )
 
-        # Price the same lifecycle that paper execution will actually use.
-        # Known runner strategies can realize a partial at 1R and then carry
-        # only the remainder to the final/runner target. The old model priced
-        # 100% of notional at the final maker target and materially overstated
-        # winners such as the UNI regression from the 2026-09-22 run.
+        # Price the same quantity-based lifecycle that PaperBroker realizes.
         profile_is_known = decision.strategy in {
             "trend_structure",
             "weak_level_rejection",
@@ -588,17 +768,55 @@ class RiskEngine:
             and 0.0 < partial_fraction < 1.0
             and target_pct > partial_move_pct
         )
-        partial_leg_net_pct = (
-            partial_move_pct
-            - entry_fee_rate
-            - partial_exit_fee_rate
-            - partial_exit_slippage_rate
+        partial_raw_price = (
+            market_entry
+            + direction
+            * market_entry
+            * partial_move_pct
+        )
+        partial_fill = apply_exit_slippage(
+            partial_raw_price,
+            side,
+            partial_exit_slippage_rate,
+        )
+        partial_quantity = (
+            quantity * partial_fraction
+        )
+        partial_raw_gross = (
+            direction
+            * (partial_raw_price - market_entry)
+            * partial_quantity
+        )
+        partial_exit_fee_cost = (
+            partial_quantity
+            * partial_fill
+            * partial_exit_fee_rate
+        )
+        partial_slippage_cost = (
+            partial_quantity
+            * abs(partial_raw_price - partial_fill)
+        )
+        partial_allocated_entry_fee = (
+            entry_fee_cost * partial_fraction
         )
         partial_net_at_trigger_usd = (
-            notional
-            * partial_fraction
-            * partial_leg_net_pct
+            partial_raw_gross
+            - partial_allocated_entry_fee
+            - partial_exit_fee_cost
+            - partial_slippage_cost
             if partial_candidate
+            else 0.0
+        )
+        partial_leg_net_pct = (
+            partial_net_at_trigger_usd
+            / (
+                partial_quantity * market_entry
+            )
+            if (
+                partial_candidate
+                and partial_quantity > 0
+                and market_entry > 0
+            )
             else 0.0
         )
         partial_required_net_usd = (
@@ -622,33 +840,96 @@ class RiskEngine:
         if partial_enabled and not structural_liquidity_target:
             runner_target_pct = max(
                 target_pct,
-                stop_pct * max(0.0, self.config.runner_target_r),
+                stop_pct * max(
+                    0.0,
+                    self.config.runner_target_r,
+                ),
             )
+        runner_raw_price = (
+            market_entry
+            + direction
+            * market_entry
+            * runner_target_pct
+        )
 
         if partial_enabled:
             runner_fraction = 1.0 - partial_fraction
-            lifecycle_gross_pct = (
-                partial_fraction * partial_move_pct
-                + runner_fraction * runner_target_pct
+            runner_quantity = quantity * runner_fraction
+            runner_fill = apply_exit_slippage(
+                runner_raw_price,
+                side,
+                target_exit_slippage_rate,
             )
-            lifecycle_fee_pct = (
-                entry_fee_rate
-                + partial_fraction * partial_exit_fee_rate
-                + runner_fraction * target_exit_fee_rate
+            runner_raw_gross = (
+                direction
+                * (runner_raw_price - market_entry)
+                * runner_quantity
             )
-            lifecycle_slippage_pct = (
-                partial_fraction * partial_exit_slippage_rate
-                + runner_fraction * target_exit_slippage_rate
+            runner_exit_fee_cost = (
+                runner_quantity
+                * runner_fill
+                * target_exit_fee_rate
+            )
+            runner_slippage_cost = (
+                runner_quantity
+                * abs(runner_raw_price - runner_fill)
+            )
+            gross_profit = (
+                partial_raw_gross
+                + runner_raw_gross
+            )
+            lifecycle_fee_cost = (
+                entry_fee_cost
+                + partial_exit_fee_cost
+                + runner_exit_fee_cost
+            )
+            lifecycle_slippage_cost = (
+                partial_slippage_cost
+                + runner_slippage_cost
             )
         else:
             runner_fraction = 1.0
-            lifecycle_gross_pct = target_pct
-            lifecycle_fee_pct = entry_fee_rate + target_exit_fee_rate
-            lifecycle_slippage_pct = (
-                target_exit_slippage_rate
+            runner_quantity = quantity
+            runner_raw_price = target
+            runner_fill = full_target_fill
+            gross_profit = (
+                direction
+                * (runner_raw_price - market_entry)
+                * runner_quantity
+            )
+            runner_exit_fee_cost = (
+                runner_quantity
+                * runner_fill
+                * target_exit_fee_rate
+            )
+            runner_slippage_cost = target_slippage_cost
+            lifecycle_fee_cost = (
+                entry_fee_cost
+                + runner_exit_fee_cost
+            )
+            lifecycle_slippage_cost = (
+                runner_slippage_cost
             )
 
-        lifecycle_cost_pct = lifecycle_fee_pct + lifecycle_slippage_pct
+        lifecycle_gross_pct = (
+            gross_profit / notional
+            if notional > 0
+            else 0.0
+        )
+        lifecycle_fee_pct = (
+            lifecycle_fee_cost / notional
+            if notional > 0
+            else 0.0
+        )
+        lifecycle_slippage_pct = (
+            lifecycle_slippage_cost / notional
+            if notional > 0
+            else 0.0
+        )
+        lifecycle_cost_pct = (
+            lifecycle_fee_pct
+            + lifecycle_slippage_pct
+        )
         first_take_move_pct = (
             partial_move_pct
             if partial_enabled
@@ -665,23 +946,13 @@ class RiskEngine:
             "0.25%": first_take_move_pct >= 0.0025,
             "0.30%": first_take_move_pct >= 0.0030,
         }
-        lifecycle_fee_cost = notional * lifecycle_fee_pct
-        lifecycle_slippage_cost = (
-            notional * lifecycle_slippage_pct
-        )
         estimated_costs = (
             lifecycle_fee_cost
             + lifecycle_slippage_cost
         )
         fee_cost = lifecycle_fee_cost
         slippage_cost = lifecycle_slippage_cost
-        embedded_entry_slippage_usd = (
-            notional * entry_slippage_rate
-        )
-        gross_profit = notional * lifecycle_gross_pct
-        gross_loss = notional * stop_pct
         expected_net = gross_profit - estimated_costs
-        all_in_net_loss = gross_loss + stop_estimated_costs
         winner_total_friction_usd = (
             estimated_costs
             + embedded_entry_slippage_usd
@@ -696,9 +967,11 @@ class RiskEngine:
                 gross_profit
                 + embedded_entry_slippage_usd
             )
-            if gross_profit
-            + embedded_entry_slippage_usd
-            > 0
+            if (
+                gross_profit
+                + embedded_entry_slippage_usd
+                > 0
+            )
             else float("inf")
         )
         stop_cost_share = (
@@ -706,11 +979,12 @@ class RiskEngine:
             if gross_loss > 0
             else float("inf")
         )
-        # Keep expected_net_loss as the internal/public compatibility alias.
-        # The payoff gate uses the explicit all-in loss amount so fees and
-        # slippage are counted exactly once on both target and stop outcomes.
         expected_net_loss = all_in_net_loss
-        net_rr = expected_net / all_in_net_loss if all_in_net_loss > 0 else 0.0
+        net_rr = (
+            expected_net / all_in_net_loss
+            if all_in_net_loss > 0
+            else 0.0
+        )
 
         minimum_net_reward = (
             all_in_net_loss * self.config.min_net_reward_risk
@@ -758,6 +1032,8 @@ class RiskEngine:
             "notionalByTradeAllInCapUsd": notional_by_trade_all_in_cap,
             "notionalByAllInPortfolioRiskUsd": notional_by_all_in_portfolio_risk,
             "effectiveLeverage": notional / balance if balance else 0.0,
+            "quantity": quantity,
+            "instrument": instrument_diagnostics,
             "setupEntry": setup_entry,
             "marketEntry": market_entry,
             "rawExecutableEntry": float(raw_depth_entry),
@@ -776,6 +1052,9 @@ class RiskEngine:
             "stopDepthStressMultiplier": (
                 self.config.stop_depth_stress_multiplier
             ),
+            "stopDepthModel": stop_depth_model,
+            "stopDepthReferencePrice": stop,
+            "stopDepthIncludesPreTriggerLevels": False,
             "stopDepthImpactBps": (
                 stop_depth_impact_rate * 10_000
             ),
@@ -832,6 +1111,11 @@ class RiskEngine:
                 "baseEntry": execution.entry,
             },
             "entryMode": entry_mode,
+            "feeSchedule": (
+                fee_schedule.public()
+                if fee_schedule is not None
+                else None
+            ),
             "entryFeeRate": entry_fee_rate,
             "targetExitFeeRate": target_exit_fee_rate,
             "stopExitFeeRate": stop_exit_fee_rate,
@@ -995,6 +1279,10 @@ class RiskEngine:
             "payoffMarginUsd": expected_net - minimum_net_reward,
         }
         strategy_details = dict(decision.details)
+        if fee_schedule is not None:
+            strategy_details["feeSchedule"] = (
+                fee_schedule.public()
+            )
         strategy_details["economics"] = economics
 
         resolved_setup_id = (
@@ -1021,6 +1309,7 @@ class RiskEngine:
             entry_drift_pct=entry_drift,
             setup_id=resolved_setup_id,
             entry_mode=entry_mode,
+            quantity=quantity,
             strategy_details=strategy_details,
         )
         return RiskResult(

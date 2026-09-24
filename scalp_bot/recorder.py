@@ -4,15 +4,20 @@ import json
 from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path
-from queue import SimpleQueue
-from threading import Event, Lock, Thread
-from time import time
+from threading import Condition, Event, Lock, Thread
+from time import monotonic, time
 
 import msgspec
 
 
 _ROW_ENCODER = msgspec.json.Encoder()
 _RECORDER_STOP = object()
+_BULK_RECORDER_EVENTS = {
+    "research_frame",
+    "market_frame",
+    "market_context_changed",
+    "scanner_update",
+}
 
 
 class _FlushBarrier:
@@ -20,19 +25,100 @@ class _FlushBarrier:
         self.done = Event()
 
 
+class _BoundedRecorderQueue:
+    def __init__(self, maxsize: int) -> None:
+        self.maxsize = max(1, int(maxsize))
+        self._items: deque[object] = deque()
+        self._condition = Condition()
+
+    @staticmethod
+    def _is_bulk(item: object) -> bool:
+        return (
+            isinstance(item, dict)
+            and str(item.get("event") or "")
+            in _BULK_RECORDER_EVENTS
+        )
+
+    def put(
+        self,
+        item: object,
+        *,
+        critical: bool,
+        timeout: float = 0.0,
+    ) -> tuple[bool, int]:
+        """Queue one row.
+
+        Bulk telemetry is dropped immediately when full. Critical rows first
+        evict one queued bulk row; if the queue contains only critical rows,
+        they may wait briefly for the writer but never grow memory unbounded.
+        """
+        deadline = monotonic() + max(0.0, timeout)
+        evicted_bulk = 0
+        with self._condition:
+            while len(self._items) >= self.maxsize:
+                if not critical:
+                    return False, evicted_bulk
+
+                evict_index = next(
+                    (
+                        index
+                        for index, queued in enumerate(self._items)
+                        if self._is_bulk(queued)
+                    ),
+                    None,
+                )
+                if evict_index is not None:
+                    del self._items[evict_index]
+                    evicted_bulk += 1
+                    break
+
+                remaining = deadline - monotonic()
+                if remaining <= 0:
+                    return False, evicted_bulk
+                self._condition.wait(remaining)
+
+            self._items.append(item)
+            self._condition.notify()
+            return True, evicted_bulk
+
+    def get(self) -> object:
+        with self._condition:
+            while not self._items:
+                self._condition.wait()
+            item = self._items.popleft()
+            self._condition.notify_all()
+            return item
+
+    def qsize(self) -> int:
+        with self._condition:
+            return len(self._items)
+
+
 class SessionRecorder:
-    def __init__(self, directory: str) -> None:
+    def __init__(
+        self,
+        directory: str,
+        *,
+        queue_size: int = 8192,
+        critical_enqueue_timeout_seconds: float = 0.01,
+    ) -> None:
         self.root = Path(directory)
         self.root.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         self.path = self.root / f"session-{stamp}.jsonl"
         self._lock = Lock()
-        self._write_queue: SimpleQueue = SimpleQueue()
+        self._write_queue = _BoundedRecorderQueue(queue_size)
+        self._critical_enqueue_timeout_seconds = max(
+            0.0,
+            float(critical_enqueue_timeout_seconds),
+        )
         self._writer_thread: Thread | None = None
         self._writer_error: BaseException | None = None
         self._queued_rows = 0
         self._written_rows = 0
         self._dropped_rows = 0
+        self._dropped_bulk_rows = 0
+        self._dropped_critical_rows = 0
         # Live trade-review cache. The UI must never re-read a multi-GB
         # research JSONL simply because a user opened a closed trade.
         self._live_review_pre_roll: dict[str, deque[dict]] = {}
@@ -93,7 +179,21 @@ class SessionRecorder:
                 ) from self._writer_error
             return
         barrier = _FlushBarrier()
-        self._write_queue.put(barrier)
+        accepted, evicted = self._write_queue.put(
+            barrier,
+            critical=True,
+            timeout=max(
+                timeout,
+                self._critical_enqueue_timeout_seconds,
+            ),
+        )
+        if evicted:
+            self._dropped_rows += evicted
+            self._dropped_bulk_rows += evicted
+        if not accepted:
+            raise TimeoutError(
+                "recorder background writer queue is saturated"
+            )
         if not barrier.done.wait(max(0.0, timeout)):
             raise TimeoutError(
                 "recorder background writer flush timed out"
@@ -109,7 +209,21 @@ class SessionRecorder:
             return
         if thread.is_alive():
             self.flush(timeout)
-            self._write_queue.put(_RECORDER_STOP)
+            accepted, evicted = self._write_queue.put(
+                _RECORDER_STOP,
+                critical=True,
+                timeout=max(
+                    timeout,
+                    self._critical_enqueue_timeout_seconds,
+                ),
+            )
+            if evicted:
+                self._dropped_rows += evicted
+                self._dropped_bulk_rows += evicted
+            if not accepted:
+                raise TimeoutError(
+                    "recorder background writer stop queue is saturated"
+                )
             thread.join(max(0.0, timeout))
         self._writer_thread = None
 
@@ -123,9 +237,15 @@ class SessionRecorder:
             "writtenRows": self._written_rows,
             "pendingRows": max(
                 0,
-                self._queued_rows - self._written_rows,
+                self._queued_rows
+                - self._written_rows
+                - self._dropped_rows,
             ),
+            "queueDepth": self._write_queue.qsize(),
+            "queueCapacity": self._write_queue.maxsize,
             "droppedRows": self._dropped_rows,
+            "droppedBulkRows": self._dropped_bulk_rows,
+            "droppedCriticalRows": self._dropped_critical_rows,
             "writerError": (
                 f"{type(self._writer_error).__name__}: "
                 f"{self._writer_error}"
@@ -161,8 +281,27 @@ class SessionRecorder:
             thread is not None
             and thread.is_alive()
         ):
+            critical = event not in _BULK_RECORDER_EVENTS
+            accepted, evicted = self._write_queue.put(
+                row,
+                critical=critical,
+                timeout=(
+                    self._critical_enqueue_timeout_seconds
+                    if critical
+                    else 0.0
+                ),
+            )
+            if evicted:
+                self._dropped_rows += evicted
+                self._dropped_bulk_rows += evicted
+            if not accepted:
+                self._dropped_rows += 1
+                if critical:
+                    self._dropped_critical_rows += 1
+                else:
+                    self._dropped_bulk_rows += 1
+                return
             self._queued_rows += 1
-            self._write_queue.put(row)
             return
 
         # Deterministic synchronous fallback for unit tests and callers that

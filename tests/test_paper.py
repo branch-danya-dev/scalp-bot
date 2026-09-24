@@ -171,7 +171,7 @@ def test_countertrend_reaction_does_not_create_runner_partial() -> None:
     broker = PaperBroker(cfg)
     p = plan("AAAUSDT", Side.LONG, 1000)
     p.strategy_details = {"tradeMode": "countertrend_reaction", "allowRunner": False}
-    broker.open(p, book(99.99, 100.00))
+    pos = broker.open(p, book(99.99, 100.00))
 
     events = broker.mark("AAAUSDT", 100.60, book(100.60, 100.61))
 
@@ -582,7 +582,7 @@ def test_target_exit_uses_resting_maker_limit_execution() -> None:
     p = plan("TARGETMAKERUSDT", Side.LONG, 1000)
     p.strategy = "level_breakout"
     p.target = 101.0
-    broker.open(p, book(99.99, 100.00))
+    pos = broker.open(p, book(99.99, 100.00))
 
     events = broker.mark(
         "TARGETMAKERUSDT",
@@ -594,8 +594,12 @@ def test_target_exit_uses_resting_maker_limit_execution() -> None:
     trade = events[0]
     assert trade["reason"] == "target"
     assert trade["exit"] == pytest.approx(101.0)
-    expected_entry_fee = 1000 * cfg.taker_fee_rate
-    expected_exit_fee = 1000 * cfg.maker_fee_rate
+    expected_entry_fee = pos.entry_fee_total_usd
+    expected_exit_fee = (
+        pos.original_quantity
+        * 101.0
+        * cfg.maker_fee_rate
+    )
     assert trade["fees"] == pytest.approx(
         expected_entry_fee + expected_exit_fee
     )
@@ -638,8 +642,15 @@ def test_breakout_partial_is_resting_maker_and_uses_strategy_fraction() -> None:
     assert partial["closedNotional"] == pytest.approx(300)
     assert partial["remainingNotional"] == pytest.approx(700)
     assert partial["fill"] == pytest.approx(partial_limit)
-    expected_allocated_entry_fee = 1000 * cfg.taker_fee_rate * 0.30
-    expected_maker_exit_fee = 300 * cfg.maker_fee_rate
+    expected_allocated_entry_fee = (
+        pos.entry_fee_total_usd * 0.30
+    )
+    expected_maker_exit_fee = (
+        pos.original_quantity
+        * 0.30
+        * partial_limit
+        * cfg.maker_fee_rate
+    )
     assert partial["fees"] == pytest.approx(
         expected_allocated_entry_fee + expected_maker_exit_fee
     )
@@ -1131,6 +1142,81 @@ def test_paper_does_not_take_partial_when_plan_marks_it_unprofitable() -> None:
     assert broker.positions["NOPARTUSDT"].partial_taken is False
 
 
+def test_pending_maker_entry_ignores_wrong_aggressor_side() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.05,
+        maker_fee_rate=0,
+        taker_fee_rate=0,
+        passive_entry_enabled=True,
+        maker_fill_confirmation_bps=0,
+        maker_queue_ahead_fraction=0.0,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("SIDEENTRYUSDT", Side.LONG, 1000)
+    p.strategy = "orderbook_density"
+    p.entry_mode = "maker_limit"
+    p.market_entry = 99.99
+    p.expected_net_loss = 10
+    pending = broker.place_pending(p)
+
+    assert broker.mark_pending(
+        "SIDEENTRYUSDT",
+        99.98,
+        trade_notional_usd=2000,
+        trade_side="Buy",
+    ) == []
+    assert pending.eligible_trade_notional_usd == 0
+    assert "SIDEENTRYUSDT" in broker.pending_entries
+
+    filled = broker.mark_pending(
+        "SIDEENTRYUSDT",
+        99.98,
+        trade_notional_usd=2000,
+        trade_side="Sell",
+    )
+    assert filled and filled[0]["event"] == "entry_filled"
+
+
+def test_maker_exit_ignores_wrong_aggressor_side() -> None:
+    cfg = Settings(
+        maker_fee_rate=0,
+        taker_fee_rate=0,
+        slippage_bps=0,
+        maker_fill_confirmation_bps=0,
+        maker_queue_ahead_fraction=0.0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+        max_leverage=2,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("SIDEEXITUSDT", Side.LONG, 1000)
+    p.strategy = "level_breakout"
+    p.target = 101.0
+    broker.open(p, book(99.99, 100.00))
+
+    assert broker.mark(
+        "SIDEEXITUSDT",
+        101.0,
+        book(101.0, 101.01),
+        trade_price=101.0,
+        trade_notional_usd=2000,
+        trade_side="Sell",
+    ) == []
+    assert "SIDEEXITUSDT" in broker.positions
+
+    closed = broker.mark(
+        "SIDEEXITUSDT",
+        101.0,
+        book(101.0, 101.01),
+        trade_price=101.0,
+        trade_notional_usd=2000,
+        trade_side="Buy",
+    )
+    assert closed and closed[-1]["reason"] == "target"
+
+
 def test_pending_maker_entry_requires_cumulative_trade_through_volume() -> None:
     cfg = Settings(
         start_balance=1000,
@@ -1201,7 +1287,7 @@ def test_maker_target_requires_cumulative_trade_through_volume() -> None:
         101.0,
         book(101.0, 101.01),
         trade_price=101.0,
-        trade_notional_usd=1400,
+        trade_notional_usd=1415,
     )
     assert closed and closed[-1]["reason"] == "target"
 
@@ -1243,10 +1329,56 @@ def test_maker_partial_requires_cumulative_trade_through_volume() -> None:
         partial_limit,
         book(partial_limit, partial_limit + 0.01),
         trade_price=partial_limit,
-        trade_notional_usd=400,
+        trade_notional_usd=403,
     )
     assert partial and partial[0]["event"] == "partial_take"
     assert pos.partial_taken is True
+
+
+def test_market_exit_penalizes_unseen_depth_tail() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        paper_missing_depth_penalty_bps=25.0,
+        max_leverage=2,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("TAILUSDT", Side.LONG, 1000)
+    p.stop = 99.5
+    p.target = 102.0
+    broker.open(
+        p,
+        OrderBook(
+            bids=[(99.99, 100)],
+            asks=[(100.00, 100)],
+        ),
+    )
+
+    shallow = OrderBook(
+        bids=[(99.00, 1.0)],
+        asks=[(99.10, 1.0)],
+    )
+    trade = broker.close(
+        "TAILUSDT",
+        shallow,
+        "manual_test",
+    )
+
+    visible_quantity = 1.0
+    total_quantity = 10.0
+    missing_quantity = total_quantity - visible_quantity
+    missing_fraction = missing_quantity / total_quantity
+    tail_price = 99.0 * (
+        1 - (25.0 / 10_000) * missing_fraction
+    )
+    expected = (
+        99.0 * visible_quantity
+        + tail_price * missing_quantity
+    ) / total_quantity
+    assert trade["exit"] == pytest.approx(expected)
+    assert trade["exit"] < 99.0
 
 
 def test_fast_book_triggers_stop_while_deep_book_sets_exit_vwap() -> None:
@@ -1287,3 +1419,263 @@ def test_fast_book_triggers_stop_while_deep_book_sets_exit_vwap() -> None:
 
     assert events and events[-1]["reason"] == "stop"
     assert events[-1]["exit"] == pytest.approx(99.00)
+
+
+def test_explicit_contract_quantity_controls_scale_in_average_entry() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=0.20,
+        taker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+    )
+    broker = PaperBroker(cfg)
+
+    first = plan("QTYUSDT", Side.LONG, 100)
+    first.strategy = "level_breakout"
+    first.setup_id = "qty:g1"
+    first.quantity = 1.0
+    first.market_entry = 100.0
+    broker.open(
+        first,
+        OrderBook(
+            bids=[(99.9, 10.0)],
+            asks=[(100.0, 10.0)],
+        ),
+    )
+
+    add = plan("QTYUSDT", Side.LONG, 200)
+    add.strategy = "level_breakout"
+    add.setup_id = first.setup_id
+    add.quantity = 1.0
+    add.market_entry = 200.0
+    add.stop = 99.6
+    add.target = 301.0
+    add.expected_net_loss = 5.0
+    position = broker.add(
+        add,
+        OrderBook(
+            bids=[(199.9, 10.0)],
+            asks=[(200.0, 10.0)],
+        ),
+    )
+
+    assert position.quantity == pytest.approx(2.0)
+    assert position.original_quantity == pytest.approx(2.0)
+    assert position.entry == pytest.approx(150.0)
+    assert position.notional == pytest.approx(300.0)
+    assert position.original_notional == pytest.approx(300.0)
+
+
+def test_exit_fee_uses_filled_quantity_times_exit_price() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        maker_fee_rate=0.001,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+        max_leverage=2,
+        maker_fill_confirmation_bps=0,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("FEEQTYUSDT", Side.LONG, 1000)
+    p.strategy = "level_breakout"
+    p.quantity = 10.0
+    p.target = 110.0
+    broker.open(
+        p,
+        book(99.99, 100.0),
+    )
+
+    events = broker.mark(
+        "FEEQTYUSDT",
+        110.0,
+        book(110.0, 110.01),
+        trade_price=110.0,
+        trade_notional_usd=5000,
+        trade_side="Buy",
+    )
+    trade = events[-1]
+
+    assert trade["reason"] == "target"
+    assert trade["fees"] == pytest.approx(
+        10.0 * 110.0 * cfg.maker_fee_rate
+    )
+
+
+def test_pending_entries_do_not_consume_open_position_slots() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=1.0,
+        max_open_positions=1,
+        max_pending_entries=2,
+        passive_entry_enabled=True,
+        maker_fill_confirmation_bps=0,
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+    )
+    broker = PaperBroker(cfg)
+
+    for symbol in ("PEND1USDT", "PEND2USDT"):
+        pending_plan = plan(
+            symbol,
+            Side.LONG,
+            100,
+        )
+        pending_plan.entry_mode = "maker_limit"
+        pending_plan.market_entry = 99.99
+        pending_plan.expected_net_loss = 1
+        broker.place_pending(pending_plan)
+
+    assert len(broker.pending_entries) == 2
+    allowed, reason = broker.can_open("TAKERUSDT")
+    assert allowed
+    assert reason == "allowed"
+
+    taker = plan("TAKERUSDT", Side.LONG, 100)
+    taker.expected_net_loss = 1
+    broker.open(
+        taker,
+        book(99.99, 100.0),
+    )
+
+    assert len(broker.positions) == 1
+    assert len(broker.pending_entries) == 2
+
+
+def test_pending_entries_have_separate_concurrency_cap() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=10,
+        max_total_risk_fraction=1.0,
+        max_open_positions=4,
+        max_pending_entries=1,
+        passive_entry_enabled=True,
+        maker_fill_confirmation_bps=0,
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+    )
+    broker = PaperBroker(cfg)
+
+    first = plan("PEND1USDT", Side.LONG, 100)
+    first.entry_mode = "maker_limit"
+    first.market_entry = 99.99
+    first.expected_net_loss = 1
+    broker.place_pending(first)
+
+    second = plan("PEND2USDT", Side.LONG, 100)
+    second.entry_mode = "maker_limit"
+    second.market_entry = 99.99
+    second.expected_net_loss = 1
+
+    with pytest.raises(
+        RuntimeError,
+        match="maximum pending entries reached",
+    ):
+        broker.place_pending(second)
+
+
+def test_positive_funding_charges_long_once_at_funding_time() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+        max_leverage=2,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("FUNDLONGUSDT", Side.LONG, 400)
+    pos = broker.open(
+        p,
+        book(99.99, 100.0),
+    )
+    funding_time = int(pos.opened_at * 1000) + 1_000
+
+    events = broker.mark(
+        "FUNDLONGUSDT",
+        100.0,
+        book(99.99, 100.0),
+        funding_rate=0.001,
+        funding_time_ms=funding_time,
+        funding_mark_price=100.0,
+        observed_at_ms=funding_time + 1,
+    )
+
+    payment = next(
+        event
+        for event in events
+        if event["event"] == "funding_payment"
+    )
+    assert payment["fundingPnlUsd"] == pytest.approx(
+        -0.4
+    )
+    assert broker.balance == pytest.approx(999.6)
+    assert pos.funding_pnl_usd == pytest.approx(-0.4)
+    assert pos.realized_net_usd == pytest.approx(-0.4)
+
+    second = broker.mark(
+        "FUNDLONGUSDT",
+        100.0,
+        book(99.99, 100.0),
+        funding_rate=0.001,
+        funding_time_ms=funding_time,
+        funding_mark_price=100.0,
+        observed_at_ms=funding_time + 2_000,
+    )
+    assert not any(
+        event["event"] == "funding_payment"
+        for event in second
+    )
+    assert broker.balance == pytest.approx(999.6)
+
+
+def test_positive_funding_credits_short_and_is_persisted_on_close() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+        max_leverage=2,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("FUNDSHORTUSDT", Side.SHORT, 400)
+    pos = broker.open(
+        p,
+        book(100.0, 100.01),
+    )
+    funding_time = int(pos.opened_at * 1000) + 1_000
+
+    events = broker.mark(
+        "FUNDSHORTUSDT",
+        100.0,
+        book(100.0, 100.01),
+        funding_rate=0.001,
+        funding_time_ms=funding_time,
+        funding_mark_price=100.0,
+        observed_at_ms=funding_time + 1,
+    )
+    assert any(
+        event["event"] == "funding_payment"
+        for event in events
+    )
+    assert pos.funding_pnl_usd == pytest.approx(0.4)
+
+    trade = broker.close(
+        "FUNDSHORTUSDT",
+        book(100.0, 100.01),
+        "test",
+    )
+    assert trade["fundingPnlUsd"] == pytest.approx(
+        0.4
+    )
+    assert len(trade["fundingPayments"]) == 1
+    assert trade["netPnl"] == pytest.approx(
+        0.4 + trade["grossPnl"]
+    )
