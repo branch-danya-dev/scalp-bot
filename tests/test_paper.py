@@ -171,7 +171,7 @@ def test_countertrend_reaction_does_not_create_runner_partial() -> None:
     broker = PaperBroker(cfg)
     p = plan("AAAUSDT", Side.LONG, 1000)
     p.strategy_details = {"tradeMode": "countertrend_reaction", "allowRunner": False}
-    broker.open(p, book(99.99, 100.00))
+    pos = broker.open(p, book(99.99, 100.00))
 
     events = broker.mark("AAAUSDT", 100.60, book(100.60, 100.61))
 
@@ -594,9 +594,9 @@ def test_target_exit_uses_resting_maker_limit_execution() -> None:
     trade = events[0]
     assert trade["reason"] == "target"
     assert trade["exit"] == pytest.approx(101.0)
-    expected_entry_fee = 1000 * cfg.taker_fee_rate
+    expected_entry_fee = pos.entry_fee_total_usd
     expected_exit_fee = (
-        (1000 / 100.0)
+        pos.original_quantity
         * 101.0
         * cfg.maker_fee_rate
     )
@@ -642,9 +642,11 @@ def test_breakout_partial_is_resting_maker_and_uses_strategy_fraction() -> None:
     assert partial["closedNotional"] == pytest.approx(300)
     assert partial["remainingNotional"] == pytest.approx(700)
     assert partial["fill"] == pytest.approx(partial_limit)
-    expected_allocated_entry_fee = 1000 * cfg.taker_fee_rate * 0.30
+    expected_allocated_entry_fee = (
+        pos.entry_fee_total_usd * 0.30
+    )
     expected_maker_exit_fee = (
-        (1000 / 100.0)
+        pos.original_quantity
         * 0.30
         * partial_limit
         * cfg.maker_fee_rate
@@ -1475,6 +1477,7 @@ def test_exit_fee_uses_filled_quantity_times_exit_price() -> None:
         partial_take_enabled=False,
         no_follow_through_seconds=999,
         max_leverage=2,
+        maker_fill_confirmation_bps=0,
     )
     broker = PaperBroker(cfg)
     p = plan("FEEQTYUSDT", Side.LONG, 1000)
@@ -1673,4 +1676,9 @@ def test_positive_funding_credits_short_and_is_persisted_on_close() -> None:
         0.4
     )
     assert len(trade["fundingPayments"]) == 1
-    assert trade["netPnl"] == pytest.approx(0.4)
+    expected_close_gross = (
+        pos.quantity * (pos.entry - trade["exit"])
+    )
+    assert trade["netPnl"] == pytest.approx(
+        0.4 + expected_close_gross
+    )
