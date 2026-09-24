@@ -654,28 +654,6 @@ async def _stream_topics(
                         f"m{next(_MARKET_EVENT_IDS)}"
                     )
                     stream = stream_name(message.topic)
-                    receive_parse = max(
-                        0.0,
-                        (
-                            parsed_mono_ns
-                            - receipt_mono_ns
-                        )
-                        / 1_000_000_000,
-                    )
-                    observe_latency(
-                        "receive_to_parse",
-                        receive_parse,
-                        stream=stream,
-                    )
-                    exchange_receive = (
-                        exchange_receive_seconds(message)
-                    )
-                    observe_latency(
-                        "exchange_to_receive",
-                        exchange_receive,
-                        stream=stream,
-                    )
-
                     root = tracer().start_span(
                         "market.event",
                         start_time=receipt_wall_ns,
@@ -690,6 +668,12 @@ async def _stream_topics(
                             ),
                         },
                     )
+                    root_context = root.get_span_context()
+                    if root_context.is_valid:
+                        message.trace_id = (
+                            f"{root_context.trace_id:032x}"
+                        )
+                    message.otel_span = root
                     root.add_event(
                         "received",
                         timestamp=receipt_wall_ns,
@@ -702,12 +686,31 @@ async def _stream_topics(
                             - receipt_mono_ns
                         ),
                     )
-                    root_context = root.get_span_context()
-                    if root_context.is_valid:
-                        message.trace_id = (
-                            f"{root_context.trace_id:032x}"
+                    receive_parse = max(
+                        0.0,
+                        (
+                            parsed_mono_ns
+                            - receipt_mono_ns
                         )
-                    message.otel_span = root
+                        / 1_000_000_000,
+                    )
+                    exchange_receive = (
+                        exchange_receive_seconds(message)
+                    )
+                    with trace.use_span(
+                        root,
+                        end_on_exit=False,
+                    ):
+                        observe_latency(
+                            "receive_to_parse",
+                            receive_parse,
+                            stream=stream,
+                        )
+                        observe_latency(
+                            "exchange_to_receive",
+                            exchange_receive,
+                            stream=stream,
+                        )
                     try:
                         queue.put_nowait(message)
                     except asyncio.QueueFull:
@@ -720,6 +723,9 @@ async def _stream_topics(
                                 ),
                             )
                         except TimeoutError as exc:
+                            if message.otel_span is not None:
+                                message.otel_span.end()
+                                message.otel_span = None
                             raise MarketDataBackpressureError(
                                 "market ingest queue remained full "
                                 f"(size={queue.maxsize})"
