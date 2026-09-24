@@ -18,7 +18,7 @@ from .activity import (
     opportunity_readiness,
 )
 from .config import Settings
-from .domain import Candidate, Candle, OrderBook
+from .domain import Candidate, Candle, InstrumentRules, OrderBook
 from .latency_observability import (
     exchange_receive_seconds,
     observe_latency,

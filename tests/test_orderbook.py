@@ -39,6 +39,40 @@ def test_runtime_stream_topics_match_dual_book_trading_path() -> None:
     assert same_deep == []
 
 
+@pytest.mark.asyncio
+async def test_instrument_rules_parser_builds_domain_rules_without_live_rest() -> None:
+    from scalp_bot.config import Settings
+    from scalp_bot.bybit import BybitRestClient
+
+    client = BybitRestClient(Settings())
+    async def fake_get(path, params):
+        assert path == "/v5/market/instruments-info"
+        assert params == {
+            "category": "linear",
+            "symbol": "BTCUSDT",
+        }
+        return {
+            "list": [{
+                "priceFilter": {"tickSize": "0.10"},
+                "lotSizeFilter": {
+                    "qtyStep": "0.001",
+                    "minOrderQty": "0.001",
+                    "minNotionalValue": "5",
+                },
+            }]
+        }
+
+    client._get = fake_get  # type: ignore[method-assign]
+    try:
+        rules = await client.instrument_rules("BTCUSDT")
+        assert rules.symbol == "BTCUSDT"
+        assert rules.tick_size == pytest.approx(0.10)
+        assert rules.qty_step == pytest.approx(0.001)
+        assert rules.min_notional_value == pytest.approx(5.0)
+    finally:
+        await client.close()
+
+
 def test_orderbook_sequence_gap_is_detected() -> None:
     state = OrderBookState(depth=200)
     state.apply({
