@@ -5096,6 +5096,7 @@ class TradingEngine:
             "botRunning": self.running,
             "mode": "paper",
             "marketHealth": self.market_health(),
+            "recorderHealth": self.recorder.health(),
             "run": {
                 "label": self.config.run_label,
                 "configuredDurationSeconds": self.config.paper_run_duration_seconds,
