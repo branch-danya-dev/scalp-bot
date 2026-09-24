@@ -78,6 +78,78 @@ def _observations_by_symbol(rows: list[dict]) -> dict[str, list[dict]]:
     return result
 
 
+def _trade_ts_seconds(trade: dict) -> float:
+    raw = trade.get("ts")
+    if not isinstance(raw, (int, float)):
+        return 0.0
+    value = float(raw)
+    return value / 1000.0 if value > 10_000_000_000 else value
+
+
+def _trades_by_symbol(rows: list[dict]) -> dict[str, list[dict]]:
+    result: dict[str, list[dict]] = defaultdict(list)
+    seen: dict[str, set[tuple]] = defaultdict(set)
+    for row in rows:
+        if row.get("event") not in {"research_frame", "market_frame"}:
+            continue
+        symbol = str(row.get("symbol") or "")
+        if not symbol:
+            continue
+        payload = row.get("payload") or {}
+        for trade in payload.get("recentTrades") or []:
+            if not isinstance(trade, dict):
+                continue
+            ts = _trade_ts_seconds(trade)
+            price = trade.get("price")
+            if ts <= 0 or not isinstance(price, (int, float)):
+                continue
+            sequence = trade.get("sequence")
+            key = (
+                ("sequence", int(sequence))
+                if isinstance(sequence, (int, float)) and int(sequence) > 0
+                else (
+                    "tick",
+                    ts,
+                    float(price),
+                    float(trade.get("size") or 0.0),
+                    str(trade.get("side") or ""),
+                )
+            )
+            if key in seen[symbol]:
+                continue
+            seen[symbol].add(key)
+            result[symbol].append({
+                "ts": ts,
+                "price": float(price),
+                "sequence": (
+                    int(sequence)
+                    if isinstance(sequence, (int, float))
+                    else 0
+                ),
+            })
+    for values in result.values():
+        values.sort(
+            key=lambda item: (
+                item["ts"],
+                item["sequence"],
+            )
+        )
+    return result
+
+
+def _future_trades(
+    trades: list[dict],
+    start_ts: float,
+    horizon_seconds: float,
+) -> list[dict]:
+    end = start_ts + horizon_seconds
+    return [
+        trade
+        for trade in trades
+        if start_ts < trade["ts"] <= end
+    ]
+
+
 def _future_path(
     observations: list[dict],
     start_ts: float,
@@ -173,6 +245,91 @@ def _hypothetical_outcome(
             if stop_ts is not None and start_ts is not None
             else None
         ),
+    }
+
+
+def _hypothetical_outcome_from_trades(
+    decision: dict,
+    future: list[dict],
+    *,
+    start_ts: float,
+) -> dict:
+    action = str(decision.get("action") or "")
+    entry = decision.get("entry")
+    stop = decision.get("stop")
+    target = decision.get("target")
+    if (
+        action not in {"long", "short"}
+        or entry is None
+        or stop is None
+        or target is None
+    ):
+        return {
+            "outcome": "not_simulatable",
+            "mfeR": None,
+            "maeR": None,
+            "secondsToTarget": None,
+            "secondsToStop": None,
+            "priceSource": "post_event_public_trades",
+        }
+
+    entry = float(entry)
+    stop = float(stop)
+    target = float(target)
+    risk = abs(entry - stop)
+    if risk <= 0:
+        return {
+            "outcome": "not_simulatable",
+            "mfeR": None,
+            "maeR": None,
+            "secondsToTarget": None,
+            "secondsToStop": None,
+            "priceSource": "post_event_public_trades",
+        }
+
+    mfe = 0.0
+    mae = 0.0
+    first: str | None = None
+    target_ts = stop_ts = None
+    for trade in future:
+        price = float(trade["price"])
+        if action == "long":
+            favorable = price - entry
+            adverse = entry - price
+            target_hit = price >= target
+            stop_hit = price <= stop
+        else:
+            favorable = entry - price
+            adverse = price - entry
+            target_hit = price <= target
+            stop_hit = price >= stop
+        mfe = max(mfe, favorable)
+        mae = max(mae, adverse)
+        if target_hit and target_ts is None:
+            target_ts = trade["ts"]
+        if stop_hit and stop_ts is None:
+            stop_ts = trade["ts"]
+        if first is None:
+            if target_hit:
+                first = "target_first"
+            elif stop_hit:
+                first = "stop_first"
+
+    return {
+        "outcome": first or "unresolved",
+        "mfeR": mfe / risk,
+        "maeR": mae / risk,
+        "secondsToTarget": (
+            target_ts - start_ts
+            if target_ts is not None
+            else None
+        ),
+        "secondsToStop": (
+            stop_ts - start_ts
+            if stop_ts is not None
+            else None
+        ),
+        "priceSource": "post_event_public_trades",
     }
 
 
@@ -555,6 +712,7 @@ def analyze_session_rows(
     market_move_decision_lookback_seconds: float = DEFAULT_MARKET_MOVE_DECISION_LOOKBACK_SECONDS,
 ) -> dict[str, Any]:
     observations = _observations_by_symbol(rows)
+    trades = _trades_by_symbol(rows)
     candidates: list[dict] = []
     early_exits: list[dict] = []
     latest_decisions: dict[tuple[str, str], dict] = {}
@@ -579,12 +737,30 @@ def analyze_session_rows(
                 )
             if not isinstance(decision, dict):
                 continue
-            future = _future_path(
-                observations.get(symbol, []),
-                ts,
-                horizon_seconds,
-            )
-            outcome = _hypothetical_outcome(decision, future)
+            if symbol in trades:
+                future_ticks = _future_trades(
+                    trades.get(symbol, []),
+                    ts,
+                    horizon_seconds,
+                )
+                outcome = _hypothetical_outcome_from_trades(
+                    decision,
+                    future_ticks,
+                    start_ts=ts,
+                )
+            else:
+                future = _future_path(
+                    observations.get(symbol, []),
+                    ts,
+                    horizon_seconds,
+                )
+                outcome = _hypothetical_outcome(
+                    decision,
+                    future,
+                )
+                outcome["priceSource"] = (
+                    "legacy_frame_high_low_fallback"
+                )
             review_class = {
                 "target_first": "missed_target_first",
                 "stop_first": "correct_reject_candidate",
@@ -626,31 +802,60 @@ def analyze_session_rows(
                 or entry is None
             ):
                 continue
-            future = _future_path(
-                observations.get(symbol, []),
-                ts,
-                horizon_seconds,
-            )
             risk = abs(float(entry) - float(initial_stop))
             target_after = False
             post_mfe = 0.0
-            for obs in future:
-                if side == "long":
-                    post_mfe = max(
-                        post_mfe,
-                        obs["high"] - float(exit_price),
-                    )
-                    target_after = target_after or (
-                        obs["high"] >= float(target)
-                    )
-                else:
-                    post_mfe = max(
-                        post_mfe,
-                        float(exit_price) - obs["low"],
-                    )
-                    target_after = target_after or (
-                        obs["low"] <= float(target)
-                    )
+            if symbol in trades:
+                future_ticks = _future_trades(
+                    trades.get(symbol, []),
+                    ts,
+                    horizon_seconds,
+                )
+                for trade in future_ticks:
+                    price = float(trade["price"])
+                    if side == "long":
+                        post_mfe = max(
+                            post_mfe,
+                            price - float(exit_price),
+                        )
+                        target_after = target_after or (
+                            price >= float(target)
+                        )
+                    else:
+                        post_mfe = max(
+                            post_mfe,
+                            float(exit_price) - price,
+                        )
+                        target_after = target_after or (
+                            price <= float(target)
+                        )
+                exit_price_source = "post_event_public_trades"
+            else:
+                future = _future_path(
+                    observations.get(symbol, []),
+                    ts,
+                    horizon_seconds,
+                )
+                for obs in future:
+                    if side == "long":
+                        post_mfe = max(
+                            post_mfe,
+                            obs["high"] - float(exit_price),
+                        )
+                        target_after = target_after or (
+                            obs["high"] >= float(target)
+                        )
+                    else:
+                        post_mfe = max(
+                            post_mfe,
+                            float(exit_price) - obs["low"],
+                        )
+                        target_after = target_after or (
+                            obs["low"] <= float(target)
+                        )
+                exit_price_source = (
+                    "legacy_frame_high_low_fallback"
+                )
             early_exits.append({
                 "reviewId": f"exit-{index}",
                 "ts": ts,
@@ -667,6 +872,7 @@ def analyze_session_rows(
                     if risk > 0
                     else None
                 ),
+                "priceSource": exit_price_source,
                 "classification": (
                     "early_exit_review"
                     if target_after
@@ -722,8 +928,10 @@ def analyze_session_rows(
             "maximumThresholdSeconds": market_move_horizon_seconds,
             "decisionLookbackSeconds": market_move_decision_lookback_seconds,
             "priceSource": (
-                "research/market frame lastPrice, candle close fallback; "
-                "forming-candle high/low is not used for move discovery"
+                "move discovery uses research/market frame lastPrice; "
+                "rejected-trade and early-exit outcomes use post-event "
+                "public trades when recorded, with legacy frame fallback "
+                "only for sessions that contain no trade tape"
             ),
         },
         "summary": {
