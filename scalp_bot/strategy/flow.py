@@ -38,6 +38,31 @@ def prune_trades(
         trades.popleft()
 
 
+def price_response_bps_since(
+    trades: list[TradeTick],
+    start_ms: int,
+    *,
+    now_ms: int | None = None,
+) -> tuple[float | None, int]:
+    """Directional tape response using only executions at/after an event."""
+    if not trades or start_ms <= 0:
+        return None, 0
+    resolved_now = now_ms or trades[-1].ts_ms
+    rows = [
+        trade
+        for trade in trades
+        if start_ms <= trade.ts_ms <= resolved_now
+    ]
+    if len(rows) < 2:
+        return None, len(rows)
+    rows.sort(key=lambda trade: trade.ts_ms)
+    first = rows[0].price
+    last = rows[-1].price
+    if first <= 0:
+        return None, len(rows)
+    return (last - first) / first * 10_000, len(rows)
+
+
 def cumulative_delta(
     trades: list[TradeTick],
     seconds: int,
