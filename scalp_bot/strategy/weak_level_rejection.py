@@ -567,6 +567,8 @@ class WeakLevelRejectionStrategy(Strategy):
         if response_expired:
             state.absorption_at = 0.0
             state.absorption_price = 0.0
+            state.fire_at = 0.0
+            state.fire_price = 0.0
 
         should_wait = (
             (
@@ -1199,6 +1201,10 @@ class WeakLevelRejectionStrategy(Strategy):
                     state.swept = False
                     state.armed_at = 0.0
                     state.armed_price = 0.0
+                    state.absorption_at = 0.0
+                    state.absorption_price = 0.0
+                    state.fire_at = 0.0
+                    state.fire_price = 0.0
                     state.probe_opened = False
                     state.stage = RejectionStage.SEARCH
                     state.zone_key = None
@@ -1320,6 +1326,10 @@ class WeakLevelRejectionStrategy(Strategy):
             state.zone_key = None
             state.armed_at = 0.0
             state.armed_price = 0.0
+            state.absorption_at = 0.0
+            state.absorption_price = 0.0
+            state.fire_at = 0.0
+            state.fire_price = 0.0
             return StrategyDecision(
                 self.key,
                 Action.WAIT,
