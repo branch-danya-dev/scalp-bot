@@ -1024,7 +1024,33 @@ async def test_bootstrap_loads_direct_multi_timeframe_context(tmp_path) -> None:
             for i in range(count)
         ]
 
+    async def fake_instrument_info(symbol: str):
+        from scalp_bot.instrument import InstrumentSpec
+        return InstrumentSpec(
+            symbol=symbol,
+            status="Trading",
+            tick_size=0.01,
+            qty_step=0.001,
+            min_order_qty=0.001,
+            min_notional_value=5.0,
+            max_order_qty=1_000_000.0,
+            max_market_order_qty=1_000_000.0,
+            funding_interval_minutes=480,
+            max_leverage=100.0,
+        )
+
+    async def fake_fee_schedule(symbol: str):
+        from scalp_bot.execution import FeeSchedule
+        return FeeSchedule(
+            symbol=symbol,
+            maker_fee_rate=0.0002,
+            taker_fee_rate=0.00055,
+            source="test",
+        )
+
     engine.rest.klines = fake_klines  # type: ignore[method-assign]
+    engine.rest.instrument_info = fake_instrument_info  # type: ignore[method-assign]
+    engine.rest.fee_schedule = fake_fee_schedule  # type: ignore[method-assign]
     try:
         await engine._bootstrap_symbol("TESTUSDT")
         session = engine.sessions["TESTUSDT"]
