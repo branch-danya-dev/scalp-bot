@@ -5031,6 +5031,7 @@ class TradingEngine:
                 if latency_message is not None:
                     with span(
                         "paper.order.fill",
+                        parent_span=latency_message.otel_span,
                         **{
                             "market.symbol": session.symbol,
                             "strategy.name": strategy_key,
