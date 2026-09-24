@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .domain import Candle, OrderBook, TradeTick, Trend
-from .strategy import DEFAULT_STRATEGIES
+from .strategy import create_default_strategies
 from .strategy.structure import market_structure_from_public
 
 
@@ -72,8 +72,8 @@ def _trades_from_public(rows: list[dict]) -> list[TradeTick]:
 class OfflineStrategyReplay:
     def __init__(self) -> None:
         self.strategies = {
-            strategy.key: type(strategy)()
-            for strategy in DEFAULT_STRATEGIES
+            strategy.key: strategy
+            for strategy in create_default_strategies()
         }
 
     def run_rows(self, rows: list[dict], *, symbol: str | None = None) -> list[ShadowSignal]:
