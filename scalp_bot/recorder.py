@@ -563,7 +563,12 @@ class SessionRecorder:
     ) -> dict | None:
         if not isinstance(snapshot, dict):
             return None
-        book = snapshot.get("orderbook") or {}
+        book = (
+            snapshot.get("fastOrderbook")
+            or snapshot.get("orderbook")
+            or {}
+        )
+        deep_book = snapshot.get("deepOrderbook") or {}
         return {
             "lastPrice": snapshot.get("lastPrice"),
             "trend": snapshot.get("trend"),
@@ -576,7 +581,23 @@ class SessionRecorder:
                 "bestAsk": book.get("bestAsk"),
                 "spreadPct": book.get("spreadPct"),
             },
+            "fastOrderbook": {
+                "bids": list(book.get("bids") or [])[:book_depth],
+                "asks": list(book.get("asks") or [])[:book_depth],
+                "bestBid": book.get("bestBid"),
+                "bestAsk": book.get("bestAsk"),
+                "spreadPct": book.get("spreadPct"),
+            },
+            "deepOrderbook": {
+                "bids": list(deep_book.get("bids") or [])[:book_depth],
+                "asks": list(deep_book.get("asks") or [])[:book_depth],
+                "bestBid": deep_book.get("bestBid"),
+                "bestAsk": deep_book.get("bestAsk"),
+                "spreadPct": deep_book.get("spreadPct"),
+            },
             "bookHealth": snapshot.get("bookHealth"),
+            "fastBookHealth": snapshot.get("fastBookHealth"),
+            "deepBookHealth": snapshot.get("deepBookHealth"),
             "candleHealth": snapshot.get("candleHealth"),
             "tradeFlow": snapshot.get("tradeFlow"),
             "bookFlow": snapshot.get("bookFlow"),
