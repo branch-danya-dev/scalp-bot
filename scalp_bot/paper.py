@@ -1228,6 +1228,20 @@ class PaperBroker:
             "setupEntry": pos.setup_entry,
             "entry": pos.entry,
             "exit": final_leg["fill"],
+            "executionDepth": {
+                "insufficient": bool(
+                    final_leg.get("depthInsufficient")
+                ),
+                "visibleDepthUsd": (
+                    final_leg.get("visibleDepthUsd")
+                ),
+                "missingDepthUsd": (
+                    final_leg.get("missingDepthUsd")
+                ),
+                "tailPenaltyBps": (
+                    final_leg.get("tailPenaltyBps")
+                ),
+            },
             "exitMovePct": exit_move_pct,
             "exitMoveBps": exit_move_pct * 10_000,
             "currentMovePct": pos.current_move_pct,
@@ -1532,6 +1546,10 @@ class PaperBroker:
 
         close_notional = min(close_notional, pos.notional)
         profile = execution_profile(pos.strategy)
+        depth_insufficient = False
+        visible_depth = close_notional
+        missing_depth_usd = 0.0
+        tail_penalty_bps = 0.0
         target_limit = (
             reason in {"target", "runner_target"}
             and profile.target_exit == "maker_limit"
@@ -1551,12 +1569,16 @@ class PaperBroker:
                 pos.side,
                 close_notional,
             )
+            depth_insufficient = False
+            missing_depth_usd = 0.0
+            tail_penalty_bps = 0.0
             if raw is None:
                 raw = book.executable_exit(pos.side) or pos.last_price
             elif (
                 visible_depth + max(1e-9, close_notional * 1e-9)
                 < close_notional
             ):
+                depth_insufficient = True
                 levels = (
                     book.bids
                     if pos.side == Side.LONG
@@ -1564,18 +1586,40 @@ class PaperBroker:
                 )
                 if levels:
                     worst = levels[-1][0]
+                    missing_depth_usd = max(
+                        0.0,
+                        close_notional - visible_depth,
+                    )
+                    missing_fraction = min(
+                        1.0,
+                        missing_depth_usd
+                        / max(close_notional, 1e-9),
+                    )
+                    base_penalty = max(
+                        0.0,
+                        self.config
+                        .paper_insufficient_depth_penalty_bps,
+                    )
+                    # Penalize a larger missing tail more strongly while
+                    # keeping the model deterministic and auditable.
+                    tail_penalty_bps = (
+                        base_penalty
+                        * (1.0 + missing_fraction)
+                    )
+                    penalty = tail_penalty_bps / 10_000
+                    tail_price = (
+                        worst * max(1e-9, 1.0 - penalty)
+                        if pos.side == Side.LONG
+                        else worst * (1.0 + penalty)
+                    )
                     visible_base = (
                         visible_depth / raw
                         if raw > 0
                         else 0.0
                     )
-                    missing = max(
-                        0.0,
-                        close_notional - visible_depth,
-                    )
                     total_base = visible_base + (
-                        missing / worst
-                        if worst > 0
+                        missing_depth_usd / tail_price
+                        if tail_price > 0
                         else 0.0
                     )
                     if total_base > 0:
@@ -1613,6 +1657,10 @@ class PaperBroker:
             "gross": gross,
             "fees": fees,
             "net": gross - fees,
+            "depthInsufficient": depth_insufficient,
+            "visibleDepthUsd": visible_depth,
+            "missingDepthUsd": missing_depth_usd,
+            "tailPenaltyBps": tail_penalty_bps,
         }
 
     def _realize(
@@ -1647,7 +1695,18 @@ class PaperBroker:
         pos.fees_paid_usd += fees
         self.balance += net
 
-        return {"fill": fill, "gross": gross, "fees": fees, "net": net}
+        return {
+            "fill": fill,
+            "gross": gross,
+            "fees": fees,
+            "net": net,
+            "depthInsufficient": bool(
+                leg.get("depthInsufficient")
+            ),
+            "visibleDepthUsd": leg.get("visibleDepthUsd"),
+            "missingDepthUsd": leg.get("missingDepthUsd"),
+            "tailPenaltyBps": leg.get("tailPenaltyBps"),
+        }
 
     def _should_cut_no_follow_through(self, pos: Position, gross_mark_original: float) -> bool:
         age = time() - pos.opened_at

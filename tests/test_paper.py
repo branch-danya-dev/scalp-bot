@@ -1332,6 +1332,51 @@ def test_maker_partial_requires_cumulative_trade_through_volume() -> None:
     assert pos.partial_taken is True
 
 
+def test_market_exit_prices_missing_depth_beyond_last_visible_level() -> None:
+    cfg = Settings(
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        paper_insufficient_depth_penalty_bps=25,
+        partial_take_enabled=False,
+        no_follow_through_seconds=999,
+        max_leverage=3,
+    )
+    broker = PaperBroker(cfg)
+    p = plan("TAILUSDT", Side.LONG, 2000)
+    p.stop = 99.50
+    p.target = 102.0
+    broker.open(
+        p,
+        OrderBook(
+            bids=[(99.99, 100)],
+            asks=[(100.00, 100)],
+        ),
+    )
+
+    sparse_exit = OrderBook(
+        bids=[
+            (99.40, 5.0),
+            (99.30, 5.0),
+        ],
+        asks=[(99.41, 100)],
+    )
+    events = broker.mark(
+        "TAILUSDT",
+        99.40,
+        sparse_exit,
+        depth_book=sparse_exit,
+    )
+
+    assert events and events[-1]["reason"] == "stop"
+    trade = events[-1]
+    assert trade["executionDepth"]["insufficient"] is True
+    assert trade["executionDepth"]["missingDepthUsd"] > 0
+    assert trade["executionDepth"]["tailPenaltyBps"] > 25
+    # Missing liquidity is no longer assumed to execute at 99.30.
+    assert trade["exit"] < 99.30
+
+
 def test_fast_book_triggers_stop_while_deep_book_sets_exit_vwap() -> None:
     cfg = Settings(
         taker_fee_rate=0,
