@@ -1,8 +1,9 @@
 import asyncio
 
 import pytest
-from time import time
+from time import perf_counter_ns, time
 
+from scalp_bot.bybit import MarketMessage
 from scalp_bot.config import Settings
 from scalp_bot.domain import Action, Candidate, Candle, OrderBook, Side, StrategyDecision, TradePlan, TradeTick, Trend
 from scalp_bot.engine import ActiveSymbolSession, TradingEngine
@@ -2807,11 +2808,22 @@ async def test_fast_event_evaluation_bypasses_poll_interval_and_arbitrates_fire(
     # still execute without waiting evaluation_engaged_interval_seconds.
     session.last_eval = 10**9
 
+    message = MarketMessage(
+        topic="orderbook.50.FASTUSDT",
+        ts=1_000,
+        event_id="m-fast-fixture",
+        trace_id="0" * 31 + "2",
+        receipt_wall_ns=2_000_000_000,
+        receipt_mono_ns=perf_counter_ns() - 2_000_000,
+        parsed_mono_ns=perf_counter_ns() - 1_000_000,
+    )
+
     try:
         engine._schedule_event_evaluation(
             session,
             "best_quote",
             observed_at_ms=1_000,
+            market_message=message,
         )
         tasks = list(engine._event_tasks)
         assert tasks
@@ -2821,6 +2833,19 @@ async def test_fast_event_evaluation_bypasses_poll_interval_and_arbitrates_fire(
         assert arbitrations == ["fire"]
         assert session.fast_event_evaluations == 1
         assert session.last_fast_event_reason == "best_quote"
+        assert message.strategy_eval_started_mono_ns > 0
+        assert message.strategy_eval_finished_mono_ns >= (
+            message.strategy_eval_started_mono_ns
+        )
+        assert message.fire_mono_ns >= (
+            message.strategy_eval_finished_mono_ns
+        )
+        trace = session.decisions[
+            "level_breakout"
+        ].details["latencyTrace"]
+        assert trace["eventId"] == "m-fast-fixture"
+        assert trace["traceId"] == "0" * 31 + "2"
+        assert trace["fireTsNs"] is not None
     finally:
         engine.running = False
         await engine.rest.close()
