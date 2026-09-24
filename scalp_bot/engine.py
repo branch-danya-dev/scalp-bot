@@ -1238,6 +1238,187 @@ class TradingEngine:
                 return True
         return False
 
+    def _fast_book_event_reason(
+        self,
+        session: ActiveSymbolSession,
+        previous: OrderBook,
+        current: OrderBook,
+        *,
+        ofi_usd: float = 0.0,
+    ) -> str | None:
+        if not self.config.event_driven_evaluation_enabled:
+            return None
+        engaged = (
+            self._session_engaged(session)
+            or session.symbol in self.broker.positions
+            or session.symbol in self.broker.pending_entries
+        )
+        if not engaged:
+            return None
+        if not current.bids or not current.asks:
+            return None
+        if not previous.bids or not previous.asks:
+            return "fast_book_ready"
+
+        if (
+            previous.best_bid != current.best_bid
+            or previous.best_ask != current.best_ask
+        ):
+            return "best_quote"
+
+        previous_mid = previous.mid
+        current_mid = current.mid
+        if previous_mid and current_mid:
+            mid_move_bps = (
+                abs(current_mid - previous_mid)
+                / previous_mid
+                * 10_000
+            )
+            if (
+                mid_move_bps
+                >= self.config.fast_event_min_mid_move_bps
+            ):
+                return "mid_move"
+
+        spread_change_bps = (
+            abs(current.spread_pct - previous.spread_pct)
+            * 10_000
+        )
+        if (
+            spread_change_bps
+            >= self.config.fast_event_min_spread_change_bps
+        ):
+            return "spread_change"
+
+        top_depth = sum(
+            price * qty
+            for price, qty in (
+                current.bids[:5] + current.asks[:5]
+            )
+        )
+        if top_depth > 0:
+            ofi_fraction = abs(ofi_usd) / top_depth
+            if (
+                ofi_fraction
+                >= self.config.fast_event_min_ofi_fraction
+            ):
+                return "top_level_ofi"
+        return None
+
+    @staticmethod
+    def _tradeable_event_fingerprint(
+        session: ActiveSymbolSession,
+    ) -> tuple:
+        return tuple(sorted(
+            (
+                key,
+                decision.action.value,
+                str(decision.setup_id or ""),
+                str((decision.details or {}).get("state") or ""),
+            )
+            for key, decision in session.decisions.items()
+            if decision.tradeable
+        ))
+
+    def _track_event_task(
+        self,
+        task: asyncio.Task,
+    ) -> None:
+        self._event_tasks.add(task)
+        task.add_done_callback(self._event_tasks.discard)
+
+    def _schedule_event_evaluation(
+        self,
+        session: ActiveSymbolSession,
+        reason: str,
+        *,
+        observed_at_ms: int | None = None,
+    ) -> None:
+        if not self.config.event_driven_evaluation_enabled:
+            return
+        if not (
+            self._session_engaged(session)
+            or session.symbol in self.broker.positions
+            or session.symbol in self.broker.pending_entries
+        ):
+            return
+
+        session.fast_event_requests += 1
+        session.last_fast_event_reason = reason
+        session.last_fast_event_at_ms = (
+            int(time() * 1000)
+            if observed_at_ms is None
+            else int(observed_at_ms)
+        )
+        if session.event_eval_pending:
+            session.fast_event_coalesced += 1
+            return
+
+        session.event_eval_pending = True
+        task = asyncio.create_task(
+            self._run_event_evaluation(
+                session.symbol,
+                reason,
+            ),
+            name=f"fast-eval-{session.symbol}",
+        )
+        self._track_event_task(task)
+
+    async def _run_event_evaluation(
+        self,
+        symbol: str,
+        reason: str,
+    ) -> None:
+        session = self.sessions.get(symbol)
+        if session is None:
+            return
+        try:
+            min_interval = max(
+                0.0,
+                float(
+                    self.config
+                    .event_evaluation_min_interval_seconds
+                ),
+            )
+            elapsed = (
+                monotonic() - session.last_event_eval_at
+                if session.last_event_eval_at > 0
+                else min_interval
+            )
+            delay = max(0.0, min_interval - elapsed)
+            if delay > 0:
+                await asyncio.sleep(delay)
+
+            session = self.sessions.get(symbol)
+            if session is None:
+                return
+            before = self._tradeable_event_fingerprint(
+                session
+            )
+            now = monotonic()
+            session.last_eval = now
+            session.last_event_eval_at = now
+            session.fast_event_evaluations += 1
+            session.last_fast_event_reason = reason
+            await self._evaluate(session)
+            after = self._tradeable_event_fingerprint(
+                session
+            )
+
+            # FIRE should not wait for the periodic 250ms arbiter tick. Keep
+            # the global selection/risk semantics intact, but invoke them as
+            # soon as this market event creates a new tradeable setup.
+            if (
+                self.running
+                and after
+                and after != before
+            ):
+                self._arbitrate_once()
+        finally:
+            current = self.sessions.get(symbol)
+            if current is not None:
+                current.event_eval_pending = False
+
     def _research_book_depth(
         self,
         session: ActiveSymbolSession,
@@ -1257,8 +1438,8 @@ class TradingEngine:
             )
         )
         if density_engaged:
-            return self.config.orderbook_depth
-        return min(self.config.orderbook_depth, 50)
+            return self.config.deep_orderbook_depth
+        return min(self.config.deep_orderbook_depth, 50)
 
     def _deactivate_symbol(self, symbol: str, reason: str) -> None:
         worker = self._worker_tasks.pop(symbol, None)
