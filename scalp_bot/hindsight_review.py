@@ -12,6 +12,12 @@ DEFAULT_REVERSAL_PCT = 0.0015
 DEFAULT_ENTRY_WINDOW_FRACTION = 0.25
 DEFAULT_EXIT_WINDOW_FRACTION = 0.80
 
+TRADEABLE_PLAYBOOKS = {
+    "trend_structure",
+    "weak_level_rejection",
+    "level_breakout",
+}
+
 STRATEGY_STATE_ORDER = {
     "trend_structure": {
         "search": 0,
@@ -693,9 +699,22 @@ def _strategy_fit(
         ),
         reverse=True,
     )
+    tradeable_aligned = [
+        row
+        for row in aligned
+        if row["strategy"] in TRADEABLE_PLAYBOOKS
+    ]
     return {
         "closestPlaybook": aligned[0]["strategy"] if aligned else None,
         "mappedToExistingStrategy": bool(aligned),
+        "closestTradeablePlaybook": (
+            tradeable_aligned[0]["strategy"]
+            if tradeable_aligned
+            else None
+        ),
+        "mappedToTradeablePlaybook": bool(
+            tradeable_aligned
+        ),
         "strategies": rows_out,
     }
 
@@ -994,12 +1013,20 @@ def analyze_hindsight_opportunities(
     bot_counts: dict[str, int] = defaultdict(int)
     mapped = 0
     unmapped = 0
+    tradeable_mapped = 0
+    tradeable_unmapped = 0
     for item in opportunities:
         bot_counts[str(item["botComparison"]["classification"])] += 1
         if item["strategyFit"]["mappedToExistingStrategy"]:
             mapped += 1
         else:
             unmapped += 1
+        if item["strategyFit"].get(
+            "mappedToTradeablePlaybook"
+        ):
+            tradeable_mapped += 1
+        else:
+            tradeable_unmapped += 1
 
     return {
         "schemaVersion": 1,
@@ -1028,6 +1055,8 @@ def analyze_hindsight_opportunities(
             "opportunities": len(opportunities),
             "mappedToExistingStrategy": mapped,
             "unmappedToExistingStrategy": unmapped,
+            "mappedToTradeablePlaybook": tradeable_mapped,
+            "unmappedToTradeablePlaybook": tradeable_unmapped,
             "botMissed": bot_counts["missed"],
             "botWrongDirection": bot_counts["wrong_direction"],
             "botTraded": bot_counts["traded"],
