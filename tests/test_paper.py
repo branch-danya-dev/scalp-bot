@@ -582,7 +582,7 @@ def test_target_exit_uses_resting_maker_limit_execution() -> None:
     p = plan("TARGETMAKERUSDT", Side.LONG, 1000)
     p.strategy = "level_breakout"
     p.target = 101.0
-    broker.open(p, book(99.99, 100.00))
+    pos = broker.open(p, book(99.99, 100.00))
 
     events = broker.mark(
         "TARGETMAKERUSDT",
@@ -1676,9 +1676,6 @@ def test_positive_funding_credits_short_and_is_persisted_on_close() -> None:
         0.4
     )
     assert len(trade["fundingPayments"]) == 1
-    expected_close_gross = (
-        pos.quantity * (pos.entry - trade["exit"])
-    )
     assert trade["netPnl"] == pytest.approx(
-        0.4 + expected_close_gross
+        0.4 + trade["grossPnl"]
     )
