@@ -404,6 +404,123 @@ def _extract_jsonl_member(
         )
 
 
+class _RollingTradeDeltaNormalizer:
+    def __init__(self) -> None:
+        self._last_sequence: dict[str, int] = {}
+        self._seen_fallback: dict[str, set[tuple]] = {}
+
+    @staticmethod
+    def _trade_key(trade: dict) -> tuple:
+        return (
+            trade.get("ts"),
+            trade.get("price"),
+            trade.get("size"),
+            trade.get("side"),
+        )
+
+    def transform(self, row: dict) -> dict:
+        if row.get("event") != "research_frame":
+            return row
+        symbol = str(row.get("symbol") or "")
+        payload = row.get("payload")
+        if not symbol or not isinstance(payload, dict):
+            return row
+
+        encoding = str(
+            payload.get("tradeEncoding") or "rolling_v1"
+        )
+        trades = payload.get("recentTrades")
+        if (
+            encoding.startswith("delta_v1")
+            or not isinstance(trades, list)
+        ):
+            return row
+
+        last_sequence = self._last_sequence.get(symbol, 0)
+        max_sequence = last_sequence
+        fallback_seen = self._seen_fallback.setdefault(
+            symbol,
+            set(),
+        )
+        selected: list[dict] = []
+        for trade in trades:
+            if not isinstance(trade, dict):
+                continue
+            raw_sequence = trade.get("sequence")
+            try:
+                sequence = int(raw_sequence or 0)
+            except (TypeError, ValueError):
+                sequence = 0
+
+            if sequence > 0:
+                max_sequence = max(max_sequence, sequence)
+                if sequence <= last_sequence:
+                    continue
+                selected.append(trade)
+                continue
+
+            key = self._trade_key(trade)
+            if key in fallback_seen:
+                continue
+            fallback_seen.add(key)
+            selected.append(trade)
+
+        if max_sequence > 0:
+            self._last_sequence[symbol] = max_sequence
+        if len(fallback_seen) > 5000:
+            # Sequence-less trades are a legacy fallback. Bound memory while
+            # retaining enough recent identity to remove rolling duplication.
+            fallback_seen.clear()
+            for trade in trades[-1000:]:
+                if isinstance(trade, dict):
+                    fallback_seen.add(
+                        self._trade_key(trade)
+                    )
+
+        new_payload = dict(payload)
+        new_payload["recentTrades"] = selected
+        new_payload["tradeEncoding"] = (
+            "delta_v1_exported_from_rolling"
+        )
+        new_payload["tradeDeltaFromSequence"] = (
+            last_sequence if last_sequence > 0 else None
+        )
+        new_row = dict(row)
+        new_row["payload"] = new_payload
+        return new_row
+
+
+def _extract_analysis_member(
+    archive: zipfile.ZipFile,
+    member: str,
+    *,
+    output_dir: Path,
+    root: Path,
+    max_file_bytes: int,
+) -> list[dict]:
+    normalizer = _RollingTradeDeltaNormalizer()
+    writer = _JsonlPartWriter(
+        output_dir=output_dir,
+        root=root,
+        max_file_bytes=max_file_bytes,
+    )
+    with archive.open(member, "r") as source:
+        for raw_line in source:
+            raw_line = raw_line.strip()
+            if not raw_line:
+                continue
+            try:
+                row = json.loads(raw_line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(row, dict):
+                continue
+            writer.write(
+                normalizer.transform(row)
+            )
+    return writer.close()
+
+
 def _shard_id(index: int, shard_minutes: float) -> str:
     start_minute = int(round(index * shard_minutes))
     end_minute = int(round((index + 1) * shard_minutes))
@@ -516,7 +633,7 @@ def build_git_session_export(
                     "manifest.json",
                     shard_dir / "manifest.json",
                 )
-                analysis_parts = _extract_jsonl_member(
+                analysis_parts = _extract_analysis_member(
                     archive,
                     "session-analysis.jsonl",
                     output_dir=shard_dir / "analysis",
@@ -568,6 +685,10 @@ def build_git_session_export(
         "limits": {
             "maxFileBytes": max_file_bytes,
             "shardMinutes": shard_minutes,
+        },
+        "tradeTapeNormalization": {
+            "rollingV1": "converted to delta_v1_exported_from_rolling",
+            "nativeDeltaV1": "preserved",
         },
         "overview": {
             "sessionReport": "overview/session-report.json",

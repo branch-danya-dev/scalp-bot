@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from scalp_bot.git_session_export import (
+    _RollingTradeDeltaNormalizer,
     _build_navigation_index,
     _split_jsonl_stream,
 )
@@ -135,3 +136,76 @@ def test_navigation_index_points_to_active_shards(
     assert navigation["tradeEventParts"]
     assert navigation["problemEventParts"]
     assert (tmp_path / navigation["shards"]).is_file()
+
+
+
+def test_rolling_trade_tape_is_exported_as_delta() -> None:
+    normalizer = _RollingTradeDeltaNormalizer()
+
+    first = normalizer.transform(
+        {
+            "event": "research_frame",
+            "symbol": "AAAUSDT",
+            "payload": {
+                "tradeEncoding": "rolling_v1",
+                "recentTrades": [
+                    {
+                        "ts": 1000,
+                        "price": 100.0,
+                        "size": 1.0,
+                        "side": "Buy",
+                        "sequence": 10,
+                    },
+                    {
+                        "ts": 1001,
+                        "price": 100.1,
+                        "size": 1.0,
+                        "side": "Sell",
+                        "sequence": 11,
+                    },
+                ],
+            },
+        }
+    )
+    second = normalizer.transform(
+        {
+            "event": "research_frame",
+            "symbol": "AAAUSDT",
+            "payload": {
+                "tradeEncoding": "rolling_v1",
+                "recentTrades": [
+                    {
+                        "ts": 1000,
+                        "price": 100.0,
+                        "size": 1.0,
+                        "side": "Buy",
+                        "sequence": 10,
+                    },
+                    {
+                        "ts": 1001,
+                        "price": 100.1,
+                        "size": 1.0,
+                        "side": "Sell",
+                        "sequence": 11,
+                    },
+                    {
+                        "ts": 1002,
+                        "price": 100.2,
+                        "size": 1.0,
+                        "side": "Buy",
+                        "sequence": 12,
+                    },
+                ],
+            },
+        }
+    )
+
+    assert len(first["payload"]["recentTrades"]) == 2
+    assert [
+        trade["sequence"]
+        for trade in second["payload"]["recentTrades"]
+    ] == [12]
+    assert second["payload"]["tradeEncoding"] == (
+        "delta_v1_exported_from_rolling"
+    )
+    assert second["payload"]["tradeDeltaFromSequence"] == 11
