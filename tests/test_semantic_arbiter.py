@@ -667,3 +667,51 @@ def test_fresh_single_touch_day_high_is_still_structural_obstacle() -> None:
     assert path.obstacle_before_first_take is True
     assert path.blocked is True
     assert path.obstacle["kind"] == "day_high"
+
+
+
+def test_day_high_is_not_owned_even_if_generation_id_is_reused() -> None:
+    shared_generation = "R:resistance:100:g1"
+    day_high = mature_level(
+        "day_high",
+        100.05,
+        100.05,
+        generation=shared_generation,
+    )
+    ctx = context(resistance=day_high)
+    trade = decision(
+        "level_breakout",
+        Action.LONG,
+        entry=100.0,
+        stop=99.50,
+        target=101.0,
+        watched_level=100.0,
+        details={
+            "state": "impulse",
+            "zone": {
+                "kind": "resistance",
+                "low": 99.95,
+                "high": 100.10,
+            },
+            "levelLifecycle": {
+                "generation_id": shared_generation,
+            },
+            "opportunityFreshness": {
+                "classification": "fresh",
+            },
+            "flowAlignment": {
+                "classification": "strongly_aligned",
+            },
+            "liquidityAlignment": {
+                "classification": "supportive",
+            },
+        },
+    )
+
+    assessment = assess_candidate(trade, ctx)
+
+    assert (
+        assessment.structural_path.own_breakout_level_exempted
+        is False
+    )
+    assert assessment.structural_path.obstacle_before_first_take
