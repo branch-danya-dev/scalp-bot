@@ -205,6 +205,7 @@ class Settings(BaseSettings):
     replay_recent_trades: int = 250
     research_trade_delta_enabled: bool = False
     replay_trade_delta_enabled: bool = False
+    recorder_bulk_queue_max_rows: int = 20_000
 
     run_label: str = "paper-v3-scalp-econ-4h"
     paper_run_duration_seconds: float = 14_400.0

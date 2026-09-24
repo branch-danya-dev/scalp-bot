@@ -3,6 +3,33 @@ import pytest
 from scalp_bot.recorder import SessionRecorder
 
 
+def test_recorder_bounds_bulk_rows_but_keeps_critical_events(tmp_path) -> None:
+    recorder = SessionRecorder(
+        str(tmp_path),
+        max_bulk_pending_rows=1,
+    )
+
+    assert recorder._enqueue_background(
+        {"event": "research_frame"},
+        is_bulk=True,
+    )
+    assert not recorder._enqueue_background(
+        {"event": "market_frame"},
+        is_bulk=True,
+    )
+    assert recorder._enqueue_background(
+        {"event": "trade_closed"},
+        is_bulk=False,
+    )
+
+    health = recorder.health()
+    assert health["bulkPendingRows"] == 1
+    assert health["maxBulkPendingRows"] == 1
+    assert health["droppedRows"] == 1
+    assert health["droppedBulkRows"] == 1
+    assert health["pendingRows"] == 2
+
+
 def test_replay_bundle_contains_bootstrap_frames_and_events(tmp_path) -> None:
     recorder = SessionRecorder(str(tmp_path))
     recorder.record("symbol_activated", "AAAUSDT", {"market": {"candles": [{"time": 1, "open": 1, "high": 2, "low": 1, "close": 2}]}})
