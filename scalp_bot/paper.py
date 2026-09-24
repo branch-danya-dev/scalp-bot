@@ -303,7 +303,11 @@ class PaperBroker:
             return False, "symbol already has an open position"
         if symbol in self.pending_entries:
             return False, "symbol already has a pending entry"
-        if len(self.positions) + len(self.pending_entries) >= self.config.max_open_positions:
+        reserved_symbols = (
+            set(self.positions)
+            | set(self.pending_entries)
+        )
+        if len(reserved_symbols) >= self.config.max_open_positions:
             return False, "maximum open positions reached"
         if (
             self.config.enforce_session_loss_limit

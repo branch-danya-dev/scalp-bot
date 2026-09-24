@@ -1020,6 +1020,37 @@ def test_staged_add_rejects_wrong_setup_and_side() -> None:
     assert "side" in reason
 
 
+def test_pending_add_does_not_consume_second_position_slot() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_open_positions=2,
+        max_leverage=10,
+        max_total_risk_fraction=0.50,
+        absolute_min_net_reward_risk=0,
+        taker_fee_rate=0,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        passive_entry_enabled=True,
+    )
+    broker = PaperBroker(cfg)
+
+    probe = plan("AAAUSDT", Side.LONG, 100)
+    probe.strategy = "weak_level_rejection"
+    probe.setup_id = "slot:a"
+    broker.open(probe, book(99.99, 100.00))
+
+    add = plan("AAAUSDT", Side.LONG, 50)
+    add.strategy = probe.strategy
+    add.setup_id = probe.setup_id
+    add.entry_mode = "maker_limit"
+    add.market_entry = 99.99
+    broker.place_pending_add(add)
+
+    allowed, reason = broker.can_open("BBBUSDT")
+
+    assert allowed, reason
+
+
 def test_pending_maker_add_fills_into_existing_position() -> None:
     cfg = Settings(
         start_balance=1000,
