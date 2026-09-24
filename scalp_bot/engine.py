@@ -1520,22 +1520,6 @@ class TradingEngine:
             session.fast_event_evaluations += 1
             session.last_fast_event_reason = reason
             latency_message = session.pending_latency_message
-            if latency_message is not None:
-                latency_message.strategy_eval_started_mono_ns = (
-                    perf_counter_ns()
-                )
-                observe_latency(
-                    "parse_to_strategy",
-                    max(
-                        0.0,
-                        (
-                            latency_message.strategy_eval_started_mono_ns
-                            - latency_message.parsed_mono_ns
-                        )
-                        / 1_000_000_000,
-                    ),
-                    stream=stream_name(latency_message.topic),
-                )
 
             with span(
                 "strategy.event_evaluate",
@@ -2655,6 +2639,21 @@ class TradingEngine:
                     ),
                     stream=stream_name(latency_message.topic),
                 )
+            latency_message.strategy_eval_started_mono_ns = (
+                perf_counter_ns()
+            )
+            observe_latency(
+                "parse_to_strategy",
+                max(
+                    0.0,
+                    (
+                        latency_message.strategy_eval_started_mono_ns
+                        - latency_message.parsed_mono_ns
+                    )
+                    / 1_000_000_000,
+                ),
+                stream=stream_name(latency_message.topic),
+            )
 
         if density_decision is not None:
             self._annotate_decision_context(
