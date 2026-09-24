@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     rest_rate_limit_backoff_seconds: float = 1.0
     rest_rate_limit_max_backoff_seconds: float = 8.0
     empty_startup_rescan_seconds: float = 10.0
+    market_preflight_timeout_seconds: float = 30.0
 
     min_net_profit_usd: float = 1.00
     min_net_profit_equity_fraction: float = 0.001

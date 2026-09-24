@@ -1,45 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-import json
-import sys
 
-import websockets
-
-from scalp_bot.config import settings
 from scalp_bot.bybit import BybitError, BybitRestClient
-
-
-async def probe_public_websocket(symbol: str) -> None:
-    try:
-        async with websockets.connect(
-            settings.bybit_public_ws_url,
-            open_timeout=10,
-            close_timeout=5,
-            ping_interval=20,
-            ping_timeout=20,
-        ) as ws:
-            topic = f"orderbook.1.{symbol}"
-            await ws.send(json.dumps({
-                "op": "subscribe",
-                "args": [topic],
-            }))
-            for _ in range(6):
-                raw = await asyncio.wait_for(ws.recv(), timeout=10)
-                message = json.loads(raw)
-                if message.get("topic") == topic:
-                    return
-    except Exception as exc:
-        raise RuntimeError(
-            (
-                "Bybit public WebSocket preflight failed at "
-                f"{settings.bybit_public_ws_url}: "
-                f"{type(exc).__name__}: {exc}"
-            )
-        ) from exc
-    raise RuntimeError(
-        "Bybit public WebSocket connected but no order-book data arrived"
-    )
+from scalp_bot.config import settings
+from scalp_bot.preflight import probe_runtime_market
 
 
 async def main() -> None:
@@ -50,19 +15,42 @@ async def main() -> None:
             raise RuntimeError(
                 "Bybit scanner returned zero eligible candidates"
             )
+        symbol = candidates[0].symbol
         sample = ", ".join(
             item.symbol
             for item in candidates[:5]
+        )
+        instrument, fee_schedule = await asyncio.gather(
+            client.instrument_info(symbol),
+            client.fee_schedule(symbol),
         )
         print(
             "REST preflight passed: "
             f"{client.active_rest_url} · "
             f"{len(candidates)} candidates · top={sample}"
         )
-        await probe_public_websocket(candidates[0].symbol)
         print(
-            "WebSocket preflight passed: "
-            f"{settings.bybit_public_ws_url}"
+            "Instrument preflight passed: "
+            f"{symbol} · tick={instrument.tick_size} · "
+            f"qtyStep={instrument.qty_step} · "
+            f"minNotional={instrument.min_notional_value}"
+        )
+        print(
+            "Fee schedule: "
+            f"{fee_schedule.source} · "
+            f"maker={fee_schedule.maker_fee_rate:.6f} · "
+            f"taker={fee_schedule.taker_fee_rate:.6f}"
+        )
+
+        health = await probe_runtime_market(
+            settings,
+            symbol,
+        )
+        print(
+            "Runtime WebSocket preflight passed: "
+            f"L{health['fastDepth']} synced · "
+            f"L{health['deepDepth']} synced · "
+            "publicTrade=yes · kline.1=yes"
         )
     except (BybitError, RuntimeError) as exc:
         print("")
@@ -70,9 +58,9 @@ async def main() -> None:
         print(str(exc))
         print("")
         print(
-            "The research run was not started because its configured "
-            "Bybit Global linear market is not reachable from this "
-            "connection."
+            "The research run was not started because the exact "
+            "runtime Bybit market-data/execution prerequisites did "
+            "not become ready."
         )
         raise SystemExit(2) from None
     finally:
