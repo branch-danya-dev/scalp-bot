@@ -35,40 +35,69 @@ class RiskEngine:
         side: Side,
         notional: float,
         trigger_price: float,
-    ) -> tuple[float, float, float, float | None]:
-        """Reserve impact from visible depth beyond the planned stop.
+    ) -> tuple[float, float, float, float | None, str]:
+        """Estimate adverse stop execution without assuming impossible depth.
 
-        Levels between the current best quote and the stop cannot be counted
-        as stop-side liquidity: the market must already trade through them
-        before the stop can trigger.
+        Prefer book levels already visible beyond the planned stop trigger.
+        Most normal books will not expose useful quantity that far away; in
+        that case project the *current depth impact* onto the future stop
+        price instead of rejecting every otherwise-valid setup.
         """
         if notional <= 0 or trigger_price <= 0:
-            return 0.0, 0.0, 0.0, None
+            return 0.0, 0.0, 0.0, None, "unavailable"
+
         raw_vwap, visible = book.exit_vwap_from_trigger(
             side,
             notional,
             trigger_price,
         )
-        if raw_vwap is None or raw_vwap <= 0:
-            return 0.0, 0.0, visible, raw_vwap
-        impact = (
-            max(
-                0.0,
-                (trigger_price - raw_vwap)
-                / trigger_price,
+        if raw_vwap is not None and raw_vwap > 0 and visible > 0:
+            impact = (
+                max(
+                    0.0,
+                    (trigger_price - raw_vwap)
+                    / trigger_price,
+                )
+                if side == Side.LONG
+                else max(
+                    0.0,
+                    (raw_vwap - trigger_price)
+                    / trigger_price,
+                )
             )
-            if side == Side.LONG
-            else max(
-                0.0,
-                (raw_vwap - trigger_price)
-                / trigger_price,
+            model = "visible_levels_beyond_stop_trigger"
+        else:
+            best = book.executable_exit(side)
+            current_vwap, visible = book.exit_vwap(
+                side,
+                notional,
             )
-        )
+            if (
+                best is None
+                or best <= 0
+                or current_vwap is None
+                or current_vwap <= 0
+                or visible <= 0
+            ):
+                return 0.0, 0.0, visible, None, "unavailable"
+
+            impact = (
+                max(0.0, (best - current_vwap) / best)
+                if side == Side.LONG
+                else max(0.0, (current_vwap - best) / best)
+            )
+            raw_vwap = (
+                trigger_price * (1 - impact)
+                if side == Side.LONG
+                else trigger_price * (1 + impact)
+            )
+            model = "current_depth_impact_projected_to_stop"
+
         stress = impact * max(
             0.0,
             self.config.stop_depth_stress_multiplier,
         )
-        return stress, impact, visible, raw_vwap
+        return stress, impact, visible, raw_vwap, model
 
     def build_plan(
         self,
@@ -421,12 +450,14 @@ class RiskEngine:
         stop_depth_impact_rate = 0.0
         visible_stop_depth = 0.0
         raw_stop_exit_vwap: float | None = None
+        stop_depth_model = "unavailable"
         for _ in range(3):
             (
                 stop_depth_stress_rate,
                 stop_depth_impact_rate,
                 visible_stop_depth,
                 raw_stop_exit_vwap,
+                stop_depth_model,
             ) = self._stop_depth_stress(
                 depth,
                 side,
@@ -573,6 +604,7 @@ class RiskEngine:
                 stop_depth_impact_rate,
                 visible_stop_depth,
                 raw_stop_exit_vwap,
+                stop_depth_model,
             ) = self._stop_depth_stress(
                 depth,
                 side,
@@ -1020,9 +1052,7 @@ class RiskEngine:
             "stopDepthStressMultiplier": (
                 self.config.stop_depth_stress_multiplier
             ),
-            "stopDepthModel": (
-                "current_book_levels_beyond_stop_trigger"
-            ),
+            "stopDepthModel": stop_depth_model,
             "stopDepthReferencePrice": stop,
             "stopDepthIncludesPreTriggerLevels": False,
             "stopDepthImpactBps": (
