@@ -262,7 +262,13 @@ def readiness_candles(
 
 
 def test_opportunity_readiness_rewards_compression_into_fresh_expansion() -> None:
-    readiness, compression, expansion, spent = (
+    (
+        readiness,
+        compression,
+        expansion,
+        spent,
+        level_proximity,
+    ) = (
         opportunity_readiness(
             readiness_candles(
                 compressed=True,
@@ -275,6 +281,7 @@ def test_opportunity_readiness_rewards_compression_into_fresh_expansion() -> Non
     assert compression < 0.5
     assert expansion > 1.0
     assert spent < 1.0
+    assert 0.0 <= level_proximity <= 1.0
 
 
 def test_opportunity_readiness_penalizes_already_spent_impulse() -> None:
@@ -320,3 +327,54 @@ def test_activity_score_can_prefer_ready_market_over_bigger_past_move() -> None:
         chased,
         5,
     )
+
+
+
+def test_opportunity_readiness_rewards_approach_to_repeated_structure() -> None:
+    near = readiness_candles(
+        compressed=True,
+        spent_move=False,
+    )
+    # Repeated highs around 100.20 create a local structural cluster and the
+    # expansion finishes close enough to it to be a prepared market object.
+    for index in (10, 18, 26):
+        row = near[index]
+        near[index] = Candle(
+            row.start_ms,
+            row.open,
+            100.20,
+            row.low,
+            row.close,
+            row.volume,
+            row.turnover,
+        )
+    near[-1] = Candle(
+        near[-1].start_ms,
+        100.10,
+        100.22,
+        100.05,
+        100.18,
+        200,
+        20_000,
+    )
+
+    far = [
+        Candle(
+            row.start_ms,
+            row.open + 3.0,
+            row.high + 3.0,
+            row.low + 3.0,
+            row.close + 3.0,
+            row.volume,
+            row.turnover + 300,
+        )
+        if index < len(near) - 2
+        else row
+        for index, row in enumerate(near)
+    ]
+
+    near_readiness = opportunity_readiness(near)
+    far_readiness = opportunity_readiness(far)
+
+    assert near_readiness[4] > far_readiness[4]
+    assert near_readiness[0] > far_readiness[0]
