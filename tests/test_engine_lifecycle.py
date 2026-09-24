@@ -3316,6 +3316,24 @@ def test_execution_depth_falls_back_when_deep_book_exchange_time_is_old(
         close_rest(engine)
 
 
+def test_trading_engines_do_not_share_stateful_strategy_instances(
+    tmp_path,
+) -> None:
+    first = make_engine(tmp_path / "first")
+    second = make_engine(tmp_path / "second")
+    try:
+        for key in first.strategies:
+            assert first.strategies[key] is not second.strategies[key]
+
+        first_breakout = first.strategies["level_breakout"]
+        second_breakout = second.strategies["level_breakout"]
+        first_breakout._states["AAAUSDT"] = object()  # type: ignore[attr-defined]
+        assert "AAAUSDT" not in second_breakout._states  # type: ignore[attr-defined]
+    finally:
+        close_rest(first)
+        close_rest(second)
+
+
 def test_order_latency_helpers_complete_paper_taker_chain(
     tmp_path,
 ) -> None:
