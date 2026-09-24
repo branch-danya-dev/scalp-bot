@@ -1283,6 +1283,9 @@ def test_stop_side_depth_stress_reduces_size_and_stays_reserved() -> None:
     assert stressed.plan.notional < base.plan.notional
     economics = stressed.plan.strategy_details["economics"]
     assert economics["stopDepthImpactBps"] > 0
+    assert economics["stopDepthReferencePrice"] == pytest.approx(99.90)
+    assert economics["stopDepthIncludesPreTriggerLevels"] is False
+    assert economics["rawStopExitVwap"] <= 99.90
     assert economics["stressedStopDepthImpactBps"] > (
         economics["stopDepthImpactBps"]
     )
@@ -1520,3 +1523,38 @@ def test_risk_stop_fee_uses_stop_side_quote_value() -> None:
     assert result.plan.expected_net_loss == pytest.approx(
         structural_loss + entry_fee + exit_fee
     )
+
+
+def test_stop_depth_model_excludes_levels_before_trigger() -> None:
+    cfg = scalp_settings(
+        max_total_risk_fraction=0.10,
+        max_position_leverage=5.0,
+        stop_depth_stress_multiplier=1.0,
+    )
+    depth = OrderBook(
+        bids=[
+            # Huge current top liquidity must not make a stop at 99.50 look
+            # liquid because it is crossed before the trigger exists.
+            (99.99, 10_000),
+            (99.50, 1),
+            (99.40, 100),
+        ],
+        asks=[(100.00, 100)],
+    )
+
+    result = RiskEngine(cfg).build_plan(
+        "TRIGGERDEPTHUSDT",
+        decision(101.0, stop=99.50),
+        1000,
+        depth,
+        10_000,
+        100,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    economics = result.plan.strategy_details["economics"]
+    assert economics["rawStopExitVwap"] < 99.50
+    assert economics["stopDepthImpactBps"] > 0
+    # The $~1m at 99.99 is not part of visible stop-side depth.
+    assert economics["visibleStopDepthUsd"] < 20_000

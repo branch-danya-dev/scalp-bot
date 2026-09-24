@@ -184,6 +184,32 @@ class OrderBook:
         levels = self.bids if side == Side.LONG else self.asks
         return self._vwap_for_notional(levels, notional)
 
+    def exit_vwap_from_trigger(
+        self,
+        side: Side,
+        notional: float,
+        trigger_price: float,
+    ) -> tuple[float | None, float]:
+        """VWAP only from levels that can remain beyond a stop trigger."""
+        if trigger_price <= 0:
+            return None, 0.0
+        if side == Side.LONG:
+            levels = [
+                (price, qty)
+                for price, qty in self.bids
+                if price <= trigger_price
+            ]
+        else:
+            levels = [
+                (price, qty)
+                for price, qty in self.asks
+                if price >= trigger_price
+            ]
+        return self._vwap_for_notional(
+            levels,
+            notional,
+        )
+
     def public(self, depth: int = 16) -> dict[str, Any]:
         return {
             "bids": [[p, q, p * q] for p, q in self.bids[:depth]],

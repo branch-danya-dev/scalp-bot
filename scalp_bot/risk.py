@@ -34,18 +34,35 @@ class RiskEngine:
         book: OrderBook,
         side: Side,
         notional: float,
+        trigger_price: float,
     ) -> tuple[float, float, float, float | None]:
-        """Reserve adverse stop-side depth impact using the current book."""
-        if notional <= 0:
+        """Reserve impact from visible depth beyond the planned stop.
+
+        Levels between the current best quote and the stop cannot be counted
+        as stop-side liquidity: the market must already trade through them
+        before the stop can trigger.
+        """
+        if notional <= 0 or trigger_price <= 0:
             return 0.0, 0.0, 0.0, None
-        best = book.executable_exit(side)
-        raw_vwap, visible = book.exit_vwap(side, notional)
-        if best is None or best <= 0 or raw_vwap is None or raw_vwap <= 0:
+        raw_vwap, visible = book.exit_vwap_from_trigger(
+            side,
+            notional,
+            trigger_price,
+        )
+        if raw_vwap is None or raw_vwap <= 0:
             return 0.0, 0.0, visible, raw_vwap
         impact = (
-            max(0.0, (best - raw_vwap) / best)
+            max(
+                0.0,
+                (trigger_price - raw_vwap)
+                / trigger_price,
+            )
             if side == Side.LONG
-            else max(0.0, (raw_vwap - best) / best)
+            else max(
+                0.0,
+                (raw_vwap - trigger_price)
+                / trigger_price,
+            )
         )
         stress = impact * max(
             0.0,
@@ -414,6 +431,7 @@ class RiskEngine:
                 depth,
                 side,
                 notional,
+                stop,
             )
             if raw_stop_exit_vwap is None or visible_stop_depth <= 0:
                 return RiskResult(
@@ -559,6 +577,7 @@ class RiskEngine:
                 depth,
                 side,
                 notional,
+                stop,
             )
             if raw_stop_exit_vwap is None or visible_stop_depth <= 0:
                 return RiskResult(
@@ -1001,6 +1020,11 @@ class RiskEngine:
             "stopDepthStressMultiplier": (
                 self.config.stop_depth_stress_multiplier
             ),
+            "stopDepthModel": (
+                "current_book_levels_beyond_stop_trigger"
+            ),
+            "stopDepthReferencePrice": stop,
+            "stopDepthIncludesPreTriggerLevels": False,
             "stopDepthImpactBps": (
                 stop_depth_impact_rate * 10_000
             ),
