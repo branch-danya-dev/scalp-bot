@@ -924,6 +924,9 @@ class TradingEngine:
         ] = {}
         self._arbiter_latency_message: MarketMessage | None = None
         self._arbiter_trigger_symbol: str | None = None
+        self._arbiter_trigger_setups: set[
+            tuple[str, str]
+        ] = set()
 
     async def start(self) -> None:
         self._stop.clear()
@@ -1586,9 +1589,22 @@ class TradingEngine:
                 and after
                 and after != before
             ):
-                if latency_message is not None:
+                before_setups = {
+                    (str(row[0]), str(row[2]))
+                    for row in before
+                }
+                after_setups = {
+                    (str(row[0]), str(row[2]))
+                    for row in after
+                }
+                new_fire_setups = (
+                    after_setups - before_setups
+                )
+                if latency_message is not None and new_fire_setups:
                     latency_message.fire_mono_ns = perf_counter_ns()
-                    strategy_name = str(after[0][0]) if after else ""
+                    strategy_name = sorted(
+                        new_fire_setups
+                    )[0][0]
                     observe_latency(
                         "strategy_to_fire",
                         max(
@@ -1613,7 +1629,10 @@ class TradingEngine:
                         )
                         / 1_000_000_000,
                     )
-                    if exchange_receive is not None:
+                    if (
+                        exchange_receive is not None
+                        and exchange_receive >= 0
+                    ):
                         observe_latency(
                             "exchange_to_fire",
                             exchange_receive + receipt_to_fire,
@@ -1624,17 +1643,29 @@ class TradingEngine:
                         latency_message
                     )
                     for decision in session.decisions.values():
-                        if decision.tradeable:
+                        setup_key = (
+                            decision.strategy,
+                            str(decision.setup_id or ""),
+                        )
+                        if setup_key in new_fire_setups:
                             decision.details[
                                 "latencyTrace"
                             ] = trace_snapshot
-                self._arbiter_latency_message = latency_message
+                self._arbiter_latency_message = (
+                    latency_message
+                    if new_fire_setups
+                    else None
+                )
                 self._arbiter_trigger_symbol = symbol
+                self._arbiter_trigger_setups = (
+                    new_fire_setups
+                )
                 try:
                     self._arbitrate_once()
                 finally:
                     self._arbiter_latency_message = None
                     self._arbiter_trigger_symbol = None
+                    self._arbiter_trigger_setups = set()
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -3670,6 +3701,12 @@ class TradingEngine:
             or self._arbiter_trigger_symbol
             != opportunity.session.symbol
         ):
+            return None
+        setup_key = (
+            opportunity.decision.strategy,
+            str(opportunity.plan.setup_id or ""),
+        )
+        if setup_key not in self._arbiter_trigger_setups:
             return None
         return message
 
