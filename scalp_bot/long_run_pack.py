@@ -176,6 +176,8 @@ def _percentile(values: list[float], q: float) -> float | None:
 
 def _latency_summary(
     traces: dict[str, dict],
+    *,
+    histogram_snapshot: dict | None = None,
 ) -> dict:
     by_stage: dict[str, list[float]] = defaultdict(list)
     rows: list[dict] = []
@@ -211,6 +213,11 @@ def _latency_summary(
         "traceEvents": len(rows),
         "stages": stages,
         "events": rows,
+        "prometheusSnapshot": (
+            histogram_snapshot
+            if isinstance(histogram_snapshot, dict)
+            else None
+        ),
     }
 
 
@@ -224,6 +231,7 @@ def _focus_windows(
     float,
     int,
     dict[str, dict],
+    dict | None,
 ]:
     event_counts: Counter[str] = Counter()
     symbols: set[str] = set()
@@ -234,6 +242,7 @@ def _focus_windows(
     last_ts: float | None = None
     row_count = 0
     latency_traces: dict[str, dict] = {}
+    run_summary: dict | None = None
 
     for row in _iter_rows(source):
         row_count += 1
@@ -273,6 +282,11 @@ def _focus_windows(
                     (ts - 3.0, ts + 12.0)
                 )
 
+        if event == "run_summary":
+            payload = row.get("payload") or {}
+            if isinstance(payload, dict):
+                run_summary = dict(payload)
+
         if event not in FRAME_EVENTS:
             payload = row.get("payload") or {}
             for trace in _find_latency_trace(payload):
@@ -303,6 +317,7 @@ def _focus_windows(
         last_ts,
         row_count,
         latency_traces,
+        run_summary,
     )
 
 
@@ -333,6 +348,7 @@ def build_long_run_analysis_bundle(
         last_ts,
         row_count,
         latency_traces,
+        run_summary,
     ) = _focus_windows(source)
 
     duration = max(0.0, last_ts - first_ts)
@@ -597,7 +613,12 @@ def build_long_run_analysis_bundle(
         report_path.replace(final_report)
 
         latency_summary = _latency_summary(
-            latency_traces
+            latency_traces,
+            histogram_snapshot=(
+                run_summary.get("latencyMetrics")
+                if isinstance(run_summary, dict)
+                else None
+            ),
         )
         latency_path = tmp / "latency-summary.json"
         latency_path.write_text(
