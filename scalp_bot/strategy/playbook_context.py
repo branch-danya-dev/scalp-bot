@@ -482,6 +482,47 @@ def assess_entry_context(
                 liquidity_alignment.classification.value
             )
 
+        if (
+            playbook == PlaybookKind.LEVEL_BREAKOUT
+            and context.htf_bias is not None
+        ):
+            htf_bias = context.htf_bias.bias
+            counter_htf = (
+                action == Action.LONG
+                and htf_bias == HTFBias.BEARISH
+            ) or (
+                action == Action.SHORT
+                and htf_bias == HTFBias.BULLISH
+            )
+            if counter_htf:
+                blockers.append("breakout_htf_opposed")
+
+        if (
+            playbook == PlaybookKind.LEVEL_REJECTION
+            and flow_alignment is not None
+            and flow_alignment.classification
+            == FlowAlignmentClass.SHORT_TERM_REVERSAL
+            and context.local_regime is not None
+        ):
+            local_direction = context.local_regime.direction
+            local_opposed = (
+                action == Action.LONG
+                and local_direction == Trend.DOWN
+            ) or (
+                action == Action.SHORT
+                and local_direction == Trend.UP
+            )
+            longer_flow_opposed = {
+                15,
+                60,
+            }.issubset(
+                set(flow_alignment.opposed_horizons)
+            )
+            if local_opposed and longer_flow_opposed:
+                blockers.append(
+                    "rejection_local_and_longer_flow_opposed"
+                )
+
         if not context.execution.ready:
             blockers.append("execution_context_not_ready")
 

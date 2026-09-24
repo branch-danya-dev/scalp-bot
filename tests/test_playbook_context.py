@@ -626,3 +626,89 @@ def test_rejection_still_blocks_multi_horizon_opposed_flow_in_unclear_context() 
 
     assert assessment.allowed is False
     assert "rejection_flow_opposed" in assessment.blockers
+
+
+
+def test_breakout_short_is_blocked_against_bullish_htf_bias() -> None:
+    ctx = context(
+        LocalRegime.BEARISH_IMPULSE,
+        direction=Trend.DOWN,
+        parent=Trend.DOWN,
+        htf_bias=HTFBias.BULLISH,
+        flow=strongly_bearish_flow(),
+    )
+
+    assessment = assess_entry_context(
+        PlaybookKind.LEVEL_BREAKOUT,
+        Action.SHORT,
+        ctx,
+        Trend.DOWN,
+    )
+
+    assert assessment.allowed is False
+    assert "breakout_htf_opposed" in assessment.blockers
+
+
+def test_breakout_long_is_blocked_against_bearish_htf_bias() -> None:
+    ctx = context(
+        LocalRegime.BULLISH_IMPULSE,
+        direction=Trend.UP,
+        parent=Trend.UP,
+        htf_bias=HTFBias.BEARISH,
+    )
+
+    assessment = assess_entry_context(
+        PlaybookKind.LEVEL_BREAKOUT,
+        Action.LONG,
+        ctx,
+        Trend.UP,
+    )
+
+    assert assessment.allowed is False
+    assert "breakout_htf_opposed" in assessment.blockers
+
+
+def test_rejection_waits_when_local_direction_and_longer_flow_still_oppose() -> None:
+    ctx = context(
+        LocalRegime.PULLBACK,
+        direction=Trend.DOWN,
+        parent=Trend.UP,
+        htf_bias=HTFBias.BULLISH,
+        flow=short_term_bullish_reversal_flow(),
+    )
+
+    assessment = assess_entry_context(
+        PlaybookKind.LEVEL_REJECTION,
+        Action.LONG,
+        ctx,
+        Trend.UP,
+    )
+
+    assert assessment.allowed is False
+    assert (
+        "rejection_local_and_longer_flow_opposed"
+        in assessment.blockers
+    )
+
+
+def test_rejection_can_fire_after_local_direction_turns_with_same_flow_shape() -> None:
+    ctx = context(
+        LocalRegime.BULLISH_TREND,
+        direction=Trend.UP,
+        parent=Trend.UP,
+        htf_bias=HTFBias.BULLISH,
+        flow=short_term_bullish_reversal_flow(),
+    )
+
+    assessment = assess_entry_context(
+        PlaybookKind.LEVEL_REJECTION,
+        Action.LONG,
+        ctx,
+        Trend.UP,
+    )
+
+    assert assessment.allowed is True
+    assert (
+        "rejection_local_and_longer_flow_opposed"
+        not in assessment.blockers
+    )
