@@ -879,6 +879,41 @@ class WeakLevelRejectionStrategy(Strategy):
             and abs(state.pinned_zone.center - price) / price
             <= self.test_pin_max_distance_pct
         ):
+            pinned_level = None
+            if (
+                structure is not None
+                and state.pinned_generation_id is not None
+            ):
+                pinned_level = next(
+                    (
+                        level
+                        for level in structure.levels
+                        if level.generation_id
+                        == state.pinned_generation_id
+                    ),
+                    None,
+                )
+                if pinned_level is None:
+                    state.pinned_zone = None
+                    state.pinned_generation_id = None
+                    state.pinned_until = 0.0
+                    state.swept = False
+                    state.armed_at = 0.0
+                    state.armed_price = 0.0
+                    state.probe_opened = False
+                    state.stage = RejectionStage.SEARCH
+                    state.zone_key = None
+                    return StrategyDecision(
+                        self.key,
+                        Action.WAIT,
+                        [
+                            "Prepared rejection level generation disappeared; "
+                            "hypothesis reset"
+                        ],
+                        details={
+                            "state": RejectionStage.SEARCH.value,
+                        },
+                    )
             return self._decision_for_zone(
                 candles,
                 book,
@@ -887,7 +922,7 @@ class WeakLevelRejectionStrategy(Strategy):
                 symbol,
                 state.pinned_zone,
                 structure,
-                None,
+                pinned_level,
                 observed_at_ms=observed_at_ms,
                 generation_id_override=state.pinned_generation_id,
                 market_context=market_context,
@@ -984,17 +1019,13 @@ class WeakLevelRejectionStrategy(Strategy):
         zone = min(choices, key=lambda item: abs(item.center - price))
         structural_level = None
         if structure is not None:
-            candidates = [
-                level
-                for level in (resistance_level, support_level)
-                if level is not None
-                and abs(level.center - zone.center)
-                <= max(zone.width, price * 0.0006)
-            ]
+            # Zone and lifecycle metadata must remain the exact same market
+            # object. Do not proximity-rematch after selection: overlapping
+            # support/resistance objects can otherwise swap generation ids.
             structural_level = (
-                min(candidates, key=lambda item: abs(item.center - price))
-                if candidates
-                else None
+                resistance_level
+                if zone.kind == "resistance"
+                else support_level
             )
         return self._decision_for_zone(
             candles,
