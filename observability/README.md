@@ -50,6 +50,8 @@ The histogram labels are deliberately bounded to `stage`, `stream`, `strategy`, 
 
 Concrete event correlation uses OpenTelemetry traces and the source market `eventId`. Prometheus exemplars attach the active trace ID where available.
 
+`exchange_to_receive` compares Bybit exchange timestamps with the host wall clock. Keep the host clock synchronized (for example via the OS/NTP service). A negative sample is rejected from the latency histogram and counted as `status="negative"` rather than being clamped to zero; this makes clock skew visible instead of hiding it. `exchange_to_fire` is emitted only when the exchange-to-receive sample is non-negative.
+
 ## Paper execution semantics
 
 The current engine is paper-only. Therefore:
