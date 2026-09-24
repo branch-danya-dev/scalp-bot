@@ -3,15 +3,29 @@ from __future__ import annotations
 import asyncio
 from collections import deque
 from dataclasses import dataclass, field
-from time import monotonic, time
+from time import monotonic, perf_counter_ns, time
 
-from .bybit import BybitRestClient, OrderBookSequenceError, OrderBookState, stream_symbol
+from .bybit import (
+    BybitRestClient,
+    MarketMessage,
+    OrderBookSequenceError,
+    OrderBookState,
+    stream_symbol,
+)
 from .config import Settings
 from .domain import Action, Candle, Candidate, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .paper import PaperBroker, Position
 from .expectancy import StrategyExpectancyBook
 from .strategy_policy import minimum_expectancy_r
 from .observability import build_decision_trace
+from .latency_observability import (
+    configure_telemetry,
+    latency_snapshot,
+    observe_latency,
+    observe_recorder_health,
+    span,
+    stream_name,
+)
 from .recorder import SessionRecorder
 from .research_policy import (
     PolicyAssessment,
@@ -150,6 +164,7 @@ class ActiveSymbolSession:
     last_eval: float = 0.0
     last_event_eval_at: float = 0.0
     event_eval_pending: bool = False
+    pending_latency_message: MarketMessage | None = None
     fast_event_requests: int = 0
     fast_event_evaluations: int = 0
     fast_event_coalesced: int = 0
@@ -719,6 +734,7 @@ class Opportunity:
 class TradingEngine:
     def __init__(self, config: Settings) -> None:
         self.config = config
+        configure_telemetry(config)
         self.rest = BybitRestClient(config)
         self.risk = RiskEngine(config)
         self.broker = PaperBroker(config)
@@ -901,6 +917,10 @@ class TradingEngine:
         self._scanner_error: str | None = None
         self._last_scan_ok_at: float | None = None
         self._last_scan_error_at: float | None = None
+        self._pending_order_latency: dict[
+            tuple[str, str],
+            MarketMessage,
+        ] = {}
 
     async def start(self) -> None:
         self._stop.clear()
