@@ -604,8 +604,7 @@ async def _stream_topics(
                     text=True,
                 )
                 queue = asyncio.Queue(
-                        maxsize=max(1, int(queue_size)),
-                    )
+                    maxsize=max(1, int(queue_size)),
                 )
                 processor = asyncio.create_task(
                     _process_market_queue(
@@ -631,8 +630,6 @@ async def _stream_topics(
                             "market processor stopped unexpectedly"
                         )
 
-                    receipt_wall_ns = time_ns()
-                    receipt_mono_ns = perf_counter_ns()
                     raw = await asyncio.wait_for(
                         ws.recv(decode=False),
                         timeout=35,
