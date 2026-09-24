@@ -1432,3 +1432,91 @@ def test_risk_plan_rejects_below_exchange_minimum_order() -> None:
 
     assert not result.allowed
     assert "instrument minimum/step" in result.reason
+
+
+def test_risk_target_fee_uses_contract_quantity_at_exit_price() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=1,
+        max_position_leverage=1,
+        risk_fraction=0.05,
+        max_total_risk_fraction=0.20,
+        min_net_profit_usd=0,
+        min_net_reward_risk=0,
+        absolute_min_net_reward_risk=0,
+        taker_fee_rate=0,
+        maker_fee_rate=0.001,
+        slippage_bps=0,
+        partial_take_enabled=False,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "FEEUSDT",
+        decision(
+            101.0,
+            entry=100.0,
+            stop=99.0,
+        ),
+        1000,
+        book(99.99, 100.0),
+        1000,
+        200,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.quantity is not None
+    expected_exit_fee = (
+        result.plan.quantity
+        * result.plan.target
+        * cfg.maker_fee_rate
+    )
+    economics = result.plan.strategy_details["economics"]
+    assert result.plan.estimated_costs == pytest.approx(
+        expected_exit_fee
+    )
+    assert economics["targetEstimatedCostsUsd"] == pytest.approx(
+        expected_exit_fee
+    )
+
+
+def test_risk_stop_fee_uses_stop_side_quote_value() -> None:
+    cfg = Settings(
+        start_balance=1000,
+        max_leverage=1,
+        max_position_leverage=1,
+        risk_fraction=0.05,
+        max_total_risk_fraction=0.20,
+        min_net_profit_usd=0,
+        min_net_reward_risk=0,
+        absolute_min_net_reward_risk=0,
+        taker_fee_rate=0.001,
+        maker_fee_rate=0,
+        slippage_bps=0,
+        stop_depth_stress_multiplier=0,
+        partial_take_enabled=False,
+    )
+    result = RiskEngine(cfg).build_plan(
+        "STOPFEEUSDT",
+        decision(
+            102.0,
+            entry=100.0,
+            stop=99.0,
+        ),
+        1000,
+        book(99.99, 100.0),
+        1000,
+        200,
+    )
+
+    assert result.allowed
+    assert result.plan is not None
+    assert result.plan.quantity is not None
+    quantity = result.plan.quantity
+    entry_fee = quantity * result.plan.market_entry * cfg.taker_fee_rate
+    exit_fee = quantity * result.plan.stop * cfg.taker_fee_rate
+    structural_loss = quantity * (
+        result.plan.market_entry - result.plan.stop
+    )
+    assert result.plan.expected_net_loss == pytest.approx(
+        structural_loss + entry_fee + exit_fee
+    )
