@@ -3621,6 +3621,98 @@ class TradingEngine:
             ),
         )
 
+    def _latency_for_selected_opportunity(
+        self,
+        opportunity: Opportunity,
+    ) -> MarketMessage | None:
+        message = self._arbiter_latency_message
+        if (
+            message is None
+            or self._arbiter_trigger_symbol
+            != opportunity.session.symbol
+        ):
+            return None
+        return message
+
+    @staticmethod
+    def _latency_seconds(
+        message: MarketMessage,
+        start_attr: str,
+        end_attr: str,
+    ) -> float | None:
+        start = int(getattr(message, start_attr, 0) or 0)
+        end = int(getattr(message, end_attr, 0) or 0)
+        if start <= 0 or end <= 0:
+            return None
+        return max(
+            0.0,
+            (end - start) / 1_000_000_000,
+        )
+
+    def _mark_order_sent(
+        self,
+        message: MarketMessage | None,
+        *,
+        strategy: str,
+        execution_mode: str,
+    ) -> None:
+        if message is None:
+            return
+        message.order_sent_mono_ns = perf_counter_ns()
+        observe_latency(
+            "fire_to_order",
+            self._latency_seconds(
+                message,
+                "fire_mono_ns",
+                "order_sent_mono_ns",
+            ),
+            stream=stream_name(message.topic),
+            strategy=strategy,
+            execution_mode=execution_mode,
+        )
+
+    def _mark_order_ack(
+        self,
+        message: MarketMessage | None,
+        *,
+        strategy: str,
+        execution_mode: str,
+    ) -> None:
+        if message is None:
+            return
+        message.order_ack_mono_ns = perf_counter_ns()
+        observe_latency(
+            "order_to_ack",
+            self._latency_seconds(
+                message,
+                "order_sent_mono_ns",
+                "order_ack_mono_ns",
+            ),
+            strategy=strategy,
+            execution_mode=execution_mode,
+        )
+
+    def _mark_order_fill(
+        self,
+        message: MarketMessage | None,
+        *,
+        strategy: str,
+        execution_mode: str,
+    ) -> None:
+        if message is None:
+            return
+        message.fill_mono_ns = perf_counter_ns()
+        observe_latency(
+            "order_to_fill",
+            self._latency_seconds(
+                message,
+                "order_sent_mono_ns",
+                "fill_mono_ns",
+            ),
+            strategy=strategy,
+            execution_mode=execution_mode,
+        )
+
     async def _arbiter_loop(self) -> None:
         while not self._stop.is_set():
             try:
@@ -4182,7 +4274,13 @@ class TradingEngine:
 
         best.session.last_risk_fingerprint = None
         best.session.last_blocked_fingerprint = None
+        latency_message = (
+            self._latency_for_selected_opportunity(best)
+        )
         selection_payload = {
+            "latencyTrace": latency_snapshot(
+                latency_message
+            ),
             "semanticArbitration": (
                 best.arbitration.public()
             ),
@@ -4197,6 +4295,26 @@ class TradingEngine:
         }
 
         if best.plan.entry_mode == "maker_limit":
+            execution_mode = "paper_maker"
+            self._mark_order_sent(
+                latency_message,
+                strategy=best.decision.strategy,
+                execution_mode=execution_mode,
+            )
+            with span(
+                "paper.order.submit",
+                **{
+                    "market.symbol": best.session.symbol,
+                    "strategy.name": best.decision.strategy,
+                    "execution.mode": execution_mode,
+                    "market.event_id": (
+                        latency_message.event_id
+                        if latency_message is not None
+                        else None
+                    ),
+                },
+            ):
+                pass
             if best.position_action == "add":
                 pending = self.broker.place_pending_add(
                     best.plan,
@@ -4217,6 +4335,24 @@ class TradingEngine:
                     ),
                 )
                 pending_event = "entry_pending"
+            self._mark_order_ack(
+                latency_message,
+                strategy=best.decision.strategy,
+                execution_mode=execution_mode,
+            )
+            if latency_message is not None:
+                self._pending_order_latency[
+                    (
+                        best.session.symbol,
+                        str(best.plan.setup_id),
+                    )
+                ] = latency_message
+                best.plan.strategy_details[
+                    "latencyTrace"
+                ] = latency_snapshot(latency_message)
+                selection_payload["latencyTrace"] = (
+                    latency_snapshot(latency_message)
+                )
             self._emit(
                 pending_event,
                 best.session.symbol,
@@ -4231,6 +4367,12 @@ class TradingEngine:
             )
             return
 
+        execution_mode = "paper_taker"
+        self._mark_order_sent(
+            latency_message,
+            strategy=best.decision.strategy,
+            execution_mode=execution_mode,
+        )
         best.session.last_trade_at = now
         if best.position_action == "add":
             position = self.broker.add(
@@ -4262,6 +4404,21 @@ class TradingEngine:
                 ),
                 selection_priority=best.priority.public(),
             )
+
+        self._mark_order_ack(
+            latency_message,
+            strategy=best.decision.strategy,
+            execution_mode=execution_mode,
+        )
+        self._mark_order_fill(
+            latency_message,
+            strategy=best.decision.strategy,
+            execution_mode=execution_mode,
+        )
+        if latency_message is not None:
+            best.plan.strategy_details[
+                "latencyTrace"
+            ] = latency_snapshot(latency_message)
 
     def _record_opened_position(
         self,
