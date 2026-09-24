@@ -319,6 +319,11 @@ class SessionRecorder:
         if Path(name).name != name:
             raise ValueError("invalid session name")
         path = self.root / name
+        if (
+            path == self.path
+            and self._writer_thread is not None
+        ):
+            self.flush()
         if not path.is_file() or not name.startswith("session-") or not name.endswith(".jsonl"):
             raise FileNotFoundError(name)
         return path
@@ -390,6 +395,8 @@ class SessionRecorder:
         name: str | None = None,
     ) -> Path:
         if name in {None, "", "current"}:
+            if self._writer_thread is not None:
+                self.flush()
             return self.path
         return self._safe_path(name)
 
