@@ -999,12 +999,32 @@ def analyze_hindsight_opportunities(
                     entry_price=swing["oracleEntryPrice"],
                     exit_price=swing["oracleExitPrice"],
                 )
+                tradeable_setup_seen = any(
+                    row.get("fit") == "tradeable_aligned"
+                    and row.get("strategy")
+                    in TRADEABLE_PLAYBOOKS
+                    for row in fit.get("strategies") or []
+                )
+                coverage_classification = (
+                    "tradeable_setup_seen"
+                    if tradeable_setup_seen
+                    else (
+                        "observed_unconfirmed"
+                        if fit.get(
+                            "mappedToTradeablePlaybook"
+                        )
+                        else "uncovered"
+                    )
+                )
                 opportunities.append({
                     "opportunityId": f"hindsight-{sequence}",
                     "symbol": symbol,
                     "segment": segment_index,
                     **swing,
                     "strategyFit": fit,
+                    "coverageClassification": (
+                        coverage_classification
+                    ),
                     "botComparison": bot,
                 })
 
@@ -1015,6 +1035,7 @@ def analyze_hindsight_opportunities(
     unmapped = 0
     tradeable_mapped = 0
     tradeable_unmapped = 0
+    coverage_counts: dict[str, int] = defaultdict(int)
     for item in opportunities:
         bot_counts[str(item["botComparison"]["classification"])] += 1
         if item["strategyFit"]["mappedToExistingStrategy"]:
@@ -1027,6 +1048,14 @@ def analyze_hindsight_opportunities(
             tradeable_mapped += 1
         else:
             tradeable_unmapped += 1
+        coverage_counts[
+            str(
+                item.get(
+                    "coverageClassification"
+                )
+                or "uncovered"
+            )
+        ] += 1
 
     return {
         "schemaVersion": 1,
@@ -1057,6 +1086,19 @@ def analyze_hindsight_opportunities(
             "unmappedToExistingStrategy": unmapped,
             "mappedToTradeablePlaybook": tradeable_mapped,
             "unmappedToTradeablePlaybook": tradeable_unmapped,
+            "uncoveredOpportunities": coverage_counts[
+                "uncovered"
+            ],
+            "observedUnconfirmedOpportunities": (
+                coverage_counts[
+                    "observed_unconfirmed"
+                ]
+            ),
+            "tradeableSetupSeenOpportunities": (
+                coverage_counts[
+                    "tradeable_setup_seen"
+                ]
+            ),
             "botMissed": bot_counts["missed"],
             "botWrongDirection": bot_counts["wrong_direction"],
             "botTraded": bot_counts["traded"],
