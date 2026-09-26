@@ -26,6 +26,8 @@ from .run_manifest import code_provenance
 PROFILES = {
     "current-1h": {"seconds": 3600, "trend": False, "beta": False, "freeGiB": 20},
     "all-12h": {"seconds": 43200, "trend": True, "beta": True, "freeGiB": 100},
+    "current-24h": {"seconds": 86400, "trend": False, "beta": False, "freeGiB": 200,
+                    "targetNetReturnFraction": 0.10},
 }
 _STOP = object()
 
@@ -200,6 +202,9 @@ class PaperCapture:
             inputRowsWritten=self.recorder.inputs.written,
             recorderHealth=self.recorder.health(),
             fullReplayVerified=False, profitabilityProven=False)
+        if "targetNetReturnFraction" in PROFILES.get(self.profile, {}):
+            data["exam"] = {"durationSeconds": PROFILES[self.profile]["seconds"],
+                            "targetNetReturnFraction": PROFILES[self.profile]["targetNetReturnFraction"]}
         self.metadata_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     async def monitor(self):

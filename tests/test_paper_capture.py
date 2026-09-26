@@ -9,7 +9,7 @@ import zipfile
 import pytest
 
 from scalp_bot.capture import InputWriter, PaperCapture
-from scalp_bot.capture_replay import IndexedInputs, verify_capture
+from scalp_bot.capture_replay import IndexedInputs, assess_exam, verify_capture
 from scalp_bot.config import Settings
 from scalp_bot.input_journal import validate_input_journal
 from scalp_bot.offline_segment import SegmentMismatch
@@ -39,6 +39,10 @@ async def test_compressed_capture_replays_actual_breakout(tmp_path, monkeypatch,
     assert report['status'] == 'baseline_replay_matched'
     assert report['balance'] == live.broker.balance
     assert report['closedTrades'] == 1
+    assert report['strategyResults']['level_breakout']['tradesClosed'] == 1
+    assert report['strategyResults']['level_breakout']['netPnl'] == pytest.approx(live.broker.total_pnl)
+    assert report['strategyResults']['orderbook_density']['evidenceOnly']
+    assert 'exam' not in report
     assert not report['isolatedStrategySimulationPerformed']
     assert report['integrity']['source']['compression'] == 'gzip'
     assert not (tmp_path / 'replay-index.sqlite').exists()
@@ -108,7 +112,8 @@ def profile_settings(tmp_path, monkeypatch, duration):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('duration,profile,beta', [('1h', 'current-1h', False), ('12h', 'all-12h', True)])
+@pytest.mark.parametrize('duration,profile,beta', [
+    ('1h', 'current-1h', False), ('12h', 'all-12h', True), ('24h', 'current-24h', False)])
 async def test_real_profiles_archive_source_and_lock_composition(tmp_path, monkeypatch, duration, profile, beta):
     config = profile_settings(tmp_path, monkeypatch, duration)
     monkeypatch.setattr('scalp_bot.capture.shutil.disk_usage', lambda _: SimpleNamespace(free=200 * 1024**3))
@@ -117,6 +122,9 @@ async def test_real_profiles_archive_source_and_lock_composition(tmp_path, monke
         assert capture.engine.strategy_enabled['price_action_hypothesis'] is beta
         assert capture.engine.strategy_enabled['trend_structure'] is beta
         assert capture.public()['strategiesLocked']
+        metadata = json.loads((tmp_path / 'capture.json').read_text())
+        if duration == '24h':
+            assert metadata['exam'] == dict(durationSeconds=86400, targetNetReturnFraction=.10)
         capture.before_start()
         capture.started = True
         with pytest.raises(RuntimeError, match='уже запускалась'):
@@ -128,6 +136,43 @@ async def test_real_profiles_archive_source_and_lock_composition(tmp_path, monke
             PaperCapture(config, profile)
     finally:
         await capture.close()
+
+
+def test_24h_keeps_current_profile_trading_and_risk_settings(tmp_path, monkeypatch):
+    hour = profile_settings(tmp_path, monkeypatch, '1h').model_dump()
+    day = profile_settings(tmp_path, monkeypatch, '24h').model_dump()
+    assert day['paper_run_duration_seconds'] == 86400
+    assert day['start_balance'] == 1000
+    for key in ('paper_run_duration_seconds', 'run_label'):
+        hour.pop(key)
+        day.pop(key)
+    assert day == hour
+
+
+@pytest.mark.parametrize('balance,elapsed,reason,expected', [
+    (1100.0, 86400.1, 'duration_elapsed', 'passed'),
+    (1099.999999, 86400.1, 'duration_elapsed', 'failed'),
+    (990.0, 86400.1, 'duration_elapsed', 'failed'),
+    (1200.0, 3600.0, 'bot_stop', 'incomplete'),
+    (1200.0, 86400.1, 'bot_stop', 'incomplete'),
+    (1200.0, 86399.9, 'duration_elapsed', 'incomplete'),
+])
+def test_exam_requires_full_day_and_unrounded_final_net(tmp_path, monkeypatch, balance, elapsed, reason, expected):
+    config = profile_settings(tmp_path, monkeypatch, '24h')
+    result = assess_exam(config, 'current-24h', dict(balance=balance, elapsedSeconds=elapsed,
+        reason=reason, configuredDurationSeconds=86400))
+    assert result['status'] == expected
+    assert result['targetNetProfit'] == 100
+    assert result['netProfit'] == balance - 1000
+    assert result['targetBalance'] == 1100
+
+
+@pytest.mark.parametrize('balance', [float('nan'), float('inf'), -float('inf')])
+def test_exam_rejects_nonfinite_balance(tmp_path, monkeypatch, balance):
+    config = profile_settings(tmp_path, monkeypatch, '24h')
+    with pytest.raises(ValueError, match='invalid exam'):
+        assess_exam(config, 'current-24h', dict(balance=balance, elapsedSeconds=86400,
+            reason='duration_elapsed', configuredDurationSeconds=86400))
 
 
 @pytest.mark.asyncio

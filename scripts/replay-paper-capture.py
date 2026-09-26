@@ -17,5 +17,10 @@ if __name__ == "__main__":
     try:
         result = asyncio.run(verify_capture(args.directory))
         print(f"Replay matched: {result['inputs']} inputs, {result['closedTrades']} trades; {args.directory / 'capture-check.json'}")
+        if 'exam' in result:
+            exam = result['exam']
+            print(f"Financial exam: {exam['status']}; net {exam['netProfit']:+.2f} USDT "
+                  f"({exam['netReturnPct']:+.4f}%), target {exam['targetNetReturnPct']:.0f}%")
+            print("A matched replay or a passed daily target does not establish long-term profitability.")
     except Exception as exc:
         parser.exit(1, f"Capture check failed: {type(exc).__name__}: {exc}\n")

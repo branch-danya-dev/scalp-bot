@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("1h", "12h")][string]$Profile = "1h",
+    [ValidateSet("1h", "12h", "24h")][string]$Profile = "1h",
     [switch]$Check
 )
 
@@ -38,7 +38,7 @@ try {
         Write-Host "Press Start when market data is ready. After trading stops, capture seals automatically."
         Write-Host "Wait for the saved-capture message in the UI. Charts remain available; Ctrl+C only closes the server."
         Write-Host "Do not edit source files or update dependencies during the capture."
-        Write-Host "After shutdown verify: .\scripts\check-paper-capture.ps1 -Profile $Profile"
+        Write-Host "After capture is saved, verify in another terminal: .\scripts\check-paper-capture.ps1 -Profile $Profile"
         & (Join-Path $PSScriptRoot "run.ps1") -Profile $profileFile -SessionDirectory $captureDirectory
         if ($LASTEXITCODE -ne 0) { throw "Server exited with code $LASTEXITCODE. Preserve $captureDirectory" }
     }

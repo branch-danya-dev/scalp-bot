@@ -4,11 +4,13 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+from math import isfinite
 from pathlib import Path
 import sqlite3
 import zlib
 import msgspec
 
+from .capture import PROFILES, validate_profile
 from .input_journal import validate_input_journal
 from .offline_bootstrap import restore_cold_engine
 from .offline_scheduler import OfflineScheduledReplay, comparable_events
@@ -121,6 +123,31 @@ def capture_file(directory, name):
     return directory / name
 
 
+def assess_exam(config, profile, summary):
+    """Evaluate the fixed financial target only after successful full replay.
+
+    Ending balance includes all exits, fees and funding. No rounded percentage,
+    intraday peak, or early Stop can turn an incomplete exam into a pass.
+    """
+    spec = validate_profile(config, profile)
+    start = config.start_balance
+    balance = summary["balance"]
+    elapsed = summary["elapsedSeconds"]
+    if not all(isfinite(value) for value in (start, balance, elapsed)) or start <= 0:
+        raise ValueError("invalid exam balance or duration")
+    net = balance - start
+    target = start * spec["targetNetReturnFraction"]
+    complete = (summary["reason"] == "duration_elapsed"
+                and summary["configuredDurationSeconds"] == spec["seconds"]
+                and elapsed >= spec["seconds"])
+    met = net >= target
+    return dict(status=("incomplete" if not complete else "passed" if met else "failed"),
+        durationComplete=complete, requiredDurationSeconds=spec["seconds"], elapsedSeconds=elapsed,
+        startBalance=start, finalBalance=balance, netProfit=net, netReturnPct=100 * net / start,
+        targetNetProfit=target, targetBalance=start + target,
+        targetNetReturnPct=100 * spec["targetNetReturnFraction"], profitTargetMet=met)
+
+
 async def verify_capture(directory):
     directory = Path(directory).resolve()
     metadata = json.loads((directory / "capture.json").read_text(encoding="utf-8"))
@@ -156,7 +183,14 @@ async def verify_capture(directory):
             files={path.name: file_sha256(path) for path in (source, session, directory / "source-at-capture.zip")},
             inputs=len(rows), outputEvents=outputs.count, closedTrades=outputs.trade_count,
             balance=engine.broker.balance, summary=outputs.summary, integrity=integrity,
+            strategyResults={key: dict(enabled=engine.strategy_enabled[key],
+                evidenceOnly=key == "orderbook_density", **stats)
+                for key, stats in engine.strategy_stats.items()},
             isolatedStrategySimulationPerformed=False, profitabilityProven=False)
+        if "targetNetReturnFraction" in PROFILES.get(metadata["profile"], {}):
+            if engine.strategy_enabled["price_action_hypothesis"] != PROFILES[metadata["profile"]]["beta"]:
+                raise ValueError("exam beta composition differs from the selected profile")
+            report["exam"] = assess_exam(engine.config, metadata["profile"], outputs.summary)
         (directory / "capture-check.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return report
     except BaseException as exc:

@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("1h", "12h")][string]$Profile = "1h",
+    [ValidateSet("1h", "12h", "24h")][string]$Profile = "1h",
     [string]$Directory = ""
 )
 $ErrorActionPreference = "Stop"

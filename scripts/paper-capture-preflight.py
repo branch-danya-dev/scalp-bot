@@ -19,4 +19,8 @@ if __name__ == '__main__':
         raise SystemExit(f"Need {spec['freeGiB']} GiB free for this capture; available {free:.1f} GiB")
     print(f"Profile {profile}: {spec['seconds'] // 3600}h, trend={spec['trend']}, beta={spec['beta']}")
     print(f"Single PAPER portfolio, full inputs, fixed configured fees; disk free {free:.1f} GiB")
+    if 'targetNetReturnFraction' in spec:
+        target = settings.start_balance * spec['targetNetReturnFraction']
+        print(f"Exam: net profit >= {target:.2f} USDT ({spec['targetNetReturnFraction']:.0%}) after the full 24h")
+        print(f"Start balance {settings.start_balance:.2f} USDT; session loss gate enabled={settings.enforce_session_loss_limit}")
     print(f"Output: {directory}")
