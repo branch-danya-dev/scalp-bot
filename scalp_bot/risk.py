@@ -846,7 +846,7 @@ class RiskEngine:
             or isinstance(decision.details.get("liquidityTarget"), dict)
         )
         runner_target_pct = target_pct
-        if partial_enabled and not structural_liquidity_target:
+        if partial_enabled and not structural_liquidity_target and not decision.details.get("scenario"):
             runner_target_pct = max(
                 target_pct,
                 stop_pct * max(
