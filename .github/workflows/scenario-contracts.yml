@@ -1,0 +1,50 @@
+name: scenario-contracts
+
+on:
+  push:
+    branches:
+      - fix/scenario-contracts-r01-r05
+
+permissions:
+  contents: read
+
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Archive tracked source for reproducibility
+        run: |
+          mkdir -p /tmp/scenario-review
+          git archive --format=zip HEAD -o /tmp/scenario-review/source.zip
+          git rev-parse HEAD > /tmp/scenario-review/COMMIT.txt
+          sha256sum /tmp/scenario-review/source.zip > /tmp/scenario-review/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scenario-source-${{ github.sha }}
+          path: /tmp/scenario-review/
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Offline Python tests
+        run: |
+          set -o pipefail
+          python scripts/test_preflight.py 2>&1 | tee /tmp/scenario-tests.txt
+      - name: JavaScript syntax
+        run: |
+          node --check scalp_bot/static/app.js
+          node --check scalp_bot/static/replay.js
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scenario-tests-${{ github.sha }}
+          path: /tmp/scenario-tests.txt
+          retention-days: 7
+          if-no-files-found: warn
