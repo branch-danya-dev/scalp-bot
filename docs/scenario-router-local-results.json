@@ -1,0 +1,312 @@
+{
+  "type": "local_snapshot_regression",
+  "fullPortfolioReplay": false,
+  "profitabilityProven": false,
+  "sourceCommit": "ccc168de8a5a249670aa8fd63a7df38268b9a6de",
+  "sourceSha256": "288cc4ed9803728988c8a82719eb9f799f61db81dae63dc96d18adf2716f0767",
+  "sixControls": [
+    {
+      "id": "T01",
+      "symbol": "DOGEUSDT",
+      "originalOwner": "level_breakout",
+      "originalNet": -1.7153941892633708,
+      "originalExit": "breakout_failed_back_inside",
+      "snapshotOwner": "level_breakout",
+      "snapshotSide": "short",
+      "situation": "OBSERVING",
+      "oldTarget": 0.0962245924,
+      "newTarget": 0.09702581985,
+      "newTargetSource": "liquidity_ladder",
+      "targetInputs": "recorded causal liquidity ladder from original decision; not rebuilt from truncated chart history",
+      "originalPlanSameExecution": {
+        "allowed": true,
+        "reason": "allowed"
+      },
+      "newPlanSameExecution": {
+        "allowed": false,
+        "reason": "economic_gate: winner_cost_share 1.523 > maximum 0.350"
+      },
+      "entryInvalidation": null,
+      "executionBook": {
+        "source": "fast_l50",
+        "quality": "observed_depth",
+        "fastHeadAuthoritative": true,
+        "deepQuoteConflict": false,
+        "syntheticLiquidity": false
+      },
+      "newEntry": null,
+      "newExit": null,
+      "newNet": null,
+      "limitation": "snapshot selection and geometry only; owner preparation/portfolio prefix absent"
+    },
+    {
+      "id": "T02",
+      "symbol": "SUIUSDT",
+      "originalOwner": "weak_level_rejection",
+      "originalNet": -8.299712363019944,
+      "originalExit": "weak_level_invalidated",
+      "snapshotOwner": "level_breakout",
+      "snapshotSide": "long",
+      "situation": "OBSERVING",
+      "oldTarget": 1.1714431162828747,
+      "newTarget": 1.1714431162828747,
+      "newTargetSource": "liquidity_ladder",
+      "targetInputs": "recorded causal liquidity ladder from original decision; not rebuilt from truncated chart history",
+      "originalPlanSameExecution": {
+        "allowed": false,
+        "reason": "economic_safety: absolute_net_reward_risk: net reward/risk 0.9351 < hard minimum 1.0000"
+      },
+      "newPlanSameExecution": {
+        "allowed": false,
+        "reason": "economic_safety: absolute_net_reward_risk: net reward/risk 0.9351 < hard minimum 1.0000"
+      },
+      "entryInvalidation": null,
+      "executionBook": {
+        "source": "fast_l50_with_deep_tail",
+        "quality": "observed_depth",
+        "fastHeadAuthoritative": true,
+        "deepQuoteConflict": true,
+        "syntheticLiquidity": false
+      },
+      "newEntry": null,
+      "newExit": null,
+      "newNet": null,
+      "limitation": "snapshot selection and geometry only; owner preparation/portfolio prefix absent"
+    },
+    {
+      "id": "T03",
+      "symbol": "NEARUSDT",
+      "originalOwner": "level_breakout",
+      "originalNet": 0.8355616037618623,
+      "originalExit": "stop",
+      "snapshotOwner": null,
+      "snapshotSide": null,
+      "situation": "NO_SUITABLE_SCENARIO",
+      "oldTarget": 4.5916512,
+      "newTarget": 4.787889409616765,
+      "newTargetSource": "liquidity_ladder",
+      "targetInputs": "recorded causal liquidity ladder from original decision; not rebuilt from truncated chart history",
+      "originalPlanSameExecution": {
+        "allowed": true,
+        "reason": "allowed"
+      },
+      "newPlanSameExecution": {
+        "allowed": false,
+        "reason": "economic_gate: winner_cost_share 0.797 > maximum 0.350"
+      },
+      "entryInvalidation": null,
+      "executionBook": {
+        "source": "fast_l50",
+        "quality": "observed_depth",
+        "fastHeadAuthoritative": true,
+        "deepQuoteConflict": false,
+        "syntheticLiquidity": false
+      },
+      "newEntry": null,
+      "newExit": null,
+      "newNet": null,
+      "limitation": "snapshot selection and geometry only; owner preparation/portfolio prefix absent"
+    },
+    {
+      "id": "T04",
+      "symbol": "SOLUSDT",
+      "originalOwner": "level_breakout",
+      "originalNet": -2.4326896580800383,
+      "originalExit": "breakout_failed_back_inside",
+      "snapshotOwner": "level_breakout",
+      "snapshotSide": "short",
+      "situation": "OBSERVING",
+      "oldTarget": 118.25696289916829,
+      "newTarget": 120.2,
+      "newTargetSource": "liquidity_ladder",
+      "targetInputs": "recorded causal liquidity ladder from original decision; not rebuilt from truncated chart history",
+      "originalPlanSameExecution": {
+        "allowed": true,
+        "reason": "allowed"
+      },
+      "newPlanSameExecution": {
+        "allowed": false,
+        "reason": "economic_gate: winner_cost_share 1.278 > maximum 0.350"
+      },
+      "entryInvalidation": null,
+      "executionBook": {
+        "source": "fast_l50",
+        "quality": "observed_depth",
+        "fastHeadAuthoritative": true,
+        "deepQuoteConflict": false,
+        "syntheticLiquidity": false
+      },
+      "newEntry": null,
+      "newExit": null,
+      "newNet": null,
+      "limitation": "snapshot selection and geometry only; owner preparation/portfolio prefix absent"
+    },
+    {
+      "id": "T05",
+      "symbol": "NEARUSDT",
+      "originalOwner": "level_breakout",
+      "originalNet": -6.55363550894492,
+      "originalExit": "breakout_failed_back_inside",
+      "snapshotOwner": null,
+      "snapshotSide": null,
+      "situation": "NO_SUITABLE_SCENARIO",
+      "oldTarget": 4.5916512,
+      "newTarget": 4.77,
+      "newTargetSource": "liquidity_ladder",
+      "targetInputs": "recorded causal liquidity ladder from original decision; not rebuilt from truncated chart history",
+      "originalPlanSameExecution": {
+        "allowed": true,
+        "reason": "allowed"
+      },
+      "newPlanSameExecution": {
+        "allowed": false,
+        "reason": "economic_safety: absolute_net_reward_risk: net reward/risk 0.8506 < hard minimum 1.0000"
+      },
+      "entryInvalidation": null,
+      "executionBook": {
+        "source": "fast_l50",
+        "quality": "observed_depth",
+        "fastHeadAuthoritative": true,
+        "deepQuoteConflict": false,
+        "syntheticLiquidity": false
+      },
+      "newEntry": null,
+      "newExit": null,
+      "newNet": null,
+      "limitation": "snapshot selection and geometry only; owner preparation/portfolio prefix absent"
+    },
+    {
+      "id": "T06",
+      "symbol": "NEARUSDT",
+      "originalOwner": "weak_level_rejection",
+      "originalNet": -5.1052096753494425,
+      "originalExit": "no_follow_through",
+      "snapshotOwner": null,
+      "snapshotSide": null,
+      "situation": "NO_SUITABLE_SCENARIO",
+      "oldTarget": 4.837100668830376,
+      "newTarget": 4.808268399999999,
+      "newTargetSource": "liquidity_ladder",
+      "targetInputs": "recorded causal liquidity ladder from original decision; not rebuilt from truncated chart history",
+      "originalPlanSameExecution": {
+        "allowed": true,
+        "reason": "allowed"
+      },
+      "newPlanSameExecution": {
+        "allowed": false,
+        "reason": "economic_gate: winner_cost_share 0.798 > maximum 0.350"
+      },
+      "entryInvalidation": null,
+      "executionBook": {
+        "source": "fast_l50",
+        "quality": "observed_depth",
+        "fastHeadAuthoritative": true,
+        "deepQuoteConflict": false,
+        "syntheticLiquidity": false
+      },
+      "newEntry": null,
+      "newExit": null,
+      "newNet": null,
+      "limitation": "snapshot selection and geometry only; owner preparation/portfolio prefix absent"
+    }
+  ],
+  "olderWinners": [
+    {
+      "id": "W01",
+      "symbol": "NEARUSDT",
+      "originalOwner": "weak_level_rejection",
+      "originalNet": 44.745188168918716,
+      "originalExit": "runner_target",
+      "snapshotOwner": null,
+      "snapshotSide": null,
+      "situation": "NO_SUITABLE_SCENARIO",
+      "oldTarget": 4.717,
+      "newTarget": 4.716600662376846,
+      "newTargetSource": "liquidity_ladder",
+      "targetInputs": "recorded causal liquidity ladder from original decision; not rebuilt from truncated chart history",
+      "originalPlanSameExecution": {
+        "allowed": true,
+        "reason": "allowed"
+      },
+      "newPlanSameExecution": {
+        "allowed": true,
+        "reason": "allowed"
+      },
+      "entryInvalidation": null,
+      "executionBook": {
+        "source": "fast_l50",
+        "quality": "observed_depth",
+        "fastHeadAuthoritative": true,
+        "deepQuoteConflict": false,
+        "syntheticLiquidity": false
+      },
+      "newEntry": null,
+      "newExit": null,
+      "newNet": null,
+      "limitation": "snapshot selection and geometry only; owner preparation/portfolio prefix absent"
+    },
+    {
+      "id": "W02",
+      "symbol": "SOXLUSDT",
+      "originalOwner": "level_breakout",
+      "originalNet": 16.58123588167094,
+      "originalExit": "runner_target",
+      "snapshotOwner": "level_breakout",
+      "snapshotSide": "long",
+      "situation": "OBSERVING",
+      "oldTarget": 152.4,
+      "newTarget": 151.02551880000001,
+      "newTargetSource": "liquidity_ladder",
+      "targetInputs": "recorded causal liquidity ladder from original decision; not rebuilt from truncated chart history",
+      "originalPlanSameExecution": {
+        "allowed": true,
+        "reason": "allowed"
+      },
+      "newPlanSameExecution": {
+        "allowed": true,
+        "reason": "allowed"
+      },
+      "entryInvalidation": null,
+      "executionBook": {
+        "source": "fast_l50_with_deep_tail",
+        "quality": "observed_depth",
+        "fastHeadAuthoritative": true,
+        "deepQuoteConflict": true,
+        "syntheticLiquidity": false
+      },
+      "newEntry": null,
+      "newExit": null,
+      "newNet": null,
+      "limitation": "snapshot selection and geometry only; owner preparation/portfolio prefix absent"
+    }
+  ],
+  "olderWinnerLimitation": "old manifest unavailable; same current audited risk config for plan-only comparison",
+  "t06Retry": {
+    "id": "T06",
+    "firstTarget": 4.808268399999999,
+    "frozenTarget": 4.808268399999999,
+    "oldLastTarget": 4.837100668830376,
+    "newLastTradeable": false,
+    "state": "INVALIDATED",
+    "reason": [
+      "price left frozen entry area; no chase after risk refusal"
+    ],
+    "firstSignalMono": 0,
+    "limitation": "original owner contract isolated; no full state replay"
+  },
+  "t03Execution": {
+    "originalNet": 0.8355616037618623,
+    "correctedSameFinalLegNet": 0.39889793276082325,
+    "originalFill": 4.784478399999999,
+    "correctedFill": 4.7874787,
+    "finalQuantity": 145.46,
+    "executionQuality": {
+      "source": "fast_l50_with_deep_tail",
+      "quality": "observed_depth",
+      "fastHeadAuthoritative": true,
+      "deepQuoteConflict": true,
+      "syntheticLiquidity": false
+    },
+    "limitation": "final leg only; actual entry and partial fixed; NOT a new strategy trade"
+  }
+}

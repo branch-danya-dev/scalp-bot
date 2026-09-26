@@ -1,5 +1,9 @@
 # Диагностический аудит входов scalp-bot
 
+Этот отчёт и CSV фиксируют исходную версию `ccc168d`. Последующий патч описан
+в [PATCH_REVIEW.md](PATCH_REVIEW.md). Новые извлечения diagnostic markout используют
+исправленную модель `paper-v2-fast-head`; прежние расчёты здесь не переписаны.
+
 Дата: 26 сентября 2026. Проверенный торговый commit: `ccc168de8a5a249670aa8fd63a7df38268b9a6de`.
 Расчёты: [ENTRY_EDGE_AUDIT.csv](ENTRY_EDGE_AUDIT.csv). Код диагностики:
 [scripts/audit-entry-edge.py](scripts/audit-entry-edge.py). Торговые исходники,
