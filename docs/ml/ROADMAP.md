@@ -7,7 +7,8 @@
 | Этап | Работа / результат | Критерий завершения |
 |---|---|---|
 | **M0 — сделано в этой ветке** | Анализ базы, решения чата, контракты snapshot/forecast, таблица выбора, статус CLI и тесты | Нет imports/hooks в trading runtime, новых зависимостей/изменений профилей; тесты проходят |
-| **M1 — следующий** | Inventory закрытых capture, причинный потоковый feature adapter, sampling/label plan, schema/hash и splits | Ссылки на raw+source+config; воспроизводимые строки, нет future leakage, покрыты спокойные/ложные эпизоды; broken данные исключены явно |
+| **M1a — реализован** | Bybit trades / Tardis trades+L2 readers, UTC/decimal normalization, source/hash manifest, format tests | Полные файлы читаются потоком, ошибки не превращаются в успешную выборку; engine не затронут |
+| **M1b — следующий** | Coverage внешних архивов и capture, metadata/universe, причинный feature adapter, sampling/labels и purged splits | Согласованные единицы/время/покрытие; будущая информация не попадает во входы; raw не заменён старым списком сделок |
 | M2 — первая обученная offline-модель | Simple rule + logistic baseline + CatBoost; calibration, frozen artifact и model card | Training воспроизводим; нетронутый test и uncertainty; код inference работает локально. Отрицательный результат не маскируется |
 | M3 — v0.1-shadow | Local worker, bounded mailbox, журнал прогнозов, feature parity и fault/load tests | Ошибки ML не влияют на rule/защиты; source age и p99 под пределом, off-mode сохраняет baseline; НЕТ ордеров ML |
 | M4 — v0.2-paper candidate | ImpulsePlanPolicyV1, импульсный object/episode, atomic dispatcher, единый risk/broker | Реальные классы открывают/ведут обе стороны на synthetic и пригодном replay; нет двойных заявок/перехвата/обхода risk; baseline/hybrid сравнимы |
@@ -17,9 +18,12 @@
 Первая работа рядом с ботом без торговли — M3. Первый тест собственных ордеров
 модели в общем paper-портфеле — M4/M5, после проверки предыдущих границ.
 
-## Следующая конкретная задача M1
+## Следующая конкретная задача M1b
 
-После завершения и штатной проверки current-12h:
+Работу с внешними архивами и синтетическими проверками можно вести сейчас в
+изолированной среде. Собственный current-12h подключается после завершения
+и штатной проверки на своих исходниках; ждать его для разработки readers не нужно.
+
 1. Зафиксировать inventory всех доступных источников: путь/hash/source commit,
    schema, universe, периоды и качество. Непроверенный current-12h не объявлять valid.
 2. Описать одну feature schema и ImpulsePlanPolicyV1; определить численные labels,

@@ -1,4 +1,4 @@
-"""Read-only M0 status; does not load a model, exchange client or environment."""
+"""Read-only ML development status; does not load a model, exchange client or environment."""
 import argparse
 import json
 
@@ -10,7 +10,7 @@ def main() -> int:
     print(json.dumps({
         "stage": STAGE, "model_trained": MODEL_TRAINED,
         "runtime_connected": RUNTIME_CONNECTED, "order_authority": False,
-        "next_step": "M1: sealed capture inventory and causal feature dataset",
+        "next_step": "M1b: source coverage, causal features, executable labels and purged time splits",
         "roadmap": "docs/ml/ROADMAP.md",
     }, sort_keys=True))
     return 0

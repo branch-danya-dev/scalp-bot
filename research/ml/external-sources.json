@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "stage": "M1A_ARCHIVE_IMPORT",
+  "documentation_checked": "2026-09-26",
+  "training_ready": false,
+  "sources": [
+    {
+      "provider": "bybit-public-trades",
+      "scope": "Bybit USDT linear public trade archive",
+      "supports": [
+        "trades"
+      ],
+      "collector_timestamp": false,
+      "format": "seconds CSV.gz",
+      "access": "public URL; coverage/terms must be checked"
+    },
+    {
+      "provider": "tardis-trades",
+      "scope": "Bybit derivatives, USDT linear subset",
+      "supports": [
+        "trades"
+      ],
+      "collector_timestamp": "vendor only",
+      "access": "first day of month public samples; other access not configured"
+    },
+    {
+      "provider": "tardis-l2",
+      "scope": "Bybit derivatives, USDT linear subset",
+      "supports": [
+        "incremental_book_L2"
+      ],
+      "collector_timestamp": "vendor only",
+      "access": "first day of month public samples; other access not configured",
+      "native_sequences": false
+    }
+  ],
+  "source_urls": [
+    "https://public.bybit.com/trading/",
+    "https://docs.tardis.dev/downloadable-csv-files/data-types",
+    "https://docs.tardis.dev/historical-data-details/bybit"
+  ],
+  "raw_redistribution_authorized": false,
+  "paid_purchase_authorized": false,
+  "note": "Descriptive catalogue. Runtime schema is ArchiveSpec; no hidden download or training."
+}

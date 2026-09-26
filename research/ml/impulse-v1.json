@@ -1,14 +1,18 @@
 {
   "schema_version": 1,
   "study_id": "trend-impulse-v1",
-  "stage": "M0_FOUNDATION",
+  "stage": "M1_DATA_IN_PROGRESS",
   "research_only": true,
   "runtime_mode": "disabled",
   "base_commit": "3403b03011a5e89f6f0c4ecb03c6f76df4b7f1e1",
   "model_version": null,
   "model_artifact": null,
   "candidate_model": "CatBoostClassifier",
-  "comparison_models": ["no_trade", "simple_impulse_rule", "logistic_regression"],
+  "comparison_models": [
+    "no_trade",
+    "simple_impulse_rule",
+    "logistic_regression"
+  ],
   "task": "side-conditioned target-first / stop-first / timeout under a frozen executable plan",
   "universe": "existing scanner active symbols; no independent ML scanner",
   "proposal_horizon_ms": 30000,
@@ -22,5 +26,11 @@
   "runtime_connected": false,
   "priority_policy": "ready rule first; ML may replace observation only; execution owner immutable",
   "model_context_is_market_fact": false,
-  "new_market_run_authorized": false
+  "new_market_run_authorized": false,
+  "external_history": {
+    "stage": "M1A_ARCHIVE_IMPORT",
+    "sources": "research/ml/external-sources.json",
+    "training_ready": false,
+    "capture_replay_compatible": false
+  }
 }
