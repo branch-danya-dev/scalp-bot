@@ -8,7 +8,8 @@
 |---|---|---|
 | **M0 — сделано в этой ветке** | Анализ базы, решения чата, контракты snapshot/forecast, таблица выбора, статус CLI и тесты | Нет imports/hooks в trading runtime, новых зависимостей/изменений профилей; тесты проходят |
 | **M1a — реализован** | Bybit trades / Tardis trades+L2 readers, UTC/decimal normalization, source/hash manifest, format tests | Полные файлы читаются потоком, ошибки не превращаются в успешную выборку; engine не затронут |
-| **M1b — следующий** | Coverage внешних архивов и capture, metadata/universe, причинный feature adapter, sampling/labels и purged splits | Согласованные единицы/время/покрытие; будущая информация не попадает во входы; raw не заменён старым списком сделок |
+| **M1b1 — реализован** | Склейка Tardis trade/L2 imports по collector time, quality/provenance и чистый MarketContext→FeatureSnapshot | Локальные регрессии; без runtime и без утверждения полного dataset |
+| **M1b2 — следующий** | Coverage внешних архивов и capture, metadata/universe, raw→context adapter, sampling/labels и purged splits | Согласованные единицы/время/покрытие; будущая информация не попадает во входы; raw не заменён старым списком сделок |
 | M2 — первая обученная offline-модель | Simple rule + logistic baseline + CatBoost; calibration, frozen artifact и model card | Training воспроизводим; нетронутый test и uncertainty; код inference работает локально. Отрицательный результат не маскируется |
 | M3 — v0.1-shadow | Local worker, bounded mailbox, журнал прогнозов, feature parity и fault/load tests | Ошибки ML не влияют на rule/защиты; source age и p99 под пределом, off-mode сохраняет baseline; НЕТ ордеров ML |
 | M4 — v0.2-paper candidate | ImpulsePlanPolicyV1, импульсный object/episode, atomic dispatcher, единый risk/broker | Реальные классы открывают/ведут обе стороны на synthetic и пригодном replay; нет двойных заявок/перехвата/обхода risk; baseline/hybrid сравнимы |
@@ -18,7 +19,10 @@
 Первая работа рядом с ботом без торговли — M3. Первый тест собственных ордеров
 модели в общем paper-портфеле — M4/M5, после проверки предыдущих границ.
 
-## Следующая конкретная задача M1b
+## Следующая конкретная задача M1b2
+
+M1b1 описан в [M1B_ALIGNMENT_FEATURES.md](M1B_ALIGNMENT_FEATURES.md). Общий
+адаптер уже существует, но raw→MarketContext и feature/label exporter ещё нужны.
 
 Работу с внешними архивами и синтетическими проверками можно вести сейчас в
 изолированной среде. Собственный current-12h подключается после завершения
@@ -26,10 +30,10 @@
 
 1. Зафиксировать inventory всех доступных источников: путь/hash/source commit,
    schema, universe, периоды и качество. Непроверенный current-12h не объявлять valid.
-2. Описать одну feature schema и ImpulsePlanPolicyV1; определить численные labels,
+2. Использовать схему M1b1; зафиксировать ImpulsePlanPolicyV1 и численные labels,
    sampling и purged time boundaries ДО обучения. Сохранить proposal→frozen историю.
-3. Реализовать общий чистый adapter от существующего MarketContext/наблюдаемых
-   book/flow данных и offline extraction с достаточным префиксом, без второго scanner.
+3. Реализовать raw→MarketContext и offline extraction с достаточным префиксом;
+   переиспользовать готовый context feature adapter, без второго scanner.
 4. Тесты: одинаковые input→features offline/online; future event не влияет на прошлое;
    forming→closed, активация/деактивация, gaps, nullable fields, обе стороны labels,
    расходов не вычитают дважды; повреждение не превращается в отрицательный sample.

@@ -32,3 +32,14 @@ profiles/dependencies изменений нет. Не регистрироват
 При передаче работы следующему исполнителю читать MODEL_CARD и ROADMAP; не называть
 следующий статус completed без реальных артефактов/измерений. Main не обновлять
 в каталоге работающего capture даже после возможного слияния документации.
+
+## Продолжение M1b1
+
+Реализованы collector-time alignment Tardis imports и чистый версионированный
+MarketContext→FeatureSnapshot с 49 полями/coverage masks. Документ:
+[состояние M1b1](docs/ml/M1B_ALIGNMENT_FEATURES.md). Это не готовый dataset:
+raw→context, historical metadata, labels и splits — M1b2; модель не обучалась.
+
+Проверка current-12h зафиксирована отдельно в issue #55 и документационном PR #56.
+ETH stop/reentry, scanner retention и общий промежуточный −34.37 USDT пока
+не объяснены сырыми событиями. Не смешивать эту задачу с результатами ML-архивов.
