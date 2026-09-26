@@ -1,7 +1,8 @@
 # Patch review: stopped two-hour current-12h
 
 27 сентября 2026. Ветка **codex/two-hour-run-audit**, база **3403b03**.
-Исправляющий коммит **1f40b1a**; отчёт и остальные таблицы — следующий коммит ветки.
+Исправляющий коммит **1f40b1a**; отчёт и остальные таблицы — **fb53534**.
+Опубликован [draft PR #57](https://github.com/branch-danya-dev/scalp-bot/pull/57).
 Diff: `git diff 3403b03..codex/two-hour-run-audit`.
 Main и ML/PR #54 не менялись. Новых рыночных запусков нет.
 
@@ -79,6 +80,6 @@ ETH получил новые назначения: вечный generation bloc
 подтверждены. Но ~85,85 с не было fast-book: backpressure и семь failed handshakes.
 Close timeout исправляет конфликт бюджетов, а не доказывает исправление всей сети.
 
-Issue #55 остаётся открытым до review и решения владельца. Main не сливать,
+Issue #55 обновлён результатами и остаётся открытым до review и решения владельца. Main не сливать,
 новый run автоматически не назначать.
 [Предыдущий PATCH_REVIEW](docs/scenario-router-patch-review-2026-09-26.md).

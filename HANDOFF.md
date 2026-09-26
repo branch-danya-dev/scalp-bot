@@ -1,7 +1,8 @@
 # Текущее состояние
 
 27 сентября 2026. Аудит остановленного current-12h завершён.
-Ветка **codex/two-hour-run-audit**, база **3403b03**, код/регрессии **1f40b1a**.
+Ветка **codex/two-hour-run-audit**, база **3403b03**, код/регрессии **1f40b1a**,
+аудит/таблицы **fb53534**. [Draft PR #57](https://github.com/branch-danya-dev/scalp-bot/pull/57).
 Worktree: `C:/Users/workingspace/.codex/worktrees/two-hour-audit/scalp-bot`.
 Baseline `G:/scalp-bot` сохранён. Main и ML/PR #54 не изменялись.
 
@@ -37,7 +38,7 @@ Raw, переиспользуемые SQLite-индексы и рабочие с
 
 Рассмотреть патч и отдельные гипотезы: micro-response, экономика маленького
 stop/partial, сопровождение после partial, покрытие тренда, причины failed handshakes.
-Торговые пороги/профили не менялись. Issue #55 открыт.
+Торговые пороги/профили не менялись. Issue #55 обновлён и открыт.
 **Не сливать main и не назначать/запускать новый рынок без решения владельца.**
 
 [Предыдущий handoff](docs/handoff-before-two-hour-audit-2026-09-27.md).
