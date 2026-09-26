@@ -1,3 +1,4 @@
+from scenario_support import assigned
 import asyncio
 from copy import deepcopy
 
@@ -265,6 +266,13 @@ def test_central_arbiter_uses_shared_priority_not_playbook_confidence(tmp_path) 
             Candidate("BBBUSDT", 200_000_000, 0, 100, activity_rank=1),
         ]
 
+        for owned_session in engine.sessions.values():
+            owner = next(iter(owned_session.decisions))
+            d = owned_session.decisions[owner]
+            route = assigned(engine, owned_session, owner, d.action.value)
+            if owned_session.symbol in engine.broker.positions:
+                route.state = "IN_POSITION"
+
         engine._arbitrate_once()
 
         # Semantic/economic dimensions are equal, so the later shared
@@ -272,6 +280,7 @@ def test_central_arbiter_uses_shared_priority_not_playbook_confidence(tmp_path) 
         assert set(engine.broker.positions) == {"BBBUSDT"}
     finally:
         close_rest(engine)
+
 
 
 def test_research_policy_shadow_audits_without_blocking_trade(tmp_path) -> None:
@@ -325,6 +334,13 @@ def test_research_policy_shadow_audits_without_blocking_trade(tmp_path) -> None:
             )
         ]
 
+        for owned_session in engine.sessions.values():
+            owner = next(iter(owned_session.decisions))
+            d = owned_session.decisions[owner]
+            route = assigned(engine, owned_session, owner, d.action.value)
+            if owned_session.symbol in engine.broker.positions:
+                route.state = "IN_POSITION"
+
         engine._arbitrate_once()
 
         assert set(engine.broker.positions) == {"AAAUSDT"}
@@ -340,6 +356,7 @@ def test_research_policy_shadow_audits_without_blocking_trade(tmp_path) -> None:
         assert assessment["mode"] == "shadow"
     finally:
         close_rest(engine)
+
 
 
 def test_research_policy_enforce_blocks_exact_validated_context(tmp_path) -> None:
@@ -393,6 +410,13 @@ def test_research_policy_enforce_blocks_exact_validated_context(tmp_path) -> Non
             )
         ]
 
+        for owned_session in engine.sessions.values():
+            owner = next(iter(owned_session.decisions))
+            d = owned_session.decisions[owner]
+            route = assigned(engine, owned_session, owner, d.action.value)
+            if owned_session.symbol in engine.broker.positions:
+                route.state = "IN_POSITION"
+
         engine._arbitrate_once()
 
         assert not engine.broker.positions
@@ -409,7 +433,8 @@ def test_research_policy_enforce_blocks_exact_validated_context(tmp_path) -> Non
         close_rest(engine)
 
 
-def test_arbiter_blocks_trend_long_into_mature_resistance(tmp_path) -> None:
+
+def test_arbiter_never_executes_unassigned_signal(tmp_path) -> None:
     engine = make_engine(tmp_path, max_leverage=1, risk_fraction=0.01)
     try:
         now = time()
@@ -497,11 +522,8 @@ def test_arbiter_blocks_trend_long_into_mature_resistance(tmp_path) -> None:
             for event in engine.events
             if event["event"] == "arbiter_blocked"
         ]
-        assert blocked
-        assert (
-            "mature_structural_obstacle_before_first_take"
-            in blocked[0]["payload"]["blockers"]
-        )
+        assert not blocked  # no scenario: the execution arbiter cannot invent one
+        assert not engine.router.scenarios
     finally:
         close_rest(engine)
 
@@ -580,6 +602,13 @@ def test_arbiter_selects_one_when_viable_playbooks_conflict_on_direction(
             )
         ]
 
+        for owned_session in engine.sessions.values():
+            owner = next(iter(owned_session.decisions))
+            d = owned_session.decisions[owner]
+            route = assigned(engine, owned_session, owner, d.action.value)
+            if owned_session.symbol in engine.broker.positions:
+                route.state = "IN_POSITION"
+
         engine._arbitrate_once()
 
         assert set(engine.broker.positions) == {"AAAUSDT"}
@@ -594,6 +623,7 @@ def test_arbiter_selects_one_when_viable_playbooks_conflict_on_direction(
         )
     finally:
         close_rest(engine)
+
 
 
 def test_live_strategy_stats_split_side_and_local_regime() -> None:
@@ -1379,6 +1409,7 @@ async def test_strategies_receive_only_confirmed_1m_candles(tmp_path) -> None:
     engine.sessions[session.symbol] = session
 
     try:
+        assigned(engine, session, "capture")
         await engine._evaluate(session)
         assert len(seen) == 1
         assert seen[0].confirmed is True
@@ -1726,11 +1757,19 @@ def test_arbiter_records_shadow_economics_without_blocking_trade(tmp_path) -> No
         engine.candidates = [
             Candidate("AAAUSDT", 200_000_000, 0, 100, activity_rank=1)
         ]
+        for owned_session in engine.sessions.values():
+            owner = next(iter(owned_session.decisions))
+            d = owned_session.decisions[owner]
+            route = assigned(engine, owned_session, owner, d.action.value)
+            if owned_session.symbol in engine.broker.positions:
+                route.state = "IN_POSITION"
+
         engine._arbitrate_once()
         assert "AAAUSDT" in engine.broker.positions
         assert any(event["event"] == "economic_shadow" for event in engine.events)
     finally:
         close_rest(engine)
+
 
 
 
@@ -1847,6 +1886,13 @@ def test_arbiter_executes_confirmed_rejection_as_taker(tmp_path) -> None:
             Candidate("AAAUSDT", 200_000_000, 0, 100, activity_rank=1)
         ]
 
+        for owned_session in engine.sessions.values():
+            owner = next(iter(owned_session.decisions))
+            d = owned_session.decisions[owner]
+            route = assigned(engine, owned_session, owner, d.action.value)
+            if owned_session.symbol in engine.broker.positions:
+                route.state = "IN_POSITION"
+
         engine._arbitrate_once()
 
         assert "AAAUSDT" not in engine.broker.pending_entries
@@ -1858,6 +1904,7 @@ def test_arbiter_executes_confirmed_rejection_as_taker(tmp_path) -> None:
         assert engine.strategy_stats["weak_level_rejection"]["tradesOpened"] == 1
     finally:
         close_rest(engine)
+
 
 
 
@@ -2413,6 +2460,13 @@ def test_arbiter_adds_only_to_matching_staged_probe(tmp_path) -> None:
         ]
 
         before = engine.broker.positions["AAAUSDT"].notional
+        for owned_session in engine.sessions.values():
+            owner = next(iter(owned_session.decisions))
+            d = owned_session.decisions[owner]
+            route = assigned(engine, owned_session, owner, d.action.value)
+            if owned_session.symbol in engine.broker.positions:
+                route.state = "IN_POSITION"
+
         engine._arbitrate_once()
 
         pos = engine.broker.positions["AAAUSDT"]
@@ -2428,6 +2482,7 @@ def test_arbiter_adds_only_to_matching_staged_probe(tmp_path) -> None:
         )
     finally:
         close_rest(engine)
+
 
 
 def test_arbiter_does_not_treat_orphaned_add_as_new_entry(tmp_path) -> None:
@@ -2510,6 +2565,7 @@ def test_pending_maker_entry_is_cancelled_when_setup_invalidates(
             )
         )
 
+        pending_plan.strategy_details["zone"] = {"low":100.02,"high":100.04}
         engine._validate_pending_entry(session)
 
         assert "AAAUSDT" not in engine.broker.pending_entries
@@ -2519,7 +2575,7 @@ def test_pending_maker_entry_is_cancelled_when_setup_invalidates(
             if row["event"] == "entry_cancelled"
         )
         assert cancelled["payload"]["reason"] == (
-            "setup_invalidated:setup_no_longer_tradeable"
+            "setup_invalidated:hypothesis already invalid on executable exit quote"
         )
     finally:
         close_rest(engine)
@@ -2577,7 +2633,7 @@ def test_pending_maker_entry_survives_same_fresh_setup(
         close_rest(engine)
 
 
-def test_pending_maker_entry_cancels_when_freshness_turns_late(
+def test_pending_maker_entry_cancels_at_original_scenario_expiry(
     tmp_path,
 ) -> None:
     engine = make_engine(
@@ -2615,13 +2671,15 @@ def test_pending_maker_entry_cancels_when_freshness_turns_late(
             )
         )
 
+        route = assigned(engine, session, "weak_level_rejection")
+        route.expires_mono = engine.clock.perf_counter_ns()/1e9 - 1
         engine._validate_pending_entry(session)
 
         assert "AAAUSDT" not in engine.broker.pending_entries
         assert any(
             row["event"] == "entry_cancelled"
             and row["payload"]["reason"]
-            == "setup_invalidated:setup_freshness_late"
+            == "setup_invalidated:scenario_expired"
             for row in engine.events
         )
     finally:

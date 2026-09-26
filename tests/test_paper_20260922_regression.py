@@ -39,7 +39,7 @@ def test_archived_density_cases_were_not_entry_confirmed() -> None:
         assert case["nextState"] == "exhausted"
 
 
-def test_near_good_breakout_nearest_liquidity_is_obstacle_not_final_target() -> None:
+def test_near_good_breakout_first_target_is_not_extended_for_r() -> None:
     case = load_fixture()["breakoutCases"][0]
     risk = abs(case["entry"] - case["stop"])
     nearest = LiquidityTarget(
@@ -64,9 +64,9 @@ def test_near_good_breakout_nearest_liquidity_is_obstacle_not_final_target() -> 
     )
 
     assert obstacle is nearest
-    assert selected_liquidity is None
-    assert target > case["oldNearestTarget"]
-    assert target_r == pytest.approx(1.25)
+    assert selected_liquidity is nearest
+    assert target == case["oldNearestTarget"]
+    assert target_r == pytest.approx((target-case["entry"])/risk)
 
 
 def test_near_archive_preserves_good_and_bad_signal_difference() -> None:

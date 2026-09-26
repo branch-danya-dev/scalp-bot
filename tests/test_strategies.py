@@ -851,7 +851,7 @@ def test_wick_only_sweep_does_not_confirm_downtrend(monkeypatch) -> None:
 
 
 
-def test_breakout_uses_near_liquidity_as_obstacle_not_forced_final_target(monkeypatch) -> None:
+def test_breakout_does_not_skip_nearest_target_to_manufacture_reward(monkeypatch) -> None:
     import scalp_bot.strategy.breakout as breakout_module
     from scalp_bot.strategy.liquidity import LiquidityTarget
 
@@ -884,9 +884,9 @@ def test_breakout_uses_near_liquidity_as_obstacle_not_forced_final_target(monkey
     )
     assert decision.action == Action.LONG
     assert decision.details["nearestObstacle"]["price"] == pytest.approx(100.20)
-    assert decision.target == pytest.approx(100.80)
+    assert decision.target == pytest.approx(100.20)
     assert decision.details["targetSource"] == "liquidity_ladder"
-    assert decision.details["targetRiskMultipleGross"] >= strategy.minimum_target_r
+    assert decision.details["targetRiskMultipleGross"] < strategy.minimum_target_r
     assert decision.details["stopSource"] == "hard_beyond_breakout_zone"
     assert decision.details["softInvalidation"] == (
         "sustained_reacceptance_inside_zone"

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .base import Strategy
+from .targets import structural_target, movement_budget
 from .common import compute_trade_flow
 from .flow import flow_at_level
 from .liquidity import find_liquidity_targets
@@ -299,7 +300,8 @@ class TrendStructureStrategy(Strategy):
         observed_at_ms: int | None = None,
     ) -> str | None:
         if (
-            unrealized_pnl < 0
+            not strategy_details.get("scenario")
+            and unrealized_pnl < 0
             and not position_context_supported(
                 PlaybookKind.TREND_CONTINUATION,
                 side,
@@ -875,12 +877,6 @@ class TrendStructureStrategy(Strategy):
                     visuals=visuals,
                 )
 
-            target_r = 1.6
-            risk_target = (
-                price + risk * target_r
-                if long_side
-                else price - risk * target_r
-            )
             liquidity_ladder = find_liquidity_targets(
                 candles,
                 price,
@@ -893,19 +889,8 @@ class TrendStructureStrategy(Strategy):
                 if liquidity_ladder
                 else None
             )
-            liquidity_target = next(
-                (
-                    row
-                    for row in liquidity_ladder
-                    if abs(row.price - price) >= risk * target_r
-                ),
-                None,
-            )
-            target = (
-                liquidity_target.price
-                if liquidity_target is not None
-                else risk_target
-            )
+            target, liquidity_target, target_source = structural_target(
+                price, action, liquidity_ladder, movement=movement_budget(candles))
 
             quality = min(
                 0.94,
@@ -962,7 +947,8 @@ class TrendStructureStrategy(Strategy):
                     "flow": flow,
                     "levelFlow": level_flow,
                     "entryContextAssessment": entry_context.public(),
-                    "targetR": target_r,
+                    "targetR": abs(target-price) / abs(price-stop),
+                    "expectedImpulsePct": movement_budget(candles) / price,
                     "nearestObstacle": (
                         nearest_obstacle.public()
                         if nearest_obstacle
@@ -980,7 +966,7 @@ class TrendStructureStrategy(Strategy):
                     "targetSource": (
                         "liquidity_ladder"
                         if liquidity_target
-                        else "risk_multiple"
+                        else "observed_range_projection"
                     ),
                 },
                 setup_id=setup_id,

@@ -1381,7 +1381,7 @@ def test_market_exit_penalizes_unseen_depth_tail() -> None:
     assert trade["exit"] < 99.0
 
 
-def test_fast_book_triggers_stop_while_deep_book_sets_exit_vwap() -> None:
+def test_fast_book_triggers_and_fills_stop_before_deep_tail() -> None:
     cfg = Settings(
         taker_fee_rate=0,
         maker_fee_rate=0,
@@ -1418,7 +1418,7 @@ def test_fast_book_triggers_stop_while_deep_book_sets_exit_vwap() -> None:
     )
 
     assert events and events[-1]["reason"] == "stop"
-    assert events[-1]["exit"] == pytest.approx(99.00)
+    assert events[-1]["exit"] == pytest.approx(99.40)
 
 
 def test_explicit_contract_quantity_controls_scale_in_average_entry() -> None:

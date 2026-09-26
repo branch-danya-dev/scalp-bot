@@ -8,6 +8,7 @@ from statistics import median
 
 from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .base import Strategy
+from .targets import structural_target
 
 if TYPE_CHECKING:
     from .market_context import MarketContext
@@ -120,34 +121,9 @@ class LevelBreakoutStrategy(Strategy):
         liquidity_ladder: list,
         minimum_target_r: float,
     ) -> tuple[float, object | None, object | None, float]:
-        nearest_obstacle = (
-            liquidity_ladder[0]
-            if liquidity_ladder
-            else None
-        )
-        minimum_distance = risk * minimum_target_r
-        liquidity_target = next(
-            (
-                row
-                for row in liquidity_ladder
-                if abs(row.price - entry) >= minimum_distance
-            ),
-            None,
-        )
-        fallback_distance = max(
-            expected_impulse,
-            minimum_distance,
-        )
-        fallback_target = (
-            entry + fallback_distance
-            if action == Action.LONG
-            else entry - fallback_distance
-        )
-        target = (
-            liquidity_target.price
-            if liquidity_target is not None
-            else fallback_target
-        )
+        target, liquidity_target, _ = structural_target(
+            entry, action, liquidity_ladder, movement=expected_impulse)
+        nearest_obstacle = liquidity_target
         target_r = (
             abs(target - entry) / risk
             if risk > 0
@@ -411,7 +387,7 @@ class LevelBreakoutStrategy(Strategy):
                     return "breakout_failed_back_inside"
             else:
                 strategy_details.pop(key, None)
-        if unrealized_pnl >= 0:
+        if unrealized_pnl >= 0 or strategy_details.get("scenario"):
             return None
         if not position_context_supported(
             PlaybookKind.LEVEL_BREAKOUT,
@@ -1120,10 +1096,9 @@ class LevelBreakoutStrategy(Strategy):
             or tape_retest_response_ready
         )
         retest_hold_ready = (
-            state.retest_seen
-            and retest_hold_seconds
-            >= self.min_break_hold_seconds
-            and retest_response_ready
+            state.retest_seen and retest_response_ready
+            and ((getattr(market_context, "scenario", None) and tape_retest_response_ready)
+                 or retest_hold_seconds >= self.min_break_hold_seconds)
         )
         required_sustained_hold = self._sustained_hold_seconds(pressure)
         sustained_response_ready = (
@@ -1138,7 +1113,8 @@ class LevelBreakoutStrategy(Strategy):
             and not retest_response_ready
         )
         context_details.update({
-            "confirmationRule": "current_acceptance_v1",
+            "confirmationRule": ("causal_acceptance_v2" if getattr(market_context, "scenario", None)
+                                 else "current_acceptance_v1"),
             "confirmationResponseSource": "post_break_5s_tape_and_quote",
             "confirmationResponseRequiredBps": self.min_directional_response_bps,
             "rollingLevelResponseBps": (
@@ -1213,10 +1189,13 @@ class LevelBreakoutStrategy(Strategy):
                 },
             )
 
-        sustained_hold_ready = (
-            held_seconds
-            >= required_sustained_hold
-            and sustained_response_ready
+        execution_response_ready = (
+            sustained_response_ready and acceptance_flow.trade_count >= 3
+            and aligned_after_break and not breakout_absorbed
+        )
+        sustained_hold_ready = sustained_response_ready and (
+            (getattr(market_context, "scenario", None) and execution_response_ready)
+            or held_seconds >= required_sustained_hold
         )
         confirmation_mode = (
             "retest_response"

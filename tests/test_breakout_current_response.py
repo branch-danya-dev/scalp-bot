@@ -31,7 +31,7 @@ def test_flow_is_sorted_clipped_to_episode_boundary_and_observation(short):
                             now_ms=10_000, since_ms=10_001).trade_count == 0
 
 
-def scenario(short=False, *, old_price=100.16):
+def scenario(short=False, *, old_price=100.16, routed=False):
     action = Action.SHORT if short else Action.LONG
     rows, structure, ticks = native_inputs(action)
     # These are pre-break executions; their rolling response must not FIRE.
@@ -41,10 +41,15 @@ def scenario(short=False, *, old_price=100.16):
 
     def evaluate(now=30_014_000, mid=100.165, extra=()):
         price = 200-mid if short else mid
+        from test_price_action_hypothesis import scenario as beta_context
+        context = beta_context(-1 if short else 1)[2] if routed else None
+        if context:
+            context = replace(context, observed_at_ms=now,
+                scenario={"owner":"level_breakout", "side":"short" if short else "long"})
         return strategy.evaluate(
             rows, OrderBook(bids=[(price-.005, 50)], asks=[(price+.005, 50)]),
             Trend.DOWN if short else Trend.UP, symbol="CURRENT", trades=ticks+list(extra),
-            structure=structure, observed_at_ms=now,
+            structure=structure, observed_at_ms=now, market_context=context,
         )
 
     first = evaluate(30_004_600)
@@ -125,3 +130,22 @@ def test_recorded_xrp_windows_distinguish_current_impulse_from_later_flat_price(
         quote_bps = (sample["bid"] - result.first_price) / result.first_price * 10_000
         assert quote_bps == pytest.approx(sample["expectedQuoteBps"])
     # This checks real inputs to the response rule, not an alternative trade/PnL.
+
+
+@pytest.mark.parametrize("short", [False, True])
+def test_routed_breakout_fires_on_causal_response_without_extra_hold(short):
+    _, evaluate, first = scenario(short, routed=True)
+    ticks = breakout_executions(30_010_000, short=short)
+    fired = evaluate(30_010_000, extra=ticks)
+    assert fired.action == (Action.SHORT if short else Action.LONG)
+    assert fired.details["confirmationRule"] == "causal_acceptance_v2"
+    assert fired.details["breakHoldSeconds"] == pytest.approx(5.4)
+    assert fired.details["sustainedResponseReady"]
+    assert fired.details["opportunityTrigger"] == first.details["opportunityTrigger"]
+
+
+@pytest.mark.parametrize("short", [False, True])
+def test_routed_breakout_does_not_replace_response_with_elapsed_time(short):
+    _, evaluate, _ = scenario(short, routed=True)
+    flat = breakout_executions(first=100.155, last=100.155, short=short)
+    assert evaluate(extra=flat).action == Action.WAIT

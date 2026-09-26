@@ -172,6 +172,8 @@ class SessionRecorder:
                         _ROW_ENCODER.encode(item) + b"\n"
                     )
                     self._written_rows += 1
+                    if item.get("event") in {"run_summary", "bot_stopped"}:
+                        fh.flush()
         except BaseException as exc:
             self._writer_error = exc
 
@@ -230,6 +232,8 @@ class SessionRecorder:
                     "recorder background writer stop queue is saturated"
                 )
             thread.join(max(0.0, timeout))
+            if thread.is_alive():
+                raise TimeoutError("recorder writer did not stop")
         self._writer_thread = None
 
     def health(self) -> dict:

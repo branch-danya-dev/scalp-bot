@@ -1,4 +1,5 @@
 from dataclasses import replace
+from dataclasses import replace
 from time import time
 
 import pytest
@@ -137,12 +138,15 @@ async def test_beta_ui_toggle_routes_real_signal_through_risk_and_paper(tmp_path
         engine.toggle_strategy(key, True)
         assert key in engine._build_trading_manifest()["strategies"]["tradeable"]
         rows, book, context, flow = scenario(direction)
-        decision = evaluate(engine.strategies[key], (rows,book,context,flow))
+        # Wide prior observed range supplies a real target independent of stop*R.
+        rows = [replace(c, high=101, low=99) for c in rows[:-1]] + rows[-1:]
         session = ActiveSymbolSession("TESTUSDT", candles=rows, orderbook=book,
                                       last_price=book.mid, trend=context.legacy_trend,
                                       last_market_at=time(), last_book_at=time())
         session.market_context = context
-        session.decisions[key] = decision
+        engine._route_scenario(session, rows)
+        decision = evaluate(engine.strategies[key], (rows,book,session.market_context,flow))
+        session.decisions[key] = engine._scenario_decision(session, decision)
         engine.sessions[session.symbol] = session
         engine.running = True
         engine._arbitrate_once()

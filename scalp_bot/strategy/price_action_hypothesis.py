@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 
 from ..domain import Action, Candle, OrderBook, StrategyDecision, TradeTick, Trend
 from .base import Strategy
+from .targets import structural_target, movement_budget
+from .liquidity import find_liquidity_targets
 from .common import compute_trade_flow
 
 if TYPE_CHECKING:
@@ -95,15 +97,19 @@ class PriceActionHypothesisStrategy(Strategy):
         htf, local = context.htf_bias, context.local_regime
         if htf is None or local is None:
             return wait("BETA: нет контекста 1h/15m/5m")
-        direction_trend = htf.trend_1h if htf.trend_1h != Trend.FLAT else htf.trend_15m
-        if direction_trend == Trend.FLAT:
-            return wait("BETA: старшие таймфреймы не задают направление")
-        opposite = Trend.DOWN if direction_trend == Trend.UP else Trend.UP
-        if htf.trend_15m == opposite or local.structure_5m == opposite or local.direction == opposite:
-            return wait("BETA: направление 1h → 15m → 5m/1m не согласовано")
-        if local.regime.value == "range":
-            return wait("BETA: трендовая гипотеза не торгует боковик")
-        direction = 1 if direction_trend == Trend.UP else -1
+        assigned = context.scenario
+        if assigned and assigned.get("owner") == self.key:
+            direction = 1 if assigned["side"] == "long" else -1
+        else:
+            direction_trend = htf.trend_1h if htf.trend_1h != Trend.FLAT else htf.trend_15m
+            if direction_trend == Trend.FLAT:
+                return wait("BETA: старшие таймфреймы не задают направление")
+            opposite = Trend.DOWN if direction_trend == Trend.UP else Trend.UP
+            if htf.trend_15m == opposite or local.structure_5m == opposite or local.direction == opposite:
+                return wait("BETA: направление 1h → 15m → 5m/1m не согласовано")
+            if local.regime.value == "range":
+                return wait("BETA: трендовая гипотеза не торгует боковик")
+            direction = 1 if direction_trend == Trend.UP else -1
         action = Action.LONG if direction > 0 else Action.SHORT
         pattern = self._pattern(bar, previous, direction)
         if pattern is None:
@@ -126,15 +132,18 @@ class PriceActionHypothesisStrategy(Strategy):
         trigger = bar.high + buffer if direction > 0 else bar.low - buffer
         stop = bar.low - buffer if direction > 0 else bar.high + buffer
         risk_distance = abs(trigger - stop)
-        target = trigger + direction * risk_distance * 2
+        ladder = find_liquidity_targets(closed, trigger, action,
+            min_distance_pct=0.0, structure=structure)
+        target, _, target_source = structural_target(trigger, action, ladder,
+            movement=movement_budget(closed))
         hypothesis = {"version": 1, "pattern": pattern, "side": action.value,
                       "candleStartMs": bar.start_ms, "preparedAtMs": closed_at,
                       "expiresAtMs": closed_at + 60_000, "trigger": trigger,
-                      "invalidation": stop, "target": target, "targetR": 2.0,
+                      "invalidation": stop, "target": target, "targetR": abs(target-trigger)/risk_distance if risk_distance else 0,
                       "volumeRatio": volume_ratio, "maximumChaseR": self.maximum_chase_r}
         details.update(hypothesis=hypothesis, flowAlignment=alignment.public(),
                        trendAligned=True, flowConfirmed=True,
-                       targetSource="hypothesis_fixed_2r", expectedImpulsePct=abs(target-trigger)/trigger,
+                       targetSource=target_source, expectedImpulsePct=movement_budget(closed)/trigger,
                        freshnessHorizonSeconds=60.0,
                        preparedOpportunity={"preparedAtMs":closed_at, "source":"closed_candle_pattern"},
                        opportunityArm={"observedAtMs":closed_at, "price":trigger, "source":"closed_candle_pattern"})
@@ -159,4 +168,4 @@ class PriceActionHypothesisStrategy(Strategy):
             setup_id=f"{self.key}:{symbol}:{bar.start_ms}:{action.value}", details=details,
             visuals={"overlays":[{"type":"price", "price":trigger, "label":"BETA подтверждение"},
                                  {"type":"price", "price":stop, "label":"BETA отмена"},
-                                 {"type":"price", "price":target, "label":"BETA цель 2R"}]})
+                                 {"type":"price", "price":target, "label":"BETA структурная цель"}]})

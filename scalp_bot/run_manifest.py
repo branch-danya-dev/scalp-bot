@@ -56,7 +56,7 @@ def build_run_manifest(config: Settings, strategies: dict[str, bool], *,
     enabled = sorted(key for key, value in strategies.items() if value)
     runtime = runtime_provenance()
     body = {"manifestVersion": 4, "recordSchemaVersion": "jsonl-clock-v2",
-            "executionModelVersion": "paper-v1", "config": values,
+            "executionModelVersion": "paper-v2-fast-head", "config": values,
             "runtime": runtime, "runtimeSha256": fingerprint(runtime),
             "configSha256": config_hash, "code": deepcopy(code),
             "strategies": {"enabled": enabled,

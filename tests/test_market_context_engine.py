@@ -1,3 +1,4 @@
+from scenario_support import assigned
 import time
 import pytest
 import asyncio
@@ -288,7 +289,7 @@ class CaptureStrategy:
         return None
 
 
-def test_tradeable_playbooks_receive_same_canonical_market_context(tmp_path) -> None:
+def test_only_assigned_playbook_receives_canonical_context(tmp_path) -> None:
     engine = make_engine(tmp_path)
     try:
         strategies = {
@@ -323,22 +324,18 @@ def test_tradeable_playbooks_receive_same_canonical_market_context(tmp_path) -> 
         )
         engine.sessions[session.symbol] = session
 
+        assigned(engine, session, "level_breakout")
         asyncio.run(engine._evaluate(session))
 
         assert session.market_context is not None
-        seen = [
-            strategy.seen_contexts[0]
-            for strategy in strategies.values()
-        ]
-        assert all(context is session.market_context for context in seen)
-        flows = [strategy.seen_flows[0] for strategy in strategies.values()]
-        assert all(flow == flows[0] for flow in flows)
-        assert len({id(flow) for flow in flows}) == len(flows)
-        flows[0]['buyNotional5s'] = -999
-        assert flows[1]['buyNotional5s'] == 0
+        owner = strategies["level_breakout"]
+        assert owner.seen_contexts[0] is session.market_context
+        assert not strategies["trend_structure"].seen_contexts
+        assert not strategies["weak_level_rejection"].seen_contexts
+        assert owner.seen_flows[0]["buyNotional5s"] == 0
         session.trades.append(TradeTick(int(time.time() * 1000), 101, 2, 'Buy'))
         asyncio.run(engine._evaluate(session))
-        assert all(s.seen_flows[-1]['buyNotional5s'] == 202 for s in strategies.values())
+        assert owner.seen_flows[-1]['buyNotional5s'] == 202
         public = session.market_context.public()
         assert public["schemaVersion"] == 1
         assert public["structureContext"] is not None
@@ -384,6 +381,7 @@ def test_engine_exposes_forming_candle_without_passing_it_as_confirmed_structure
         )
         engine.sessions[session.symbol] = session
 
+        assigned(engine, session, "trend_structure")
         asyncio.run(engine._evaluate(session))
 
         assert strategy.seen_candle_counts == [80]
@@ -514,6 +512,7 @@ def test_live_fast_path_reuses_confirmed_candle_analysis(
     engine.sessions[session.symbol] = session
 
     try:
+        assigned(engine, session, "trend_structure")
         asyncio.run(engine._evaluate(session))
         first_structure = session.structure
         assert calls["structure"] == 1

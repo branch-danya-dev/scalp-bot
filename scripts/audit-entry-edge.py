@@ -12,6 +12,16 @@ from math import isclose
 from pathlib import Path
 
 import msgspec
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from scalp_bot.domain import OrderBook
+from scalp_bot.execution_book import coherent_execution_book
+
+
+def consistent_depth(fast, deep):
+    """Diagnostic quantity sweeps use the very same fast-head execution rule."""
+    return coherent_execution_book(OrderBook(*fast.prices()), OrderBook(*deep.prices()))
+
 
 HORIZONS = (5, 15, 30, 60, 120)
 
@@ -223,7 +233,8 @@ def extract_inputs(source, prepared, output_dir):
                 counts['book_'+outcome]+=1
                 if not windows[symbol][0] <= now <= windows[symbol][1]: continue
                 fast,deep=books[symbol,50],books[symbol,1000]
-                b,a=deep.prices()
+                coherent = consistent_depth(fast, deep)
+                b,a=coherent.bids,coherent.asks
                 healthy=(fast.synced and deep.synced and bool(b) and bool(a) and bool(fast.b) and bool(fast.a)
                          and fast.receipt is not None and deep.receipt is not None
                          and now-fast.receipt<=1.5 and now-deep.receipt<=1.5
@@ -231,6 +242,7 @@ def extract_inputs(source, prepared, output_dir):
                 for t in trades:
                     if t['symbol']!=symbol: continue
                     snapshots[t['id']].append(dict(mono=now, inputLine=n, deepLine=deep.line,
+                        executionModel="paper-v2-fast-head", executionQuality=coherent.execution,
                         deepReceipt=deep.receipt, fastReceipt=fast.receipt, healthy=healthy,
                         bid=sweep(b,t['quantity']) if healthy else None,
                         ask=sweep(a,t['quantity']) if healthy else None,
@@ -239,7 +251,7 @@ def extract_inputs(source, prepared, output_dir):
                 if n%1000000==0: print('Inputs processed',n,flush=True)
     except (EOFError,OSError,msgspec.DecodeError) as exc:
         errors.append(dict(line=n,error=type(exc).__name__,message=str(exc)))
-    info=dict(source=str(source), bytes=source.stat().st_size, inputRows=n, counts=counts,
+    info=dict(source=str(source), executionModel="paper-v2-fast-head", bytes=source.stat().st_size, inputRows=n, counts=counts,
         footer=footer, errors=errors, lastKind=last['kind'] if last else None,
         lastMono=last['processingMonoNs'] if last else None,
         payloadHashesRecomputed=False, payloadHashCheckedKinds=sorted(hash_kinds),

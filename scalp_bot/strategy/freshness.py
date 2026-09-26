@@ -91,37 +91,10 @@ def _expected_impulse_pct(
     if isinstance(explicit, (int, float)) and explicit > 0:
         return float(explicit)
 
-    entry = decision.entry
-    target = decision.target
-    stop = decision.stop
-    if (
-        isinstance(entry, (int, float))
-        and entry > 0
-        and isinstance(target, (int, float))
-    ):
-        target_move = abs(float(target) - float(entry)) / float(entry)
-    else:
-        target_move = 0.0
-
-    risk_move = 0.0
-    if (
-        isinstance(entry, (int, float))
-        and entry > 0
-        and isinstance(stop, (int, float))
-    ):
-        risk_move = abs(float(entry) - float(stop)) / float(entry)
-
-    target_r = details.get("targetR")
-    if not isinstance(target_r, (int, float)):
-        target_r = details.get("targetRiskMultipleGross")
-    modeled = (
-        risk_move * max(0.0, float(target_r))
-        if isinstance(target_r, (int, float))
-        else 0.0
-    )
-
-    resolved = max(target_move, modeled)
-    return resolved if resolved > 0 else None
+    # A target/desired R is a payout, not an independent opportunity budget.
+    # Historical decisions without an observed impulse retain time freshness
+    # and explicitly unknown movement freshness.
+    return None
 
 
 def _expected_duration_seconds(

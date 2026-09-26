@@ -195,6 +195,7 @@ def test_engine_preserves_reclaim_anchor_until_tradeable_continuation(tmp_path) 
                 "expectedImpulsePct": 0.01,
             },
         )
+        session.orderbook = OrderBook([(100.69,10)], [(100.71,10)])
         engine._annotate_entry_freshness(
             session,
             continuation,

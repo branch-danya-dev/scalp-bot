@@ -1329,7 +1329,7 @@ def test_stop_side_depth_stress_reduces_size_and_stays_reserved() -> None:
     )
 
 
-def test_risk_uses_fast_quote_but_deep_book_for_entry_depth() -> None:
+def test_risk_uses_fast_head_quantities_before_deep_tail() -> None:
     cfg = scalp_settings(
         max_entry_drift_bps=100,
         stop_depth_stress_multiplier=0.0,
@@ -1361,8 +1361,9 @@ def test_risk_uses_fast_quote_but_deep_book_for_entry_depth() -> None:
     economics = result.plan.strategy_details["economics"]
     assert economics["fastBookBestAsk"] == pytest.approx(100.00)
     assert economics["deepBookBestAsk"] == pytest.approx(100.00)
-    assert result.plan.market_entry > fast.best_ask
-    assert economics["entryDepthImpactBps"] > 0
+    assert result.plan.market_entry == fast.best_ask
+    assert economics["entryDepthImpactBps"] == 0
+    assert economics["executionBook"]["fastHeadAuthoritative"]
 
 
 def test_risk_plan_respects_exchange_tick_and_quantity_steps() -> None:

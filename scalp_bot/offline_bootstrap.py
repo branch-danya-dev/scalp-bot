@@ -83,7 +83,7 @@ def restore_cold_engine(prefix):
     if manifest.get('manifestVersion') not in (3, 4) or check_manifest(manifest)[1]:
         raise SegmentMismatch('incomplete or invalid capture manifest')
     if (manifest['recordSchemaVersion'] != 'jsonl-clock-v2'
-            or manifest['executionModelVersion'] != 'paper-v1'):
+            or manifest['executionModelVersion'] != 'paper-v2-fast-head'):
         raise SegmentMismatch('unsupported execution model')
     current_code = code_provenance(Path(__file__).resolve().parents[1])
     if manifest['code']['sourceSha256'] != current_code['sourceSha256']:

@@ -44,6 +44,9 @@ from .research_policy import (
     ResearchPolicyRuntime,
 )
 from .risk import RiskEngine
+from .scenario import ScenarioRouter
+from .execution_book import coherent_execution_book
+from .scenario_runtime import ScenarioRuntime
 from .strategy.flow import best_level_ofi_usd, prune_trades
 from .strategy.lifecycle import LevelLifecycleTracker
 from .strategy.structure import aggregate_candles
@@ -222,6 +225,8 @@ class ActiveSymbolSession:
     research_policy_fingerprints: dict[str, tuple] = field(
         default_factory=dict
     )
+
+    scenario_view: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.activated_at is None:
@@ -751,6 +756,7 @@ class ActiveSymbolSession:
             "trend": self.trend.value,
             "marketContext": self.market_context_public(),
             "analysisRuntime": self.analysis_runtime_public(),
+            "scenarioRouting": self.scenario_view,
             "candles": [x.public() for x in self.candles[-240:]],
             "chartSeries": self.chart_series(now_ms),
             "orderbook": self.orderbook.public(50),
@@ -826,6 +832,7 @@ class ActiveSymbolSession:
             "trend": self.trend.value,
             "marketContext": self.market_context_public(),
             "analysisRuntime": self.analysis_runtime_public(),
+            "scenarioRouting": self.scenario_view,
             "candle": self.candles[-1].public() if self.candles else None,
             "orderbook": self.orderbook.public(
                 min(book_depth, 50)
@@ -872,7 +879,7 @@ class Opportunity:
     position_action: str = "open"
 
 
-class TradingEngine:
+class TradingEngine(ScenarioRuntime):
     def __init__(self, config: Settings, *, clock: RuntimeClock | None = None,
                  capture_inputs: bool = False, rest_client=None, recorder=None,
                  research_policy=None, configure_observability: bool = True) -> None:
@@ -883,6 +890,7 @@ class TradingEngine:
         self.rest = rest_client if rest_client is not None else BybitRestClient(config)
         self.risk = RiskEngine(config)
         self.broker = PaperBroker(config, clock=self.clock)
+        self.router = ScenarioRouter(preparation_seconds=config.active_symbol_idle_timeout_seconds)
         self.recorder = recorder if recorder is not None else SessionRecorder(
             config.session_dir,
             clock=self.clock,
@@ -900,6 +908,9 @@ class TradingEngine:
             strategy.key: strategy
             for strategy in default_strategies
         }
+        self.broker.position_manager = lambda pos, gross: (
+            self.strategies[pos.strategy].manage_progress(self.config,self.clock,pos,gross)
+            if pos.strategy in self.strategies else False)
         configured_strategy_state = {
             "trend_structure": config.trend_structure_enabled,
             "weak_level_rejection": config.weak_level_rejection_enabled,
@@ -907,7 +918,7 @@ class TradingEngine:
             "level_breakout": config.breakout_enabled,
             # Opt-in through the existing UI/API toggle. The run manifest records
             # the actual enabled strategy set; baseline config stays unchanged.
-            "price_action_hypothesis": False,
+            "price_action_hypothesis": config.price_action_hypothesis_enabled,
         }
         self.strategy_enabled: dict[str, bool] = {
             key: bool(configured_strategy_state.get(key, True))
@@ -1269,11 +1280,17 @@ class TradingEngine:
             self._close_all_positions("shutdown")
         self._cancel_run_timer()
         self._stop.set()
-        await self._shutdown_service_tasks()
-        await self.rest.close()
-        if self.input_journal is not None:
-            self.input_journal.close()
-        self.recorder.close()
+        try:
+            await self._shutdown_service_tasks()
+        finally:
+            try:
+                await asyncio.wait_for(self.rest.close(), timeout=5)
+            finally:
+                # Even failed task/REST teardown drains accepted data. Capture
+                # marks the failure incomplete; footer alone is not success.
+                if self.input_journal is not None:
+                    self.input_journal.close()
+                self.recorder.close()
 
     async def _shutdown_service_tasks(self):
         for task, stop_event in self._worker_tasks.values():
@@ -1283,12 +1300,15 @@ class TradingEngine:
             task.cancel()
         for task in list(self._event_tasks):
             task.cancel()
-        await asyncio.gather(
-            *(x[0] for x in self._worker_tasks.values()),
-            *self._tasks,
-            *list(self._event_tasks),
-            return_exceptions=True,
-        )
+        closing = {x[0] for x in self._worker_tasks.values()} | set(self._tasks) | set(self._event_tasks)
+        closing.discard(asyncio.current_task())
+        if closing:
+            done, pending = await asyncio.wait(closing, timeout=5)
+            for task in done:
+                if not task.cancelled():
+                    task.exception()  # Retrieve failures; no lost task exceptions.
+            if pending:
+                raise TimeoutError("service tasks did not acknowledge shutdown")
         self._event_tasks.clear()
 
     @input_scope("start_request", symbol_arg=False)
@@ -3376,10 +3396,18 @@ class TradingEngine:
                 density_decision,
             )
 
+        scenario = self._route_scenario(session, closed_1m)
         for key, strategy in self.strategies.items():
             if key == "orderbook_density":
                 continue
-            if not self.strategy_enabled.get(key, False):
+            if scenario is None or key != scenario.owner:
+                enabled = self.strategy_enabled.get(key, False)
+                decision = StrategyDecision(key, Action.WAIT,
+                    ["strategy disabled" if not enabled else "not assigned to current scenario"],
+                    details={"state":"disabled" if not enabled else "not_assigned",
+                             "assignedOwner":scenario.owner if scenario else None})
+                session.decisions[key] = decision
+                self._record_decision_if_changed(session, decision)
                 continue
             strategy_started_ns = self.clock.perf_counter_ns()
             try:
@@ -3431,6 +3459,7 @@ class TradingEngine:
                     strategy=key,
                 )
 
+            decision = self._scenario_decision(session, decision)
             self._annotate_flow_context(
                 session,
                 decision,
@@ -3464,6 +3493,7 @@ class TradingEngine:
                 )
 
             session.decisions[key] = decision
+            self._scenario_prepare(session, decision)
             self._record_decision_if_changed(session, decision)
 
         self._validate_pending_entry(session)
@@ -4265,8 +4295,8 @@ class TradingEngine:
             }
 
         current_price = (
-            decision.entry
-            or session.orderbook.mid
+            session.orderbook.mid
+            or decision.entry
             or session.last_price
             or 0.0
         )
@@ -4282,7 +4312,7 @@ class TradingEngine:
         decision.details["entryFreshness"] = freshness_public
         opportunity_public = freshness_public
         opportunity_trigger = details.get("opportunityTrigger")
-        if strategy == "level_breakout" and isinstance(opportunity_trigger, dict):
+        if isinstance(opportunity_trigger, dict):
             opportunity_public = classify_entry_freshness(
                 decision,
                 trigger_price=opportunity_trigger["price"],
@@ -4423,7 +4453,7 @@ class TradingEngine:
             session.orderbook,
             self.broker.available_notional,
             self.broker.available_risk_usd,
-            depth_book=session.depth_orderbook(),
+            depth_book=session.depth_orderbook() if session.deep_book_is_fresh() else None,
             instrument=session.instrument,
             fee_schedule=session.fee_schedule,
             setup_id=setup_id,
@@ -4674,17 +4704,9 @@ class TradingEngine:
                     # execute an orphaned add as if a position existed.
                     continue
 
-                base_assessment = assess_candidate(
-                    decision,
-                    session.market_context,
-                    breakout_obstacle_veto=self.config.e01_breakout_obstacle_veto,
-                    partial_take_at_r=(
-                        self.config.partial_take_at_r
-                    ),
-                    partial_take_enabled=(
-                        self.config.partial_take_enabled
-                    ),
-                )
+                if not self._scenario_entry_valid(session, decision):
+                    continue
+                base_assessment = self._owned_assessment(session, decision)
                 decision.details["semanticArbitration"] = (
                     base_assessment.public()
                 )
@@ -4692,7 +4714,7 @@ class TradingEngine:
                     base_assessment.risk_scale
                 )
                 decision.details["riskScaleSource"] = (
-                    "semantic_arbiter_stage13"
+                    "scenario_size_policy"
                 )
                 if not base_assessment.allowed:
                     self._record_arbiter_blocked(
@@ -4808,132 +4830,9 @@ class TradingEngine:
                     )
                     continue
 
-                # RiskEngine knows whether the planned partial is actually
-                # economically executable. Feed that lifecycle back into the
-                # semantic path check before any order can be selected. If the
-                # longer real path exposes a new structural obstacle and
-                # reduces riskScale, rebuild the plan at the stricter size.
-                post_plan_assessment = base_assessment
-                post_plan_blocked = False
-                for _ in range(3):
-                    economics = (
-                        result.plan.strategy_details.get(
-                            "economics"
-                        )
-                        if isinstance(
-                            result.plan.strategy_details,
-                            dict,
-                        )
-                        else None
-                    )
-                    planned_partial = (
-                        bool(economics.get("partialPlanned"))
-                        if isinstance(economics, dict)
-                        and "partialPlanned" in economics
-                        else self.config.partial_take_enabled
-                    )
-                    decision.details[
-                        "plannedPartialEnabled"
-                    ] = planned_partial
-                    if isinstance(economics, dict):
-                        decision.details[
-                            "plannedFirstTakeMovePct"
-                        ] = economics.get(
-                            "firstTakeMovePct"
-                        )
-                        decision.details["plannedFirstTakePrice"] = economics.get("firstTakePrice")
-                        decision.details["plannedEntryPrice"] = economics.get("marketEntry")
-
-                    revised = assess_candidate(
-                        decision,
-                        session.market_context,
-                        breakout_obstacle_veto=self.config.e01_breakout_obstacle_veto,
-                        partial_take_at_r=(
-                            self.config.partial_take_at_r
-                        ),
-                        partial_take_enabled=planned_partial,
-                    )
-                    if not revised.allowed:
-                        self._record_arbiter_blocked(
-                            session,
-                            decision,
-                            revised,
-                        )
-                        post_plan_assessment = revised
-                        post_plan_blocked = True
-                        break
-
-                    current_scale = float(
-                        decision.details.get(
-                            "riskScale",
-                            1.0,
-                        )
-                    )
-                    stricter_scale = min(
-                        current_scale,
-                        revised.risk_scale,
-                    )
-                    post_plan_assessment = revised
-                    if stricter_scale >= current_scale - 1e-9:
-                        break
-
-                    decision.details["riskScale"] = (
-                        stricter_scale
-                    )
-                    decision.details["riskScaleSource"] = (
-                        "semantic_arbiter_post_economics"
-                    )
-                    result = (
-                        self._build_risk_plan_for_opportunity(
-                            session,
-                            decision,
-                            setup_id,
-                            position_action,
-                            existing_position,
-                        )
-                    )
-                    if (
-                        not result.allowed
-                        or result.plan is None
-                    ):
-                        diagnostics = dict(
-                            result.diagnostics or {}
-                        )
-                        diagnostics[
-                            "semanticArbitration"
-                        ] = revised.public()
-                        self._risk_reject_if_changed(
-                            session,
-                            decision,
-                            result.reason,
-                            diagnostics=diagnostics,
-                        )
-                        post_plan_blocked = True
-                        break
-
-                if post_plan_blocked or result.plan is None:
-                    continue
-                base_assessment = post_plan_assessment
-                decision.details["semanticArbitration"] = (
-                    base_assessment.public()
-                )
-
-                if position_action == "add":
-                    allowed, add_reason = self.broker.can_add(
-                        result.plan
-                    )
-                    if not allowed:
-                        self._risk_reject_if_changed(
-                            session,
-                            decision,
-                            add_reason,
-                            diagnostics={
-                                "semanticArbitration": (
-                                    base_assessment.public()
-                                ),
-                            },
-                        )
-                        continue
+                # The owner supplied one frozen hypothesis. Economics does not
+                # send it back through another context-selection pass.
+                result.plan.strategy_details["semanticArbitration"] = base_assessment.public()
 
                 if (
                     position_action == "open"
@@ -5052,17 +4951,7 @@ class TradingEngine:
             if not planned:
                 continue
 
-            final_assessments = assess_session_candidates(
-                [row[0] for row in planned],
-                session.market_context,
-                breakout_obstacle_veto=self.config.e01_breakout_obstacle_veto,
-                partial_take_at_r=(
-                    self.config.partial_take_at_r
-                ),
-                partial_take_enabled=(
-                    self.config.partial_take_enabled
-                ),
-            )
+            final_assessments = {row[0].strategy: row[2] for row in planned}
             for (
                 decision,
                 plan,
@@ -5182,6 +5071,9 @@ class TradingEngine:
             ),
         }
 
+        self.router.submitted(best.session.symbol, self.clock.perf_counter_ns()/1e9)
+        best.plan.strategy_details["scenario"] = self.router.scenarios[best.session.symbol].public()
+        self._scenario_events()
         if best.plan.entry_mode == "maker_limit":
             execution_mode = "paper_maker"
             self._mark_order_sent(
@@ -5277,12 +5169,12 @@ class TradingEngine:
             if best.position_action == "add":
                 position = self.broker.add(
                     best.plan,
-                    best.session.depth_orderbook(),
+                    coherent_execution_book(best.session.orderbook, best.session.depth_orderbook()),
                 )
             else:
                 position = self.broker.open(
                     best.plan,
-                    best.session.depth_orderbook(),
+                    coherent_execution_book(best.session.orderbook, best.session.depth_orderbook()),
                 )
 
         self._mark_order_ack(
@@ -5338,6 +5230,10 @@ class TradingEngine:
         if clock is not None and current is not None:
             current.opened_exchange_ms = clock["evaluationMs"]
             position = current.public()
+        if current is not None:
+            self.router.restore_execution(session.symbol, current, self.clock.perf_counter_ns()/1e9)
+        self.router.filled(session.symbol, self.clock.perf_counter_ns()/1e9)
+        self._scenario_events()
         strategy_key = str(plan.get("strategy") or "")
         stats = self.strategy_stats.get(strategy_key)
         if stats is not None:
@@ -5684,57 +5580,28 @@ class TradingEngine:
             return
 
         strategy_key = pending.plan.strategy
-        decision = session.decisions.get(strategy_key)
-        reason: str | None = self._clock_entry_block(session)
-
+        s = self.router.scenarios.get(session.symbol)
+        reason = self._clock_entry_block(session)
         if not self.strategy_enabled.get(strategy_key, False):
             reason = "strategy_disabled"
-        elif decision is None:
-            reason = "decision_missing"
-        elif not decision.tradeable:
-            reason = "setup_no_longer_tradeable"
-        elif decision.side != pending.plan.side:
-            reason = "setup_direction_changed"
-        else:
-            current_setup_id = self._resolve_setup_id(
-                session,
-                decision,
-            )
-            if current_setup_id != pending.plan.setup_id:
-                reason = "setup_identity_changed"
-
-            freshness = (
-                decision.details.get("opportunityFreshness")
-                if isinstance(decision.details, dict)
-                else None
-            )
-            freshness_class = (
-                str(freshness.get("classification") or "")
-                if isinstance(freshness, dict)
-                else ""
-            )
-            if (
-                reason is None
-                and freshness_class in {"late", "exhausted"}
-            ):
-                reason = (
-                    "setup_freshness_"
-                    + freshness_class
-                )
-
-            entry_context = (
-                decision.details.get(
-                    "entryContextAssessment"
-                )
-                if isinstance(decision.details, dict)
-                else None
-            )
-            if (
-                reason is None
-                and isinstance(entry_context, dict)
-                and entry_context.get("allowed") is False
-            ):
-                reason = "entry_context_invalidated"
+        elif s is not None:
+            if s.owner != strategy_key:
+                reason = "scenario_owner_mismatch"
+            elif s.cancellation:
+                reason = s.cancellation
+            elif self.clock.perf_counter_ns()/1e9 >= s.expires_mono:
+                reason = "scenario_expired"
+            elif s.frozen:
+                quote = session.orderbook.executable_entry(pending.plan.side)
+                low, high = s.frozen["entryArea"]
+                if quote is None or not low <= quote <= high:
+                    reason = "pending_left_frozen_entry_area"
+        if reason is None:
+            plan = pending.plan
+            probe = StrategyDecision(strategy_key, Action(plan.side.value), [],
+                entry=plan.setup_entry, stop=plan.stop, target=plan.target,
+                details=plan.strategy_details)
+            reason = self.strategies[strategy_key].entry_invalidation(probe,session.orderbook)
 
         if reason is None:
             return
@@ -5766,7 +5633,8 @@ class TradingEngine:
         if clock is not None and not clock["valid"]:
             return
         if (
-            (self.clock.perf_counter_ns() / 1e9 - pos.opened_mono
+            not pos.strategy_details.get("scenario")
+            and (self.clock.perf_counter_ns() / 1e9 - pos.opened_mono
              if self.config.exchange_clock_enabled else self.clock.time() - pos.opened_at)
             < max(
                 0.0,
@@ -5796,7 +5664,7 @@ class TradingEngine:
             session.symbol,
             session.orderbook,
             reason,
-            depth_book=session.depth_orderbook(),
+            depth_book=session.depth_orderbook() if session.deep_book_is_fresh() else None,
         )
         self._handle_broker_events(session, [event])
 
@@ -5813,6 +5681,7 @@ class TradingEngine:
             event = self.broker.cancel_pending(session.symbol, "clock_or_receipt_invalid")
             if event:
                 self._handle_broker_events(session, [event])
+        self._validate_pending_entry(session)
         resolved_trade_price = (
             float(trade_price)
             if isinstance(trade_price, (int, float))
@@ -5949,7 +5818,7 @@ class TradingEngine:
             session.symbol,
             mark,
             session.orderbook,
-            depth_book=session.depth_orderbook(),
+            depth_book=session.depth_orderbook() if session.deep_book_is_fresh() else None,
             trade_price=trade_price,
             trade_notional_usd=trade_notional_usd,
             trade_side=trade_side,
@@ -5982,6 +5851,8 @@ class TradingEngine:
                 )
                 continue
             if event_type == "trade_closed":
+                self.router.completed(session.symbol, self.clock.perf_counter_ns()/1e9, str(event.get("reason")))
+                self._scenario_events()
                 strategy_key = str(event.get("strategy") or "")
                 stats = self.strategy_stats.get(strategy_key)
                 if stats is not None:
@@ -6188,6 +6059,8 @@ class TradingEngine:
         *,
         diagnostics: dict | None = None,
     ) -> None:
+        self.router.reject(session.symbol, (diagnostics or {}).get("rejectionOwner", "risk"),
+                           reason, self.clock.perf_counter_ns()/1e9)
         fingerprint = (
             decision.strategy if decision else "portfolio",
             decision.setup_id if decision else None,
@@ -6404,6 +6277,10 @@ class TradingEngine:
         self._emit("decision", session.symbol, payload)
 
     def _emit(self, event: str, symbol: str | None, payload: dict, snapshot: bool = False) -> None:
+        if event == "entry_cancelled" and symbol and hasattr(self, "router"):
+            self.router.cancelled(symbol, self.clock.perf_counter_ns()/1e9, str(payload.get("reason")),
+                                  setup_id=payload.get("setupId"), scenario_id=payload.get("scenarioId"))
+            self._scenario_events()
         row = {"ts": self.clock.time(), "event": event, "symbol": symbol, "payload": payload}
         self.events.appendleft(row)
         stored = dict(payload)
@@ -6430,6 +6307,7 @@ class TradingEngine:
         market = self.sessions[selected_symbol].market_snapshot() if selected_symbol else None
         candidate_map = {x.symbol: x for x in self.candidates}
         if market is not None and selected_symbol is not None:
+            market["scenarioRouting"] = self.router.public(selected_symbol)
             selected_candidate = candidate_map.get(selected_symbol)
             market["activityProfile"] = (
                 selected_candidate.public() if selected_candidate else None

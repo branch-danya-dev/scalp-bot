@@ -44,3 +44,13 @@ def test_book_gap_requires_new_snapshot():
     assert book.update(message(4),3)=='unsynced'
     assert book.update(message(5,'snapshot'),4)=='applied'
     assert book.synced
+
+
+def test_diagnostic_sweeps_use_same_coherent_fast_head_as_broker():
+    fast, deep = audit.Book(50), audit.Book(1000)
+    fast.b,fast.a = {100:2,99:3},{101:2,102:3}
+    deep.b,deep.a = {100.5:900,100:999,98:7},{100.6:900,101:999,103:7}
+    consistent = audit.consistent_depth(fast,deep)
+    assert audit.sweep(consistent.bids,6)==pytest.approx((200+297+98)/6)
+    assert audit.sweep(consistent.asks,6)==pytest.approx((202+306+103)/6)
+    assert audit.sweep(consistent.asks,13) is None

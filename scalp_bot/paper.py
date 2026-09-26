@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .execution_book import coherent_execution_book, execution_quality
+
 from dataclasses import asdict, dataclass, field
 from time import perf_counter_ns
 from math import isfinite
@@ -219,6 +221,7 @@ class PaperBroker:
         self.start_balance = config.start_balance
         self.positions: dict[str, Position] = {}
         self.pending_entries: dict[str, PendingEntry] = {}
+        self.position_manager = None
         self.closed_trades: list[dict] = []
         self.total_closed_trades: int = 0
 
@@ -810,6 +813,7 @@ class PaperBroker:
             return None
         return {
             "event": "entry_cancelled",
+            "scenarioId": pending.plan.strategy_details.get("scenario", {}).get("scenarioId"),
             "symbol": symbol,
             "strategy": pending.plan.strategy,
             "setupId": pending.plan.setup_id,
@@ -834,6 +838,7 @@ class PaperBroker:
             del self.pending_entries[symbol]
             events.append({
                 "event": "entry_cancelled",
+                "scenarioId": pending.plan.strategy_details.get("scenario", {}).get("scenarioId"),
                 "symbol": symbol,
                 "strategy": pending.plan.strategy,
                 "setupId": pending.plan.setup_id,
@@ -867,6 +872,7 @@ class PaperBroker:
             del self.pending_entries[symbol]
             return [{
                 "event": "entry_cancelled",
+                "scenarioId": pending.plan.strategy_details.get("scenario", {}).get("scenarioId"),
                 "symbol": symbol,
                 "strategy": pending.plan.strategy,
                 "setupId": pending.plan.setup_id,
@@ -911,6 +917,7 @@ class PaperBroker:
         if not allowed:
             return [{
                 "event": "entry_cancelled",
+                "scenarioId": pending.plan.strategy_details.get("scenario", {}).get("scenarioId"),
                 "symbol": symbol,
                 "strategy": pending.plan.strategy,
                 "setupId": pending.plan.setup_id,
@@ -921,6 +928,7 @@ class PaperBroker:
         if pending.plan.notional > self.available_notional + 1e-9:
             return [{
                 "event": "entry_cancelled",
+                "scenarioId": pending.plan.strategy_details.get("scenario", {}).get("scenarioId"),
                 "symbol": symbol,
                 "strategy": pending.plan.strategy,
                 "setupId": pending.plan.setup_id,
@@ -931,6 +939,7 @@ class PaperBroker:
         if pending.plan.expected_net_loss > self.available_risk_usd + 1e-9:
             return [{
                 "event": "entry_cancelled",
+                "scenarioId": pending.plan.strategy_details.get("scenario", {}).get("scenarioId"),
                 "symbol": symbol,
                 "strategy": pending.plan.strategy,
                 "setupId": pending.plan.setup_id,
@@ -1011,6 +1020,7 @@ class PaperBroker:
     def cancel_all_pending(self, reason: str) -> list[dict]:
         events = [{
             "event": "entry_cancelled",
+            "scenarioId": pending.plan.strategy_details.get("scenario", {}).get("scenarioId"),
             "symbol": symbol,
             "strategy": pending.plan.strategy,
             "setupId": pending.plan.setup_id,
@@ -1242,7 +1252,7 @@ class PaperBroker:
             return []
 
         pos.last_price = last_price
-        realization_book = depth_book or book
+        realization_book = coherent_execution_book(book, depth_book)
         direction = 1 if pos.side == Side.LONG else -1
         executable = book.executable_exit(pos.side) or last_price
         now = self.clock.time()
@@ -1480,7 +1490,7 @@ class PaperBroker:
         final_leg = self._realize(
             pos,
             pos.quantity,
-            depth_book or book,
+            coherent_execution_book(book, depth_book),
             reason=reason,
         )
         direction = 1 if pos.side == Side.LONG else -1
@@ -1550,6 +1560,7 @@ class PaperBroker:
             "partialTakenAt": pos.partial_taken_at,
             "closedAt": self.clock.time(),
             "strategyDetails": dict(pos.strategy_details),
+            "executionQuality": final_leg.get("executionQuality"),
         }
         self.total_closed_trades += 1
         self.closed_trades.append(trade)
@@ -1756,7 +1767,7 @@ class PaperBroker:
         )
         if pos.side == Side.LONG:
             pos.stop = max(pos.stop, runner_stop)
-            if not structural_liquidity_target:
+            if not structural_liquidity_target and not pos.strategy_details.get("scenario"):
                 pos.target = max(
                     pos.target,
                     pos.entry
@@ -1764,7 +1775,7 @@ class PaperBroker:
                 )
         else:
             pos.stop = min(pos.stop, runner_stop)
-            if not structural_liquidity_target:
+            if not structural_liquidity_target and not pos.strategy_details.get("scenario"):
                 pos.target = min(
                     pos.target,
                     pos.entry
@@ -1773,6 +1784,7 @@ class PaperBroker:
 
         return {
             "event": "partial_take",
+            "executionQuality": leg.get("executionQuality"),
             "symbol": pos.symbol,
             "strategy": pos.strategy,
             "side": pos.side.value,
@@ -1840,6 +1852,7 @@ class PaperBroker:
             reason == "partial_take"
             and profile.partial_exit == "maker_limit"
         )
+        quality = {"source":"resting_limit", "quality":"paper_queue_model", "syntheticLiquidity":False}
         if target_limit:
             raw = pos.target
             exit_mode = profile.target_exit
@@ -1855,6 +1868,7 @@ class PaperBroker:
                 pos.side,
                 close_quantity,
             )
+            quality = execution_quality(book, visible_quantity, close_quantity)
             if raw is None:
                 raw = (
                     book.executable_exit(pos.side)
@@ -1937,6 +1951,7 @@ class PaperBroker:
             "fees": fees,
             "net": gross - fees,
             "quantity": close_quantity,
+            "executionQuality": quality,
         }
 
     def _realize(
@@ -1992,43 +2007,11 @@ class PaperBroker:
             "fees": fees,
             "net": net,
             "quantity": close_quantity,
+            "executionQuality": leg.get("executionQuality"),
         }
 
     def _should_cut_no_follow_through(self, pos: Position, gross_mark_original: float) -> bool:
-        age = (self.clock.perf_counter_ns() / 1e9 - pos.opened_mono
-               if self.config.exchange_clock_enabled else self.clock.time() - pos.opened_at)
-        timeout = no_follow_through_seconds(
-            self.config,
-            pos.strategy,
-        )
-        if age < timeout or pos.initial_risk_usd <= 0:
-            return False
-        current_r = gross_mark_original / pos.initial_risk_usd
-        adverse_r = max(0.0, -current_r)
-        weak_start = (
-            pos.mfe_r < self.config.no_follow_through_max_mfe_r
-            and adverse_r >= self.config.early_cut_at_r
-        )
-        if pos.strategy != "level_breakout":
-            return weak_start
-        # An old favorable excursion is not permanent immunity from a failed
-        # breakout. Use monotonic time in clock-enabled runs, like entry age.
-        if self.config.exchange_clock_enabled:
-            progress_age = self.clock.perf_counter_ns() / 1e9 - (
-                pos.mfe_mono if pos.mfe_mono is not None else pos.opened_mono
-            )
-        else:
-            progress_age = self.clock.time() - (
-                pos.mfe_at if pos.mfe_at is not None else pos.opened_at
-            )
-        giveback_r = max(0.0, pos.mfe_r - current_r)
-        stalled_giveback = progress_age >= timeout and giveback_r >= self.config.early_cut_at_r
-        should_cut = weak_start or stalled_giveback
-        if should_cut:
-            pos.strategy_details["noFollowThroughExit"] = {
-                "rule": "breakout_stalled_giveback_v1",
-                "cause": "weak_start" if weak_start else "stalled_giveback",
-                "ageSeconds": age, "sincePeakSeconds": max(0.0, progress_age),
-                "peakR": pos.mfe_r, "currentR": current_r, "givebackR": giveback_r,
-            }
-        return should_cut
+        if self.position_manager is not None:
+            return self.position_manager(pos, gross_mark_original)
+        from .strategy.position_policy import should_exit_without_progress
+        return should_exit_without_progress(self.config, self.clock, pos, gross_mark_original)

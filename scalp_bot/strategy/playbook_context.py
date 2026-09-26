@@ -128,11 +128,28 @@ def _context_meta(
     return local, htf
 
 
+def _assigned_plan(context, playbook):
+    route = getattr(context, "scenario", None)
+    owner = {PlaybookKind.TREND_CONTINUATION:"trend_structure",
+             PlaybookKind.LEVEL_BREAKOUT:"level_breakout",
+             PlaybookKind.LEVEL_REJECTION:"weak_level_rejection"}[playbook]
+    if not route or route.get("owner") != owner:
+        return None
+    direction = Trend.UP if route["side"] == "long" else Trend.DOWN
+    return DirectionPlan(playbook, (direction,), direction, "scenario_router",
+        context.local_regime.regime.value if context.local_regime else None,
+        context.htf_bias.bias.value if context.htf_bias else None,
+        ("context applicability owned by assigned scenario",))
+
+
 def continuation_direction_plan(
     context: MarketContext | None,
     fallback_trend: Trend,
 ) -> DirectionPlan:
     playbook = PlaybookKind.TREND_CONTINUATION
+    assigned = _assigned_plan(context, playbook)
+    if assigned is not None:
+        return assigned
     if context is None or context.local_regime is None:
         return _fallback_plan(playbook, fallback_trend)
 
@@ -211,6 +228,9 @@ def breakout_direction_plan(
     fallback_trend: Trend,
 ) -> DirectionPlan:
     playbook = PlaybookKind.LEVEL_BREAKOUT
+    assigned = _assigned_plan(context, playbook)
+    if assigned is not None:
+        return assigned
     if context is None or context.local_regime is None:
         return _fallback_plan(playbook, fallback_trend)
 
@@ -315,6 +335,9 @@ def rejection_direction_plan(
     fallback_trend: Trend,
 ) -> DirectionPlan:
     playbook = PlaybookKind.LEVEL_REJECTION
+    assigned = _assigned_plan(context, playbook)
+    if assigned is not None:
+        return assigned
     if context is None or context.local_regime is None:
         return _fallback_plan(playbook, fallback_trend)
 
@@ -444,6 +467,12 @@ def assess_entry_context(
         plan = breakout_direction_plan(context, fallback_trend)
     else:
         plan = rejection_direction_plan(context, fallback_trend)
+
+    if context is not None and context.scenario is not None:
+        allowed = direction_for_action(action) in plan.allowed_directions
+        return EntryContextAssessment(playbook, action, allowed, plan, None, None,
+            () if allowed else ("scenario_direction_mismatch",),
+            ("applicability checked by scenario router; entry event belongs to owner",))
 
     blockers: list[str] = []
     reasons = list(plan.reasons)

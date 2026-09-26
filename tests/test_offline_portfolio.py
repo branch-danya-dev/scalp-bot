@@ -26,6 +26,14 @@ def install_signal(engine):
             stop=99.5, target=100.8, watched_level=99.8, setup_id='portfolio-fixture',
             details={'setupQuality': .9})
     engine.strategies['trend_structure'].evaluate = evaluate
+    # This fixture controls BOTH the scenario and the signal. Production tests
+    # below use the actual router, history, strategy and cold replay unchanged.
+    def controlled_situation(context, candles, structure, enabled):
+        return ({"status":"OBSERVING", "rangeAbs":1}, [dict(
+            owner="trend_structure", side="long", anchor=100,
+            signature="controlled:market:g1", priority=1, distance=0,
+            reasons=["controlled portfolio integration scenario"])])
+    engine.router.assess = controlled_situation
 
 
 async def fixture(tmp_path, monkeypatch, exit_kind='shutdown', production=False,
@@ -186,6 +194,8 @@ async def fixture(tmp_path, monkeypatch, exit_kind='shutdown', production=False,
     if exit_kind == 'bot_stop':
         live.set_running(False)
     if capture:
+        if exit_kind == 'shutdown':
+            await capture.close()
         await asyncio.wait_for(monitor, timeout=5)
     else:
         await live.close()

@@ -48,6 +48,7 @@ max_position_exposure_fraction
 max_daily_loss_fraction
 enforce_session_loss_limit
 trend_structure_enabled
+price_action_hypothesis_enabled
 weak_level_rejection_enabled
 density_enabled
 breakout_enabled

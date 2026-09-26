@@ -117,7 +117,7 @@ async def test_pair_fails_closed_on_unsupported_input():
 
 
 @pytest.mark.asyncio
-async def test_pair_foreign_obstacle_changes_admission_not_shared_portfolio(tmp_path, monkeypatch):
+async def test_legacy_foreign_obstacle_flag_cannot_add_second_context_veto(tmp_path, monkeypatch):
     live, _, rows = await fixture(tmp_path, monkeypatch, production=True)
     pair = E01Comparison(live.config)
     feed = list(observations(rows))
@@ -136,13 +136,14 @@ async def test_pair_foreign_obstacle_changes_admission_not_shared_portfolio(tmp_
                 flowAlignment={'classification': 'strongly_aligned'}))}
     await pair.apply(feed[-1])
     a, b = pair.engines.values()
-    assert 'AAA' in a.broker.positions and not b.broker.positions
-    assert any('e01_foreign_obstacle_before_first_take' in r['payload'].get('blockers', [])
-               for r in b.recorder.rows if r['event'] == 'arbiter_blocked')
+    assert 'AAA' in a.broker.positions and 'AAA' in b.broker.positions
+    assert a.broker.positions['AAA'] is not b.broker.positions['AAA']
+    assert not any('e01_foreign_obstacle_before_first_take' in r['payload'].get('blockers', [])
+                   for r in b.recorder.rows if r['event'] == 'arbiter_blocked')
     report = pair.finish()
     assert len(report['portfolios']['baseline']['trades']) == 1
-    assert report['portfolios']['candidate']['trades'] == []
-    assert report['portfolios']['candidate']['balance'] == live.config.start_balance
+    assert len(report['portfolios']['candidate']['trades']) == 1
+    assert report['portfolios']['candidate']['balance'] == report['portfolios']['baseline']['balance']
 
 
 def test_e01_does_not_change_other_playbooks():

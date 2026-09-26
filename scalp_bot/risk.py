@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .execution_book import coherent_execution_book
+
 from dataclasses import dataclass
 
 from .config import Settings
@@ -119,7 +121,7 @@ class RiskEngine:
             return RiskResult(False, "strategy decision is not tradeable")
         if not book.best_bid or not book.best_ask:
             return RiskResult(False, "fast order book is not ready")
-        depth = depth_book or book
+        depth = coherent_execution_book(book, depth_book)
         if not depth.best_bid or not depth.best_ask:
             return RiskResult(False, "deep order book is not ready")
 
@@ -326,6 +328,7 @@ class RiskEngine:
             full_position_exposure_cap
             - max(0.0, existing_position_notional),
         )
+        initial_risk_notional = notional_by_structural_risk / (risk_scale * entry_risk_fraction)
         notional = min(
             notional_by_structural_risk,
             notional_by_trade_all_in_cap,
@@ -1008,7 +1011,29 @@ class RiskEngine:
             expected_net < absolute_min_net_reward
         )
 
+        sizing_limits = {
+            "structural_risk": notional_by_structural_risk,
+            "trade_all_in_risk": notional_by_trade_all_in_cap,
+            "portfolio_all_in_risk": notional_by_all_in_portfolio_risk,
+            "portfolio_exposure": max(available_notional, 0),
+            "position_exposure": position_exposure_cap,
+            "visible_entry_depth": visible_entry_depth,
+        }
+        binding = min(sizing_limits, key=sizing_limits.get)
+        if notional < min(sizing_limits.values()) - max(.01, notional*1e-5):
+            binding = "depth_stress_or_quantity_rounding"
         economic_diagnostics = {
+            "payoutMeaning": "conditional_on_targets_not_expected_value",
+            "conditionalTargetNetUsd": expected_net,
+            "executionBook": dict(depth.execution),
+            "sizing": {"initialRiskNotionalUsd": initial_risk_notional,
+                       "afterStrategyScaleNotionalUsd": notional_by_structural_risk,
+                       "entryRiskFraction": entry_risk_fraction,
+                       "limitsUsd": sizing_limits, "finalNotionalUsd": notional,
+                       "bindingConstraint": binding, "strategyScale": risk_scale,
+                       "exchangeLeverage": None,
+                       "effectiveExposure": notional / balance if balance else 0.0,
+                       "note": "paper notional/equity; no exchange leverage was set"},
             "riskBudgetUsd": structural_risk_budget,
             "baseStructuralRiskBudgetUsd": base_structural_risk_budget,
             "scaledStructuralRiskBudgetUsd": scaled_structural_risk_budget,

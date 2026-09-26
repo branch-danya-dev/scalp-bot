@@ -192,7 +192,7 @@ async def test_writer_loss_invalidates_capture_and_stops_trading(tmp_path, monke
         monitor.cancel()
         await asyncio.gather(monitor, return_exceptions=True)
         await capture.close()
-    assert json.loads((tmp_path / 'capture.json').read_text())['status'] == 'invalid'
+    assert json.loads((tmp_path / 'capture.json').read_text())['status'] == 'incomplete'
 
 
 def test_runtime_fingerprint_ignores_only_identical_distribution_duplicates(monkeypatch):
@@ -241,7 +241,7 @@ def test_truncated_gzip_and_invalid_index_are_not_accepted(tmp_path):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('exit_kind', ['duration_elapsed', 'bot_stop'])
+@pytest.mark.parametrize('exit_kind', ['duration_elapsed', 'bot_stop', 'shutdown'])
 async def test_stop_seals_real_capture_and_ui_reads_do_not_append_after_footer(tmp_path, monkeypatch, exit_kind):
     import scalp_bot.app as api
     from scalp_bot.engine import TradingEngine
@@ -323,3 +323,34 @@ async def test_completion_metadata_failure_never_advertises_sealed(tmp_path, mon
     assert capture.recorder.inputs.closed
     assert capture.public()['status'] == 'invalid'
     assert 'metadata' in capture.public()['error']
+
+
+@pytest.mark.asyncio
+async def test_unacknowledged_task_shutdown_drains_writers_but_marks_incomplete(tmp_path, monkeypatch):
+    config = profile_settings(tmp_path, monkeypatch, '1h')
+    capture = PaperCapture(config, 'current-1h')
+    entered, release = asyncio.Event(), asyncio.Event()
+    async def stubborn():
+        entered.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            await release.wait()
+    task = asyncio.create_task(stubborn())
+    await entered.wait()
+    capture.engine._tasks.append(task)
+    try:
+        with pytest.raises(TimeoutError, match='acknowledge shutdown'):
+            await capture.close()
+        assert capture.recorder.inputs.closed
+        assert not capture.recorder.inputs.thread.is_alive()
+        assert capture.engine.input_journal.closed
+        assert capture.engine.rest.client.is_closed
+        status = json.loads((tmp_path/'capture.json').read_text())
+        assert status['status']=='incomplete'
+        assert 'TimeoutError' in status['error']
+        with pytest.raises(ValueError):
+            await verify_capture(tmp_path)
+    finally:
+        release.set()
+        await task

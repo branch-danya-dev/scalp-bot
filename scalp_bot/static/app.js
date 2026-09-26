@@ -656,8 +656,59 @@ function traceObjectText(object={}) {
   return marketObjectLabel(object.label || object.type || "market context");
 }
 
-function renderDecisions(decisions) {
-  const rows = Object.values(decisions || {});
+function renderScenarioRouting(routing, position) {
+  const node = $("scenarioPanel");
+  if (!node) return;
+  if (!routing) { node.innerHTML = ""; return; }
+  const escape = value => String(value ?? "—").replace(/[&<>"']/g, char =>
+    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+  const situation = routing.situation || {};
+  const scenario = routing.scenario;
+  const states = {OBSERVING:"Наблюдение",ASSIGNED:"Стратегия назначена",PREPARED:"Подготовка",
+    ARMED:"План готов",ORDER_PENDING:"Заявка ожидает исполнения",IN_POSITION:"В позиции",
+    COMPLETED:"Сценарий завершён",INVALIDATED:"Сценарий отменён",EXPIRED:"Сценарий истёк",
+    RELEASED:"Монета отпущена",NO_SUITABLE_SCENARIO:"Нет подходящего сценария",
+    INSUFFICIENT_DATA:"Недостаточно данных"};
+  const roles = {disabled:"выключена",evidence_only:"подтверждение, без сделок",
+    not_applicable:"не подходит ситуации",applicable:"применима, не назначена",
+    insufficient_data:"недостаточно истории"};
+  const entries = Object.entries(situation.strategies || {}).map(([key,row]) =>
+    `<span class="trace-tag ${scenario?.owner === key ? "confirmed" : ""}">${escape(strategyLabel(key))}: ${
+      escape(scenario?.owner === key ? "владелец" : roles[row.status] || row.status)}</span>`).join("");
+  const rejection = scenario?.lastRejection;
+  const sizing = position?.strategy_details?.economics?.sizing || scenario?.preparation?.plan?.strategy_details?.economics?.sizing;
+  const ownerNames = {scenario:"сценарий",strategy:"стратегия",risk:"риск",execution:"исполнение"};
+  const events = {
+    level_breakout:"Сделки и исполнимая цена за границей уровня либо реакция после ретеста",
+    weak_level_rejection:"Неудавшийся пробой, возврат за уровень и отклик цены после поглощения",
+    trend_structure:"Тест трендовой опоры, возврат и направленный поток с откликом цены",
+    price_action_hypothesis:"Пробой экстремума закрытого паттерна при объёме и направленном потоке"
+  };
+  const constraints = {structural_risk:"риск до стопа",trade_all_in_risk:"риск сделки с расходами",
+    portfolio_all_in_risk:"общий риск портфеля",portfolio_exposure:"доступная экспозиция",
+    position_exposure:"лимит позиции",visible_entry_depth:"доступная глубина",
+    depth_stress_or_quantity_rounding:"выходная глубина или округление количества"};
+  const terminal = ["COMPLETED","INVALIDATED","EXPIRED","RELEASED"].includes(scenario?.state);
+  node.innerHTML = `<article class="decision-card">
+    <div class="decision-card-head"><strong>${escape(states[scenario?.state || situation.status] || situation.status)}</strong>
+      <span>${escape(scenario ? strategyLabel(scenario.owner) : "Стратегия не назначена")}</span></div>
+    <div class="decision-object">Ситуация: ${escape(situation.regime ? localRegimeLabel(situation.regime) : situation.reason)}</div>
+    <div class="trace-tags">${entries}</div>
+    ${scenario ? `<div class="decision-wait"><small>Сценарий ${escape(scenario.scenarioId)} · ${escape(sideLabel(scenario.side))}</small>
+      <p>Основание: ${escape(scenario.reasons?.map(translatePhrase).join("; "))}</p>
+      <p>Событие входа: ${escape(events[scenario.owner] || translatePhrase(scenario.expectedEvent))}</p>
+      <p>Отмена: нарушение структуры или исходной области входа; истечение сценария. Отказ риска срок не продлевает.</p>
+      <p>Область входа: ${scenario.entryArea?.map(x => escape(price(x))).join(" — ") || "—"}</p>
+      ${rejection ? `<p class="negative">Последний отказ · ${escape(ownerNames[rejection.owner] || rejection.owner)}: ${escape(translatePhrase(rejection.reason))}</p>` : ""}
+      ${sizing ? `<p>Расчётный размер ${escape(money(sizing.initialRiskNotionalUsd))} → ${escape(money(sizing.finalNotionalUsd))} · коэффициент стратегии ${Number(sizing.strategyScale || 1).toFixed(2)} · экспозиция ${Number(sizing.effectiveExposure || 0).toFixed(2)}× · ограничение: ${escape(constraints[sizing.bindingConstraint] || sizing.bindingConstraint)}</p>` : ""}
+      ${terminal ? `<p>Завершение: ${escape(translatePhrase(scenario.lastTransitionReason || scenario.state))}. Выполняется переоценка ситуации.</p>` : ""}
+      ${scenario.state === "IN_POSITION" ? `<p>Сопровождение владельцем: структурная отмена и отсутствие развития; стоп и частичная фиксация остаются активны.</p>` : ""}
+      </div>` : `<p>${escape(translatePhrase(situation.reason || ""))}</p>`}
+    </article>`;
+}
+
+function renderDecisions(decisions, routing) {
+  const rows = Object.values(decisions || {}).filter(row => !routing || row.strategy === routing.scenario?.owner);
   $("decisionStrip").innerHTML = rows.map(decision => {
     const trace = decision.trace || {};
     const state = trace.state || decision.details?.state || "unknown";
@@ -728,7 +779,7 @@ function eventText(event) {
     const la = details.liquidityAlignment;
     const arb = payload.semanticArbitration || details.semanticArbitration || {};
     const confluence = Number(arb.confluenceCount || 0);
-    return `${sideLabel(payload.plan?.side)} · ${money(payload.plan?.notional)} · net на цели ${money(payload.plan?.net_at_target ?? payload.plan?.expected_net_profit)} · playbook quality ${Number(payload.playbookSetupQuality ?? 0).toFixed(2)}${confluence ? " · confluence +" + confluence : ""}${fa ? " · flow " + flowAlignmentLabel(fa.classification) : ""}${la ? " · liq " + liquidityAlignmentLabel(la.classification) : ""}`;
+    return `${sideLabel(payload.plan?.side)} · ${money(payload.plan?.notional)} · условный net при цели ${money(payload.plan?.net_at_target ?? payload.plan?.expected_net_profit)} · playbook quality ${Number(payload.playbookSetupQuality ?? 0).toFixed(2)}${confluence ? " · confluence +" + confluence : ""}${fa ? " · flow " + flowAlignmentLabel(fa.classification) : ""}${la ? " · liq " + liquidityAlignmentLabel(la.classification) : ""}`;
   }
   if (event.event === "partial_take") return `частичная фиксация ${money(payload.netPnl)} · осталось ${money(payload.remainingNotional)} · стоп→${price(payload.newStop)}`;
   if (event.event === "trade_closed") return `${exitReasonHtml(payload.reason)} · ${payload.exitMoveBps == null ? "—" : Number(payload.exitMoveBps).toFixed(1) + " bps"} · комиссия ${money(payload.fees)} · net ${money(payload.netPnl)}`;
@@ -1632,6 +1683,7 @@ function render(data) {
     $("spread").textContent = "—";
     renderDomInspector(null);
     $("decisionStrip").innerHTML = "";
+    renderScenarioRouting(null, null);
     renderPosition(null);
   }
 
@@ -1648,7 +1700,8 @@ function render(data) {
     renderMarketChart(data.market, position);
     renderBook(book, data.market.densityContext);
     renderDomInspector(data.market.densityContext);
-    renderDecisions(data.market.decisions);
+    renderScenarioRouting(data.market.scenarioRouting, (data.positions || []).find(p => p.symbol === data.market.symbol));
+    renderDecisions(data.market.decisions, data.market.scenarioRouting);
     renderPosition(position);
   }
 }

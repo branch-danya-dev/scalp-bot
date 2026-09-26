@@ -108,6 +108,7 @@ class MarketContext:
     structure: StructureContext | None
     execution: ExecutionContext
     forming_candle: FormingCandleContext | None = None
+    scenario: dict | None = None
 
     def flow_alignment_for(self, action: Action):
         if self.flow is None:
@@ -179,6 +180,7 @@ class MarketContext:
     def public(self) -> dict[str, Any]:
         return {
             "schemaVersion": 1,
+            "scenario": self.scenario,
             "symbol": self.symbol,
             "observedAtMs": self.observed_at_ms,
             "lastPrice": self.last_price,

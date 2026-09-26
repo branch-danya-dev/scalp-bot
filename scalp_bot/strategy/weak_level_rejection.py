@@ -7,6 +7,7 @@ from enum import StrEnum
 
 from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .base import Strategy
+from .targets import structural_target, movement_budget
 
 if TYPE_CHECKING:
     from .market_context import MarketContext
@@ -737,12 +738,6 @@ class WeakLevelRejectionStrategy(Strategy):
             )
         )
         allow_runner = True
-        target_r = 1.6
-        reaction_target = (
-            price + risk * target_r
-            if action == Action.LONG
-            else price - risk * target_r
-        )
         liquidity_ladder = find_liquidity_targets(
             candles,
             price,
@@ -755,19 +750,8 @@ class WeakLevelRejectionStrategy(Strategy):
             if liquidity_ladder
             else None
         )
-        liquidity_target = next(
-            (
-                row
-                for row in liquidity_ladder
-                if abs(row.price - price) >= risk * target_r
-            ),
-            None,
-        )
-        target = (
-            liquidity_target.price
-            if liquidity_target is not None
-            else reaction_target
-        )
+        target, liquidity_target, target_source = structural_target(
+            price, action, liquidity_ladder, movement=movement_budget(candles))
 
         approaches = (
             structural_level.distinct_approaches
@@ -993,7 +977,8 @@ class WeakLevelRejectionStrategy(Strategy):
                 "tradeMode": mode,
                 "allowRunner": allow_runner,
                 "exitMode": "runner_allowed",
-                "targetR": target_r,
+                "targetR": abs(target-price) / abs(price-stop),
+                "expectedImpulsePct": movement_budget(candles) / price,
                 "nearestObstacle": (
                     nearest_obstacle.public()
                     if nearest_obstacle
@@ -1009,7 +994,7 @@ class WeakLevelRejectionStrategy(Strategy):
                 "targetSource": (
                     "liquidity_ladder"
                     if liquidity_target is not None
-                    else "risk_multiple"
+                    else "observed_range_projection"
                 ),
                 "setupQuality": quality,
                 "qualityFactors": {
@@ -1077,7 +1062,7 @@ class WeakLevelRejectionStrategy(Strategy):
                     return "weak_level_invalidated"
             else:
                 strategy_details.pop(key, None)
-        if unrealized_pnl >= 0:
+        if unrealized_pnl >= 0 or strategy_details.get("scenario"):
             return None
         mode = str(strategy_details.get("tradeMode") or "")
         if (

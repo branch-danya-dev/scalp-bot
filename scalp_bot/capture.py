@@ -205,7 +205,9 @@ class PaperCapture:
         if "targetNetReturnFraction" in PROFILES.get(self.profile, {}):
             data["exam"] = {"durationSeconds": PROFILES[self.profile]["seconds"],
                             "targetNetReturnFraction": PROFILES[self.profile]["targetNetReturnFraction"]}
-        self.metadata_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        temporary = self.metadata_path.with_suffix(".pending")
+        temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        temporary.replace(self.metadata_path)
 
     async def monitor(self):
         while True:
@@ -246,11 +248,17 @@ class PaperCapture:
         await asyncio.shield(self._close_task)
 
     async def _close(self):
+        if self.engine.running:
+            self.engine._stop_trading("shutdown")
         if not self.engine.running:
             self._final_states = {
                 symbol: deepcopy(self.engine.public_state(symbol))
                 for symbol in [None, *self.engine.sessions]
             }
+        try:
+            self._write_status("sealing")
+        except OSError:
+            self.error = self.error or "capture sealing metadata could not be saved"
         try:
             await self.engine.close()
         except Exception as exc:
@@ -292,7 +300,7 @@ class PaperCapture:
         if not self.recorder.inputs.closed or self.recorder.inputs.thread.is_alive():
             self.error = self.error or "input writer not closed"
         try:
-            self._write_status("invalid" if self.error else "sealed")
+            self._write_status("incomplete" if self.error else "sealed")
         except OSError:
             # Never advertise a saved capture when its completion marker could
             # not be persisted, even if the market writers finished successfully.

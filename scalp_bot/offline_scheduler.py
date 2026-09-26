@@ -115,7 +115,7 @@ class OfflineScheduledReplay(OfflineSegmentReplay):
             if (candidate['configSha256'] != origin['configSha256']
                     or candidate['manifestVersion'] not in (3, 4)
                     or candidate['recordSchemaVersion'] != 'jsonl-clock-v2'
-                    or candidate['executionModelVersion'] != 'paper-v1'
+                    or candidate['executionModelVersion'] != 'paper-v2-fast-head'
                     or candidate['code']['sourceSha256'] != origin['sourceSha256']
                     or candidate['runtimeSha256'] != origin['runtimeSha256']
                     or candidate['researchPolicy'] != engine.research_policy.public()
