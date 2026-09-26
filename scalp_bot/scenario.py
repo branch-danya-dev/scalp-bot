@@ -175,8 +175,7 @@ class ScenarioRouter:
         # Disappearance has its own explicit lifecycle rule in observe().
         return obj is not None and not owner.can_prepare(obj, rows, context.last_price, s.side)
 
-    def observe(self, symbol, context, candles, structure, enabled, now, *, position=None, pending=None):
-        """Evaluate applicability, not already-fired strategy signals."""
+    def assess_observation(self, symbol, context, candles, structure, enabled):
         episodes = self._episodes.observe(symbol, context, candles, structure)
         situation, candidates = self.assess(context, candles, structure, enabled, episodes=episodes)
         samples = self._recent.setdefault(symbol, deque(maxlen=120))
@@ -191,6 +190,13 @@ class ScenarioRouter:
                 fallback="unavailable baseline stays null; no post-signal calibration wait")
             if not samples or context.observed_at_ms-samples[-1][0]>=1000:
                 samples.append((context.observed_at_ms, context.execution.spread_pct, notional))
+        self.situations[symbol] = situation
+        return situation, candidates
+
+    def observe(self, symbol, context, candles, structure, enabled, now, *, position=None, pending=None, assessment=None):
+        """Evaluate applicability, not already-fired strategy signals."""
+        situation, candidates = (assessment if assessment is not None else
+            self.assess_observation(symbol, context, candles, structure, enabled))
         self.situations[symbol] = situation
         s = self.scenarios.get(symbol)
         # Execution owns the cancellation/fill race. Never reassign before its ack.
@@ -256,7 +262,7 @@ class ScenarioRouter:
         choice = max(eligible, key=lambda c: (c["priority"], -c["distance"], c["signature"]))
         n = self._generation.get(symbol, 0)+1
         self._generation[symbol] = n
-        s = Scenario(symbol, f"{symbol}:scenario:{n}", choice["owner"], choice["side"],
+        s = Scenario(symbol, f"{symbol}:{getattr(self, 'identity_owner', 'scenario')}:{n}", choice["owner"], choice["side"],
             choice["signature"], choice["anchor"], situation["rangeAbs"], now, now,
             now+self.preparation_seconds, choice["reasons"], level=choice.get("level", {}),
             state="OBSERVING", object_ref=choice["object_ref"], episode_key=choice["episode_key"])

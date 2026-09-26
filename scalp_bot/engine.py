@@ -44,7 +44,7 @@ from .research_policy import (
     ResearchPolicyRuntime,
 )
 from .risk import RiskEngine
-from .scenario import ScenarioRouter
+from .parallel_scenarios import ParallelScenarioRouter
 from .execution_book import coherent_execution_book
 from .scenario_runtime import ScenarioRuntime
 from .strategy.flow import best_level_ofi_usd, prune_trades
@@ -890,7 +890,7 @@ class TradingEngine(ScenarioRuntime):
         self.rest = rest_client if rest_client is not None else BybitRestClient(config)
         self.risk = RiskEngine(config)
         self.broker = PaperBroker(config, clock=self.clock)
-        self.router = ScenarioRouter(preparation_seconds=config.active_symbol_idle_timeout_seconds)
+        self.router = ParallelScenarioRouter(preparation_seconds=config.active_symbol_idle_timeout_seconds)
         self.recorder = recorder if recorder is not None else SessionRecorder(
             config.session_dir,
             clock=self.clock,
@@ -2868,7 +2868,16 @@ class TradingEngine(ScenarioRuntime):
             session.deep_orderbook = OrderBook()
         if fast or deep:
             session.decisions.clear()
-            self._validate_pending_entry(session)
+            cancelled = self.broker.cancel_pending(symbol, "transport_epoch_changed")
+            if cancelled is not None:
+                self._emit("entry_cancelled", symbol, cancelled)
+            if fast:
+                session.trades.clear()
+                session.book_flow.clear()
+                session.flow_context = None
+                session.forming_candle_context = None
+                session.last_trade_stream_at = 0
+                session.trade_receipt_mono = None
             # Keep protective/execution ownership; discard only preparations.
             invalidate = getattr(self.router, "invalidate_preparations", None)
             if invalidate is not None:
@@ -3435,14 +3444,15 @@ class TradingEngine(ScenarioRuntime):
                 density_decision,
             )
 
-        scenario = self._route_scenario(session, closed_1m)
+        self._route_scenario(session, closed_1m)
         for key, strategy in self.strategies.items():
+            scenario = self.router.scenario_for(session.symbol, key)
             if key == "orderbook_density":
                 continue
-            if scenario is None or key != scenario.owner:
+            if scenario is None or scenario.state in {"COMPLETED", "INVALIDATED", "EXPIRED", "RELEASED"}:
                 enabled = self.strategy_enabled.get(key, False)
                 decision = StrategyDecision(key, Action.WAIT,
-                    ["strategy disabled" if not enabled else "not assigned to current scenario"],
+                    ["strategy disabled" if not enabled else "no applicable scenario for this strategy"],
                     details={"state":"disabled" if not enabled else "not_assigned",
                              "assignedOwner":scenario.owner if scenario else None})
                 session.decisions[key] = decision
@@ -3464,7 +3474,7 @@ class TradingEngine(ScenarioRuntime):
                         symbol=session.symbol,
                         trades=list(session.trades),
                         structure=session.structure,
-                        market_context=session.market_context,
+                        market_context=self.router.context_for(session.market_context, session.symbol, key),
                         observed_at_ms=now_ms,
                         trade_flow=dict(trade_flow),
                     )
@@ -5054,10 +5064,16 @@ class TradingEngine(ScenarioRuntime):
         if not opportunities:
             return
 
-        best = max(
-            opportunities,
-            key=lambda item: item.priority.key(),
-        )
+        winners = {}
+        for item in sorted(opportunities, key=lambda item: self.router.ready_key(
+                item.session.symbol, item.decision.strategy)):
+            symbol = item.session.symbol
+            if symbol not in winners:
+                winners[symbol] = item
+            else:
+                self.router.reject(symbol, "dispatcher", "earlier_eligible_ready_proposal",
+                    self.clock.perf_counter_ns()/1e9, strategy=item.decision.strategy)
+        best = max(winners.values(), key=lambda item: item.priority.key())
         if self._clock_entry_block(best.session):
             return
         if best.position_action == "add":
@@ -5110,7 +5126,7 @@ class TradingEngine(ScenarioRuntime):
             ),
         }
 
-        self.router.submitted(best.session.symbol, self.clock.perf_counter_ns()/1e9)
+        self.router.submitted(best.session.symbol, self.clock.perf_counter_ns()/1e9, strategy=best.decision.strategy)
         best.plan.strategy_details["scenario"] = self.router.scenarios[best.session.symbol].public()
         self._scenario_events()
         if best.plan.entry_mode == "maker_limit":
@@ -6099,7 +6115,8 @@ class TradingEngine(ScenarioRuntime):
         diagnostics: dict | None = None,
     ) -> None:
         self.router.reject(session.symbol, (diagnostics or {}).get("rejectionOwner", "risk"),
-                           reason, self.clock.perf_counter_ns()/1e9)
+                           reason, self.clock.perf_counter_ns()/1e9,
+                           strategy=decision.strategy if decision else None)
         fingerprint = (
             decision.strategy if decision else "portfolio",
             decision.setup_id if decision else None,

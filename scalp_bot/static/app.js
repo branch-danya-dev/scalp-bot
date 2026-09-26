@@ -663,18 +663,19 @@ function renderScenarioRouting(routing, position) {
   const escape = value => String(value ?? "—").replace(/[&<>"']/g, char =>
     ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
   const situation = routing.situation || {};
-  const scenario = routing.scenario;
+  const scenario = routing.execution || routing.scenario;
+  const preparations = Object.values(routing.scenarios || {});
   const states = {OBSERVING:"Наблюдение",ASSIGNED:"Стратегия назначена",PREPARED:"Подготовка",
     ARMED:"План готов",ORDER_PENDING:"Заявка ожидает исполнения",IN_POSITION:"В позиции",
     COMPLETED:"Сценарий завершён",INVALIDATED:"Сценарий отменён",EXPIRED:"Сценарий истёк",
     RELEASED:"Монета отпущена",NO_SUITABLE_SCENARIO:"Нет подходящего сценария",
     INSUFFICIENT_DATA:"Недостаточно данных"};
   const roles = {disabled:"выключена",evidence_only:"подтверждение, без сделок",
-    not_applicable:"не подходит ситуации",applicable:"применима, не назначена",
+    not_applicable:"не подходит ситуации",applicable:"применима",
     insufficient_data:"недостаточно истории"};
   const entries = Object.entries(situation.strategies || {}).map(([key,row]) =>
     `<span class="trace-tag ${scenario?.owner === key ? "confirmed" : ""}">${escape(strategyLabel(key))}: ${
-      escape(scenario?.owner === key ? "владелец" : roles[row.status] || row.status)}</span>`).join("");
+      escape(routing.execution?.owner === key ? "владелец сделки" : roles[row.status] || row.status)}</span>`).join("");
   const rejection = scenario?.lastRejection;
   const sizing = position?.strategy_details?.economics?.sizing || scenario?.preparation?.plan?.strategy_details?.economics?.sizing;
   const ownerNames = {scenario:"сценарий",strategy:"стратегия",risk:"риск",execution:"исполнение"};
@@ -694,6 +695,8 @@ function renderScenarioRouting(routing, position) {
       <span>${escape(scenario ? strategyLabel(scenario.owner) : "Стратегия не назначена")}</span></div>
     <div class="decision-object">Ситуация: ${escape(situation.regime ? localRegimeLabel(situation.regime) : situation.reason)}</div>
     <div class="trace-tags">${entries}</div>
+    ${preparations.map(s => `<p>${escape(strategyLabel(s.owner))} · ${escape(states[s.state] || s.state)} · ${escape(sideLabel(s.side))}${s.lastRejection ? ` · ${escape(s.lastRejection.reason)}` : ""}</p>`).join("")}
+    ${routing.schemaVersion >= 3 ? `<p>Исполнение: ${escape(routing.execution ? strategyLabel(routing.execution.owner) + " · " + routing.busyReason : "свободно")}</p>` : ""}
     ${scenario ? `<div class="decision-wait"><small>Сценарий ${escape(scenario.scenarioId)} · ${escape(sideLabel(scenario.side))}</small>
       <p>Основание: ${escape(scenario.reasons?.map(translatePhrase).join("; "))}</p>
       <p>Событие входа: ${escape(events[scenario.owner] || translatePhrase(scenario.expectedEvent))}</p>
@@ -708,7 +711,7 @@ function renderScenarioRouting(routing, position) {
 }
 
 function renderDecisions(decisions, routing) {
-  const rows = Object.values(decisions || {}).filter(row => !routing || row.strategy === routing.scenario?.owner);
+  const rows = Object.values(decisions || {}).filter(row => !routing || routing.schemaVersion >= 3 || row.strategy === routing.scenario?.owner);
   $("decisionStrip").innerHTML = rows.map(decision => {
     const trace = decision.trace || {};
     const state = trace.state || decision.details?.state || "unknown";

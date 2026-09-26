@@ -154,7 +154,7 @@ async def test_actual_breakout_router_opens_both_sides_on_response(tmp_path,dire
             assert selected and selected.owner=='level_breakout'
             d=engine.strategies[selected.owner].evaluate(rows,session.orderbook,Trend.FLAT,
                 symbol=session.symbol,trades=ticks+extra,structure=structure,
-                market_context=session.market_context,observed_at_ms=now)
+                market_context=engine.router.context_for(session.market_context,session.symbol,selected.owner),observed_at_ms=now)
             d=engine._scenario_decision(session,d)
             session.decisions[d.strategy]=d
         assert d.action==action,d.reasons
