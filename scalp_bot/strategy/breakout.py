@@ -92,8 +92,9 @@ class LevelBreakoutStrategy(Strategy):
     retest_response_min_bps = 2.0
     hold_without_retest_seconds = 8.0
     conditional_hold_enabled = False
-    absorption_efficiency_threshold = 0.35
-    min_directional_response_bps = 5.0
+    # The same 2 bps micro-response used by retests, now measured on
+    # current post-break executions and corroborated by an executable quote.
+    min_directional_response_bps = 2.0
 
     def _sustained_hold_seconds(self, pressure: dict) -> float:
         # E06 uses current confirmed structure; it does not reset the break timer
@@ -948,6 +949,7 @@ class LevelBreakoutStrategy(Strategy):
             long_side=long_side,
             seconds=5,
             now_ms=observed_at_ms,
+            since_ms=state.opportunity_trigger["observedAtMs"],
         )
         aligned_after_break = (
             flow["participationConfirmed"]
@@ -971,87 +973,35 @@ class LevelBreakoutStrategy(Strategy):
             )
         )
         local_break_flow = (
-            level_flow.trade_count >= 3
+            acceptance_flow.trade_count >= 3
             and (
-                level_flow.imbalance >= 0.02
+                acceptance_flow.imbalance >= 0.02
                 if long_side
-                else level_flow.imbalance <= -0.02
+                else acceptance_flow.imbalance <= -0.02
             )
         )
         directional_response_bps = (
             (
-                level_flow.price_response_pct
+                acceptance_flow.price_response_pct
                 if long_side
-                else -level_flow.price_response_pct
+                else -acceptance_flow.price_response_pct
             )
             * 10_000
         )
-        breakout_absorbed = (
-            level_flow.trade_count >= 3
-            and abs(level_flow.imbalance) >= 0.20
-            and level_flow.absorption_efficiency
-            >= self.absorption_efficiency_threshold
-            and directional_response_bps
-            < self.min_directional_response_bps
-        )
-        probe_flow_supported = (
-            local_break_flow
-            and not breakout_absorbed
-            and (
-                aligned_after_break
-                or (
-                    arm_active
-                    and forming_pressure
-                )
+        quote = book.best_bid if long_side else book.best_ask
+        first_execution = acceptance_flow.first_price
+        quote_response_bps = (
+            (quote - first_execution) / first_execution * 10_000
+            * (1 if long_side else -1)
+            if (
+                quote is not None
+                and first_execution is not None
+                and first_execution > 0
             )
+            else None
         )
-        if not pressure_supported or not probe_flow_supported:
-            if not arm_active and not state.probe_opened:
-                state.break_started_at = 0.0
-            return StrategyDecision(
-                self.key,
-                Action.WAIT,
-                [
-                    (
-                        "Breakout probe уже открыт; ждём подтверждение "
-                        "acceptance/hold для add"
-                        if state.probe_opened
-                        else (
-                            "Агрессивный поток поглощается без достаточного "
-                            "движения цены; breakout вход запрещён"
-                            if breakout_absorbed
-                            else "Зона проколота, но давление/pre-state/flow "
-                            "недостаточны для подтверждения breakout"
-                        )
-                    )
-                ],
-                0.55,
-                zone.center,
-                visuals=visuals,
-                details={
-                    "state": state.stage.value,
-                    **context_details,
-                    "zone": zone.public(),
-                    "zoneGeneration": generation,
-                    "pressureScore": pressure_score,
-                    "pressure": pressure,
-                    "flow": flow,
-                    "levelFlow": level_flow.public(),
-                    "acceptanceFlow": acceptance_flow.public(),
-                    "acceptanceBoundary": acceptance_boundary,
-                    "pressureHysteresisActive": arm_active,
-                    "opportunityArm": opportunity_arm,
-                    "preparedOpportunity": prepared_opportunity,
-                    "probeOpened": state.probe_opened,
-                    "localBreakFlowConfirmed": local_break_flow,
-                    "breakoutAbsorbed": breakout_absorbed,
-                    "directionalResponseBps": directional_response_bps,
-                    "absorptionEfficiency": (
-                        level_flow.absorption_efficiency
-                    ),
-                },
-            )
-
+        # Price hold starts at the observed break, not after the delayed flow
+        # filter first happens to agree. Flow still has to be valid at FIRE.
         if state.break_started_at <= 0:
             state.break_started_at = market_now
             state.break_extreme = price
@@ -1177,9 +1127,92 @@ class LevelBreakoutStrategy(Strategy):
         )
         required_sustained_hold = self._sustained_hold_seconds(pressure)
         sustained_response_ready = (
-            directional_response_bps
-            >= self.min_directional_response_bps
+            directional_response_bps >= self.min_directional_response_bps
+            and quote_response_bps is not None
+            and quote_response_bps >= self.min_directional_response_bps
         )
+        breakout_absorbed = (
+            acceptance_flow.trade_count >= 3
+            and abs(acceptance_flow.imbalance) >= 0.20
+            and not sustained_response_ready
+            and not retest_response_ready
+        )
+        context_details.update({
+            "confirmationRule": "current_acceptance_v1",
+            "confirmationResponseSource": "post_break_5s_tape_and_quote",
+            "confirmationResponseRequiredBps": self.min_directional_response_bps,
+            "rollingLevelResponseBps": (
+                level_flow.price_response_pct * 10_000 * (1 if long_side else -1)
+            ),
+            "currentAcceptanceResponseBps": directional_response_bps,
+            "currentQuoteResponseBps": quote_response_bps,
+            "acceptanceFirstTradePrice": first_execution,
+            "acceptanceLastTradePrice": acceptance_flow.last_price,
+            "sustainedResponseReady": sustained_response_ready,
+            "breakHoldSeconds": held_seconds,
+            "sustainedHoldSecondsRequired": required_sustained_hold,
+            "breakoutConfirmationMode": None,
+            "retestSeen": state.retest_seen,
+            "retestHoldSeconds": retest_hold_seconds,
+            "retestResponseReady": retest_response_ready,
+            "postRetestResponseBps": post_retest_response_bps,
+        })
+        probe_flow_supported = (
+            local_break_flow
+            and not breakout_absorbed
+            and (
+                aligned_after_break
+                or (
+                    arm_active
+                    and forming_pressure
+                )
+            )
+        )
+        if not pressure_supported or not probe_flow_supported:
+            return StrategyDecision(
+                self.key,
+                Action.WAIT,
+                [
+                    (
+                        "Breakout probe уже открыт; ждём подтверждение "
+                        "acceptance/hold для add"
+                        if state.probe_opened
+                        else (
+                            "Поток за уровнем есть, но текущая лента и котировка "
+                            "не подтверждают движение; ждём отклик цены"
+                            if breakout_absorbed
+                            else "Зона проколота, но давление/pre-state/flow "
+                            "недостаточны для подтверждения breakout"
+                        )
+                    )
+                ],
+                0.55,
+                zone.center,
+                visuals=visuals,
+                details={
+                    "state": state.stage.value,
+                    **context_details,
+                    "zone": zone.public(),
+                    "zoneGeneration": generation,
+                    "pressureScore": pressure_score,
+                    "pressure": pressure,
+                    "flow": flow,
+                    "levelFlow": level_flow.public(),
+                    "acceptanceFlow": acceptance_flow.public(),
+                    "acceptanceBoundary": acceptance_boundary,
+                    "pressureHysteresisActive": arm_active,
+                    "opportunityArm": opportunity_arm,
+                    "preparedOpportunity": prepared_opportunity,
+                    "probeOpened": state.probe_opened,
+                    "localBreakFlowConfirmed": local_break_flow,
+                    "breakoutAbsorbed": breakout_absorbed,
+                    "directionalResponseBps": directional_response_bps,
+                    "absorptionEfficiency": (
+                        level_flow.absorption_efficiency
+                    ),
+                },
+            )
+
         sustained_hold_ready = (
             held_seconds
             >= required_sustained_hold

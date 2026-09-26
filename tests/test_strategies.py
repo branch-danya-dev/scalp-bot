@@ -1,4 +1,5 @@
 import pytest
+from breakout_fixtures import breakout_executions
 
 from scalp_bot.domain import Action, Candle, OrderBook, TradeTick, Trend
 from scalp_bot.strategy import (
@@ -306,12 +307,18 @@ def test_breakout_stages_probe_before_hold_then_adds_after_confirmation() -> Non
     strategy = LevelBreakoutStrategy()
     strategy.staged_entries_enabled = True
     book = OrderBook(bids=[(100.16, 50)], asks=[(100.17, 50)])
+    initial = strategy.evaluate(
+        mature_breakout_candles(), book, Trend.UP,
+        symbol="TESTUSDT", trades=aggressive_buy_flow(),
+    )
+    assert initial.action == Action.WAIT
+    probe_flow = aggressive_buy_flow() + breakout_executions(30_010_000)
     probe = strategy.evaluate(
         mature_breakout_candles(),
         book,
         Trend.UP,
         symbol="TESTUSDT",
-        trades=aggressive_buy_flow(),
+        trades=probe_flow,
     )
     assert probe.action == Action.LONG
     assert probe.details["zone"]["touches"] >= 5
@@ -328,18 +335,17 @@ def test_breakout_stages_probe_before_hold_then_adds_after_confirmation() -> Non
         book,
         Trend.UP,
         symbol="TESTUSDT",
-        trades=aggressive_buy_flow(),
+        trades=probe_flow,
     )
     assert waiting.action == Action.WAIT
     assert waiting.details["probeOpened"] is True
 
-    strategy._states["TESTUSDT"].break_started_at -= strategy.hold_without_retest_seconds + 1
     add = strategy.evaluate(
         mature_breakout_candles(),
         book,
         Trend.UP,
         symbol="TESTUSDT",
-        trades=aggressive_buy_flow(),
+        trades=probe_flow + breakout_executions(30_016_000),
     )
     assert add.action == Action.LONG
     assert add.details["state"] == "impulse"
@@ -869,13 +875,12 @@ def test_breakout_uses_near_liquidity_as_obstacle_not_forced_final_target(monkey
         trades=aggressive_buy_flow(),
     )
     assert first.action == Action.WAIT
-    strategy._states["LADDERUSDT"].break_started_at -= strategy.hold_without_retest_seconds + 1
     decision = strategy.evaluate(
         rows,
         market,
         Trend.UP,
         symbol="LADDERUSDT",
-        trades=aggressive_buy_flow(),
+        trades=aggressive_buy_flow() + breakout_executions(),
     )
     assert decision.action == Action.LONG
     assert decision.details["nearestObstacle"]["price"] == pytest.approx(100.20)

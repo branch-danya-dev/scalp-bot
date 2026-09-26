@@ -15,6 +15,8 @@ class LevelFlow:
     trade_count: int = 0
     price_response_pct: float = 0.0
     absorption_efficiency: float = 0.0
+    first_price: float | None = None
+    last_price: float | None = None
 
     def public(self) -> dict:
         return {
@@ -133,12 +135,13 @@ def flow_beyond_level(
     long_side: bool,
     seconds: int = 5,
     now_ms: int | None = None,
+    since_ms: int | None = None,
 ) -> LevelFlow:
-    """Executed flow that actually occurred beyond a broken level edge."""
+    """Executed flow beyond the edge, clipped to the current price episode."""
     if not trades or boundary_price <= 0:
         return LevelFlow()
     now_ms = now_ms or trades[-1].ts_ms
-    cutoff = now_ms - seconds * 1000
+    cutoff = max(now_ms - seconds * 1000, since_ms or 0)
     rows = [
         trade
         for trade in trades
@@ -151,6 +154,7 @@ def flow_beyond_level(
     ]
     if not rows:
         return LevelFlow()
+    rows.sort(key=lambda trade: trade.ts_ms)
     buy = sum(t.notional for t in rows if t.side.lower() == "buy")
     sell = sum(t.notional for t in rows if t.side.lower() == "sell")
     total = buy + sell
@@ -164,6 +168,8 @@ def flow_beyond_level(
         imbalance=(buy - sell) / total if total > 0 else 0.0,
         trade_count=len(rows),
         price_response_pct=response,
+        first_price=first,
+        last_price=last,
     )
 
 

@@ -995,11 +995,6 @@ class TradingEngine:
             breakout_strategy.conditional_hold_enabled = config.e06_conditional_breakout_hold
             setattr(
                 breakout_strategy,
-                "absorption_efficiency_threshold",
-                config.breakout_absorption_efficiency_threshold,
-            )
-            setattr(
-                breakout_strategy,
                 "min_directional_response_bps",
                 config.breakout_min_directional_response_bps,
             )

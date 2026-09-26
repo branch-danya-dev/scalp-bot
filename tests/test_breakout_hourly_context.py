@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+from breakout_fixtures import breakout_executions
 
 from scalp_bot.domain import Action, OrderBook, Trend
 from scalp_bot.strategy.breakout import LevelBreakoutStrategy
@@ -181,13 +182,15 @@ def test_native_breakout_waits_then_confirms_against_hourly_only(action, mode):
     assert first.details["breakoutConfirmationMode"] is None
     state = strategy._states["HOURLYUSDT"]
     if mode == "retest_response":
+        ticks += breakout_executions(30_006_000, duration_ms=1_000, first=100.07, last=100.07, short=action == Action.SHORT)
         assert evaluate(100.070).action == Action.WAIT
         assert state.retest_seen
-        state.retest_at -= 4
+        ticks += breakout_executions(30_010_000, duration_ms=3_000, first=100.07, last=100.07, short=action == Action.SHORT)
         assert evaluate(100.070).action == Action.WAIT  # Time alone is insufficient.
+        ticks += breakout_executions(30_014_000, duration_ms=3_000, first=100.075, last=100.095, short=action == Action.SHORT)
         entry_price = 100.095
     else:
-        state.break_started_at -= strategy.hold_without_retest_seconds + 1
+        ticks += breakout_executions(short=action == Action.SHORT)
         entry_price = 100.165
 
     fired = evaluate(entry_price)
@@ -215,6 +218,13 @@ def test_native_early_probe_cannot_bypass_hourly_veto(action):
     strategy.staged_entries_enabled = True
     rows, structure, ticks = native_inputs(action)
     price = 100.165 if action == Action.LONG else 99.835
+    initial = strategy.evaluate(
+        rows, OrderBook(bids=[(price-.005, 50)], asks=[(price+.005, 50)]),
+        Trend.FLAT, symbol="PROBEUSDT", trades=ticks,
+        structure=structure, market_context=hourly_context(action),
+    )
+    assert initial.action == Action.WAIT
+    ticks += breakout_executions(30_010_000, short=action == Action.SHORT)
     decision = strategy.evaluate(
         rows, OrderBook(bids=[(price-.005, 50)], asks=[(price+.005, 50)]),
         Trend.FLAT, symbol="PROBEUSDT", trades=ticks,
@@ -234,7 +244,7 @@ def test_hourly_override_keeps_stop_distance_limit(action):
     book = OrderBook(bids=[(price-.005, 50)], asks=[(price+.005, 50)])
     kwargs = dict(symbol="STOPUSDT", trades=ticks, structure=structure, market_context=hourly_context(action))
     assert strategy.evaluate(rows, book, Trend.FLAT, **kwargs).action == Action.WAIT
-    strategy._states["STOPUSDT"].break_started_at -= strategy.hold_without_retest_seconds + 1
+    ticks += breakout_executions(short=action == Action.SHORT)
     blocked = strategy.evaluate(rows, book, Trend.FLAT, **kwargs)
     assert blocked.action == Action.WAIT
     assert blocked.details["stopDistancePct"] > strategy.max_stop_pct

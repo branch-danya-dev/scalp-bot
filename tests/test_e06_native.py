@@ -27,7 +27,8 @@ def test_native_matches_research_overlay_across_structure_loss_and_new_episode(m
     import scalp_bot.strategy.breakout as module
     sign=-1 if short else 1
     flow=LevelFlow(buy_notional=0 if short else 10000,sell_notional=10000 if short else 0,
-        total_notional=10000,imbalance=sign,trade_count=12,price_response_pct=sign*.0007,absorption_efficiency=.05)
+        total_notional=10000,imbalance=sign,trade_count=12,price_response_pct=sign*.0007,absorption_efficiency=.05,
+        first_price=100+sign*.09,last_price=100+sign*.16)
     monkeypatch.setattr(module,'flow_at_level',lambda *a,**k:flow)
     monkeypatch.setattr(module,'flow_beyond_level',lambda *a,**k:flow)
     native,reference=LevelBreakoutStrategy(),LevelBreakoutStrategy()

@@ -1,4 +1,5 @@
 import pytest
+from breakout_fixtures import breakout_executions
 
 from scalp_bot.domain import Action, Candle, OrderBook, TradeTick, Trend
 from scalp_bot.strategy import (
@@ -140,14 +141,14 @@ def test_breakout_shared_generation_is_used_only_once() -> None:
         structure=structure,
     )
     assert first.action == Action.WAIT
-    strategy._states["BREAKUSDT"].break_started_at -= strategy.hold_without_retest_seconds + 1
+    confirmed_flow = aggressive_buy_flow() + breakout_executions()
 
     entry = strategy.evaluate(
         rows,
         book,
         Trend.UP,
         symbol="BREAKUSDT",
-        trades=aggressive_buy_flow(),
+        trades=confirmed_flow,
         structure=structure,
     )
     assert entry.action == Action.LONG
@@ -161,7 +162,7 @@ def test_breakout_shared_generation_is_used_only_once() -> None:
         book,
         Trend.UP,
         symbol="BREAKUSDT",
-        trades=aggressive_buy_flow(),
+        trades=confirmed_flow,
         structure=structure,
     )
     assert second.action == Action.WAIT
@@ -173,17 +174,16 @@ def test_breakout_shared_generation_is_used_only_once() -> None:
         book,
         Trend.UP,
         symbol="BREAKUSDT",
-        trades=aggressive_buy_flow(),
+        trades=confirmed_flow,
         structure=new_generation,
     )
     assert third.action == Action.WAIT
-    strategy._states["BREAKUSDT"].break_started_at -= strategy.hold_without_retest_seconds + 1
     third_entry = strategy.evaluate(
         rows,
         book,
         Trend.UP,
         symbol="BREAKUSDT",
-        trades=aggressive_buy_flow(),
+        trades=confirmed_flow + breakout_executions(30_024_000),
         structure=new_generation,
     )
     assert third_entry.action == Action.LONG
@@ -409,13 +409,12 @@ def test_breakout_records_level_flow_on_entry() -> None:
         structure=mature_structure(),
     )
     assert first.action == Action.WAIT
-    strategy._states["LOCALFLOWUSDT"].break_started_at -= strategy.hold_without_retest_seconds + 1
     decision = strategy.evaluate(
         mature_breakout_candles(),
         book,
         Trend.UP,
         symbol="LOCALFLOWUSDT",
-        trades=aggressive_buy_flow(),
+        trades=aggressive_buy_flow() + breakout_executions(),
         structure=mature_structure(),
     )
 
@@ -761,6 +760,8 @@ def test_breakout_sustained_hold_fires_only_with_real_price_response(
         trade_count=12,
         price_response_pct=0.0007,
         absorption_efficiency=0.05,
+        first_price=100.09,
+        last_price=100.16,
     )
     monkeypatch.setattr(
         module,
@@ -935,6 +936,7 @@ def test_breakout_retest_requires_fresh_post_retest_response() -> None:
     state = strategy._states["RETESTRESPONSEUSDT"]
     assert state.break_started_at > 0
 
+    flow += breakout_executions(30_006_000, duration_ms=1_000, first=100.07, last=100.07)
     # Pull back close to the broken resistance while still technically above
     # the break buffer. This records a retest, but it is not an entry yet.
     retest = strategy.evaluate(
@@ -954,9 +956,7 @@ def test_breakout_retest_requires_fresh_post_retest_response() -> None:
     ].retest_seen is True
 
     # Time alone cannot turn the retest into FIRE.
-    strategy._states[
-        "RETESTRESPONSEUSDT"
-    ].retest_at -= 4.0
+    flow += breakout_executions(30_010_000, duration_ms=3_000, first=100.07, last=100.07)
     still_wait = strategy.evaluate(
         rows,
         OrderBook(
@@ -971,6 +971,7 @@ def test_breakout_retest_requires_fresh_post_retest_response() -> None:
     assert still_wait.action == Action.WAIT
     assert still_wait.details["retestResponseReady"] is False
 
+    flow += [TradeTick(30_010_500 + i * 100, 100.08 + i * 0.005, 32, "Buy") for i in range(4)]
     # A small fresh move away from the reclaimed level completes the setup.
     fired = strategy.evaluate(
         rows,
@@ -1032,9 +1033,7 @@ def test_previous_day_high_is_valid_breakout_setup_without_five_touches() -> Non
     assert first.action == Action.WAIT
     state = strategy._states["PDHBREAKUSDT"]
     assert state.armed_generation_id == level.generation_id
-    state.break_started_at -= (
-        strategy.hold_without_retest_seconds + 1
-    )
+    flow += breakout_executions()
 
     fired = strategy.evaluate(
         rows,
@@ -1134,15 +1133,12 @@ def test_breakout_same_generation_cannot_reopen_after_detector_drift() -> None:
         trades=aggressive_buy_flow(),
         structure=structure,
     )
-    strategy._states[
-        "DRIFTBREAKUSDT"
-    ].break_started_at -= strategy.hold_without_retest_seconds + 1
     opened = strategy.evaluate(
         rows,
         book,
         Trend.UP,
         symbol="DRIFTBREAKUSDT",
-        trades=aggressive_buy_flow(),
+        trades=aggressive_buy_flow() + breakout_executions(),
         structure=structure,
     )
     assert opened.action == Action.LONG

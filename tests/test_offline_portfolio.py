@@ -123,13 +123,13 @@ async def fixture(tmp_path, monkeypatch, exit_kind='shutdown', production=False,
     if file_capture:
         live.public_state()
     if production:
-        for update, wall, bid in ((2, 4809, 100.30), (3, 4813, 100.32), (4, 4817, 100.34), (5, 4821, 100.36)):
+        for update, wall, bid in ((2, 4809, 100.30), (3, 4815, 100.32), (4, 4821, 100.34), (5, 4827, 100.36)):
             clock.set_observation(wall_seconds=wall, mono_ns=(wall-4795)*10**9)
             for depth in (50, 1000):
                 await send(MarketMessage(topic=f'orderbook.{depth}.AAA', type='snapshot', ts=wall*1000,
                     data={'u': update, 'seq': update, 'b': [[str(bid), '1000']], 'a': [[str(bid+.01), '1000']]}))
             await send(MarketMessage(topic='publicTrade.AAA', ts=wall*1000,
-                data=[{'T': (wall-4)*1000+i*150, 'p': str(bid+.01), 'v': str(8*(update-1)**2), 'S': 'Buy'} for i in range(24)]))
+                data=[{'T': (wall-4)*1000+i*150, 'p': str(bid-.03+i*.04/23), 'v': str(8*(update-1)**2), 'S': 'Buy'} for i in range(24)]))
             await live._evaluate(live.sessions['AAA'])
     await live._evaluate(live.sessions['AAA'])
     live._arbitrate_once()
