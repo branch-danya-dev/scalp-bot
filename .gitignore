@@ -19,3 +19,7 @@ paper-analysis-*.zip
 
 # Local editable-install metadata.
 *.egg-info/
+
+# Local ML data and model weights; reviewed manifests live in research/ml.
+data/ml/
+models/ml/
