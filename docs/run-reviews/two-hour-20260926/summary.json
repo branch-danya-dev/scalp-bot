@@ -1,0 +1,53 @@
+{
+  "trades": 6,
+  "net": -40.732118891838944,
+  "gross": -19.675211276998986,
+  "fees": 21.05690761483995,
+  "funding": 0.0,
+  "final": 959.2678811081611,
+  "closed_equity_drawdown": 41.07393329456238,
+  "summary": {
+    "startedAt": 1790451053.303291,
+    "stoppedAt": 1790458721.4925854,
+    "elapsedSeconds": 7668.188335399958,
+    "balance": 959.267881108161,
+    "realizedPnl": -40.732118891839036,
+    "reason": "bot_stop"
+  },
+  "scenarios": 201,
+  "unique_initial_episodes": 153,
+  "funnel": {
+    "prepared": 169,
+    "ready": 32,
+    "admitted": 6,
+    "filled": 6
+  },
+  "terminal_reasons": {
+    "price_left_preparation_area": 90,
+    "scenario_expired": 57,
+    "assigned_object_no_longer_preparable": 17,
+    "new_market_episode_requires_reassessment": 2,
+    "observed_failed_break_changed_market_basis": 9,
+    "assigned_market_object_disappeared": 9,
+    "stop": 6,
+    "frozen movement budget exhausted": 7,
+    "price left frozen entry area; no chase after risk refusal": 4
+  },
+  "categories": {
+    "late_or_exhausted": 96,
+    "trigger_not_met": 81,
+    "economics_reject": 18,
+    "executed": 6
+  },
+  "max_active": 7,
+  "max_ranked": 7,
+  "eth_ranks": {
+    "1": 23,
+    "2": 34,
+    "3": 17,
+    "5": 17,
+    "4": 15,
+    "7": 7,
+    "6": 4
+  }
+}

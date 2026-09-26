@@ -1,0 +1,162 @@
+[
+  {
+    "symbol": "ENAUSDT",
+    "seconds": 1.7836057000095025,
+    "start_wall": 1790452668.3343663,
+    "end_wall": 1790452670.117972,
+    "last_sequence": 4492823,
+    "next_sequence": 4496356
+  },
+  {
+    "symbol": "ENAUSDT",
+    "seconds": 8.0565779999597,
+    "start_wall": 1790458010.8311453,
+    "end_wall": 1790458018.887723,
+    "last_sequence": 23359121,
+    "next_sequence": 23388180
+  },
+  {
+    "symbol": "ETHUSDT",
+    "seconds": 85.84663540008478,
+    "start_wall": 1790455725.3451433,
+    "end_wall": 1790455811.191779,
+    "last_sequence": 15031782,
+    "next_sequence": 15268623
+  },
+  {
+    "symbol": "ETHUSDT",
+    "seconds": 13.569588800077327,
+    "start_wall": 1790456713.6693127,
+    "end_wall": 1790456727.2389016,
+    "last_sequence": 18555154,
+    "next_sequence": 18594416
+  },
+  {
+    "symbol": "ETHUSDT",
+    "seconds": 4.117930999957025,
+    "start_wall": 1790457822.4311392,
+    "end_wall": 1790457826.5490704,
+    "last_sequence": 22503181,
+    "next_sequence": 22512549
+  },
+  {
+    "symbol": "NEARUSDT",
+    "seconds": 146.34561009996105,
+    "start_wall": 1790455673.1395524,
+    "end_wall": 1790455819.4851625,
+    "last_sequence": 14838204,
+    "next_sequence": 15299330
+  },
+  {
+    "symbol": "NEARUSDT",
+    "seconds": 3.9312720999587327,
+    "start_wall": 1790456713.6197562,
+    "end_wall": 1790456717.5510283,
+    "last_sequence": 18554998,
+    "next_sequence": 18565930
+  },
+  {
+    "symbol": "NEARUSDT",
+    "seconds": 13.922950700041838,
+    "start_wall": 1790457822.4159904,
+    "end_wall": 1790457836.3389409,
+    "last_sequence": 22503090,
+    "next_sequence": 22537188
+  },
+  {
+    "symbol": "NEARUSDT",
+    "seconds": 13.756712000002153,
+    "start_wall": 1790458022.060049,
+    "end_wall": 1790458035.816761,
+    "last_sequence": 23404514,
+    "next_sequence": 23452912
+  },
+  {
+    "symbol": "NEARUSDT",
+    "seconds": 13.725301900063641,
+    "start_wall": 1790458318.3321517,
+    "end_wall": 1790458332.0574536,
+    "last_sequence": 24849660,
+    "next_sequence": 24882830
+  },
+  {
+    "symbol": "SOLUSDT",
+    "seconds": 3.9161567999981344,
+    "start_wall": 1790458022.0188498,
+    "end_wall": 1790458025.9350064,
+    "last_sequence": 23404372,
+    "next_sequence": 23415490
+  },
+  {
+    "symbol": "SOLUSDT",
+    "seconds": 13.9799706999911,
+    "start_wall": 1790458196.6685772,
+    "end_wall": 1790458210.6485481,
+    "last_sequence": 24246154,
+    "next_sequence": 24301287
+  },
+  {
+    "symbol": "SOLUSDT",
+    "seconds": 13.856709699961357,
+    "start_wall": 1790458318.3126466,
+    "end_wall": 1790458332.1693563,
+    "last_sequence": 24849558,
+    "next_sequence": 24883308
+  },
+  {
+    "symbol": "XRPUSDT",
+    "seconds": 146.93061780009884,
+    "start_wall": 1790455673.1440067,
+    "end_wall": 1790455820.0746245,
+    "last_sequence": 14838361,
+    "next_sequence": 15301257
+  },
+  {
+    "symbol": "XRPUSDT",
+    "seconds": 14.092409000033513,
+    "start_wall": 1790457921.3326683,
+    "end_wall": 1790457935.4250772,
+    "last_sequence": 22962869,
+    "next_sequence": 23021716
+  },
+  {
+    "symbol": "XRPUSDT",
+    "seconds": 14.020425700000487,
+    "start_wall": 1790458196.6688447,
+    "end_wall": 1790458210.6892705,
+    "last_sequence": 24246162,
+    "next_sequence": 24301441
+  },
+  {
+    "symbol": "ZECUSDT",
+    "seconds": 1.7953799000242725,
+    "start_wall": 1790453584.5567858,
+    "end_wall": 1790453586.3521657,
+    "last_sequence": 7305970,
+    "next_sequence": 7309435
+  },
+  {
+    "symbol": "ZECUSDT",
+    "seconds": 13.610453799949028,
+    "start_wall": 1790457822.6023417,
+    "end_wall": 1790457836.2127955,
+    "last_sequence": 22503872,
+    "next_sequence": 22536512
+  },
+  {
+    "symbol": "ZECUSDT",
+    "seconds": 14.003722500056028,
+    "start_wall": 1790458196.7205582,
+    "end_wall": 1790458210.7242806,
+    "last_sequence": 24246354,
+    "next_sequence": 24301627
+  },
+  {
+    "symbol": "ZECUSDT",
+    "seconds": 13.815990200033411,
+    "start_wall": 1790458318.393582,
+    "end_wall": 1790458332.2095723,
+    "last_sequence": 24850160,
+    "next_sequence": 24883515
+  }
+]

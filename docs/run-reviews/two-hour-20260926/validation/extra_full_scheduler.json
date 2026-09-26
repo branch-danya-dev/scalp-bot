@@ -1,0 +1,6 @@
+{
+  "status": "stopped_without_result",
+  "input_rows": 26566351,
+  "fullReplay": false,
+  "note": "Optional diagnostic bypassing only the metadata seal gate. Stopped by operator; no portfolio parity or output count claimed. Stock checker and full journal validation are recorded separately."
+}

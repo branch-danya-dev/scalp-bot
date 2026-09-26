@@ -1,0 +1,44 @@
+[
+  {
+    "figure": "T01.png",
+    "input_first": 9349565,
+    "input_last": 9962001,
+    "note": "Fast L50 reconstruction; exact fills/plans from trade_reconciliation; quotes are not trades or hypothetical fills"
+  },
+  {
+    "figure": "T02.png",
+    "input_first": 12142158,
+    "input_last": 13217736,
+    "note": "Fast L50 reconstruction; exact fills/plans from trade_reconciliation; quotes are not trades or hypothetical fills"
+  },
+  {
+    "figure": "T03.png",
+    "input_first": 12280676,
+    "input_last": 13307916,
+    "note": "Fast L50 reconstruction; exact fills/plans from trade_reconciliation; quotes are not trades or hypothetical fills"
+  },
+  {
+    "figure": "T04.png",
+    "input_first": 12660528,
+    "input_last": 14065325,
+    "note": "Fast L50 reconstruction; exact fills/plans from trade_reconciliation; quotes are not trades or hypothetical fills"
+  },
+  {
+    "figure": "T05.png",
+    "input_first": 19145104,
+    "input_last": 19718019,
+    "note": "Fast L50 reconstruction; exact fills/plans from trade_reconciliation; quotes are not trades or hypothetical fills"
+  },
+  {
+    "figure": "T06.png",
+    "input_first": 22825787,
+    "input_last": 23613091,
+    "note": "Fast L50 reconstruction; exact fills/plans from trade_reconciliation; quotes are not trades or hypothetical fills"
+  },
+  {
+    "figure": "ETH_reentry.png",
+    "input_first": 12916510,
+    "input_last": 16160719,
+    "note": "Fast L50 reconstruction; exact fills/plans from trade_reconciliation; quotes are not trades or hypothetical fills"
+  }
+]
