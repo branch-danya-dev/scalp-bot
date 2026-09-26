@@ -38,7 +38,7 @@ def install_signal(engine):
 
 
 async def fixture(tmp_path, monkeypatch, exit_kind='shutdown', production=False,
-                  file_capture=False, event_driven=False, beta=False, capture_factory=None):
+                  file_capture=False, event_driven=False, beta=False, capture_factory=None, duration_seconds=61):
     clock = ReplayRuntimeClock(wall_seconds=4805, mono_ns=10**10)
     recorder = None
     if file_capture and capture_factory is None:
@@ -50,7 +50,7 @@ async def fixture(tmp_path, monkeypatch, exit_kind='shutdown', production=False,
         density_enabled=False, breakout_enabled=production,
         partial_take_enabled=exit_kind == 'partial_then_stop',
         partial_take_at_r=3 if exit_kind == 'partial_then_stop' else 1,
-        paper_run_duration_seconds=61 if exit_kind == 'duration_elapsed' else 14400,
+        paper_run_duration_seconds=duration_seconds if exit_kind == 'duration_elapsed' else 14400,
         working_symbols=1, min_net_profit_usd=0, min_net_profit_equity_fraction=0,
         min_net_reward_risk=0, absolute_min_net_reward_risk=0,
         max_leverage=1, risk_fraction=.01)
@@ -184,7 +184,7 @@ async def fixture(tmp_path, monkeypatch, exit_kind='shutdown', production=False,
     if file_capture:
         live.public_state()
     if exit_kind == 'duration_elapsed':
-        clock.set_observation(wall_seconds=4866, mono_ns=71*10**9)
+        clock.set_observation(wall_seconds=4805+duration_seconds, mono_ns=(10+duration_seconds)*10**9)
         timer_wake.set()
         for _ in range(10):
             await asyncio.sleep(0)

@@ -145,6 +145,36 @@ class ScenarioRouter:
         self.scenarios[symbol] = s
         return s
 
+    @staticmethod
+    def _unprepared_object_invalid(s, context, candles, structure) -> bool:
+        """Recheck object applicability only while no owner preparation exists.
+
+        A missing routing candidate is NOT an invalidation: scores, distance and
+        regime can change while a prepared playbook legitimately keeps its anchor.
+        No data means unknown, not false. Prepared/frozen plans and execution keep
+        their own continuation and protection contracts.
+        """
+        if (s.state != "ASSIGNED" or s.prepared_mono is not None or s.frozen is not None
+                or s.object_ref is None or context is None or structure is None
+                or not context.execution.ready or context.execution.book_synced is False
+                or context.last_price <= 0):
+            return False
+        owner = {
+            "level_breakout": LevelBreakoutStrategy,
+            "weak_level_rejection": WeakLevelRejectionStrategy,
+            "trend_structure": TrendStructureStrategy,
+        }.get(s.owner)
+        if owner is None:
+            return False  # Candle patterns retain their existing replacement rule.
+        rows = [c for c in candles if c.confirmed and c.start_ms + 60_000 <= context.observed_at_ms]
+        if len(rows) < owner.minimum_history:
+            return False
+        objects = structure.trendlines if s.object_ref.kind == "trendline" else structure.levels
+        identify = trendline_ref if s.object_ref.kind == "trendline" else level_ref
+        obj = next((obj for obj in objects if identify(obj) == s.object_ref), None)
+        # Disappearance has its own explicit lifecycle rule in observe().
+        return obj is not None and not owner.can_prepare(obj, rows, context.last_price, s.side)
+
     def observe(self, symbol, context, candles, structure, enabled, now, *, position=None, pending=None):
         """Evaluate applicability, not already-fired strategy signals."""
         episodes = self._episodes.observe(symbol, context, candles, structure)
@@ -210,6 +240,9 @@ class ScenarioRouter:
             elif s.owner == "price_action_hypothesis" and candidates and all(
                     c["signature"] != s.signature for c in candidates):
                 reason = "closed_pattern_replaced"
+            if reason is None and self._unprepared_object_invalid(s, context, candles, structure):
+                reason = "assigned_object_no_longer_preparable"
+                s.last_rejection = dict(owner="strategy", reason=reason, atMono=now)
             if reason:
                 self.transition(s, "EXPIRED" if reason == "scenario_expired" else "INVALIDATED", now, reason)
                 return None  # Reassess at the NEXT market observation, not risk fallback.
