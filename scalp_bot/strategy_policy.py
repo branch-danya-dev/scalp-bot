@@ -64,3 +64,12 @@ def breakout_impulse_limit(
     if not limits:
         return None, None  # Older/manual decisions without an impulse keep their policy.
     return min(limits, key=lambda row: direction * row[0])
+
+
+def may_extend_runner(details: dict) -> bool:
+    """Legacy R-extension is never part of a frozen routed contract."""
+    return not (
+        details.get("scenario")
+        or details.get("targetSource") == "liquidity"
+        or isinstance(details.get("liquidityTarget"), dict)
+    )

@@ -18,12 +18,15 @@ from test_price_action_hypothesis import scenario as beta_market
 
 def market(kind="breakout", direction=1):
     rows, book, context, _ = beta_market(direction)
-    rows = [replace(rows[0],start_ms=rows[0].start_ms-(25-i)*60_000) for i in range(25)]+rows
-    level=StructuralLevel("resistance",100.19,100.21,3,"1m",1,generation_id="level:g1")
+    rows = [replace(rows[0],start_ms=rows[0].start_ms-(45-i)*60_000) for i in range(45)]+rows
+    level=StructuralLevel("resistance",100.19,100.21,6,"1m",1,generation_id="level:g1",
+        distinct_approaches=5, reaction_pct=.02, volume_ratio=1.2, lifecycle="worked")
     structure=MarketStructure([level])
     if direction<0:
         level.kind="support";level.low=99.79;level.high=99.81
     if kind=="rejection":
+        level.touches=level.distinct_approaches=1
+        level.lifecycle="tested"
         level.kind="support" if direction>0 else "resistance"
         level.low,level.high=(100.09,100.11) if direction>0 else (99.89,99.91)
     if kind=="trend":
@@ -72,6 +75,9 @@ def test_disabled_insufficient_and_no_scenario_are_distinct():
 
 def test_small_changes_do_not_switch_owner_but_real_departure_invalidates():
     r,s,rows,b,c,st,en=assign()
+    # Isolate reuse of this structural episode; independent candle objects are
+    # intentionally no longer consumed by a different scenario (R04).
+    en["price_action_hypothesis"] = False
     changed=replace(c,last_price=c.last_price+.001)
     assert r.observe(s.symbol,changed,rows,st,en,11) is s
     far=replace(c,last_price=c.last_price+1)
@@ -89,7 +95,8 @@ def decision(s,book):
     return StrategyDecision(s.owner,Action(s.side),[],entry=entry,stop=entry-sign*.3,
         target=entry+sign*.8,setup_id='causal:g1',details={'state':'impulse',
         'opportunityArm':{'price':s.anchor,'observedAtMs':1000},
-        'fireTrigger':{'price':entry,'observedAtMs':2000}})
+        'fireTrigger':{'price':entry,'observedAtMs':2000},
+        'levelLifecycle':deepcopy(s.level)})
 
 
 @pytest.mark.parametrize('direction',[1,-1])
@@ -184,6 +191,9 @@ def test_late_fill_after_ack_restores_original_generation_and_invalidates_new_ow
 
 def test_real_failed_break_allows_opposite_scenario_on_next_observation():
     r,s,rows,b,c,st,en=assign()
+    # Session extrema are valid objects for both playbooks; worked ordinary
+    # horizontals are intentionally not weak-level rejection objects.
+    st.levels[0].kind = "day_high"
     # Existing resistance was pierced, then the observed price reclaimed below.
     changed = replace(c, last_price=100.17)
     rows[-1]=replace(rows[-1],high=100.3,low=100.15,close=100.17)

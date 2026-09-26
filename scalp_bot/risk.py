@@ -16,7 +16,7 @@ from .execution import (
     preferred_entry_mode,
     slippage_rate,
 )
-from .strategy_policy import breakout_impulse_limit, partial_take_fraction
+from .strategy_policy import breakout_impulse_limit, partial_take_fraction, may_extend_runner
 
 
 @dataclass(slots=True)
@@ -840,13 +840,8 @@ class RiskEngine:
             and partial_net_at_trigger_usd > 0
         )
         partial_enabled = partial_economic_ready
-        target_source = str(decision.details.get("targetSource") or "")
-        structural_liquidity_target = (
-            target_source == "liquidity"
-            or isinstance(decision.details.get("liquidityTarget"), dict)
-        )
         runner_target_pct = target_pct
-        if partial_enabled and not structural_liquidity_target:
+        if partial_enabled and may_extend_runner(decision.details):
             runner_target_pct = max(
                 target_pct,
                 stop_pct * max(
@@ -1137,6 +1132,7 @@ class RiskEngine:
             "movementFloorBands": movement_floor_bands,
             "runnerFraction": runner_fraction if partial_enabled else 1.0,
             "runnerTargetPct": runner_target_pct,
+            "runnerTargetPrice": runner_raw_price,
             "lifecycleGrossPct": lifecycle_gross_pct,
             "lifecycleCostPct": lifecycle_cost_pct,
             "partialExitFeeRate": partial_exit_fee_rate,

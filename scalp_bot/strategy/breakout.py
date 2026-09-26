@@ -8,6 +8,7 @@ from statistics import median
 
 from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .base import Strategy
+from ..scenario_identity import assigned_ref, level_ref
 from .targets import structural_target
 
 if TYPE_CHECKING:
@@ -70,6 +71,7 @@ class BreakoutWatchState:
 
 
 class LevelBreakoutStrategy(Strategy):
+    minimum_history = 60
     key = "level_breakout"
     label = "Пробой наторгованного уровня"
 
@@ -105,6 +107,16 @@ class LevelBreakoutStrategy(Strategy):
                 and (pressure.get("compressedPullbacks") or 0) >= 2):
             return 3.0
         return self.hold_without_retest_seconds
+
+    @classmethod
+    def can_prepare(cls, level, candles, price: float, side: str) -> bool:
+        """Object applicability only; causal entry confirmation stays in evaluate."""
+        if len(candles) < cls.minimum_history or price <= 0:
+            return False
+        long = side == "long"
+        if not cls._structural_level_is_tradeable(level, candles, long_candidate=long):
+            return False
+        return bool(cls._select_structural_candidate([level], price, long_side=long))
 
     def __init__(self) -> None:
         self._states: dict[str, BreakoutWatchState] = {}
@@ -416,7 +428,7 @@ class LevelBreakoutStrategy(Strategy):
             trend,
         )
         if (
-            len(candles) < 60
+            len(candles) < self.minimum_history
             or not symbol
             or not context_plan.allowed_directions
         ):
@@ -433,7 +445,11 @@ class LevelBreakoutStrategy(Strategy):
                 },
             )
 
+        binding = assigned_ref(market_context, self.key)
         state = self._states.setdefault(symbol, BreakoutWatchState())
+        if binding and state.armed_generation_id and binding.key != state.armed_generation_id:
+            self.reset(symbol)
+            state = self._states.setdefault(symbol, BreakoutWatchState())
         trades = trades or []
         price = book.mid or candles[-1].close
         market_now = (
@@ -494,11 +510,13 @@ class LevelBreakoutStrategy(Strategy):
                     else "support"
                 )
                 matched_level = None
+                candidate_zone = None
                 if structure is not None:
                     structural_rows = [
                         level
                         for level in structure.levels
-                        if self._structural_level_is_tradeable(
+                        if (binding is None or level_ref(level) == binding)
+                        and self._structural_level_is_tradeable(
                             level,
                             candles,
                             long_candidate=long_candidate,
@@ -519,7 +537,7 @@ class LevelBreakoutStrategy(Strategy):
                         if selected is not None
                         else None
                     )
-                else:
+                elif binding is None:
                     zones = detect_level_zones(
                         candles,
                         zone_kind,
