@@ -1014,6 +1014,7 @@ class TradingEngine(ScenarioRuntime):
             "weak_level_rejection"
         )
         if rejection_strategy is not None:
+            rejection_strategy.response_policy = config.research_rejection_response_policy
             setattr(
                 rejection_strategy,
                 "micro_response_min_bps",
