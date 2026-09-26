@@ -14,7 +14,7 @@ from .execution import (
     preferred_entry_mode,
     slippage_rate,
 )
-from .strategy_policy import partial_take_fraction
+from .strategy_policy import breakout_impulse_limit, partial_take_fraction
 
 
 @dataclass(slots=True)
@@ -757,23 +757,29 @@ class RiskEngine:
             self.config,
             decision.strategy,
         )
-        partial_move_pct = stop_pct * max(
-            0.0,
-            self.config.partial_take_at_r,
-        )
-        partial_candidate = (
+        partial_requested = (
             profile_is_known
             and self.config.partial_take_enabled
             and allow_runner
             and 0.0 < partial_fraction < 1.0
-            and target_pct > partial_move_pct
         )
         partial_raw_price = (
-            market_entry
-            + direction
-            * market_entry
-            * partial_move_pct
+            market_entry + direction * abs(market_entry - stop)
+            * max(0.0, self.config.partial_take_at_r)
         )
+        impulse_limit, impulse_limit_source = breakout_impulse_limit(
+            decision.strategy, side, setup_entry, decision.details or {},
+        )
+        partial_capped = bool(
+            partial_requested and impulse_limit is not None
+            and direction * (partial_raw_price - impulse_limit) > 0
+        )
+        if partial_capped:
+            partial_raw_price = impulse_limit
+        if instrument is not None:
+            partial_raw_price = instrument.target_price(partial_raw_price, side)
+        partial_move_pct = direction * (partial_raw_price - market_entry) / market_entry
+        partial_candidate = partial_requested and target_pct > partial_move_pct > 0
         partial_fill = apply_exit_slippage(
             partial_raw_price,
             side,
@@ -1072,6 +1078,11 @@ class RiskEngine:
             "stopCostShare": stop_cost_share,
             "maximumStopCostShare": self.config.max_stop_cost_share,
             "stopCostShareGateEnabled": self.config.enforce_stop_cost_share_gate,
+            "partialPrice": partial_raw_price if partial_candidate else None,
+            "partialCappedByImpulse": partial_capped,
+            "impulseFirstTakeLimit": impulse_limit,
+            "impulseFirstTakeLimitSource": impulse_limit_source,
+            "firstTakePrice": partial_raw_price if partial_enabled else target,
             "partialCandidate": partial_candidate,
             "partialPlanned": partial_enabled,
             "configuredPartialFraction": partial_fraction,
@@ -1164,6 +1175,18 @@ class RiskEngine:
             "wouldFailMinimumNetProfit": minimum_net_profit_failed,
             "wouldFailNetRewardRisk": net_reward_risk_failed,
         }
+
+        if (
+            partial_requested
+            and impulse_limit is not None
+            and not partial_economic_ready
+            and direction * (target - impulse_limit) > 1e-12
+        ):
+            return RiskResult(
+                False,
+                "economic_safety: impulse first take cannot cover planned costs/profit floor",
+                diagnostics=dict(economic_diagnostics),
+            )
 
         if (
             self.config.enforce_min_first_take_move_gate

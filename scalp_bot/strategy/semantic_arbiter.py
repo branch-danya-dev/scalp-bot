@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from math import isfinite
 from typing import Any, Iterable
 
 from ..domain import Action, StrategyDecision, TradePlan
+from ..strategy_policy import breakout_impulse_limit
 from .market_context import MarketContext
 from .structure import StructuralLevel
 
@@ -275,7 +277,12 @@ def assess_structural_path(
             reasons=("structural path unavailable or decision not tradeable",),
         )
 
-    entry = float(decision.entry)
+    planned_entry = (decision.details or {}).get("plannedEntryPrice")
+    entry = (
+        float(planned_entry)
+        if type(planned_entry) in (int, float) and isfinite(planned_entry) and planned_entry > 0
+        else float(decision.entry)
+    )
     stop = float(decision.stop)
     target = float(decision.target) if decision.target is not None else entry
     risk = abs(entry - stop)
@@ -298,6 +305,14 @@ def assess_structural_path(
         if partial_take_enabled and partial_take_at_r > 0
         else abs(target - entry)
     )
+    planned_price = (decision.details or {}).get("plannedFirstTakePrice")
+    if type(planned_price) in (int, float) and isfinite(planned_price) and planned_price > 0:
+        first_take_distance = abs(planned_price - entry)
+    elif partial_take_enabled:
+        limit, _ = breakout_impulse_limit(decision.strategy, decision.side, entry, decision.details or {})
+        if limit is not None:
+            direction = 1 if decision.action == Action.LONG else -1
+            first_take_distance = min(first_take_distance, max(0.0, direction * (limit - entry)))
     if decision.action == Action.LONG:
         first_take = entry + first_take_distance
         directional_rows = (

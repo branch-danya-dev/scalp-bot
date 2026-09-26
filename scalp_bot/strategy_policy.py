@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from math import isfinite
+
 from .config import Settings
+from .domain import Side
 
 
 def minimum_expectancy_r(
@@ -39,3 +42,25 @@ def no_follow_through_seconds(
         "level_breakout": config.breakout_no_follow_through_seconds,
         "price_action_hypothesis": config.breakout_no_follow_through_seconds,
     }.get(strategy, config.no_follow_through_seconds)))
+
+
+def breakout_impulse_limit(
+    strategy: str, side: Side, setup_entry: float, details: dict,
+) -> tuple[float | None, str | None]:
+    """Freeze a first-take ceiling in price space; never renew it at a later fill."""
+    if strategy != "level_breakout":
+        return None, None
+    trigger = details.get("opportunityTrigger")
+    anchors = []
+    if isinstance(trigger, dict):
+        anchors.append((trigger.get("price"), trigger.get("expectedImpulsePct"), "price_episode"))
+    anchors.append((setup_entry, details.get("expectedImpulsePct"), "signal_impulse"))
+    limits = []
+    direction = 1 if side == Side.LONG else -1
+    for anchor, impulse, source in anchors:
+        if (type(anchor) in (int, float) and type(impulse) in (int, float)
+                and isfinite(anchor) and isfinite(impulse) and anchor > 0 and 0 < impulse < 1):
+            limits.append((anchor * (1 + direction * impulse), source))
+    if not limits:
+        return None, None  # Older/manual decisions without an impulse keep their policy.
+    return min(limits, key=lambda row: direction * row[0])

@@ -1,0 +1,21 @@
+{
+  "source": "data/paper-captures/1h-20260926-123243-230-fcf4035f/session-20260926T093515Z.jsonl",
+  "sourceLineSha256": "dcc419f62a01fd13df06f4bcaec4532c7dabd36a577525bd68e8f759998436bc",
+  "scope": "Recorded entry geometry and costs only. The old entry has no price-episode anchor; this tests the legacy signal-impulse cap, not a counterfactual portfolio.",
+  "ts": 1790417403.5127046,
+  "setupEntry": 1.54455,
+  "fill": 1.54475446,
+  "stop": 1.5371,
+  "target": 1.5609,
+  "notional": 654.049038364,
+  "bid": 1.5445,
+  "ask": 1.5446,
+  "expectedImpulsePct": 0.0027006871904439534,
+  "oldFirstTakeMovePct": 0.004955130538998502,
+  "entryFeeRate": 0.00055,
+  "partialFeeRate": 0.0002,
+  "entrySlippageBps": 1.0,
+  "partialFraction": 0.3,
+  "bidSize": 26576.9,
+  "askSize": 3240.4
+}

@@ -4808,7 +4808,7 @@ class TradingEngine:
                     )
                     continue
 
-                # RiskEngine knows whether a 1R partial is actually
+                # RiskEngine knows whether the planned partial is actually
                 # economically executable. Feed that lifecycle back into the
                 # semantic path check before any order can be selected. If the
                 # longer real path exposes a new structural obstacle and
@@ -4841,6 +4841,8 @@ class TradingEngine:
                         ] = economics.get(
                             "firstTakeMovePct"
                         )
+                        decision.details["plannedFirstTakePrice"] = economics.get("firstTakePrice")
+                        decision.details["plannedEntryPrice"] = economics.get("marketEntry")
 
                     revised = assess_candidate(
                         decision,
@@ -5383,7 +5385,7 @@ class TradingEngine:
                     ) or 0.0
                 ) if decision else 0.0,
                 "holdingRule": (
-                    "resting maker partial near 1R; runner moves to net "
+                    "resting maker partial at planned first take; runner moves to net "
                     "breakeven; no-follow-through is strategy-specific"
                 ),
             },

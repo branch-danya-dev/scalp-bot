@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from time import perf_counter_ns
+from math import isfinite
 from typing import Any
 
 from .config import Settings
@@ -57,6 +58,7 @@ class Position:
     mfe_price: float | None = None
     mae_price: float | None = None
     mfe_at: float | None = None
+    mfe_mono: float | None = None
     mae_at: float | None = None
     partial_taken_at: float | None = None
     estimated_exit_fee_usd: float = 0.0
@@ -1254,6 +1256,7 @@ class PaperBroker:
             pos.max_favorable_move_pct = directional_move_pct
             pos.mfe_price = executable
             pos.mfe_at = now
+            pos.mfe_mono = self.clock.perf_counter_ns() / 1e9
         adverse_move_pct = max(0.0, -directional_move_pct)
         if adverse_move_pct > pos.max_adverse_move_pct:
             pos.max_adverse_move_pct = adverse_move_pct
@@ -1564,6 +1567,10 @@ class PaperBroker:
         )
 
     def _partial_limit_price(self, pos: Position) -> float:
+        economics = pos.strategy_details.get("economics")
+        planned = economics.get("partialPrice") if isinstance(economics, dict) else None
+        if type(planned) in (int, float) and isfinite(planned) and planned > 0:
+            return float(planned)
         risk_distance = self._initial_risk_distance(pos)
         multiple = max(0.0, self.config.partial_take_at_r)
         if pos.side == Side.LONG:
@@ -1596,9 +1603,9 @@ class PaperBroker:
     ) -> bool:
         if pos.initial_risk_usd <= 0:
             return False
-        if exit_mode != "maker_limit":
-            return pos.mfe_r >= self.config.partial_take_at_r
         limit_price = self._partial_limit_price(pos)
+        if exit_mode != "maker_limit":
+            return executable >= limit_price if pos.side == Side.LONG else executable <= limit_price
         price_through = self._maker_exit_trade_through(
             pos,
             limit_price,
@@ -1996,8 +2003,32 @@ class PaperBroker:
         )
         if age < timeout or pos.initial_risk_usd <= 0:
             return False
-        adverse_r = max(0.0, -gross_mark_original) / pos.initial_risk_usd
-        return (
+        current_r = gross_mark_original / pos.initial_risk_usd
+        adverse_r = max(0.0, -current_r)
+        weak_start = (
             pos.mfe_r < self.config.no_follow_through_max_mfe_r
             and adverse_r >= self.config.early_cut_at_r
         )
+        if pos.strategy != "level_breakout":
+            return weak_start
+        # An old favorable excursion is not permanent immunity from a failed
+        # breakout. Use monotonic time in clock-enabled runs, like entry age.
+        if self.config.exchange_clock_enabled:
+            progress_age = self.clock.perf_counter_ns() / 1e9 - (
+                pos.mfe_mono if pos.mfe_mono is not None else pos.opened_mono
+            )
+        else:
+            progress_age = self.clock.time() - (
+                pos.mfe_at if pos.mfe_at is not None else pos.opened_at
+            )
+        giveback_r = max(0.0, pos.mfe_r - current_r)
+        stalled_giveback = progress_age >= timeout and giveback_r >= self.config.early_cut_at_r
+        should_cut = weak_start or stalled_giveback
+        if should_cut:
+            pos.strategy_details["noFollowThroughExit"] = {
+                "rule": "breakout_stalled_giveback_v1",
+                "cause": "weak_start" if weak_start else "stalled_giveback",
+                "ageSeconds": age, "sincePeakSeconds": max(0.0, progress_age),
+                "peakR": pos.mfe_r, "currentR": current_r, "givebackR": giveback_r,
+            }
+        return should_cut

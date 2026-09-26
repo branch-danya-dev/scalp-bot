@@ -38,7 +38,9 @@ async def fixture(tmp_path, monkeypatch, exit_kind='shutdown', production=False,
     config = Settings(_env_file=None, session_dir=str(tmp_path),
         exchange_clock_enabled=True, event_driven_evaluation_enabled=event_driven,
         trend_structure_enabled=not production, weak_level_rejection_enabled=False,
-        density_enabled=False, breakout_enabled=production, partial_take_enabled=False,
+        density_enabled=False, breakout_enabled=production,
+        partial_take_enabled=exit_kind == 'partial_then_stop',
+        partial_take_at_r=3 if exit_kind == 'partial_then_stop' else 1,
         paper_run_duration_seconds=61 if exit_kind == 'duration_elapsed' else 14400,
         working_symbols=1, min_net_profit_usd=0, min_net_profit_equity_fraction=0,
         min_net_reward_risk=0, absolute_min_net_reward_risk=0,
@@ -139,6 +141,30 @@ async def fixture(tmp_path, monkeypatch, exit_kind='shutdown', production=False,
         diagnostics.extend((d.action.value, d.reasons) for d in live.sessions['AAA'].decisions.values())
         await live.close()
         raise AssertionError(json.dumps(diagnostics, default=str))
+    if exit_kind in ('partial_then_stop', 'stalled_giveback'):
+        assert production
+        pos = live.broker.positions['AAA']
+        async def move(wall, bid, update):
+            clock.set_observation(wall_seconds=wall, mono_ns=(wall-4795)*10**9)
+            for depth in (1000, 50):
+                await send(MarketMessage(topic=f'orderbook.{depth}.AAA', type='snapshot', ts=wall*1000,
+                    data={'u': update, 'seq': update, 'b': [[str(bid), '1000']], 'a': [[str(bid+.001), '1000']]}))
+        if exit_kind == 'partial_then_stop':
+            assert pos.strategy_details['economics']['partialCappedByImpulse']
+            limit = live.broker._partial_limit_price(pos)
+            through = limit * (1+live.config.maker_fill_confirmation_bps/10_000+1e-5)
+            await move(4840, through, 6)
+            assert not pos.partial_taken
+            await send(MarketMessage(topic='publicTrade.AAA', ts=4840000,
+                data=[{'T': 4840000, 'p': str(through), 'v': '10000', 'S': 'Buy'}]))
+            assert pos.partial_taken
+            await move(4841, pos.stop-.001, 7)
+        else:
+            risk = abs(pos.entry-pos.initial_stop)
+            await move(4840, pos.entry+.8*risk, 6)
+            assert pos.mfe_r > .25
+            await move(4961, pos.entry+.3*risk, 7)
+        assert not live.broker.positions
     if exit_kind == 'stop':
         clock.set_observation(wall_seconds=4806, mono_ns=11*10**9)
         await send(MarketMessage(topic='orderbook.50.AAA', type='snapshot', ts=4806000,
@@ -215,8 +241,9 @@ async def test_portfolio_output_comparison_does_not_hide_financial_changes(tmp_p
 
 
 @pytest.mark.asyncio
-async def test_production_breakout_signal_through_cold_replay(tmp_path, monkeypatch):
-    live, prefix, rows = await fixture(tmp_path, monkeypatch, production=True)
+@pytest.mark.parametrize('exit_kind', ['shutdown', 'partial_then_stop', 'stalled_giveback'])
+async def test_production_breakout_signal_through_cold_replay(tmp_path, monkeypatch, exit_kind):
+    live, prefix, rows = await fixture(tmp_path, monkeypatch, production=True, exit_kind=exit_kind)
     replay = restore_cold_engine(prefix)
     inputs = [r['payload'] for r in rows if r['event'] == 'replay_input']
     outputs = [r for r in rows if r['event'] != 'replay_input']
@@ -234,6 +261,12 @@ async def test_production_breakout_signal_through_cold_replay(tmp_path, monkeypa
         assert len(replay.broker.closed_trades) == 1
         assert replay.broker.closed_trades[0]['strategy'] == 'level_breakout'
         assert replay.broker.closed_trades[0]['fees'] > 0
+        trade = replay.broker.closed_trades[0]
+        if exit_kind == 'partial_then_stop':
+            assert trade['partialTaken'] and trade['reason'] == 'stop'
+            assert any(r['event'] == 'partial_take' for r in outputs)
+        if exit_kind == 'stalled_giveback':
+            assert trade['reason'] == 'no_follow_through' and trade['mfeR'] > .25
         assert replay.broker.balance == live.broker.balance
         assert not replay.broker.positions and not replay.broker.pending_entries
         structural = write_report(tmp_path, [dict(event='replay_input', payload=r) for r in prefix + inputs])
