@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b111a">
+  <meta name="color-scheme" content="dark">
   <title>Scalp Bot</title>
   <link rel="stylesheet" href="/static/styles.css">
   <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
@@ -11,8 +13,8 @@
 <main class="shell">
   <header class="topbar card">
     <div class="brand">
-      <div class="traffic"><i></i><i></i><i></i></div>
-      <strong>Scalp Bot</strong><span class="badge">PAPER</span>
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none"><path d="M6 13v11M14 4v17M22 2v12" stroke="currentColor" stroke-width="1.5"/><rect x="3.5" y="16" width="5" height="5" rx="1" fill="currentColor"/><rect x="11.5" y="8" width="5" height="9" rx="1" fill="currentColor"/><rect x="19.5" y="5" width="5" height="5" rx="1" fill="currentColor"/></svg></span>
+      <div class="brand-name"><strong>Scalp Bot</strong><small>Торговый терминал</small></div><span class="badge">PAPER</span>
     </div>
     <div class="actions">
       <a class="button secondary link-button" href="/replay">Реплей</a>
@@ -27,11 +29,12 @@
     <div class="metric card"><span>Открытый PnL</span><strong id="openPnl">—</strong></div>
     <div class="metric card"><span>Общий PnL</span><strong id="netPnl">—</strong></div>
     <div class="metric card"><span>Открыто позиций</span><strong id="positionCount">0</strong></div>
-    <div class="metric card"><span>Свободная экспозиция</span><strong id="availableExposure">—</strong></div>
-    <div class="metric card"><span>Экономика</span><strong id="costGate">—</strong></div>
-    <div class="metric card"><span>До автостопа</span><strong id="runTimer">10:00:00</strong></div>
+    <div class="metric card metric--detail metric--exposure"><span>Свободная экспозиция</span><strong id="availableExposure">—</strong></div>
+    <div class="metric card metric--detail metric--economics"><span>Экономика</span><strong id="costGate">—</strong></div>
+    <div class="metric card metric--timer"><span>До автостопа</span><strong id="runTimer">10:00:00</strong></div>
   </section>
   <div id="marketAlert" class="market-alert hidden"></div>
+  <div id="captureStatus" class="card capture-status hidden" role="status"></div>
   <section class="workspace">
     <aside class="card side">
       <div class="heading"><h2>Активные монеты</h2><span id="workCount">0</span></div>
@@ -64,6 +67,7 @@
           <button id="trendlineToggle" class="chart-chip active">Трендовые линии</button>
         </div>
       </div>
+      <div id="volumeLegend" class="volume-legend" title="Объём в базовой монете. Цвет соответствует направлению свечи, а не объёму покупок и продаж. Наведите курсор на свечу для просмотра её данных.">Объём: ожидание данных</div>
       <div id="chart"></div>
       <div id="positionCard" class="position-card hidden"></div>
       <div id="decisionStrip" class="decision-strip"></div>
@@ -88,7 +92,7 @@
   </section>
   <section class="bottom">
     <article class="card panel">
-      <div class="heading"><h2>Стратегии</h2><span>только по направлению тренда</span></div>
+      <div class="heading"><h2>Стратегии</h2><span>собственные условия входа</span></div>
       <div id="strategyList"></div>
     </article>
     <article class="card panel decision-panel">
@@ -100,6 +104,7 @@
           <button class="chart-chip" data-event-strategy="weak_level_rejection">Отбой</button>
           <button class="chart-chip" data-event-strategy="orderbook_density">Плотность</button>
           <button class="chart-chip" data-event-strategy="level_breakout">Пробой</button>
+          <button class="chart-chip" data-event-strategy="price_action_hypothesis">BETA</button>
         </div>
         <div>
           <button class="chart-chip active" data-event-type="all">Все</button>
@@ -151,6 +156,8 @@
     <div id="tradeReviewInspectorContent"></div>
   </section>
 </main>
+<script src="/static/exit-reasons.js"></script>
+<script src="/static/chart-tools.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

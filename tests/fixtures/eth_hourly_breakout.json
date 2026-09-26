@@ -1,0 +1,156 @@
+{
+  "source": "data/sessions/session-20260925T203717Z.jsonl",
+  "sourceSha256": "4e6d8fcad86af5483314e2b7daf5fe404b83ea0a6b8c3e37d0700b3ded909cc2",
+  "ts": 1790369728.0602067,
+  "iso": "2026-09-25T20:55:28.060207+00:00",
+  "symbol": "ETHUSDT",
+  "scope": "Recorded entry-context inputs only; not a portfolio replay or an alternative fill",
+  "recordedAssessment": {
+    "playbook": "level_breakout",
+    "action": "short",
+    "allowed": false,
+    "directionPlan": {
+      "playbook": "level_breakout",
+      "allowedDirections": [
+        "down",
+        "up"
+      ],
+      "primaryDirection": "down",
+      "source": "local_regime_preference_two_sided",
+      "localRegime": "bearish_impulse",
+      "htfBias": "bullish",
+      "reasons": [
+        "bearish local regime is preference/context only; both breakout directions require their own level/flow evidence"
+      ]
+    },
+    "flowClassification": "strongly_aligned",
+    "liquidityClassification": "unknown",
+    "blockers": [
+      "breakout_htf_opposed"
+    ],
+    "reasons": [
+      "bearish local regime is preference/context only; both breakout directions require their own level/flow evidence",
+      "entry context blocked: breakout_htf_opposed"
+    ]
+  },
+  "breakHoldSeconds": 55.04800009727478,
+  "context": {
+    "symbol": "ETHUSDT",
+    "observedAtMs": 1790369729038,
+    "lastPrice": 2683.3,
+    "legacyTrend": "flat",
+    "htfBias": {
+      "bias": "bullish",
+      "strength": 0.6,
+      "trend15m": "flat",
+      "trend1h": "up",
+      "alignment": "1h_only",
+      "legacyTrend": "flat"
+    },
+    "localRegime": {
+      "regime": "bearish_impulse",
+      "direction": "down",
+      "parent_direction": "flat",
+      "strength": 0.9434696543822837,
+      "structure_1m": "down",
+      "structure_5m": "flat",
+      "recent_move_pct": -0.0017808015465833754,
+      "recent_range_pct": 0.0005526683298564083,
+      "baseline_range_pct": 0.0003957022369731597,
+      "range_expansion_ratio": 1.3966772947353734,
+      "directional_efficiency": 0.605562579013913,
+      "impulse_threshold_pct": 0.0015,
+      "reasons": [
+        "recent 1m move exceeds impulse threshold",
+        "directional efficiency/range expansion confirms local impulse"
+      ]
+    },
+    "flowContext": {
+      "observedAtMs": 1790369729038,
+      "dominantDirection": "down",
+      "directionalScore": -0.9111855226439248,
+      "coherence": 1.0,
+      "horizons": {
+        "5s": {
+          "seconds": 5,
+          "tradeImbalance": -0.987108725872831,
+          "cvdUsd": -435605.1179,
+          "tradeNotionalUsd": 441293.95930000005,
+          "tradeCount": 259,
+          "ofiUsd": -1252434.4644,
+          "normalizedOfi": -2.544760522996242,
+          "ofiEventCount": 151,
+          "score": -0.9909761081109816,
+          "direction": "down"
+        },
+        "15s": {
+          "seconds": 15,
+          "tradeImbalance": -0.9117138045075427,
+          "cvdUsd": -663604.9413000001,
+          "tradeNotionalUsd": 727865.4091,
+          "tradeCount": 476,
+          "ofiUsd": -2370928.4126,
+          "normalizedOfi": -4.817373841692428,
+          "ofiEventCount": 457,
+          "score": -0.9381996631552798,
+          "direction": "down"
+        },
+        "60s": {
+          "seconds": 60,
+          "tradeImbalance": -0.7681129053993981,
+          "cvdUsd": -3270615.0510000004,
+          "tradeNotionalUsd": 4257987.3714000005,
+          "tradeCount": 1683,
+          "ofiUsd": -2397085.8767,
+          "normalizedOfi": -4.8705219176320815,
+          "ofiEventCount": 1805,
+          "score": -0.8376790337795788,
+          "direction": "down"
+        }
+      },
+      "longAlignment": {
+        "classification": "opposed",
+        "score": -0.9111855226439248,
+        "alignedHorizons": [],
+        "opposedHorizons": [
+          5,
+          15,
+          60
+        ],
+        "neutralHorizons": [],
+        "reasons": [
+          "multi-horizon flow is predominantly opposed to the trade"
+        ]
+      },
+      "shortAlignment": {
+        "classification": "strongly_aligned",
+        "score": 0.9111855226439248,
+        "alignedHorizons": [
+          5,
+          15,
+          60
+        ],
+        "opposedHorizons": [],
+        "neutralHorizons": [],
+        "reasons": [
+          "5s, 15s and 60s flow all align with the trade"
+        ]
+      }
+    },
+    "executionContext": {
+      "ready": true,
+      "bookFresh": true,
+      "bookSynced": true,
+      "bookAgeSeconds": 0.046255100052803755,
+      "candleFresh": true,
+      "candleAgeSeconds": 29.038000106811523,
+      "spreadPct": 3.7266085439072864e-06,
+      "bestBid": 2683.4,
+      "bestAsk": 2683.41,
+      "top5BidNotionalUsd": 449173.7339,
+      "top5AskNotionalUsd": 42988.2802,
+      "top5DepthUsd": 492162.0141,
+      "tradeBufferSeconds": 86.926
+    }
+  }
+}

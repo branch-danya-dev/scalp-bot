@@ -7,3 +7,15 @@ __pycache__/
 data/*.jsonl
 data/git-exports/
 data/raw-archives/
+
+# Local research evidence; publish only reviewed compact exports.
+data/sessions/
+data/run-logs/
+data/audit-*/
+data/e01-*/
+data/paper-captures/
+data/e06-independent-01/
+paper-analysis-*.zip
+
+# Local editable-install metadata.
+*.egg-info/

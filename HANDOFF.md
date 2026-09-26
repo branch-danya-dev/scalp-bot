@@ -1,182 +1,572 @@
-# Текущее состояние проекта
+# Текущее состояние и продолжение работы
 
-- Репозиторий: `branch-danya-dev/scalp-bot`.
-- Основная ветка: `main`.
-- Текущий технический HEAD перед созданием этого handoff: `ad49dabfe85701711cdcdc72e4b6011be5ea542c`.
-- Проект находится в paper-trading режиме. Live execution пока не подключён.
-- Активные торговые playbooks:
-  - `level_breakout`;
-  - `weak_level_rejection`.
-- `orderbook_density` используется только как liquidity evidence и самостоятельно сделки не открывает.
-- `trend_structure` отключён до отдельной проверки edge.
-- Breakout/rejection staged adds реализованы инфраструктурно, но для текущего профиля отключены.
-- Текущая market-data архитектура:
-  - Bybit `orderbook.50` — fast book для best bid/ask, spread, OFI, stop/target triggers и latency-sensitive strategy path;
-  - Bybit `orderbook.1000` — deep book для density, liquidity walls, VWAP, stop-side stress и depth-aware fills;
-  - L50 и L1000 имеют независимые websocket connections, sequence/sync/freshness состояния.
-- Strategy evaluation для engaged setups event-driven; polling `0.20s` и arbiter `0.25s` оставлены как fallback.
-- WebSocket ingest:
-  - `recv(decode=False)`;
-  - reusable `msgspec.Decoder`;
-  - typed `MarketMessage`;
-  - bounded `asyncio.Queue`;
-  - отдельный market processor;
-  - при опасном backlog — reconnect/resnapshot, а не drop orderbook deltas.
-- Recorder пишет JSONL через отдельный background writer queue/thread и не блокирует market-data loop.
-- Добавлена latency observability:
-  - Prometheus histograms;
-  - `/metrics`;
-  - OpenTelemetry traces;
-  - Grafana + Tempo + OTel Collector stack;
-  - timestamps от exchange receipt до paper fill.
-- Подготовлен Stage 27 для контролируемого 10-часового прогона:
-  - `SCALP_PAPER_RUN_DURATION_SECONDS=36000`;
-  - research frames каждые 3s;
-  - trade tape в research frames записывается как `delta_v1`;
-  - replay/UI frames не дублируют trade tape;
-  - post-run анализ строится как небольшой overview + почасовые shards.
-- Запуск 10h:
-  ```powershell
-  .\scripts\run-research-10h.ps1
-  ```
-- Сбор результата после прогона:
-  ```powershell
-  .\scripts\build-latest-10h-pack.ps1
-  ```
+Обновлено: 2026-09-26. Проект взят в работу по поручению владельца. Основной план — [production roadmap](docs/production-roadmap.md), правила сравнения — [experiment protocol](docs/experiment-protocol.md).
 
-# Последние коммиты
+## Последний инкремент: два обычных профиля с полной записью
 
-- `ad49dabfe85701711cdcdc72e4b6011be5ea542c` — Stage 27: подготовка 10h run, delta trade tape, latency snapshot в run summary, overview + hourly shard analysis bundle.
-- `9bc67fc95929506cc3981683e338e063ad465ea3` — Stage 26: end-to-end latency observability, Prometheus/OpenTelemetry/Grafana/Tempo.
-- `2e5202008da8915ae12945bc5bd71057a918db79` — Stage 25: `msgspec`, decoupled websocket ingest, bounded market queues, recorder background IO.
-- `5a3425c75a399ef5f56e4ca075835ea2851d5e3f` — Stage 24: dual L50/L1000 books и event-driven market hot path.
-- `b03c4e6fa70089c31e4d332ae50d413b5a807b27` — Stage 23: закрытие P1 strategy/execution gaps.
-- `712ad8ea0d8eca5e627050164eb51d2c5c59b7cb` — Stage 22: усиление breakout/rejection semantics и session-level structural setups.
+Запрос владельца: 1h текущего состава, затем 12h всех стратегий с данными для
+будущих отдельных симуляций. Подготовлены `.env.paper-capture-1h` и
+`.env.paper-capture-12h`, launchers `scripts/run-paper-capture-1h.ps1` /
+`run-paper-capture-12h.ps1`. Оба используют один обычный UI8000 и один портфель.
+Первый: breakout/rejection + density evidence; второй добавляет trend и beta.
+Инструкция и команды проверки: [paper-capture-profiles](docs/paper-capture-profiles.md).
 
-# Что уже проверено
+Полный InputJournal v4 подключён к обычному app через `SCALP_CAPTURE_PROFILE`.
+Inputs пишутся отдельно в gzip ограниченной фоновой очередью; обычные UI/review
+JSONL сохранены. Каждому запуску выделяется новая папка. Архивируются исходники,
+manifest, команды UI и все входы engine, включая scanner/REST/clock/scheduler/
+transport. На время записи состав заблокирован, повторный Start запрещён;
+Stop доступен. Потери записи или остаток диска менее 5 GiB останавливают paper.
+После автостопа нужен штатный Ctrl+C для footer и закрытия файлов.
 
-- Последний Stage 27 PR и post-merge workflow прошли успешно: **437 Python tests passed**, JavaScript syntax checks зелёные.
-- Проверена causal semantics breakout:
-  - post-retest response считается только после retest;
-  - pre-retest rolling move не может сам вызвать FIRE.
-- Проверена causal semantics weak rejection:
-  - response считается после absorption;
-  - требуется post-event micro response;
-  - старое движение до absorption не засчитывается.
-- Проверена structural identity:
-  - detector drift не создаёт новую breakout generation;
-  - rejection использует generation-based `setup_id`;
-  - current UTC day high/low сохраняют одну session identity при продолжении импульса.
-- Проверена economics/risk consistency:
-  - stop-side depth stress участвует в sizing;
-  - stressed risk сохраняется в portfolio/open-risk accounting;
-  - maker fill больше не считается полным от одного маленького trade-through print.
-- Проверена dual-book архитектура:
-  - L50 управляет fast executable path;
-  - L1000 остаётся источником depth/liquidity;
-  - stale/desynced fast book и deep book обрабатываются независимо;
-  - deep-only updates не спамят strategy evaluation.
-- Проверен event-driven FIRE path:
-  - engaged setup может пройти evaluate без ожидания 0.20s polling;
-  - новый FIRE может сразу вызвать arbiter без ожидания 0.25s arbiter tick;
-  - significant-event gating и coalescing ограничивают частоту тяжёлых evaluate.
-- Проверен decoupled ingest:
-  - websocket reader продолжает принимать сообщения при занятом callback;
-  - stale backlog не обрабатывается как свежий market state;
-  - recorder IO вынесен из market loop.
-- Проверена latency telemetry:
-  - `exchange → receive`;
-  - `receive → parse`;
-  - `parse → processor`;
-  - `book → features`;
-  - `parse → strategy`;
-  - `strategy → FIRE`;
-  - `FIRE → order`;
-  - `order → ack/fill`;
-  - exact newly-fired setup correlation.
-- Проверена Stage 27 long-run запись:
-  - delta trade tape сохраняет все новые prints между research frames;
-  - offline replay восстанавливает rolling tape из delta frames;
-  - при discontinuity выставляется `tradeDeltaGap=true`;
-  - sharded pack создаёт overview и часовые ZIP-файлы.
+`scripts/check-paper-capture.ps1` проверяет последнюю папку выбранного профиля:
+целостность inputs → индекс SQLite на диске → cold replay исходного портфеля →
+потоковое сравнение всех событий и финансовых результатов. Исключены только
+операционные latencyMetrics/recorderHealth в run_summary. Дубли одинаковой
+distribution metadata исключены из runtime fingerprint: способ запуска Python
+больше не создаёт ложную несовместимость; различные версии всё ещё различаются.
 
-# Найденные проблемы
+Изолированная симуляция каждой стратегии пока не реализована. Это следующий шаг
+после проверенной общей записи, с повторным исполнением отдельных портфелей на
+зафиксированном рынке. Недоступные исходному scanner монеты/периоды подписок
+восстановить нельзя. Не выдавать фильтрацию совершённых сделок за такую симуляцию.
+Прибыльность и реальная 12h нагрузка текущим изменением не доказаны. Новый
+торговый прогон не запускался; пользователь запускает 1h, затем проверяет запись.
 
-- Закрыто: L1000 использовался одновременно как fast-price source и deep-liquidity source, добавляя до ~200ms source latency в hot path.
-- Закрыто: strategy evaluation и arbiter были в основном polling-driven и могли суммарно добавлять сотни миллисекунд перед входом.
-- Закрыто: websocket reader блокировался на `await callback(message)`, поэтому тяжёлая strategy/recorder работа могла задерживать приём следующих WS сообщений.
-- Закрыто: recorder делал serialization/disk IO слишком близко к trading loop.
-- Закрыто: breakout/rejection могли использовать rolling micro-response, частично сформированный до causal event.
-- Закрыто: breakout identity зависела от geometry/center и могла повторно торговать ту же lifecycle generation после detector drift.
-- Закрыто: rejection strategy identity и engine/broker setup identity были разными.
-- Закрыто: moving current-day high/low мог создавать новые setups внутри одного продолжающегося impulse.
-- Закрыто: risk cap учитывал фиксированный stop slippage, но не стресс по реальной stop-side depth.
-- Закрыто: maker simulator мог считать весь order filled после одного малого trade-through print.
-- Закрыто: long-run frames многократно дублировали один и тот же rolling `recentTrades`, сильно раздувая JSONL.
-- Закрыто: старый 10h profile ограничивал `recentTrades` количеством prints, из-за чего на активном символе 80 trades могли не покрывать 60s flow horizon.
-- Открыто для проверки прогоном: реальный expectancy breakout/rejection после всех semantic/execution исправлений.
-- Открыто для проверки прогоном: насколько event-driven path реально уменьшил p50/p95/p99 decision latency на живом Bybit feed.
-- Открыто для проверки прогоном: есть ли систематическая задержка на конкретной стадии `receive/parse/features/strategy/arbiter/execution`.
-- Открыто для проверки прогоном: насколько conservative maker queue model занижает fills и насколько близка paper execution economics к реалистичной.
-- Открыто для проверки прогоном: остаются ли wrong-direction, late-entry, false-FIRE или target/stop placement ошибки на реальных 10 часах рынка.
-- Открыто для будущего live execution: instrument metadata (`tickSize`, `qtyStep`, `minNotional`, contract/status filters) и реальные private-order ACK/fill timestamps ещё не являются частью live trading path.
+Проверки: **927 passed за 133.75s**, один warning о недоступном pytest cache.
+11 новых тестов проверяют сжатые файлы и реальный production breakout через
+cold replay (обычный/event-driven режим, beta-control, public_state и автостоп),
+отказ при изменении комиссии, отдельный CLI-процесс, архив исходников, потерю
+очереди, API-блокировку состава/повторного Start и повреждённый gzip. JS/PowerShell
+syntax и оба `-Check` прошли; проверены изоляция/восстановление окружения и
+Windows PowerShell 5.1. Короткий синтетический writer-тест: 63002 строки за
+3.001s, без потерь, peak queue 505710 bytes; бесконтрольный burst корректно
+выявлен как переполнение. Это проверка журнала, не доказательство live-нагрузки
+engine. Локальные измерения: `data/audit-capture-writer-bench`.
 
-# Принятые архитектурные решения
+## Предыдущий инкремент: подтверждённый локальный пробой против `1h_only`
 
-- Не выбирать между быстрым и глубоким стаканом: использовать одновременно fast L50 и context/depth L1000.
-- Fast book отвечает за реакцию; deep book отвечает за liquidity/depth economics.
-- FIRE path — event-driven; polling остаётся fallback.
-- Не запускать heavy evaluate на каждый book delta: использовать significant-event gating + 50ms coalescing.
-- Не терять orderbook deltas при перегрузе очереди: fail-fast reconnect/resnapshot вместо drop-oldest/drop-newest.
-- JSON parsing в hot path — через `msgspec` и typed envelope.
-- Socket reader, market processor и recorder IO разделены.
-- Prometheus labels ограничены bounded-cardinality полями; `setup_id/event_id/trace_id` не используются как labels.
-- Конкретная causal correlation хранится в OTel trace/event ID и в session JSONL.
-- Paper execution latency явно помечается как `paper_taker` / `paper_maker`; не считать её реальным Bybit private-order RTT.
-- Research trade tape для длинного прогона хранить как delta sequence, а не repeated rolling snapshots.
-- Raw session JSONL остаётся локальным lossless source of truth.
-- Для больших прогонов не делать один монолитный upload:
-  - сначала `*-overview.zip`;
-  - затем только нужные `hour-XX.zip` shards.
-- Long-run overview должен содержать:
-  - global session report;
-  - critical events;
-  - latency summary;
-  - final Prometheus histogram snapshot;
-  - shard index.
-- Hourly shards должны сохранять causal trade tape, 3s market frames и более глубокий DOM вокруг важных событий.
+[Правило, границы и следующий прогон](docs/breakout-hourly-context.md). По запросу владельца исправлен baseline `level_breakout`: встречный часовой контекст больше не является безусловным veto при `1h_only`/нейтральном 15m, локальном тренде или импульсе в сторону входа, `strongly_aligned` 5/15/60s и уже подтверждённом breakout. `confirmation_ready` передаётся из штатного retest/sustained-confirmation; default-false исключает обход через early probe. Встречный 15m, прочие blockers и риск сохраняются. Новых флагов/портфелей нет; beta/E01/E06 остаются выключенными в обычном профиле.
 
-# Что делаем следующим шагом после прогона
+Снятие именно часового veto записывается как `entryContextAssessment.htfOverride=confirmed_local_breakout`, исходный HTF не меняется. Существующие ограничения свежести/стопа/пути/риска продолжают действовать. Из исходного ETH-события в 23:55:28 МСК извлечён небольшой regression fixture; повторная оценка его контекста допускает подтверждённый short. Это не полный replay и не альтернативный PnL. SHA256 исходной сессии повторно проверен, raw не изменён.
 
-1. Дождаться полного 10-часового auto-stop и убедиться, что записан `run_summary`, нет recorder errors/dropped rows и нет критических `tradeDeltaGap`.
-2. Остановить сервер и выполнить:
-   ```powershell
-   .\scripts\build-latest-10h-pack.ps1
-   ```
-3. Сначала анализировать только `*-overview.zip`.
-4. В первом проходе проверить:
-   - итоговый net/gross PnL и комиссии;
-   - breakout vs rejection;
-   - long vs short;
-   - regime breakdown;
-   - realized R, MFE/MAE, partial/runner lifecycle;
-   - exit reasons;
-   - wrong-direction / late-entry / missed-opportunity clusters;
-   - false FIRE / risk rejects / arbiter blocks;
-   - p50/p95/p99 latency по всем стадиям;
-   - market queue lag, recorder health и data continuity.
-5. По `shard-index.json` определить часы, где были:
-   - крупные убытки;
-   - сильные пропущенные импульсы;
-   - latency spikes;
-   - серии stop-outs;
-   - подозрительные maker fills/cancels;
-   - strategy/data errors.
-6. Подгружать только соответствующие `hour-XX.zip` и проводить causal разбор tick/DOM/strategy state для этих интервалов.
-7. По результату разделить выводы на:
-   - strategy edge;
-   - entry timing/latency;
-   - execution economics;
-   - risk/position lifecycle;
-   - data/telemetry integrity.
-8. После анализа вносить только подтверждённые данными правки и запускать следующий сравнительный paper run на том же формате записи.
+Добавлены 45 проверок: обе стороны, retest/sustained, ранний probe, смена HTF, слабый/отсутствующий поток, неготовность исполнения, лимит стопа, последующий arbiter и сохранённый ETH-контекст. Отдельно уточнён прежний test_risk: его setup попадал под порог минимальной прибыли раньше проверяемого reward/risk; тест теперь явно отделяет эти ограничения и проверяет конкретный отказ. Production risk-код не менялся.
+
+Проверки завершены: **916 passed за 133.89s**, один warning о недоступном pytest cache; diff check чист. Изменения находятся в текущей рабочей копии, commit не создавался.
+
+Следующий шаг: перезапустить сервер и провести обычный часовой paper-прогон с прежним составом стратегий, отдельно разобрать сигналы/исполнения с `htfOverride` и оставшиеся отказы. При отсутствии таких сигналов влияние правки ещё не проверено. Не менять одновременно ширину зон, возраст сценария и участие в потоке — это следующие отдельные вопросы. Новый торговый запуск в рамках этой правки не выполнялся, прибыльность не установлена.
+
+## Предыдущий инкремент: разбор 33 минут, график объёмов и отдельная paper beta
+
+UI follow-up 26 сентября: основной экран, разбор сделки и replay переведены на единую тёмную графитовую тему с бирюзовыми акцентами. Уплотнены метрики, обновлены карточки, таблицы, стакан и состояния кнопок; графики, объёмы и метки исполнения используют общую контрастную палитру. Проверены синтаксис JavaScript, diff check, контраст основных цветов и отображение сохранённой XPLUSDT в браузере на широком экране и при ширине 390 px. Горизонтального переполнения нет, ошибок в консоли основного экрана нет. Торговая логика не менялась; полный Python suite повторно не запускался. Для загрузки новых стилей — Ctrl+F5.
+
+UI follow-up26сентября: по запросу владельца добавлены явные метки исполнения в основной график (раньше только в разбор). Синяя стрелка входа/фиолетовый выход с временем и ценой, отдельные точки на фактической цене исполнения; текущая позиция и закрытые сделки выбранной монеты. Общий helper для main/review/replay, корректная привязка к таймфрейму, защита от переноса событий за пределами истории/в разрывах. В разборе добавлен отступ справа. Проверены JS syntax, long/short, одна свеча, открытые/закрытые сделки, пропуски и доборы; визуально — сохранённая XPLUSDT. Торговая логика не менялась, полный Python suite повторно не запускался.
+
+[Разбор всех десяти замечаний](docs/paper-current-1h-results.md), [правила и включение beta](docs/price-action-hypothesis-beta.md). Обычный прогон остановлен владельцем через1990.75s, source `data/sessions/session-20260925T203717Z.jsonl`, SHA256 `4e6d8fcad86af5483314e2b7daf5fe404b83ea0a6b8c3e37d0700b3ded909cc2`. 5 сделок, gross+11.44596/fees10.53500/net+0.91096; breakout2/−8.41268, rejection3/+9.32364. Validator checks_passed с предупреждением о ручном Stop, recorder без потерь. Производные `data/audit-paper-current-1h`, raw не менялся. Полный replay не выполнялся.
+
+Причины: ETH в23:55:28 имел подтверждённый short/strongly_aligned flow, но `breakout_htf_opposed` от bullish `1h_only` запретил вход. Позже цена ещё находилась внутри широкой зоны2672.65–2683.81. SUI long: ARM→FIRE82.162s, локальный receipt→fill12.84ms; большая верхняя тень на момент входа не подтверждена (15.79% диапазона), volumePace1.99×. XPL: реальный stop.11224/target.11018 были в плане, UI округлял всё до.11; участие слабое (volumePace.336×). Стороны: лишь1long/4short, отдельный long-фильтр не обоснован. Случайный5min warmup не добавлен — история уже была загружена, tape baselineReady.
+
+Исправлен UI: общая гистограмма/легенда объёмов в основном графике, разборе и replay, цены малых монет, локальное время mini-chart, шкала со всеми trade-levels и окно/маркеры входа-выхода, формат точек трендовых линий. `scripts/run.ps1` направляет native stdout/stderr через host, чтобы transcript действительно содержал Python output; старый лог его не сохранял полностью.
+
+По явному ответу владельца добавлена `price_action_hypothesis`: отдельная paper-стратегия, default-off через существующий UI-toggle, фиксированные правила v1 (закрытый1m pattern+volume+flow, 1h→15m→5m, trigger/stop/2R, вход≤60s, chase≤.25R, без partial/runner). Общий engine/риск/broker/manifest, без конкурента или нового сервера. Profitability не проверена. Beta также требует согласованного HTF и не исправляет ETH-veto автоматически. Baseline breakout/rejection и их параметры не менялись.
+
+Проверки: **871 passed за137.87s**, один warning о недоступном pytest cache;28 новых beta-тестов, включая реальные long/short открытия через engine и выходы stop/target/bot_stop с комиссиями. Browser: сохранённая XPL сделка, основной график, смена1m→5m объёмов, beta-card на синтетическом сигнале. JS syntax + volume/hover/missing/autoscale checks. Терминальный capture проверен на PowerShell5.1 и7.6:stdout/stderr,exit0/7, восстановление error policy. Торговый сервер/новая запись в рамках этого инкремента не запускались.
+
+Следующая основная торговая правка: устранить необоснованное доминирование `1h_only` над подтверждённым локальным ETH-пробоем; затем отдельно проверить ширину/выбор зон и устаревание SUI/XPL-входа. Не снимать все HTF/flow-гейты одновременно, не приписывать альтернативе PnL по hindsight и не запускать новый12h без конкретного изменения. Один обычный UI сохранён. Если владелец выбирает отдельную запись beta, включить её до Start и отключить остальные входящие стратегии; это диагностика beta, не закрытие проблем baseline.
+
+## Предыдущий инкремент: подготовка обычного часового прогона одного бота
+
+По прямому указанию владельца парные запуски больше не являются текущей задачей. Подготовлен `scripts/run-paper-1h.ps1`: обычный `.env.example` + `.env.research-1h`, один engine/портфель, основной UI8000, 3600s после Start. Label `paper-current-1h`. Торговые правила не менялись; E01/E06false, breakout/rejection могут торговать, trendfalse, density=evidence-only. Сохраняются raw `data/sessions` и терминальный transcript `data/run-logs`. Launcher изолирует профиль от локального `.env` и предыдущего SCALP-окружения, сохраняет необязательные process fee credentials и восстанавливает окружение при выходе. Инструкция: [обычный 1h](docs/paper-current-1h.md).
+
+Общий словарь причин закрытия подключён к основному UI, разбору сделки и replay. Отсутствующая причина теперь явно помечается, неизвестный код сохраняется на экране; raw-код известной причины доступен при наведении. Журнальные reason и торговый код не изменялись. Выход по таймеру отделять от выхода по стратегии при анализе.
+
+Существенное уточнение прошлого анализа: обычный `.env.example` содержит `enforce_min_net_profit_gate=false`, тогда как разобранные E06-портфели использовали true. Поэтому вывод об отключении partial из-за порога1 USDT относится к тем конфигурациям и не переносится автоматически на этот часовой запуск. E07 и новые сравнения отложены. Следующий шаг после записи: проверить целостность, разобрать реальные причины закрытий, gross/fees/net, MFE/MAE, partial и причины отказов по каждой стратегии. По результату выбрать конкретное исправление, не наращивать фильтры заранее.
+
+Проверки подготовки: **843 passed за137.79s**, один warning о недоступном pytest cache. REST Bybit и runtime WS (L50/L1000/publicTrade/kline) прошли; комиссии configured_no_credentials. Проверено совпадение всех торговых полей с `.env.example`, автостоп покрыт существующим lifecycle-тестом. JS syntax и рендер карточек/причин проверены через Node; launcher — с заглушкой сервера на успешном и ошибочном выходе, с восстановлением окружения и записью transcript. Часовая торговля ещё не запускалась.
+
+## Предыдущий инкремент: разбор e06-independent-01
+
+Последнее уточнение владельца: система чрезмерно усложняется; приоритет смещён на упрощение торговых правил и проверку их взаимодействий. Подтверждено математическое противоречие: базовый риск5 USDT × riskScale0.65 × partial30% =0.975 USDT gross < обязательного1 USDT net. В19/20 портфельных входов новой записи riskScale=0.65. Partial-порог и коэффициент0.65 уже были в исходном HEAD4abc55b, risk.py не менялся; последнее ухудшение нельзя автоматически объяснять новой ошибкой E06. Старый12h: breakout−52.71 / rejection+48.57, последнему помогла одна NEAR+44.75. Более удачный общий результат не доказывает устойчивости старой версии. Следующее торговое изменение должно сокращать конфликтующие условия существующего выхода, а не добавлять индикаторы/скоринги. Новые правила и торговый код в этом уточнении не менялись.
+
+[Отчёт](docs/e06-independent-01-results.md), производные цифры и hashes: `data/e06-independent-01-review.json`. Новая запись после удаления старой: smoke завершился и прошёл полный replay 828208 inputs; independent оборван через 2438.2088732s (40м38с). Fault: ConnectionClosedError, orderbook.1000.ZECUSDT; backpressure нет. Сообщение/close code не сохранены, первопричина сети не установлена. Источник сохранён, независимый период невалиден, новая запись в ходе разбора не запускалась.
+
+Smoke: контроль 6 сделок / net −15.95238, E06 7 / net −19.43917; independent: контроль 2 / net −4.00419, E06 5 / net −8.39527. Все закрытые убыточны, последних открытых позиций нет. Торговал breakout; rejection включён, в smoke нет сигналов, в independent один уникальный SOXL long (8 повторов) при уже открытом SOXL short. Density=evidence-only, trend=false. E06 хуже в обоих периодах, остаётся default-off.
+
+Конкретная проблема выхода: общий min net 1 USDT отключает положительный partial 30% на 1R. PartialPlanned=false у контроля в 8/8 сделок и кандидата в 11/12 по двум периодам (наблюдения двух портфелей зависимы). Независимые контрольные SOXL/SUI имели MFE 1.596R/1.348R, но ушли в минус; планируемый partial net 0.8522/0.7904 ниже 1 USDT. Следующий шаг **E07**, отдельно от E06: определить правило экономики partial, проверить risk↔broker и полный контроль/вариант на завершённом smoke. Не подбирать пороги и не объявлять holdout-успех; не повторять 12h старой версии. Также открыты transport fault diagnostics/recovery и видимые причины пропуска сигналов при занятом инструменте. Торговый код/профили в этом разборе не изменены.
+
+Монитор переведён на порт 8001 по умолчанию; основной UI со свечами сохранён на 8000, запускается через scripts/run.ps1. Это два разных источника/движка, адаптера paired к основным графикам пока нет. Изменены только монитор, документация и производный отчёт. 9 тестов монитора прошли; старый процесс монитора на 8000 остановлен, новый запущен на 8001.
+
+## Предыдущий инкремент: UI для парной записи E06
+
+Пользователь остановил запущенный E06 и удалил `data/e06-independent-01`; завершённого независимого периода для анализа сейчас нет. Добавлен отдельный read-only монитор `tools/e06_monitor/server.py`, без импортов scalp_bot, сети Bybit и изменений capture. Команда: `.\.venv\Scripts\python.exe tools/e06_monitor/server.py --capture data/e06-independent-01 --port 8000`. Основной launcher запускается отдельно прежней командой. Монитор может ждать ещё не существующую папку; смена smoke → replay → independent автоматическая. [Инструкция UI](docs/e06-independent-capture.md#наблюдение-в-ui).
+
+В UI: два портфеля, капитал/баланс/открытый PnL, график капитала, позиции со временем снимка, закрытые сделки, таймер и market health. История читается ограниченными порциями, финальная недописанная строка ждёт продолжения, данные промежуточных этапов не смешиваются. При отсутствии свежих записей показывается предупреждение, наличие replay-артефактов не выдаётся за heartbeat процесса. Финансовые показатели берутся из записанного equity и full-lifecycle trade_closed, частичные выходы не удваиваются. Замороженные исходники, launcher и профили в этом инкременте не менялись.
+
+Проверки: **9 тестов passed** в `tests/test_e06_monitor.py`; HTTP/статика, read-only, отсутствие резервирования output, переходы фаз, partial rows/UTF-8, корректность PnL, ограничение графика. В браузере проверены ожидание новой записи, исторический `e01-smoke-02`, график, позиция, причина сбоя и фильтр сделок. Исторические журналы читались без изменений; новая рыночная запись для проверки UI не запускалась.
+
+## Предыдущий инкремент: штатный E06 и подготовка независимой записи
+
+[Инструкция](docs/e06-independent-capture.md). Добавлен штатный e06_conditional_breakout_hold=false; engine передаёт его в breakout. Native выбирает sustained3s при текущих nearCloses>=2 и compressedPullbacks>=2, иначе базовый hold8; таймер/retest/flow/риск прежние. Runtime overlay для новых прогонов не используется. Manifest v4 фиксирует флаг, validation поддерживает исторический v3 с прежним набором полей; offline bootstrap/scheduler принимают новый формат без снятия source/runtime guards.
+
+E01Comparison/LiveSmoke теперь имеют явный experiment E01(default)/E06. E06: baseline flagfalse, candidate true, E01false обе стороны; feed paired-feed-v3 связывает experiment с chain. E01 по умолчанию сохранён. Audit обобщён на оба эксперимента. Новый scripts/replay-paired-capture.py потоково сверяет ВСЕ outputs обоих портфелей, память только под closed trades; default import path не меняется, чтобы не дублировать editable metadata/runtime fingerprint.
+
+Готова команда из G:\scalp-bot: .\.venv\Scripts\python.exe scripts/run-e06-paper.py --output data/e06-independent-01. Авто:30m smoke→audit→полный paired replay smoke→новый12h independent→audit. Warmup/replay/audit добавляют время. Ошибка любого gate блокирует следующий этап, retries нет, PnL не используется для выбора конца. Новая запись НЕ запускалась, только --check без сети. Свободно≈810GiB, необходимо100GiB; runtime reserve5GiB проверяется раз/минуту, пределы inputs5m/60m. Существующие output dirs не перезаписываются.
+
+Профили configs/e06-smoke.json и e06-independent-12h.json различаются только label/duration; .env/секреты игнорируются. Перед началом protocol.json замораживает правило/критерии/source/profile/runner hashes; protocol-sources.zip сохраняет инструменты/профили, каждый E06 capture архивирует hash-verified source-at-capture.zip. Изменение кода/профилей до/во время записи аннулирует автоматическую цепочку. Новые root completed/failure и фазовые артефакты документированы.
+
+Протокол: фиксированные12h/6блоков2h; минимум30 уникальных различающихся допуском/временем setups,3symbols,3blocks; кандидат net>0, прирост>=.1%капитала, sampledDD<=110%контроля (при0 у контроля0 у кандидата). Недостаточность покрытия=insufficient, даже еслиплюс. До вывода нужен полный12h replay и анализконцентрации/неопределённости. Этиусловия не даютдопускlive. Не подбиратьпараметрыпопериоду.
+
+Проверки: полный831 passed135.38s; после финальных script/workflow checks7 профильных passed3.53s; CLIpreflightpassed, diffcheckчист. Native↔overlay решения/состояния совпали наlong/shortпоследовательностяхпотериструктуры/новогоэпизода, E06 fixturecapture/audit/sourcearchive/fullpairedreplaypassed. Реальные market smoke/12h остаются следующим действием пользователя; после них разобрать всю новую запись.
+
+## Предыдущий инкремент: E06 — полный условный hold3/8
+
+[Отчёт](docs/e06-conditional-breakout-hold.md). scripts/compare-conditional-breakout-hold.py реализует зафиксированные текущие nearCloses>=2 И compressedPullbacks>=2 →3s, иначе8s. Native evaluate один раз на сохраняемом состоянии; после родного pressure временно выставляется sustained hold, finally восстанавливает8s. Таймер/pressure/retest/response/risk не меняются. Это research overlay вне production/captured source. Base engine manifest НЕ описывает overlay: обязательны scenario/scenarioSha256 и researchCodeHashes runner+helpers. Source/runtime guards не ослаблялись, рабочий профиль8s/E01off прежний.
+
+Полные e06-control-01 и e06-candidate-01 прошли1091002 inputs/hash. Контроль с disabled overlay воспроизвёл93755 outputs/trades/balance/DD, candidate93746 outputs; подписки совпали, позиции/pending закрыты. Candidate сначала pending_control, finalize отдельно проверил успешный полный контроль, contracts/hashes и перечитал saved candidate ledger/count/trades/net. Итог comparison.json status E06_development_comparison_validated; failure нет. Runtime control774.03s/candidate747.30s, независимые расчёты параллельно, сравнение только после обоих.
+
+Контроль5trades/net+2.02238744/fees6.46800794/DD14.08723820. E06 6trades/net+7.81893298/fees6.94479967/DD12.33226105. Delta+5.79654554. Добавлен только ZEC short+5.74821428, ENA long из прежнего all3s отсутствует. BTC раньше6.39469s, вклад+.00119922; XPLlong+.03046601/ONDOlong+.01666603 от увеличенного капитала; XPLshort/ENArejection без изменений. 99.17% прироста — одна ZEC сделка. Attribution.json с hash comparison, сопоставлением всех setups и суммой вкладов; это не контрфактический портфель без ZEC.
+
+Следующий шаг: перенести ТОЧНО E06 в штатный default-off вариант с явным manifest-параметром, тестами соответствия overlay и отдельными paper-портфелями; затем технический smoke и зафиксированная независимая проверка на новой записи. E01false обе стороны. Smoke-03 остаётся development, параметры не перебирать, production/live не разрешены. Позитивный единичный результат не доказывает edge. Live-прогон сейчас ещё не подготовлен.
+
+Проверки:5 профильных passed4.89s (4 новых E06 + previous hold integration), включая настоящий retest, thresholds/reset/isolation/exception, full control/candidate/finalize и отказ при изменении scenario/ledger. Diff check чист; full suite не повторяли, production source не менялся.
+
+## Предыдущий инкремент: E03 — причинный post-break response
+
+[Отчёт](docs/breakout-post-break-response.md). scripts/replay-breakout-response.py добавляет внешний read-only observer: book mid при создании текущего break_started_at → текущий mid, направленные bps. Якорь по поколению+началу эпизода; reset/new generation обновляют его. Отсутствующий anchor/price/последующее наблюдение дают null. Tape НЕ используется, поэтому отличие от rolling levelFlow включает источник цены и окно; не приписывать всё времени. Возвращается исходный decision, captured/production source и профиль не изменены.
+
+Два полных replay прошли: каждый1091002 inputs/hash; outputs8s=93755,3s=93703 точно совпали с соответствующими проверенными ledger (прежние исключения manifestId/performance histograms). Net8s+2.02238744,3s+1.36635965 неизменны, сделки совпали, positions/pending пусты. Время670.11/671.46s. Артефакты response-8s-01 и response-3s-01 содержат scenario/response/result, failure нет. В post-break-response-analysis.json hashes runner/result/trace, match входов с последним сигналом и pre-signal extrema.
+
+Наблюдения: 8s24эпизода/3206evals,3s20/2087,11активных поколений на каждой стороне. Rolling>=5 при post-break<5:286/217 evaluations, НЕ независимые сигналы. На реальных входах: BTC8 rolling5.178bps→post.0239; BTC3 5.226→0; ENA3 21.5905→11.983; ZEC3 33.5919→−1.6443. Максимум до сигнала BTC8=1.0051, BTC3=0, ENA=16.7762,ZEC=1.2648bps. Простые обязательные post-break5bps убирают BTC/ZEC, оставляют ENA. Такой E03 НЕ внедрять; это локальная классификация, НЕ PnL нового портфеля.
+
+Следующий шаг зафиксирован в отчёте: E06, условные3s только при текущих nearCloses>=2 И compressedPullbacks>=2, иначе8s; пересчёт каждый evaluate, таймер при потере структуры не обнулять, retest не менять. Остальные response/flow/risk/E01 остаются прежними. Сначала контроль/parity, затем независимый полный paired replay, без перебора порогов; development-результат потребует будущего holdout. E06 ещё НЕ реализован. Рабочие8s/stop0.6%/E01off сохранены, новый live-прогон пока не нужен.
+
+Проверки:3 новых теста, всего7 профильных passed за3.88s; diff check чист. Full suite не повторяли.
+
+## Предыдущий инкремент: признаки ENA/ZEC до входа
+
+[Отчёт](docs/breakout-entry-evidence.md). Новый read-only scripts/analyze-breakout-entry-evidence.py проверил hashes обоих полных ledger и выделил 14 первых BREAK / 3 готовых поколения / 3 breakout-входа у 3s, 14 / 1 / 1 у 8s. Артефакты entry-evidence.json в hold-3s-portfolio-01 и baseline-replay-05. Признаки берутся из trade_opened.plan, история — только предшествующие решения того же поколения с явным возрастом; exit/future не используются.
+
+ENA на входе: nearCloses=0, compressedPullbacks=0, но pressureScore=4 (flow+acceleration+volume+forming); ZEC 5/2/5, BTC 5/2/4. ENA имеет сильный buy imbalance .749, но 5s price move4.79bps против ZEC21.71. Структура/strong alignment не универсальный фильтр: BTC тоже проходит и убыточен. В 14 первых BREAK оба структурных балла есть у7, при этом ENA сначала2/2 → вход0/0, BTC5/0 → вход5/2. Не переносить признаки первого BREAK на поздний вход.
+
+Freshness отсчитывается от FIRE и равна fresh/0s у всех; ENA arm→fire9.313s, НЕ266s с первого BREAK. Sustained response использует rolling levelFlow, а не окно после break_started_at. Baseline BTC: hold9.482s, directionalResponse5.178bps, последние5s всего.012bps. Это основание измерить post-break response, не доказательство, что его не было.
+
+Следующий шаг — существующая E03 из roadmap: сначала causal post-break telemetry без изменения решений и проверка parity, затем отдельное правило/полный paired8s/8s replay с прежним порогом5bps и E01=false. Не смешивать с ускорением3s или структурным фильтром. Новый live-прогон пока не нужен. Рабочие8s/stop0.6%/E01off сохранены. 3 новых теста passed за0.05s (causal prefix, поколения, missing/hash/order); full suite не повторяли, production source не менялся.
+
+## Предыдущий инкремент: полное сравнение портфелей hold 8s/3s
+
+[Отчёт](docs/breakout-hold-portfolio-comparison.md). scripts/compare-breakout-hold.py воспроизвёл независимый 3s-портфель от cold start; контроль 8s взят из уже полностью проверенного baseline-replay-05. E01=false на обеих сторонах, единственное различие manifest — breakout_hold_without_retest_seconds. Все 1091002 inputs/hash проверены, activations/deactivations совпали, позиции/pending закрыты. Никаких одношаговых подмен стратегии в этом сравнении. Рабочий профиль/production source не менялись.
+
+Результат: 8s — 5 сделок, net +2.02238744, fees6.46801, sampledDD14.08724; 3s — 7 сделок, net +1.36635965, fees8.89517, sampledDD14.73068. Delta **−0.65602779 USDT**. Новые ENA long breakout −6.39915390 (возврат внутрь уровня), ZEC short +5.74821428 (target); вместе −0.65093962, остальные изменения −0.00508818. Два добавленных трейда gross +1.77846, fees2.42940: больше пойманного движения не улучшило net. ENA появился ~266s после первого BREAK, вне прежних +100s окон; одношаговая диагностика не покрывала этот побочный эффект.
+
+ZEC прошёл арбитр с riskScale=.65 из-за встречной поддержки; ENA без встречного зрелого препятствия, scale1, flow aligned, freshness fresh. На этих локальных решениях E01 запрещал бы прибыльный ZEC и не убирал ENA; полный combined 3s+E01 портфель НЕ запускался, его PnL не утверждать.
+
+Артефакты data/e01-smoke-03/hold-3s-portfolio-01: scenario/result/candidate-events/equity/attribution/validation. Кандидат 93703 output events; повторная сверка сохранённого ledger, fees/net и final equity прошла. Runtime 594.10s. Новый integration test 1 passed за 2.29s; full suite не повторяли (production source неизменён). Diff check проходит.
+
+Решение: сохранить рабочие 8s и max_stop_pct=.6%; не продвигать простое сокращение hold по этому development-результату. Следующий предметный шаг — разбор ложного ENA против успешного ZEC по доступным ДО входа flow/price-response/удержанию уровня, затем отдельная фиксированная гипотеза. Не подбирать таймер до выигрыша на этой же записи, не включать E01 вместе с hold без проверки взаимодействия. Нового live-прогона пока не требуется; будущий holdout остаётся обязательным для нового правила.
+
+## Предыдущий инкремент: полный baseline replay и проверка hold у ZEC
+
+[Исследование](docs/breakout-confirmation-study.md). scripts/replay-e01-breakout-window.py восстановил baseline с холодного старта на всех 1091002 inputs; 93755 output events совпали с исходным журналом, balance/trades/net +2.0223874394 совпали. Исключены только random manifestId и run_summary.payload.latencyMetrics; tuple/list нормализованы после JSON. Source/runtime guards не отключались. Candidate не воспроизводился. Время 648.01s, артефакт data/e01-smoke-03/baseline-replay-05/result.json.
+
+Точная captured source восстановлена в data/e01-smoke-03/captured-source (68 hash-verified files). Не редактировать её. Скрипт сравнивает outputs потоково, хранит только closed trades. Первые четыре попытки — отладка comparator/settlement, причины в baseline-replay-attempts.json; не рыночные эксперименты.
+
+На baseline-history выполнены независимые одношаговые копии breakout с hold 0s/3s в окнах −30..+100s всех 14 первых BREAK; официальное состояние не меняется, гипотетические ордера не создаются. 6527 trace rows; 90 cross-checks stop geometry совпали. В первых 100s того же поколения 0s даёт сигналы у 4/14 (BTC, ENA day_high, DOGE short, ZEC), 3s у 1/14 (ZEC). ZEC: +3.136s mid1581.525, stop1589.43745, distance0.5003%, target1565.44; 6 evaluations до +4.232s. На +8.114s distance0.7251% >0.6%. Это подтверждённый механизм чувствительности к задержке, не доказанная упущенная прибыль. В прежнем отчёте цена 1580.89 — lastPrice; стратегия использует mid.
+
+Следующий шаг — отдельное полное offline сравнение 8s/3s через arbiter/risk/execution, с одинаковым E01 flag (для изоляции использовать false на обеих сторонах) и остальными параметрами captured baseline. Вначале проверить, допускает ли арбитр ранний ZEC вообще; затем целый net/fees/изменённые сделки. Не менять live profile, не повышать max_stop_pct, не смешивать E01 с hold. Smoke уже development data, не holdout. Новый рыночный прогон пока не нужен.
+
+Проверки: 10 профильных passed за 3.64s (4 новых replay/probe и 6 предыдущих analysis); полный suite не повторялся, production source не менялся. Diff check проходит.
+
+## Предыдущий инкремент: разбор решений smoke-03
+
+[Разбор](docs/e01-smoke-03-decisions.md): 34 поколения уровней, 14 встречались в BREAK, лишь 1 готовый breakout / 1 различающееся открытие (BTC). Всего 6 уникальных готовых setup всех стратегий. E01 помог на одной BTC-сделке; общий BTC rejection также отказан обоснованно по наблюдаемой цене (уровень стопа пересечён через 50.62 s).
+
+scripts/analyze-e01-decisions.py считает signal identities, наблюдаемые открытия и отказы, затем 60/180/300s tape diagnostics по receipt monotonic после отказа и первого WAIT/BREAK. Source archive проверен, chain всех 1091002 inputs проверена; это анализ данных без исполнения старого кода, не replay parity. data/e01-smoke-03/decision-analysis-with-breaks.json содержит все 14 случаев на портфель, break-reason-timeline.json — причины baseline; исходники сохранены.
+
+Главная находка: ZEC short после первого BREAK дал до 1.828% движения по направлению, против 0.070%; но после 8.1135s ожидания подтверждения стоп 0.7251% превышал предел 0.6%. Это не E01-блокировка: сигнал не дошёл до арбитра. Есть также DOGE/XRP с благоприятным движением и противоположные отрицательные случаи; экстремумы не считать упущенной прибылью. Следующий конкретный шаг — локальное детерминированное воспроизведение ZEC ARMED/BREAK/stop-distance и проверка возможного более раннего подтверждённого входа при прежнем риске; не ослаблять пороги по одному примеру. E01/профиль не менялись, новый рыночный прогон не нужен.
+
+Проверки: 23 профильных passed за 21.88s, 6 новых тестов диагностики. Production-код не менялся, полный набор не повторяли; последний полный результат 806 ниже. До 72h по-прежнему нужны суточные метрики, bounded replay, нагрузка/хранение и live-проверка shutdown.
+
+## Предыдущий инкремент: smoke-03 и закрытие записи
+
+[Отчёт smoke-03](docs/e01-smoke-03-results.md): 30 минут, baseline 5 сделок / net +2.02239 USDT, candidate 4 / +3.10176. Candidate избежал одного убыточного BTC breakout; это не доказательство edge. Нет backpressure, max queue lag 426.20 ms; clock expired около 29.91 s (1.66%).
+
+Исходный feed невалиден: 17 callbacks дописали строки после footer. Исходник сохранён; отдельный feed-sealed-prefix.jsonl побайтово скопирован до footer, операция в recovery.json. Новый scripts/audit-e01-capture.py ДО изменения production source проверил все 1091002 входа, source/runtime, конфигурации, завершение и ledger/net/fees; analysis.json сохранён. Полного replay нет. Повторный аудит старой записи после правок source требует соответствующего checkout, guard не ослаблять.
+
+Исправлено: emit игнорирует callbacks при closing под lock; closing устанавливается после stop до finish/footer. stream_symbol владеет двумя дочерними задачами до завершения обеих при отмене/ошибке. Добавлены 3 теста аудита, тест поздних callback и 3 варианта завершения split streams. Следующий шаг — уникальные breakout-кандидаты/различающиеся допуски на существующих данных; новый рыночный прогон пока не нужен. До 72h ещё нужны суточные метрики, bounded replay и оценка нагрузки/хранения. Проверки полного набора фиксируются ниже после завершения.
+
+Проверки завершены: **806 passed за 127.94 s**, SCALP_DISABLE_DOTENV=1, pytest cache отключён; 33 профильных теста, diff check проходит. В data/e01-smoke-03/source-at-capture.zip сохранены 68 manifest-файлов: каждый SHA-256 совпадает с capture, включая восстановленные до текущей правки e01_live/bybit. Использовать архив для соответствующего source checkout при будущем replay; текущий код не откатывался.
+
+## Предыдущий инкремент: smoke-02 и вычисления trade flow
+
+[Разбор второго smoke](docs/e01-smoke-02-results.md): 16m11s до ETH queue lag 523 ms (предел 500, queue 202). Проверены все 601255 входов по chain; завершения нет, у baseline одна открытая позиция. 685.82 s применения market inputs против ~13.4 s record() двух портфелей; простого уменьшения снимков оказалось недостаточно. Clock expired: 111/3312 health snapshots против 693/5174 в smoke-01; 115/170 clock samples rejected RTT, пределы не менялись.
+
+После cProfile оптимизирован compute_trade_flow (один проход, прежний sum/порядок/границы), добавлен optional trade_flow в Strategy.evaluate: engine передаёт отдельную копию текущего расчёта каждому playbook, standalone fallback сохранён. Никакого кеша между оценками. E01 JSON-copy обходит deepcopy scalar dispatch, сохраняя mutable isolation/aliases/cycles. Профиль переименован в v3, торговые настройки и guard limits прежние.
+
+На одинаковых 20000 реальных входах старый calculation + per-strategy recompute против нового: 19.06 s → 14.52 s (-23.8%); по 1691 событию каждого портфеля полностью совпали кроме random manifestId, input hashes одинаковы. Артефакты data/e01-smoke-02-benchmark-final. Golden 26 cases зафиксированы до изменения compute_trade_flow; тест реального breakout запрещает fallback расчёт в стратегии и проверяет закрытую сделку. Тестовый CaptureStrategy обновлён под расширенный контракт; проверяются независимость словарей flow и пересчёт на следующем tick. Следующий шаг — 30m smoke-03, не 72h; live успех ещё не доказан.
+
+Проверки: **799 passed за 117.20 секунды** в полном наборе, SCALP_DISABLE_DOTENV=1, pytest cache отключён. Профильные market-context/E01/golden: 49 passed. Diff check проходит. Прежние 3 падения полного набора были в тестовом CaptureStrategy без нового optional параметра; адаптер обновлён и проверки усилены, торговые проверки не удалялись.
+
+## Предыдущий инкремент: анализ smoke-01 и снижение нагрузки
+
+Пользователь завершил первый E01 smoke с ошибкой. Разобраны data/e01-smoke-01 и сохранён analysis.json; первичные файлы не изменялись. [Отчёт](docs/e01-smoke-01-results.md): 24m13s после Start, ENA затем XPL MarketDataBackpressureError; 732747 входов проверены по цепочке до обрыва, footer отсутствует. 3.19/3.67 ГБ событий портфелей — повторные snapshots. 44/72 clock samples отклонены по RTT; 693 health-снимка с expired clock. Одна baseline-позиция осталась открытой: экономического итога E01 нет.
+
+Smoke profile v2: research/engaged snapshots 5s, idle 15s, trade deltas в снимках; clock poll 5s. Никакого увеличения market lag/clock RTT limits, уменьшения universe или фильтрации общего input. Добавлены per-category processing/recording timings в performance.json; первая ошибка не перезаписывается; bybit opt-in on_backpressure сообщает текст локальной ошибки, не меняя transport schema обычного журнала. Реальный эффект на нагрузку ещё не проверен. Следующий шаг — новый 30m smoke в data/e01-smoke-02, затем разбор; не запускать 72h.
+
+Проверки инкремента: **46 профильных тестов passed**; полный набор **771 passed за 126.08 секунды**, SCALP_DISABLE_DOTENV=1, pytest cache отключён. Diff check проходит.
+
+Дополнительно обработаны одни и те же первые 50000 входов реального smoke: прежние snapshots — 67.26s/265.84MB/3550 кадров; новый профиль снимков — 56.35s/77.96MB/746 кадров. Локальная экономия времени 16.2%, объёма 70.7%; не гарантия живой нагрузки. На фрагменте нет сделок. Файлы/результат в data/e01-smoke-01-benchmark; исходные данные не изменены.
+
+## Предыдущий инкремент: E01 live smoke
+
+Проверки: **768 passed за 116.87 секунды** при SCALP_DISABLE_DOTENV=1, pytest cache отключён. Профильные E01 + regression risk: 22 passed. Первый запуск полного набора с автозагрузкой локального .env дал один config-dependent failure в test_risk; изолированный запуск проходит без изменения риск-логики. CLI --help и diff check проходят. Реальный сетевой smoke ещё не запускался.
+
+Добавлены scalp_bot/e01_live.py, e01_feed.py, scripts/run-e01-smoke.py, configs/e01-smoke.json и [инструкция 30-минутного запуска](docs/e01-smoke.md). Общие REST clock/scanner/bootstrap/context и WebSocket union активных символов двух независимых движков. Полный input и output на диске; в памяти recorder хранит только trade_closed. Health callbacks явно включены в feed: прямое внешнее чтение market_health меняет entryBlockReason в clock diagnostics и нарушало точное совпадение trade payload; исправлено записью health input.
+
+Sealed e01-feed-v2 проверяется по sequence/hash/footer и source/runtime; v1 fixtures поддерживаются. При reconnect/source/strategy error или прерывании — failure.json, без успешного отчёта. Ключи/.env не читаются; профиль — текущие defaults плюс явные JSON overrides. Не эквивалентен историческому baseline-профилю. Sampled drawdown предварительный; unique candidate/differing admission и суточные отчёты ещё не реализованы. Длительность ограничена часом. Рыночный запуск агент не выполнял; пользователю подготовлена команда 30 минут.
+
+Следующий шаг: результаты smoke — целостность, clock/readiness, нагрузка и воспроизведение; затем недостающие метрики и допуск 72-часового эксперимента. Обычный сервер/торговый профиль не менялись.
+
+## Предыдущий инкремент: E01 candidate и paired runner
+
+Проверки: полный набор **756 passed** за 108.08 секунды. После него исправлен отчёт >200 сделок (broker.closed_trades — усечённый UI cache): берём все trade_closed из recorder и сверяем count с total_closed_trades. Последние **10 E01-тестов passed** за 3.09 секунды; полный набор после этой локальной правки повторно не запускался. Diff check проходит.
+
+Добавлен default-off Settings.e01_breakout_obstacle_veto, включён в PUBLIC_CONFIG_FIELDS/manifest. Общий semantic arbiter добавляет e01_foreign_obstacle_before_first_take для breakout с чужим obstacleBeforeFirstTake; все три engine assessment paths получают flag. Собственный уровень и другие playbooks сохраняют исходную семантику. Veto также на add новой экспозиции, exits не менялись.
+
+scalp_bot/e01_comparison.py: два полностью независимых TradingEngine с denied REST, memory recorder, отдельными ReplayRuntimeClock. Общие normalized observations глубоко копируются, scanner получает shared bootstrap cache, callbacks/timer приводятся feed; event-driven eval/policy пока запрещены. Config различается только E01 flag; manifests/hash/results/report. scripts/compare-e01.py читает e01-feed-v1, выдаёт новый JSON result. Это НЕ конвертер legacy/v4 logs и НЕ готовый live collector. Memory bounded только лимитом input count, output events сохраняются в памяти; long-run load не проверен.
+
+[Документация и ограничения](docs/e01-comparison-runner.md). Тесты: veto long/short/own/foreign, другие playbooks, реальный breakout same-feed, отдельные объекты/капитал, manifests, controlled candidate baseline-open/candidate-block, JSON feed/report и отказ при лимите/unknown input. Synthetic net difference не является доказательством edge.
+
+Следующий шаг — live producer общего потока/запись e01-feed-v1, покрытие union symbols и целостность, метрики unique candidates/equity/drawdown, короткий smoke. Потом команда длительного E01, не до этого. Рабочие профили/сервер не менялись и не перезапускались.
+
+## Предыдущий инкремент: настоящий breakout и возврат к E01
+
+Пользователь уточнил цель: инфраструктура нужна для измеримых улучшений торговли, не бесконечного покрытия replay. Приоритет изменён на минимальный технический путь одной торговой гипотезы. Все редкие ошибки replay НЕ обязательный blocker до E01; unsupported paths должны явно отклоняться.
+
+tests/test_offline_portfolio.py теперь включает production=True: исходный LevelBreakoutStrategy, исходные evaluate/arbiter/risk/broker, реальный Start admission, market events и явные evaluation callbacks, без подмены сигнала/состояния стратегии/ручного открытия позиции. Синтетические 80 свечей + растущий buy flow доводят ARMED/BREAK до входа; cold replay совпадает по outputs/closed trade/fees/balance/footer. Экономические пороги fixture упрощены, это не прибыльность/полная session parity.
+
+Все **6 portfolio-тестов passed**, 4.33 секунды в чистом окружении. Полный набор в этом инкременте не повторялся: production-код не менялся, изменён только fixture и добавлена проверка. Последний полный результат ниже — 746.
+
+[Дизайн E01](docs/e01-breakout-obstacle.md): baseline допускает чужое препятствие до первого take с riskScale=.65; candidate veto, собственный пробиваемый уровень исключён. Старый baseline только для выбора гипотезы, не holdout. Зафиксированы горизонт/метрики/критерии; candidate runner ещё не реализован, manifests не зафиксированы, эксперимент не запускался.
+
+Следующий шаг: реализовать E01 в двух независимых paper-портфелях с одинаковым потоком и исполнением, затем минимальный capture/run profile для их сравнения. Не возвращаться к общему закрытию всех infrastructure TODO прежде этой проверки. Сервер не перезапускался, новый длительный прогон пока не нужен.
+
+## Предыдущий инкремент: P1-03 — сквозной service/portfolio fixture
+
+**746 passed**, 101.94 секунды в чистом окружении; пять новых тестов. Diff check проходит.
+
+Добавлен tests/test_offline_portfolio.py: cold → service/clock/scanner/bootstrap → transport/market → реальный Start admission → общий evaluate/arbiter → PaperBroker open → stop/shutdown → drain/footer. Позиции не вставляются вручную; start_block_reason не подменяется. Сравниваются outputs, closed_trades/fees/netPnl/balance, отсутствие открытых/pending, структурный footer. Подмена fees/netPnl/reason отвергается.
+
+Критичная граница: стратегия trend_structure.evaluate заменена одинаковым контролируемым signal provider на обеих сторонах; config fixture упрощает экономические пороги. Это integration parity исполнения при заданном сигнале, не production-strategy/full-session parity. Source fingerprint не удостоверяет runtime overrides. parityReady=false. Production-код/профили не менялись. [Описание](docs/p1-offline-portfolio.md).
+
+Следующий шаг — исходная production-стратегия в сквозном рыночном fixture; затем оставшиеся отказы и streaming/capture load validation. Новый прогон пока не нужен, сервер не перезапускался. P0 stress/E01 открыты.
+
+## Предыдущий инкремент: P1-03 — scanner/bootstrap failure diagnostics
+
+**741 passed**, 95.47 секунды в чистом окружении; восемь новых тестов. Diff check проходит.
+
+source_await расширен фазой failed с errorType/errorMessage, связанными с ID/source/symbol. Live diagnostics сохранены: существующий текст error outputs теперь дублируется во входном журнале, capture не обезличенный. Offline использует фиксированный RecordedSourceError(SourceFailure), а не динамические классы. describe_source_error сохраняет исходный тип для общих scanner/bootstrap handlers. Clock остаётся ready + clock_error; старый raised без текста не поддержан.
+
+Проверены periodic scanner failure, bootstrap failure, последующее восстановление успешным scan, startup failures до закрытия сервиса/footer и rehashed diagnostic mismatch. [Контракт](docs/p1-offline-source-diagnostics.md). Не заявлять поддержку необработанного root scan failure, global context и ошибок применения результатов после await.
+
+Следующий шаг — полнота остальных путей отказа и сквозной торговый fixture с позициями; затем streaming/load validation и полная session parity. Новый прогон пока не нужен; правила/профиль не менялись, сервер не перезапускался. P0 stress/E01 открыты.
+
+## Предыдущий инкремент: P1-03 — clock REST-await
+
+**733 passed**, 90.87 секунды в чистом окружении; 11 новых тестов. Diff check проходит.
+
+source_await поддерживает source=clock, symbol=null. Clock REST outcome доставляется через ready, в том числе SourceFailure(errorType); затем общий apply_clock_sample/error. Cancelled не применяет результат. Scheduled replay поддерживает root/periodic/startup clock awaits и промежуточные market/UI/arbiter; segment — только соседние wait/ready. Типы исключений не синтезируются, приватный текст не записывается.
+
+11 новых тестов: expiry во время запроса, recovery, RTT rejection, REST error и cancellation для root/periodic; corrupted source/ID/missing result. [Контракт](docs/p1-offline-clock-await.md). Полная session parity не подтверждена.
+
+Следующий шаг — воспроизводимая диагностика scanner/bootstrap/global-context errors, затем streaming/load validation и полная session parity. Новый прогон пока не нужен; правила/профиль не менялись, сервер не перезапускался. P0 stress/E01 открыты.
+
+## Предыдущий инкремент: P1-03 — scanner/bootstrap REST-await
+
+**722 passed**, 87.95 секунды в чистом окружении; 14 новых тестов. Diff check проходит.
+
+Добавлен общий source_await context manager: v4 wait/ready/cancelled/raised с возрастающим ID, source, symbol. Live обрамляет active_candidates и bootstrap gather, сохраняя исходный порядок запросов/применения. Validator связывает completion с wait и проверяет незавершённые ожидания перед footer.
+
+Scheduled replay поддерживает suspension отдельного scan, periodic scanner и startup scan внутри service start; промежуточные market/UI выполняются в записанном порядке. Cancelled не применяет незагруженный result; уже выполненные эффекты scanner не откатываются. Segment adapter поддерживает только соседние wait/ready. Raised пока явно отклоняется: нужного error text нет в input, не синтезировать исключения. [Контракт](docs/p1-offline-source-await.md).
+
+Следующий шаг — clock REST-await и воспроизводимая диагностика source errors, затем streaming/load validation и полная session parity. Новый прогон пока не нужен; правила/профиль не менялись, сервер не перезапускался. P0 stress/E01 открыты.
+
+## Предыдущий инкремент: P1-03 — context REST-await interleaving
+
+**708 passed**, 83.76 секунды в чистом окружении; 16 новых тестов. Diff check проходит.
+
+Добавлено экспериментальное событие v4 context_await: wait с ID/list symbols, request до исходной freshness check каждого инструмента, ready после внешнего gather либо cancelled. Live await/gather order сохранён; request не означает отдельный HTTP request. Scheduled replay приостанавливает context coroutine, исполняет промежуточные market/UI/поддержанные tasks и возобновляет по ID. Реальных IO/Tasks/sleep нет. Validator проверяет lifecycle batch, порядок symbols и незавершённые ожидания перед footer.
+
+Проверены snapshot/public_state между request и ready, отмена без применения новых свечей, rehashed противоречия и validation lifecycle. [Контракт и ограничения](docs/p1-offline-context-await.md). Старые v4 окна без новых границ допускают только прежний non-interleaved путь; source/runtime binding не ослаблен.
+
+Следующий шаг — scanner/bootstrap await boundaries и диагностика ошибок. Clock-await, глобальные context errors, streaming/load validation и полная session parity остаются открытыми. Новый прогон пока не нужен; правила/профиль не менялись, сервер не перезапускался. P0 stress/E01 открыты.
+
+## Предыдущий инкремент: P1-03 — partial context errors/book gaps
+
+**692 passed**, 82.27 секунды в чистом окружении; пять новых тестов. Diff check проходит.
+
+Scheduled replay восстанавливает per-symbol context source_error как immutable SourceFailure (данные, не динамический класс исключения). Общий context loop сохраняет историю ошибочного symbol и применяет успешные results остальных. Global context/scanner/bootstrap failures не поддержаны: для некоторых старых outputs отсутствует исходный error text; не синтезировать его по типу.
+
+_root принимает только реально поднятый общим market handler OrderBookSequenceError при совпавшем recorded raised outcome и полностью потреблённом scope. Cursor mismatch/другие exceptions не подавляются. Transport state проверяет actual cleared fast/synced deep и recovery через snapshot. [Описание](docs/p1-offline-source-errors.md).
+
+Проверены partial failure AAA/успех BBB/последующее восстановление; book gap/reconnect/snapshot и перехешированные противоречия outcome/gap/synced. Следующий шаг — REST request/completion boundaries с interleaving, достаточная диагностика оставшихся ошибок, streaming/load validation и полная session parity. Новый прогон пока не нужен; правила/профиль не менялись, сервер не перезапускался. P0 stress/E01 открыты.
+
+## Предыдущий инкремент: P1-03 — service lifecycle/footer
+
+Live task launch/shutdown выделены в `_launch_service_tasks`/`_shutdown_service_tasks`. Scheduled replay исполняет исходные start/close через инфраструктурные adapters, проверяет объявленные periodic loops и приостанавливает shutdown до recorded cancellations/drains. Footer требует завершённых fast/periodic tasks и drained transport; cursor проверяет inputCount. Успех отмечает origin closed и serviceLifecycleMatched, parityReady=false; повторное исполнение на закрытом engine запрещено.
+
+Первый сквозной synthetic fixture: cold restore → service start → clock/scanner/bootstrap/worker → loops → shutdown → footer. Exchange clocks on/off, close до первого запуска loops и активный paper timer. Сравниваются outputs/engine events/candidates/MarketClock, сохраняются только прежние run_summary telemetry exclusions. Admission timer-fixture задан заранее, позиций нет; не заявлять portfolio/full-session parity. [Описание](docs/p1-offline-service.md).
+
+**687 passed**, 77.08 секунды в чистом окружении; восемь новых тестов. Diff check проходит.
+
+Остаются source/market errors, rejected controls, REST-await interleaving, overlapping worker attribution и streaming длинной записи. Service start/close пока в одном окне, незавершённые coroutines между окнами не переносятся. Следующий шаг — ошибки/асинхронные REST границы; затем нагрузочная проверка capture и полная session parity. Новый прогон пока не нужен; правила/профиль не менялись, сервер не перезапускался. P0 stress/E01 открыты.
+
+## Предыдущий инкремент: P1-03 — transport/worker lifetime
+
+ReplayTransport проверяет transitions по workerId/symbol/topic group/attempt и сверяет full fast/deep state общим `_transport_book_state`. Snapshots НЕ импортируются в реконструированный стакан. Reconnect сохраняет sequencers, новый worker создаёт пустые. Queued messages после fault допустимы до drained; после drain отвергаются. Перекрытие workers одного symbol отклоняется (market_message не содержит workerId).
+
+Scheduled adapter принимает transport events, в том числе первым событием окна; handlers/state продолжаются в одном adapter между окнами. Проверены fast/deep snapshot/delta, disconnect/backlog/drain/reconnect, повторный worker и окна. Правильно перехешированные book/attempt/worker/queue-lifetime mismatch отвергаются. [Описание](docs/p1-offline-transport.md).
+
+**679 passed**, 72.64 секунды в чистом окружении; семь новых тестов. Diff check проходит.
+
+Сеть не воспроизводится: errorType/discarded — наблюдения, raw-ingress queue count независимо не проверяется. Открытые transport channels на границе окна допускаются, полнота сессии не утверждается. Source/market raised paths, service Start/close и REST-await interleaving остаются открытыми. Следующий шаг — service lifecycle. parityReady=false, новый прогон не нужен; live disconnect semantics/правила/профиль не менялись, сервер не перезапускался. P0 stress/E01 открыты.
+
+## Предыдущий инкремент: P1-03 — controls/run manifest/paper timer
+
+Scheduled replay исполняет успешные Start/Stop/toggle и paper_timer исходным engine code. Live manifest creation/timer launch выделены в адаптеры. Offline использует записанный run manifest, проверяет hashes/model/config/source/runtime/policy/enabled binding; требует cold provenance-bound engine. Таймер — coroutine с исходным причинным context, controlled wait/wake/cancel, включая отмену до первого запуска. После проверенного окна обновляется origin strategy fingerprint.
+
+Output comparison исключает ровно run_summary.latencyMetrics/recorderHealth и возвращает эти пути явно. Экономические/timestamp/manifest/reason поля остаются строгими; сами returned events не редактируются. Старое равенство всех output payloads для run_summary больше не утверждать. [Документация](docs/p1-offline-controls.md).
+
+Тесты проверяют manual/expiry/prestart cancel, toggles и manifest без live Tasks/sleep; готовность к Start задаётся fixture, позиций нет. Это control parity участка, не рыночный admission или портфельный close. Rehashed incompatible manifest и изменённые PnL/reason отклоняются. Прямой OfflineEngine.set_running вне dispatcher запрещён.
+
+**672 passed**, 66.82 секунды в чистом окружении; семь новых тестов. Diff check проходит.
+
+Следующие задачи: service/transport lifecycle, source errors, rejected controls, REST-await interleaving и долгоживущие окна. Полного session replay нет, parityReady=false. Новый прогон не нужен, настройки не менялись, сервер не перезапускался. P0 stress/E01 открыты.
+
+## Предыдущий инкремент: P1-03 — periodic context loop
+
+Live REST fetch вынесен в `_fetch_context_results`, freshness branch — в общий `_context_needs_1m`. Live gather/return_exceptions и применение результатов в порядке items сохранены. OfflineScheduledReplay поддерживает context_loop, повторяет freshness clocks и восстанавливает batch по rest_context rows, проверяя количество/порядок/symbol и null-vs-list ветку 1m. Применение/сверка markers остаются в исходном `_apply_context_result`.
+
+Cold replay тестирует AAA stale/BBB fresh, обратный порядок REST completion, исходный порядок применения, HTF/candle updates, output/engine events и cancellation; отдельно пустой universe. Async sleep/create_task/gather запрещены во время replay. Неверные freshness branch/symbol order/missing result с корректной hash chain отвергаются. [Документация](docs/p1-offline-context.md).
+
+**665 passed**, 65.39 секунды в чистом окружении; пять новых тестов. Diff check проходит.
+
+Следующий шаг — operator Start/Stop/toggle и paper timer, затем service/transport lifecycle, source errors и REST-await interleaving. Частичные context errors пока отвергаются, а не превращаются в пустые свечи. Полного session replay нет, parityReady=false; новый прогон не нужен. Торговые правила/профиль/интервалы не менялись, сервер не перезапускался; P0 stress/E01 открыты.
+
+## Предыдущий инкремент: P1-03 — scanner/rotation и REST context
+
+`_apply_scanner_result` общий для live/offline ranking, metadata, promotion/cleanup. Добавлен scan root dispatch в оба adapter и scanner_loop в scheduled adapter. Recorded bootstrap применяется исходным handler; worker launch вынесен в adapter. Offline не создаёт сокеты/Tasks, при новой активации сбрасывает свой market handler. Transport events остаются unsupported и не пропускаются.
+
+Cold replay повторяет AAA→BBB→AAA при capacity=1 с одинаковыми ranking/mark price/candles/output/engine events; REST context применяется между rotations. Проверены два adapter и periodic scanner, а также изменённый ranking, missing bootstrap и wrong symbol. Live fixture изолирует transport, а scanner/bootstrap/cleanup/context handlers настоящие. [Описание](docs/p1-offline-scanner.md).
+
+**660 passed**, 60.77 секунды в чистом окружении; шесть новых тестов. Diff check проходит.
+
+Открыты context_loop, scanner/bootstrap errors, paper timer/control, service/transport lifecycle и REST-await interleaving. Source error type не восстанавливает старый текст exception output — не выдумывать его. Полного session replay нет, parityReady=false. Новый прогон пока не нужен, торговые правила/настройки не менялись, сервер не перезапускался. P0 stress/E01 открыты.
+
+## Предыдущий инкремент: P1-03 — periodic clock/arbiter replay
+
+OfflineScheduledReplay исполняет реальные `_clock_loop`/`_arbiter_loop` coroutines с отдельными ContextVar contexts. `_input_sleep` сохраняет исходные markers и использует injectable `_periodic_sleep`; live default — обычный asyncio.sleep. Offline wait/wake/cancelled управляются журналом без реальных Tasks/sleep. Clock results применяются общими engine handlers; задержки retry рассчитывает исходный loop, а cursor проверяет их совпадение.
+
+Тест одновременно записывает clock/arbiter loops, UI между пробуждениями, успешную sync, REST error, recovery и cancellation. Clock delays 2/4/2/4 и output/engine events/MarketClock совпадают; неверные wait id/delay/source и незаконченные loops отвергаются. Fixture использует явно подготовленный running state; operator Start и прибыльные входы не воспроизводятся. [Описание](docs/p1-offline-periodic.md).
+
+**654 passed**, 57.74 секунды в чистом окружении; пять новых тестов. Diff check проходит.
+
+Поддержаны только clock/arbiter periodic loops. Следующий шаг — scanner/context, paper timer, service/control, transport/worker lifecycle и REST-await interleaving. Незавершённые coroutines нельзя переносить между окнами; parityReady=false, полного session replay нет. Новый прогон не нужен; торговые правила/тайминговые параметры/профиль не менялись, сервер не перезапускался. P0 stress и E01 открыты.
+
+## Предыдущий инкремент: P1-03 — clock sync и UI replay
+
+Live синхронизация использует общие `_apply_clock_sample`/`_apply_clock_error`; offline adapter вызывает их в записанном clock_sync scope без REST. Поддержаны public_state с исходным selectedSymbol и market_health, включая вложенные scopes, clock reads и изменения допуска. ROOT_INPUTS общий для segment/scheduled adapters. Торговые пороги и формулы синхронизации не менялись.
+
+**649 passed**, 54.40 секунды в чистом окружении; шесть новых тестов. Cold engine повторяет bootstrap/sync/UI/RTT rejection/REST error/expiry/arbiter/recovery с одинаковыми output events, engine events и MarketClock/session states. Подмена корректно хешированных sample/errorType/clock calls вызывает отказ. Отсутствующие receipt timestamps после clock recovery не становятся свежими. [Описание](docs/p1-offline-clock-ui.md).
+
+Ограничения: один sample либо error на завершённый clock_sync scope; REST-await interleaving и periodic clock_loop ещё не поддержаны. UI response целиком не сравнивается, только записанные observations/outputs и побочные эффекты. Полный JSONL/session parity всё ещё отсутствует. Следующий шаг — periodic/service, scanner, control и transport/worker lifecycle; затем load validation и полная parity. Новый прогон пока не нужен, сервер не перезапускался; P0 stress и E01 открыты.
+
+## Предыдущий инкремент: P1-03 — cold bootstrap и provenance admission
+
+`restore_cold_engine` восстанавливает OfflineEngine по трём первым envelope v4 (header/capture manifest/policy). Проверяет цепочку, полноту config, source/runtime fingerprints, execution model и policy binding. Settings используют только init values, без env/dotenv/file secrets; credentials пусты. Policy восстанавливается в памяти без исходного файла. Engine получил optional dependency injection; live defaults прежние. Offline factory не создаёт HTTP client, SessionRecorder на диске или telemetry exporter; live start/control запрещены.
+
+Оба replay adapter при наличии replay_origin требуют точного продолжения hash/sequence, проверяют config/strategy/policy fingerprints и исходное cold state. Runtime/output failure помечает engine failed, новый adapter не позволяет обойти отказ. Это cold start capture, не универсальное восстановление checkpoint середины сессии; произвольные внешние мутации внутренних объектов не аттестуются. Source provenance относится к файлам на диске, не loaded bytecode.
+
+Интеграционный тест начинает с настоящего capture prefix и воспроизводит bootstrap/book/trades/context/arbiter с одинаковыми outputs без ручной config. Проверки запрещают live resource constructors, подменяют env, удаляют исходный policy-файл и проверяют несовместимые корректно хешированные inputs. [Описание](docs/p1-offline-bootstrap.md).
+
+**643 passed**, 55.02 секунды в чистом окружении; 14 новых тестов. Diff check проходит.
+
+Следующий шаг — clock/scanner/control/UI/periodic/transport dispatch для прохождения полного JSONL без пропусков, затем load validation и session output parity. parityReady=false, новый пользовательский прогон пока не нужен. Торговые правила/профили не менялись, сервер не перезапускался. P0 recovery stress и E01 открыты.
+
+## Предыдущий инкремент: P1-03 — fast scheduler и исправление pre-start cancel
+
+OfflineScheduledReplay исполняет непрерывные окна с несколькими root handlers и fast tasks через реальные coroutines движка. ContextVar контекст отдельный для каждой задачи; записанный порядок управляет start/resume/completion без asyncio Tasks/sleep. Поддержаны coalescing, рыночные сообщения во время ожидания, два символа, отмена до старта и в sleep. Input/clock/scope markers и output events сравниваются строго; неизвестный await/dispatch и незавершённые задачи отклоняются. Segment adapter по-прежнему отдельно запрещает event scheduler.
+
+Найден live bug: cancel до первого запуска не выполнял finally coroutine и оставлял event_eval_pending=true. Добавлены session.event_eval_owner и общий completion helper: done callback очищает состояние только своей задачи, не более новой. Offline completion вызывает тот же helper. Это эксплуатационное исправление; торговые thresholds не менялись.
+
+**629 passed**, 43.78 секунды в чистом окружении; десять новых тестов. Проверены корректно хешированные неверные task IDs/parent scope, неполное окно, несовпадение output, восстановление overrides и повторное планирование после cancel при capture on/off. [Документация](docs/p1-offline-scheduler.md).
+
+Начальное состояние/config/provenance всё ещё задаёт caller; полный JSONL не воспроизводится, parityReady=false. Следующий шаг: восстановление config/policy/initial state и provenance binding, затем clock/scanner/control/UI/periodic/transport dispatch, load validation и полная session parity. Новый пользовательский прогон пока не нужен, сервер не перезапускался. P0 recovery stress и E01 открыты.
+
+## Предыдущий инкремент: P1-03 — общий market handler и offline segments
+
+`_market_handler(symbol)` выделен из WebSocket worker без изменения правил; один callback/state path используется live и OfflineSegmentReplay. Новый adapter исполняет непрерывные scopes bootstrap/context/market/evaluate/arbiter, сверяет input markers, вложенные scopes и clock reads строгим cursor. Полные output events можно сравнить через expected_events; при несовпадении — отказ, failed instance нельзя использовать дальше. Clock/REST/recorder bindings восстанавливаются, торговые мутации не откатываются.
+
+**619 passed**, 39.90 секунды в чистом окружении. Десять новых тестов: bootstrap/book snapshot+delta/trade batch/context/arbiter, вложенная fail-closed evaluation, равенство outputs/market snapshot; защитное stop execution из одинакового заранее подготовленного checkpoint с совпадением fees/PnL/balance; нарушения входов/выходов и запрет scheduler. Вход позиции в execution-тесте не является воспроизведённым сигналом. [Контракт и ограничения](docs/p1-offline-segments.md).
+
+Это компонентный API, не CLI полного replay: caller отвечает за config/pre-state, provenance не проверяется, пропуски между сегментами возможны. Event-driven scheduler=true/активные tasks/capture отклоняются; REST внутри сегмента запрещён, live loops не вызываются. Поддержан один worker lifetime, не reconnect. parityReady=false.
+
+Следующий шаг — session dispatcher: causal scheduler/interleaving, config/policy/initial-state binding, clock sync/scanner/control/UI/lifecycle/transport; затем capture load validation и полное output parity. Новый пользовательский прогон пока не нужен. Торговые правила/профиль не менялись, сервер не перезапускался; P0 recovery stress и E01 открыты.
+
+## Предыдущий инкремент: P1-02 v4 — periodic/UI dispatch, transport и policy
+
+Writer replay-input-v4, readers v1–v4. Добавлены wait/wake/cancelled для periodic loops и paper timer, scopes этих loops/public_state/market_health, исходные UI requests и service start/close. Transport observer записывает connecting/subscription_sent/fault/cancelled/drained, workerId/attempt/topics и полные fast/deep book states. Subscription sent не является ACK; существующий порядок backoff/cleanup сохранён.
+
+Policy snapshot содержит загруженный parsed manifest, content fingerprint и source-file hash reference; привязка к capture manifest проверяется, активная policy восстанавливается без исходного файла. Raw-file hash из parsed JSON повторно не вычисляется. Validator проверяет dispatch pairing и transport transitions, включая запрет reconnect до drain; service lifecycle пока проверяется только по форме событий.
+
+**609 passed**, 33.41 секунды в чистом окружении; десять новых тестов v4. При выключенном capture новый transport callback не передаётся. [Описание и ограничения v4](docs/p1-input-journal-v4.md).
+
+Следующий шаг — offline dispatcher и output parity общего движка с запретом сети/OS clock; затем нагрузочная проверка capture. Структурная валидность не доказывает полноту входов; parityReady=false. Capture по умолчанию выключен, новый пользовательский прогон пока не нужен. Торговые правила/профиль не менялись, сервер не перезапускался. P0 recovery stress и E01 остаются открытыми.
+
+## Предыдущий инкремент: P1-02 v3 — clock reads, scopes и fast scheduler
+
+Writer replay-input-v3, readers v1/v2/v3. RecordingRuntimeClock фиксирует точные возвращённые значения engine/broker/session clocks; ClockTape требует тот же порядок методов, не потребляет запись при mismatch и не имеет OS fallback. Recorder/envelope используют отдельный исходный clock, чтобы запись не рекурсировала. Metadata clock в offline driver должен быть отделён от tape бизнес-обработчика.
+
+InputScopes на ContextVar фиксирует причинные begin/end, parentId, returned/raised/cancelled для основных обработчиков, включая вложенный evaluate/arbiter. Fast scheduler фиксирует scheduled/coalesced/started/sleep/resumed/finished; taskId передаётся при создании, completion записывается до удаления tracked task, включая отмену до старта. Validator проверяет lifecycle и clock-scope references; память для scopes/tasks зависит от открытых элементов, не всей истории.
+
+**599 passed**, 33.54 секунды. 12 новых тестов, включая async interleaving, cancel-before-start, coalescing и повтор настоящего fail-closed `_evaluate` по clock tape с одинаковыми WAIT decisions. Этот тест не является replay fills/PnL всей сессии. [Описание v3](docs/p1-input-journal-v3.md).
+
+Следующие входы: periodic/external dispatch (в том числе UI), transport reconnect/sequencer state, research-policy artifact; затем offline dispatcher/output parity. Capture по умолчанию выключен, нагрузочная стоимость не проверена, новый прогон не нужен. Торговые правила и профиль не менялись; сервер не перезапускался. P0 recovery stress, полный replay и E01 остаются открытыми.
+
+## Предыдущий инкремент: P1-02 v2 — bootstrap/REST/scanner и manifests
+
+Writer создаёт replay-input-v2; validator читает v1/v2 с исходным coverage каждой версии, запрещает mixed schemas. Добавлены полные bootstrap results (instrument/fees/4 candle horizons), REST context до мутаций, ordered scanner candidates, source error types, activation/deactivation, capture/run manifests и run_end. Публичные поля ограничены схемой; текст ошибок и credentials в новый input payload не копируются.
+
+Bootstrap и REST merge вынесены в `_apply_bootstrap_result`/`_apply_context_result`. Live после REST и тестовое восстановление вызывают один код. Интеграционный тест восстанавливает объекты из journal body и получает совпадающий market snapshot во втором engine без сети. Это parity участка применения состояния, не всего торгового цикла.
+
+Validator проверяет manifests и config/code/runtime linkage, повторные IDs, пересечение run, ссылку run_end и незакрытый run перед footer. Сохранён v1 reader; `parityReady=false`. Capture без initial manifest отмечается в missingCoverage. **587 passed**, 47.70 секунды; торговые настройки/правила не менялись, работающий сервер не перезапускался.
+
+[Описание v2](docs/p1-input-journal-v2.md). Следующие работы: полный порядок clock reads, scheduler dispatch/completion/coalescing, reconnect/sequencer state и policy artifact; затем offline dispatcher/output parity. Захват по умолчанию выключен, новый прогон пока не нужен. P0 recovery stress и E01 остаются открытыми.
+
+## Предыдущий инкремент: P1-02 — схема входного журнала, частичный capture и validator
+
+Добавлены `input_journal.py` и `scripts/validate-input-journal.py`: replay-input-v1, sequence/hash chain, исходный receipt, processing clock, immutable body, header/footer и streaming проверка фиксированного byte snapshot. Неполное покрытие явно зафиксировано; parityReady=false даже при целой структуре. Validator отклоняет пропуски, перестановки, повреждения, неизвестную schema/body и не выдаёт raw payload/config.
+
+`TradingEngine(..., capture_inputs=True)` — экспериментальный opt-in API; стандартный запуск выключен. Hooks: public market message перед применением, REST clock sample, evaluate/arbiter entry, control requests. Footer после остановки async tasks, перед recorder close. replay_input — bulk bounded telemetry; пропуски не скрываются перенумерацией. Нагрузочная проверка полного book capture пока не выполнена.
+
+**578 passed**, 47.52 секунды. 16 новых тестов, включая настоящий symbol worker без сети. На `session-20260925T091451Z.jsonl` coverage validator вернул incomplete/not_recorded: текущие старые записи не содержат нового потока. [Контракт и evidence](docs/p1-input-journal.md).
+
+P1-02 не закрыт: следующий шаг — bootstrap/REST context/scanner/lifecycle, полные clock observations, scheduler dispatch/completion и manifest binding через общий adapter. Не запускать новый пользовательский прогон до достаточного покрытия. Торговые правила/профили не изменялись, сервер не перезапускался. P0 recovery stress, полный replay и E01 остаются открытыми.
+
+## Предыдущий инкремент: P1-01 — управляемые часы общего движка
+
+По поручению продолжить работу проверен старый OfflineStrategyReplay: это snapshot shadow analysis без manifest/clock admission/arbiter/risk/broker parity, не воспроизведение PnL. CLI теперь явно предупреждает об ограничении. Текущие редкие snapshots недостаточны для восстановления полного input; новый длительный прогон пока не нужен.
+
+Добавлен `runtime_clock.py`: SystemRuntimeClock и ReplayRuntimeClock с явными wall/monotonic observations и отказом при перестановке monotonic. TradingEngine, создаваемые sessions, PaperBroker и SessionRecorder получают общий объект. Таймауты, receipt age, lifecycle timestamps и journal timestamps используют его. Брокер явно задаёт opened/created monotonic, не обращаясь к dataclass OS defaults. Recorder ISO/ts вычисляются из одного наблюдения. Физические таймауты очереди и сетевой scheduler не виртуализованы; clock injection не означает offline режим.
+
+**562 passed**, 43.65 секунды в чистом окружении без pytest cache. Новые тесты запрещают обращения к OS clock в проверяемых путях и проверяют повторяемость execution events/fees/balance, pending expiry, no-follow-through, partial/stop, wall jumps, invalid-clock cancellation и recovery без освежения источников. Торговые правила/профиль не менялись, пользовательский сервер не перезапускался; он продолжает работать с загруженной старой версией до штатного перезапуска.
+
+[Архитектура и следующий backlog](docs/p1-replay-design.md). Следующая задача P1-02 — контракт полного входного журнала с порядком применения, receipt/processing observations, bootstrap, clock responses и evaluation/arbiter callbacks; затем общий offline adapter и parity report. P0 recovery stress остаётся открыт. Полный replay, E01 и edge пока не объявляются выполненными.
+
+## Предыдущий инкремент: проверен повторный smoke v2
+
+`session-20260925T091451Z.jsonl`, 900.030 секунды, штатная остановка. Ложный rollback отсутствует; upper padding реально применён в 32 sync attempts. Из 2 933 research frames пять invalid (`synchronization_expired`), один промежуток между принятыми sync 61.358 секунды при TTL 60. Защитная блокировка и автоматическое восстановление отражены в журнале; новых входов в этот период нет. Строгий validator остаётся rejected, допуски не ослаблены. [Отчёт и evidence](docs/p0-clock-v2-results-2026-09-25.md).
+
+Две breakout-сделки: XRP −3.403658, ETH +1.191979; net −2.211680 USDT, gross +0.300091, fees 2.511771. Manifest проверен, tradeAfterContext=0. Recorder Summary: dropped 0, writerError отсутствует, pending 1 — не финальный flush. Проверена фиксированная копия диапазона байтов продолжающего записываться файла.
+
+Runtime/профиль не менялись, сервер не перезапускался. Новые тесты для анализа документации не запускались; последняя проверка реализации — 558 passed. Следующий шаг — общий replay с воспроизведением clock admission и controlled recovery/fault tests, затем E01. Идентичный повтор 15m сейчас не требуется; P0 полностью не закрыт, production-ready=false.
+
+## Предыдущий инкремент: завершённый clock smoke и исправление rollback
+
+Разобран `session-20260925T084703Z.jsonl`: штатные 900.056 секунды, три сделки, net −4.872906 USDT. Integrity rejected из-за 502 invalid-clock research frames: 156 rollback, 346 expired. Manifest проверен, tradeAfterContext=0, recorder без потерь в Summary. [Отчёт](docs/p0-clock-smoke-results-2026-09-25.md).
+
+Исправлено ложное определение rollback при сужении пересекающихся границ: bounded upper padding до предыдущего evaluation с прежним uncertainty budget и TTL. Настоящий несовместимый откат блокируется. Добавлен `upperPaddingMs`. После отказа/ошибки sync повтор через 2 секунды вместо 20; нормальный интервал возвращается после успеха. Пороги и торговые правила не ослаблены. Профиль переименован по label в `research-p0-clock-v2-smoke-15m`.
+
+Проверено **558 passed**, 44.41 секунды. Регрессии на двух реальных парах samples включают моделирование частого чтения до ответа, ограничение uncertainty, expiry и расписание retry. Replay сохранённых clock observations не имеет rollback, но не содержит всех внутренних чтений и не моделирует новое расписание сети. Новый сетевой smoke не запущен, сервер пользователя не перезапускался. Следующий шаг — короткая проверка после перезапуска, затем recovery/replay; P0 не закрыт.
+
+## Предыдущий инкремент: P0-04 runtime
+
+Исправление блокировки после первого smoke: в `session-20260925T083237Z.jsonl` 14 sync attempts, пять приняты, девять отклонены; ручная остановка через 273.75 секунды, сделок нет. Причина `sync_rtt_exceeded` маскировалась общей ошибкой WebSocket. RTT ошибочно включал очередь REST, а плохой sample сразу инвалидировал действующий anchor. Теперь измеряется только успешная HTTP-попытка, пригодный anchor сохраняется до исходного TTL, UI показывает конкретные clock/admission reasons. Лимиты RTT/uncertainty/TTL не повышены. Добавлены регрессии pacing/retry, сохранения и истечения anchor, сохранения wall-jump fault и диагностики UI.
+
+Проверка исправления: **552 passed**, 41.87 секунды; diff check проходит. Headless engine на реальных потоках текущего подключения, без Start/сделок, после холодной синхронизации показал пять последовательных проверок ready=true (5–6 готовых символов). Процесс проверки штатно закрыт. Результат — `data/audit-20260925/readiness-check.json`; это не завершённый 15m paper smoke и не доказательство устойчивости на другом сетевом маршруте.
+
+- MarketClock подключён к Bybit/engine; стандартный `.env.example` включает новую временную базу. [Описание, ограничения и smoke-команда](docs/p0-clock-runtime.md).
+- Новые входы/pending блокируются при invalid clock или stale fast/deep/tape. Возраст источников проверяется и по receipt monotonic, и по event time. Защитные stop/target продолжают работать.
+- Manifest v3 сохраняет новые параметры; session-integrity v3 различает local-wall offset и нарушение exchange bounds. Legacy v1/v2 public config schema сохранена для проверки старых manifest.
+- Pending/position timeouts и elapsed run time переведены на monotonic в новом режиме. Funding не использует local wall как exchange timestamp.
+- Read-only REST probe: два принятых RTT 244.6/256.4 мс, холодный 594.8 мс отклонён. Нет запущенного агентом сервера или paper/live торговли.
+- Подготовлен профиль `.env.research-p0-clock-smoke-15m`; конфигурация проверена. Следующий шаг — технический smoke нового runtime, затем анализ clock/admission и replay parity. P0 ещё не закрыт по реальным данным.
+- Проверки финального состояния: **549 passed**, 41.91 секунды, чистое окружение и отключённый pytest cache; `git diff --check` проходит. Профиль smoke загружен через Settings и проверен на 900 секунд/включённую синхронизацию.
+
+## Предыдущий инкремент: provenance v2 и компонент времени
+
+- `run_manifest.py`: manifest v2 с версиями Python/platform и всех установленных distributions (name/version); runtime hash. Публичная схема вынесена в `manifest_schema.py`, не импортирующую Settings.
+- `manifest_validation.py` + session-integrity v2: проверка config/source/runtime/outer hashes, покрытия публичных полей, структуры стратегий, ID Start/Summary/toggle и повторного использования ID. В отчёт не копируются config values; неверные идентификаторы не отражаются как произвольный текст.
+- Старые сессии без manifest: provenance unknown, прежние integrity checks сохранены. Manifest v1 без runtime fingerprint: incomplete. Проверка hash не доказывает подлинность, loaded bytecode или полноценную воспроизводимость окружения.
+- `market_clock.py`: независимый компонент с bounds exchange-time через server sample/RTT, monotonic extrapolation и uncertainty. Нет fallback на local wall или max trade timestamp. Неверная шкала не выдаёт evaluation timestamp; receipt age проверяется отдельно.
+- **MarketClock ещё не подключён к engine/Bybit.** Ошибка времени в торговом runtime этим инкрементом не объявляется исправленной. Пороги стратегий и исполнение не менялись; сервер/торговля агентом не запускались.
+- Проверки: **539 passed**, 36.58 секунды, чистое окружение SCALP и отключённый pytest cache, без предупреждений. `git diff --check` проходит. Добавлены регрессии повреждения manifest, недостающих данных, секретов, linkage, независимого от dotenv импорта и временных границ компонента.
+- Следующая конкретная задача: P0-04 интеграция синхронизации, clock telemetry, единой временной базы evaluation и независимых fast/deep/tape receipt stale checks. Новые входы при invalid clock должны блокироваться, защита открытых позиций — продолжаться. Обязательны engine batch/reconnect/rollback/stale регрессии.
+
+## Предыдущий инкремент: завершённый 12h baseline
+
+- Выполнен [разбор новой сессии](docs/p0-baseline-results-2026-09-25.md), [компактные evidence](docs/validation/p0-baseline-12h-2026-09-25.json). Raw `session-20260924T195114Z.jsonl`, label `research-p0-baseline-v1-12h`, 43 200.153 секунды, остановка по таймеру, без переключения стратегий.
+- 65 сделок: gross +89.1185, fees 93.2631, net −4.1446. Breakout: 47 сделок, −52.7125; rejection: 18, +48.5680. Одна NEAR-сделка дала +44.7452; устойчивый edge rejection не доказан.
+- Все breakout через sustained response. Перед препятствием: 43 сделки, −73.1215; без него: четыре, +20.4090. Это гипотеза E01, не результат стратегии с veto.
+- Integrity rejected: 14 780 кадров с trade timestamp позже context, 7 095 позже record. Максимум 220/190.698 мс. Нет зарегистрированных delta gaps, dropped recorder rows, strategy errors или нарушений сверки PnL.
+- Добавлена запись run manifest: allowlist текущих несекретных Settings, config/source hashes, активные стратегии, research policy, версии схем/модели, уникальный ID. Summary/toggle связаны с ID; прошлые сессии не переатрибутируются.
+- Ограничения: source hash описывает файлы на диске при Start, не загруженный bytecode. Dependency fingerprint и автоматическая проверка manifest ещё открыты. Не менять код работающего процесса.
+- Проверки: **511 passed**, 36.22 секунды в чистом preflight. Предупреждение только о недоступном pytest cache. Торговые правила не изменены, сервер агентом не перезапускался.
+- Следующий шаг: завершить проверку provenance P0-03, затем P0-04 clocks; повторный неизменный 12h baseline сейчас не требуется.
+
+## Статус
+
+- Активный этап: **P0 — достоверность данных и provenance**.
+- Production-ready: **нет**. Live execution не подключён; edge после расходов не доказан.
+- Исходный аудируемый checkout: `4abc55b63949f6659033e03c23efbebeab77b082` (main). Текущий инкремент пока находится в рабочем дереве; не выдавать baseline SHA за commit новых изменений или всех исторических сессий.
+- Paper baseline: breakout + rejection; density evidence-only; trend выключен исходным профилем, но может включаться через UI.
+- Архитектура L50/L1000, очереди ingest/recorder и latency telemetry сохраняется.
+
+## Предыдущий инкремент: 24 сентября
+
+1. Проведён [аудит](docs/deep-profitability-audit-2026-09-24.md): 11 записей, 112 закрытых сделок разных версий; 23 сделки последних двух торговых прогонов разобраны подробно.
+2. README приведён к текущей политике. Сняты устаревшие утверждения о Stage 19 как текущем состоянии, context-only режиме и maker-entry eligibility rejection.
+3. Зафиксированы P0–P4 с критериями перехода, экспериментальный протокол и целевой контракт времени. Исторический handoff сохранён в [архиве](docs/archive/handoff-stage27.md).
+4. Реализован `scalp_bot/session_validation.py` и `scripts/validate-session.py`: streaming проверка фиксированного byte snapshot с SHA-256, границы отдельных прогонов, clock contradictions, gaps, смена стратегий, recorder health и сверка PnL с funding. Report не содержит полного профиля/секретов/raw frames.
+5. Добавлены регрессии: clock skew/rollback, scope до/после торговли, gaps/toggle, funding, cumulative summaries нескольких прогонов, повреждённые данные, недостающие evidence и дописывание файла во время чтения.
+
+6. Подготовлены [инструкция P0 baseline на 12 часов](docs/p0-baseline-12h.md), профиль `.env.research-p0-baseline-12h` и launcher `scripts/run-p0-baseline-12h.ps1`. Профиль фиксирует комиссии в configured-режиме и состав стратегий; настройки прочитаны через Settings, синтаксис PowerShell проверен. Запуск остаётся за пользователем.
+
+Торговая логика, базовые risk параметры и runtime clocks в этом инкременте не менялись. Новый профиль отключает account fee lookup для воспроизводимости paper-комиссий. Существующий процесс не перезапускался; новые paper/live прогоны не запускались.
+
+## Проверки и evidence
+
+- Исходный baseline: 490 тестов проходят в чистой конфигурации. Локальный `.env` влияет на обычный pytest; использовать `scripts/test_preflight.py`, который очищает SCALP_* в дочернем процессе.
+- [Компактный проверяемый результат P0-02](docs/validation/session-integrity-baseline-2026-09-24.json) включает SHA-256 входного snapshot и исходника валидатора.
+- Новый валидатор проверен на реальном `session-20260924T180054Z.jsonl`: статус **rejected** ожидаем по обнаруженным нарушениям, а не по падению программы.
+- В торговом окне: 15 598 кадров с clock evidence; 7 056 последних принтов позже локального времени записи; 7 163 позже времени контекста; максимум расхождения с контекстом 1 141 мс.
+- Обнаружено одно включение trend_structure внутри прогона. Прогон остановлен вручную через 4 300.21 секунды, хотя профиль назывался 12h.
+- 12 закрытых сделок: gross +3.781896438, fees 13.900954757, net −10.119058319; сверка summary проходит. В source snapshot нет ошибок JSON/envelope.
+- Итог полного набора тестов текущего инкремента: **505 passed** (490 существующих + 15 новых), 26.19 секунды; SCALP_DISABLE_DOTENV=1, pytest cache отключён. Проверка git diff --check проходит.
+
+Сырые данные и подробные локальные артефакты находятся в `data/sessions` и `data/audit-20260924`, не предназначены для Git. JSONL продолжает расти после остановки торговли; для сравнения использовать run boundaries и recorded snapshot hash, а не текущий размер всего файла.
+
+## Продолжение P0-03 и переход к P0-04
+
+Запись manifest в bot_started и связь с run_summary реализованы 25 сентября. Исходные требования:
+
+- вся разрешённая несекретная конфигурация, а не текущий частичный snapshot;
+- hash конфигурации, код/dirty state и версии schema/execution model;
+- фактический набор enabled/evidence-only/tradeable strategies;
+- immutable manifest ID, изменения профиля как отдельные события;
+- тест, исключающий утечку API keys/secret values;
+- совместимость с историческими сессиями без manifest как unknown, а не fabricated provenance.
+
+Проверка hashes/linkage и версии зависимостей реализованы следующим инкрементом 25 сентября. Ограничения source-on-disk относительно загруженного кода документированы. Не объявлять provenance старого baseline восстановленным.
+
+Затем P0-04: внедрить clock abstraction по [контракту](docs/data-time-contract.md). Выбор новой шкалы времени должен сохранять receipt causality и независимые stale checks. Не исправлять исключение принтов простым удалением верхней временной границы. Не смешивать этот технический фикс с изменением торговых порогов.
+
+## Открытые торговые вопросы после P0/P1
+
+- Breakout перед встречным препятствием допускается со scale 0.65; последнее наблюдение — 6/6 проигрышей, но предыдущие выигрыши не позволяют считать простой veto доказанным решением.
+- Цели выбираются с нижним порогом R; достижимость не выводится из planned payout.
+- opportunityFreshness и execution freshness сейчас совпадают и привязаны к FIRE.
+- Sustained response использует rolling 15s, хотя retest-response уже causal.
+- Rejection hard stop не обязательно расположен за фактическим sweep extreme.
+- OfflineStrategyReplay не воспроизводит полный production candidate/risk/execution path. Hindsight missed labels не являются доступными прибыльными сделками.
+
+Не расширять набор стратегий/фильтров до появления измеримого экспериментального сравнения. Следующие инкременты обновляют этот файл фактами: выполнено, проверено, ограничения, следующий ID. Фоновое выполнение и расписание не настроены; продолжение работы идёт в рамках активных задач.

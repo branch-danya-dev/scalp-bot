@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "validatorVersion": "session-integrity-v3",
+  "status": "rejected",
+  "scope": "recorded_run_integrity_only",
+  "productionReady": false,
+  "source": {
+    "file": "G:\\scalp-bot\\data\\sessions\\session-20260925T084703Z.jsonl",
+    "snapshotBytes": 551570229,
+    "bytesRead": 551570229,
+    "snapshotSha256": "e451af61688179db1afc0087fcf07dfd2af5d567ffb883dd5e398ab6334a1fb2",
+    "parsedRows": 73165
+  },
+  "policy": {
+    "futureToleranceMs": 0.0
+  },
+  "fileIssues": {},
+  "runs": [
+    {
+      "index": 1,
+      "label": "research-p0-clock-v1-smoke-15m",
+      "startedAt": 1790326105.9335978,
+      "configuredDurationSeconds": 900.0,
+      "completed": true,
+      "counts": {
+        "bot_started": 1,
+        "market_context_changed": 48533,
+        "research_frame": 3226,
+        "strategy_state_transition": 2124,
+        "decision": 2810,
+        "symbol_activated": 6,
+        "clock_admission_changed": 782,
+        "market_frame": 1667,
+        "scanner_update": 14,
+        "clock_sync": 39,
+        "entry_freshness_changed": 6,
+        "arbiter_blocked": 1,
+        "risk_reject": 3,
+        "economic_shadow": 1,
+        "trade_opened": 3,
+        "setup_consumed": 3,
+        "trade_closed": 3,
+        "setup_rearmed": 1,
+        "run_summary": 1
+      },
+      "clock": {
+        "frameSamples": 3183,
+        "tradeAfterRecord": 489,
+        "tradeAfterContext": 0,
+        "maxTradeAfterRecordMs": 247.902587890625,
+        "maxTradeAfterContextMs": 0.0
+      },
+      "pnl": {
+        "trades": 3,
+        "gross": -0.112574777999642,
+        "fees": 4.7603312375883,
+        "funding": 0.0,
+        "net": -4.872906015587942
+      },
+      "findings": [
+        {
+          "code": "runtime_clock_invalid",
+          "severity": "error",
+          "count": 502,
+          "examples": [
+            {
+              "ts": 1790326163.3996267,
+              "symbol": "ETHUSDT",
+              "event": "research_frame"
+            },
+            {
+              "ts": 1790326163.6238034,
+              "symbol": "ONDOUSDT",
+              "event": "research_frame"
+            },
+            {
+              "ts": 1790326163.643142,
+              "symbol": "CLUSDT",
+              "event": "research_frame"
+            }
+          ]
+        }
+      ],
+      "provenance": {
+        "status": "recorded_hashes_checked",
+        "manifestId": "e0c6822deb334475a98891b0c82f094d",
+        "manifestSha256": "4624f3379024084612799193d2d11d67b3a438d9962a2beafed0837eebbdab3d",
+        "summaryLink": "checked"
+      },
+      "stoppedAt": 1790327005.9356892,
+      "elapsedSeconds": 900.0558438000153,
+      "stopReason": "duration_elapsed",
+      "status": "rejected"
+    }
+  ],
+  "notValidated": [
+    "full_code_and_configuration_provenance",
+    "live_replay_parity",
+    "execution_model_accuracy",
+    "strategy_edge",
+    "network_event_completeness"
+  ]
+}

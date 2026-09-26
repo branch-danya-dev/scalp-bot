@@ -3,6 +3,8 @@ from time import perf_counter_ns
 
 import pytest
 
+import scalp_bot.bybit as bybit_module
+
 from scalp_bot.domain import OrderBook, Side
 from scalp_bot.bybit import (
     MarketDataBackpressureError,
@@ -14,6 +16,46 @@ from scalp_bot.bybit import (
     _stream_topics,
     decode_market_message,
 )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('ending', ['cancel_parent', 'cancel_child', 'error_child'])
+async def test_split_stream_waits_for_both_children_cleanup(monkeypatch, ending):
+    started = set()
+    cleaned = set()
+    trigger = asyncio.Event()
+
+    async def stream(url, topics, callback, stop, **kwargs):
+        depth = topics[0]
+        started.add(depth)
+        try:
+            await trigger.wait()
+            if depth.startswith('orderbook.50.'):
+                if ending == 'cancel_child':
+                    raise asyncio.CancelledError()
+                if ending == 'error_child':
+                    raise RuntimeError('test child failure')
+            await asyncio.Event().wait()
+        finally:
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            cleaned.add(depth)
+
+    monkeypatch.setattr(bybit_module, '_stream_topics', stream)
+    task = asyncio.create_task(bybit_module.stream_symbol('unused', 'AAA', None, asyncio.Event()))
+    try:
+        while len(started) < 2:
+            await asyncio.sleep(0)
+        if ending == 'cancel_parent':
+            task.cancel()
+        else:
+            trigger.set()
+        with pytest.raises(RuntimeError if ending == 'error_child' else asyncio.CancelledError):
+            await asyncio.wait_for(task, timeout=2)
+        assert cleaned == started
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
 
 
 def test_orderbook_sequence_gap_is_detected() -> None:
@@ -359,3 +401,24 @@ async def test_market_processor_rejects_stale_backlog() -> None:
         )
 
     assert callback_called is False
+
+
+@pytest.mark.asyncio
+async def test_backpressure_detail_is_opt_in_without_changing_transport_schema(monkeypatch):
+    stop = asyncio.Event()
+    events, details = [], []
+    class Socket:
+        async def send(self, *args, **kwargs): pass
+        async def recv(self, **kwargs):
+            stop.set()
+            raise MarketDataBackpressureError('market processor lag exceeded 0.500s (lag=0.510s, queue=7)')
+    class Connect:
+        async def __aenter__(self): return Socket()
+        async def __aexit__(self, *args): return False
+    monkeypatch.setattr('scalp_bot.bybit.websockets.connect', lambda *a, **k: Connect())
+    async def callback(message): pass
+    await _stream_topics('wss://example.invalid', ['orderbook.50.AAA'], callback, stop,
+                         on_transport=events.append, on_backpressure=details.append)
+    fault = next(e for e in events if e['phase'] == 'fault')
+    assert set(fault) == {'phase', 'attempt', 'topics', 'errorType', 'discarded'}
+    assert details[0]['message'].endswith('(lag=0.510s, queue=7)')

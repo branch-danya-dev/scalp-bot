@@ -57,6 +57,7 @@ class ExecutionProfile:
 
 
 _PROFILES = {
+    "price_action_hypothesis": ExecutionProfile(name="candle_hypothesis_beta"),
     "trend_structure": ExecutionProfile(
         name="trend_confirmation",
         partial_exit="maker_limit",

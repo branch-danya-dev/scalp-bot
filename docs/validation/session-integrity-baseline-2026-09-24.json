@@ -1,0 +1,71 @@
+{
+  "purpose": "P0-02 validation against historical data; does not establish edge or production readiness",
+  "validatorVersion": "session-integrity-v1",
+  "validatorSourceSha256": "c4c1911263a1800622b3a1556db074733046ba0863aa7b78d216a48a2e6c7f00",
+  "inputFile": "session-20260924T180054Z.jsonl",
+  "inputSnapshotBytes": 3560381145,
+  "inputSnapshotSha256": "b1f812de8377cb9784776912612c1f4e07af5fca66f984e7d54e0fcac56c0078",
+  "inputSnapshotParsedRows": 546872,
+  "policy": {
+    "futureToleranceMs": 0.0
+  },
+  "status": "rejected",
+  "fileIssues": {},
+  "runs": [
+    {
+      "index": 1,
+      "label": "research-context-filters-v1-12h",
+      "startedAt": 1790272869.7239337,
+      "configuredDurationSeconds": 43200.0,
+      "completed": true,
+      "clock": {
+        "frameSamples": 15598,
+        "tradeAfterRecord": 7056,
+        "tradeAfterContext": 7163,
+        "maxTradeAfterRecordMs": 1128.1376953125,
+        "maxTradeAfterContextMs": 1141.0
+      },
+      "pnl": {
+        "trades": 12,
+        "gross": 3.7818964380003317,
+        "fees": 13.900954757239603,
+        "funding": 0.0,
+        "net": -10.119058319239269
+      },
+      "stoppedAt": 1790277169.9371195,
+      "elapsedSeconds": 4300.213185787201,
+      "stopReason": "bot_stop",
+      "status": "rejected",
+      "findings": [
+        {
+          "code": "trade_timestamp_after_record",
+          "severity": "error",
+          "count": 7056
+        },
+        {
+          "code": "trade_timestamp_after_context",
+          "severity": "error",
+          "count": 7163
+        },
+        {
+          "code": "strategy_changed_during_run",
+          "severity": "error",
+          "count": 1
+        },
+        {
+          "code": "run_not_stopped_by_duration",
+          "severity": "warning",
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "notValidated": [
+    "full_code_and_configuration_provenance",
+    "live_replay_parity",
+    "execution_model_accuracy",
+    "strategy_edge",
+    "network_event_completeness"
+  ],
+  "note": "Source continued receiving post-run market events. Hash identifies a finite byte snapshot; run metrics exclude events outside bot_started/run_summary."
+}

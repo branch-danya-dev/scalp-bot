@@ -296,23 +296,33 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
     if now_ms is None:
         now_ms = trades[-1].ts_ms
 
+    # Partition once. Keep each side's original order and built-in sum:
+    # cumulative totals/subtraction or += would change floating-point results.
+    buckets = {seconds: ([], [], []) for seconds in (5, 15, 60)}
+    previous = []
+    cutoff_5, cutoff_15 = now_ms - 5000, now_ms - 15000
+    cutoff_20, cutoff_60 = now_ms - 20000, now_ms - 60000
+    for trade in trades:
+        ts = trade.ts_ms
+        if not cutoff_60 <= ts <= now_ms:
+            continue
+        notional = trade.notional
+        side = trade.side.lower()
+        windows = (60, 15, 5) if ts >= cutoff_5 else (60, 15) if ts >= cutoff_15 else (60,)
+        for seconds in windows:
+            rows, buys, sells = buckets[seconds]
+            rows.append(trade)
+            if side == "buy":
+                buys.append(notional)
+            elif side == "sell":
+                sells.append(notional)
+        if cutoff_20 <= ts < cutoff_5:
+            previous.append(notional)
+
     def window_stats(seconds: int) -> dict:
-        cutoff = now_ms - seconds * 1000
-        rows = [
-            trade
-            for trade in trades
-            if cutoff <= trade.ts_ms <= now_ms
-        ]
-        buy = sum(
-            trade.notional
-            for trade in rows
-            if trade.side.lower() == "buy"
-        )
-        sell = sum(
-            trade.notional
-            for trade in rows
-            if trade.side.lower() == "sell"
-        )
+        rows, buys, sells = buckets[seconds]
+        buy = sum(buys)
+        sell = sum(sells)
         total = buy + sell
         price_move = (
             (rows[-1].price - rows[0].price) / rows[0].price
@@ -336,14 +346,7 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
     medium = window_stats(15)
     long = window_stats(60)
 
-    previous_start = now_ms - 20_000
-    previous_end = now_ms - 5_000
-    previous = [
-        trade
-        for trade in trades
-        if previous_start <= trade.ts_ms < previous_end
-    ]
-    previous_total = sum(trade.notional for trade in previous)
+    previous_total = sum(previous)
 
     recent_rate = recent["total"] / 5
     previous_rate = previous_total / 15

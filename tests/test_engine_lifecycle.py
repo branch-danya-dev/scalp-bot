@@ -1,4 +1,5 @@
 import asyncio
+from copy import deepcopy
 
 import pytest
 from time import perf_counter_ns, time
@@ -768,6 +769,15 @@ async def test_duration_timer_auto_stops_and_finalizes_position(tmp_path) -> Non
         engine.broker.open(plan("AAAUSDT"), book())
 
         engine.set_running(True)
+        run_manifest = engine._run_manifest
+        assert run_manifest is not None
+        original_manifest = deepcopy(run_manifest)
+        start_event = next(row for row in engine.events if row["event"] == "bot_started")
+        assert start_event["payload"]["manifest"] == original_manifest
+        engine.toggle_strategy("level_breakout", False)
+        assert engine._run_manifest == original_manifest
+        toggle = next(row for row in engine.events if row["event"] == "strategy_toggle")
+        assert toggle["payload"]["manifestId"] == run_manifest["manifestId"]
         await asyncio.sleep(0.12)
 
         assert not engine.running
@@ -775,6 +785,12 @@ async def test_duration_timer_auto_stops_and_finalizes_position(tmp_path) -> Non
         assert engine.broker.closed_trades[-1]["reason"] == "duration_elapsed"
         assert engine._last_run_summary is not None
         assert engine._last_run_summary["reason"] == "duration_elapsed"
+        assert engine._last_run_summary["manifestId"] == run_manifest["manifestId"]
+        assert engine._last_run_summary["manifestSha256"] == run_manifest["manifestSha256"]
+        engine.set_running(True)
+        assert engine._run_manifest["manifestId"] != run_manifest["manifestId"]
+        assert "level_breakout" not in engine._run_manifest["strategies"]["enabled"]
+        engine.set_running(False)
     finally:
         await engine.rest.close()
 
@@ -2117,6 +2133,7 @@ def test_strategy_startup_flags_can_isolate_trend_only(tmp_path) -> None:
             "weak_level_rejection": False,
             "orderbook_density": False,
             "level_breakout": False,
+            "price_action_hypothesis": False,
         }
     finally:
         close_rest(engine)

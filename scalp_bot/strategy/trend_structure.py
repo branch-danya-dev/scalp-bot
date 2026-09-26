@@ -193,8 +193,9 @@ class TrendStructureStrategy(Strategy):
         level: float,
         long_side: bool,
         now_ms: int | None = None,
+        trade_flow: dict | None = None,
     ) -> tuple[bool, dict, dict]:
-        flow = compute_trade_flow(trades, now_ms)
+        flow = compute_trade_flow(trades, now_ms) if trade_flow is None else trade_flow
         tolerance = max(
             self.test_tolerance_pct,
             book.spread_pct * 2.0,
@@ -320,6 +321,7 @@ class TrendStructureStrategy(Strategy):
         structure: "MarketStructure | None" = None,
         market_context: "MarketContext | None" = None,
         observed_at_ms: int | None = None,
+        trade_flow: dict | None = None,
     ) -> StrategyDecision:
         state = self._states.setdefault(symbol, TrendPullbackState())
         trades = trades or []
@@ -656,6 +658,7 @@ class TrendStructureStrategy(Strategy):
             level=state.test_line_price or projected,
             long_side=long_side,
             now_ms=observed_at_ms,
+            trade_flow=trade_flow,
         )
 
         opportunity_arm = (

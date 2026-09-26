@@ -37,4 +37,5 @@ def no_follow_through_seconds(
         "weak_level_rejection": config.weak_level_rejection_no_follow_through_seconds,
         "orderbook_density": config.density_no_follow_through_seconds,
         "level_breakout": config.breakout_no_follow_through_seconds,
+        "price_action_hypothesis": config.breakout_no_follow_through_seconds,
     }.get(strategy, config.no_follow_through_seconds)))

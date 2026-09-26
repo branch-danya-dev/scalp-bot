@@ -196,6 +196,7 @@ class WeakLevelRejectionStrategy(Strategy):
         observed_at_ms: int | None = None,
         generation_id_override: str | None = None,
         market_context: "MarketContext | None" = None,
+        trade_flow: dict | None = None,
     ) -> StrategyDecision:
         state = self._states.setdefault(symbol, RejectionWatchState())
         context_plan = rejection_direction_plan(
@@ -263,7 +264,7 @@ class WeakLevelRejectionStrategy(Strategy):
         )
         live_high = forming.high if forming is not None else last.high
         live_low = forming.low if forming is not None else last.low
-        flow = compute_trade_flow(trades, observed_at_ms)
+        flow = compute_trade_flow(trades, observed_at_ms) if trade_flow is None else trade_flow
         level_tolerance = max(
             zone.width_pct * 1.5,
             book.spread_pct * 2.0,
@@ -1102,6 +1103,7 @@ class WeakLevelRejectionStrategy(Strategy):
         structure: "MarketStructure | None" = None,
         market_context: "MarketContext | None" = None,
         observed_at_ms: int | None = None,
+        trade_flow: dict | None = None,
     ) -> StrategyDecision:
         context_plan = rejection_direction_plan(
             market_context,
@@ -1231,6 +1233,7 @@ class WeakLevelRejectionStrategy(Strategy):
                 observed_at_ms=observed_at_ms,
                 generation_id_override=state.pinned_generation_id,
                 market_context=market_context,
+                trade_flow=trade_flow,
             )
         if state.pinned_zone is not None and (
             now > state.pinned_until
@@ -1395,4 +1398,5 @@ class WeakLevelRejectionStrategy(Strategy):
             structural_level,
             observed_at_ms=observed_at_ms,
             market_context=market_context,
+            trade_flow=trade_flow,
         )

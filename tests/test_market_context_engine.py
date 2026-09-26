@@ -3,7 +3,7 @@ import pytest
 import asyncio
 
 from scalp_bot.config import Settings
-from scalp_bot.domain import Action, Candle, OrderBook, StrategyDecision, Trend
+from scalp_bot.domain import Action, Candle, OrderBook, StrategyDecision, TradeTick, Trend
 from scalp_bot.engine import ActiveSymbolSession, TradingEngine
 from scalp_bot.strategy.market_context import (
     build_execution_context,
@@ -256,6 +256,7 @@ class CaptureStrategy:
         self.label = key
         self.seen_contexts = []
         self.seen_candle_counts = []
+        self.seen_flows = []
 
     def evaluate(
         self,
@@ -268,9 +269,11 @@ class CaptureStrategy:
         structure=None,
         market_context=None,
         observed_at_ms=None,
+        trade_flow=None,
     ):
         self.seen_contexts.append(market_context)
         self.seen_candle_counts.append(len(candles))
+        self.seen_flows.append(trade_flow)
         return StrategyDecision(
             strategy=self.key,
             action=Action.WAIT,
@@ -328,6 +331,14 @@ def test_tradeable_playbooks_receive_same_canonical_market_context(tmp_path) -> 
             for strategy in strategies.values()
         ]
         assert all(context is session.market_context for context in seen)
+        flows = [strategy.seen_flows[0] for strategy in strategies.values()]
+        assert all(flow == flows[0] for flow in flows)
+        assert len({id(flow) for flow in flows}) == len(flows)
+        flows[0]['buyNotional5s'] = -999
+        assert flows[1]['buyNotional5s'] == 0
+        session.trades.append(TradeTick(int(time.time() * 1000), 101, 2, 'Buy'))
+        asyncio.run(engine._evaluate(session))
+        assert all(s.seen_flows[-1]['buyNotional5s'] == 202 for s in strategies.values())
         public = session.market_context.public()
         assert public["schemaVersion"] == 1
         assert public["structureContext"] is not None

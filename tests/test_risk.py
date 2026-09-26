@@ -73,23 +73,33 @@ def test_better_long_entry_below_setup_is_allowed_while_stop_is_intact() -> None
 
 def test_rejects_trade_with_bad_net_reward_risk_even_if_profit_covers_costs() -> None:
     cfg = Settings(
+        _env_file=None,
         min_net_profit_usd=0.1,
+        min_net_profit_equity_fraction=0,
+        enforce_min_net_profit_gate=True,
         min_net_reward_risk=1.5,
         enforce_net_reward_risk_gate=True,
         taker_fee_rate=0,
+        maker_fee_rate=0,
         slippage_bps=0,
         max_leverage=1,
+        partial_take_enabled=False,
     )
     result = RiskEngine(cfg).build_plan(
         "BTCUSDT",
-        decision(100.30, stop=99.70),
+        decision(100.36, stop=99.70),
         1000,
         book(99.99, 100.00),
         1000,
         20,
     )
     assert not result.allowed
-    assert "reward/risk" in result.reason
+    # The setup clears the profit and absolute payoff floors, so this tests
+    # the stricter configured reward/risk gate rather than another rejection.
+    assert result.diagnostics["wouldFailMinimumNetProfit"] is False
+    assert result.diagnostics["wouldFailAbsoluteNetRewardRisk"] is False
+    assert result.diagnostics["wouldFailNetRewardRisk"] is True
+    assert result.reason.startswith("economic_gate: insufficient_net_reward_risk:")
 
 
 

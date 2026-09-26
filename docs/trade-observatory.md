@@ -56,6 +56,15 @@ Layer controls:
 
 Entry, stop and target remain visually dominant when a position exists.
 
+Execution markers are shown on the main chart, trade review and replay: a blue
+entry arrow and a purple exit marker, labelled with execution time and price.
+Small dots mark the actual fill price on the corresponding candle. Closed trades
+from the current server session remain marked on the main chart; older sessions
+are available through Trade Review or replay. Markers follow the selected
+timeframe, and entry/exit labels use opposite sides when both share a candle.
+Executions outside the loaded candle history or in a data gap are not moved onto
+an unrelated candle. Trade Review leaves space to the right for the exit label.
+
 ## DOM Inspector
 
 When the density strategy is tracking a wall, the order-book panel exposes:

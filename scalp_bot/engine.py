@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
-from dataclasses import dataclass, field
-from time import monotonic, perf_counter_ns, time
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 from .bybit import (
     BybitRestClient,
@@ -13,6 +13,12 @@ from .bybit import (
     stream_symbol,
 )
 from .config import Settings
+from .runtime_clock import RuntimeClock, SystemRuntimeClock, RecordingRuntimeClock
+from .input_scope import InputScopes, input_scope
+from .input_journal import InputJournal
+from .source_failure import SourceFailure, describe_source_error
+from .source_await import source_await
+from .manifest_validation import fingerprint
 from .domain import Action, Candle, Candidate, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .paper import PaperBroker, Position
 from .expectancy import StrategyExpectancyBook
@@ -30,6 +36,8 @@ from .latency_observability import (
     stream_name,
 )
 from .recorder import SessionRecorder
+from .run_manifest import build_run_manifest, code_provenance
+from .market_clock import MarketClock, receipt_age_seconds
 from .research_policy import (
     PolicyAssessment,
     PolicyMode,
@@ -101,6 +109,7 @@ ENTRY_FRESHNESS_RESET_STATES = {
 @dataclass(slots=True)
 class ActiveSymbolSession:
     symbol: str
+    clock: RuntimeClock = field(default_factory=SystemRuntimeClock, kw_only=True, repr=False, compare=False)
     candles: list[Candle] = field(default_factory=list)
     instrument: InstrumentSpec | None = None
     fee_schedule: FeeSchedule | None = None
@@ -158,8 +167,8 @@ class ActiveSymbolSession:
     consumed_setups: dict[str, str] = field(default_factory=dict)
     cooldown_until: dict[str, float] = field(default_factory=dict)
     nontradeable_since: dict[str, float] = field(default_factory=dict)
-    activated_at: float = field(default_factory=time)
-    last_ranked_at: float = field(default_factory=time)
+    activated_at: float | None = None
+    last_ranked_at: float | None = None
     last_signal_at: float = 0.0
     last_trade_at: float = 0.0
     last_market_at: float = 0.0
@@ -176,10 +185,20 @@ class ActiveSymbolSession:
     deep_book_exchange_ts_ms: int = 0
     deep_book_max_skew_seconds: float = 0.50
     last_trade_stream_at: float = 0.0
+    receipt_clock_required: bool = False
+    fast_receipt_mono: float | None = None
+    deep_receipt_mono: float | None = None
+    trade_receipt_mono: float | None = None
+    latest_processed_event_ms: int = 0
+    trade_exchange_ts_ms: int = 0
+    clock_reading: dict | None = None
+    clock_block_reason: str | None = "unobserved"
     last_kline_at: float = 0.0
     last_eval: float = 0.0
     last_event_eval_at: float = 0.0
     event_eval_pending: bool = False
+    event_eval_capture_id: int | None = None
+    event_eval_owner: object | None = field(default=None, repr=False, compare=False)
     pending_latency_message: MarketMessage | None = None
     fast_event_requests: int = 0
     fast_event_evaluations: int = 0
@@ -204,6 +223,12 @@ class ActiveSymbolSession:
         default_factory=dict
     )
 
+    def __post_init__(self) -> None:
+        if self.activated_at is None:
+            self.activated_at = self.clock.time()
+        if self.last_ranked_at is None:
+            self.last_ranked_at = self.clock.time()
+
     def funding_public(self) -> dict:
         return {
             "markPrice": self.mark_price or None,
@@ -214,9 +239,12 @@ class ActiveSymbolSession:
         }
 
     def book_age_seconds(self, now: float | None = None) -> float | None:
+        if self.receipt_clock_required:
+            return None if self.fast_receipt_mono is None else receipt_age_seconds(
+                now_mono=self.clock.perf_counter_ns() / 1e9, received_mono=self.fast_receipt_mono)
         if self.last_book_at <= 0:
             return None
-        resolved_now = time() if now is None else now
+        resolved_now = self.clock.time() if now is None else now
         return max(0.0, resolved_now - self.last_book_at)
 
     def book_is_fresh(self, now: float | None = None) -> bool:
@@ -256,9 +284,12 @@ class ActiveSymbolSession:
         self,
         now: float | None = None,
     ) -> float | None:
+        if self.receipt_clock_required:
+            return None if self.deep_receipt_mono is None else receipt_age_seconds(
+                now_mono=self.clock.perf_counter_ns() / 1e9, received_mono=self.deep_receipt_mono)
         if self.last_deep_book_at <= 0:
             return None
-        resolved_now = time() if now is None else now
+        resolved_now = self.clock.time() if now is None else now
         return max(
             0.0,
             resolved_now - self.last_deep_book_at,
@@ -353,7 +384,7 @@ class ActiveSymbolSession:
         if not confirmed:
             return None
         latest = max(confirmed, key=lambda candle: candle.start_ms)
-        resolved_now = time() if now is None else now
+        resolved_now = self.clock.time() if now is None else now
         close_at = latest.start_ms / 1000 + 60.0
         return max(0.0, resolved_now - close_at)
 
@@ -403,7 +434,7 @@ class ActiveSymbolSession:
             self.book_flow.popleft()
 
     def book_flow_snapshot(self, now_ms: int | None = None) -> dict:
-        resolved_now_ms = int(time() * 1000) if now_ms is None else now_ms
+        resolved_now_ms = int(self.clock.time() * 1000) if now_ms is None else now_ms
 
         def window(seconds: int) -> tuple[float, int]:
             cutoff = resolved_now_ms - seconds * 1000
@@ -521,7 +552,7 @@ class ActiveSymbolSession:
 
     def chart_series(self, now_ms: int | None = None) -> dict:
         resolved_now = (
-            int(time() * 1000)
+            int(self.clock.time() * 1000)
             if now_ms is None
             else now_ms
         )
@@ -590,7 +621,7 @@ class ActiveSymbolSession:
                 for price, qty in rows[start:end]
             ]
         resolved_now = (
-            int(time() * 1000)
+            int(self.clock.time() * 1000)
             if now_ms is None
             else now_ms
         )
@@ -712,8 +743,9 @@ class ActiveSymbolSession:
         }
 
     def market_snapshot(self) -> dict:
-        now_ms = int(time() * 1000)
+        now_ms = (self.clock_reading or {}).get("evaluationMs") or int(self.clock.time() * 1000)
         return {
+            "clock": self.clock_reading,
             "symbol": self.symbol,
             "lastPrice": self.last_price,
             "trend": self.trend.value,
@@ -761,7 +793,7 @@ class ActiveSymbolSession:
         *,
         trade_after_sequence: int | None = None,
     ) -> dict:
-        now_ms = int(time() * 1000)
+        now_ms = (self.clock_reading or {}).get("evaluationMs") or int(self.clock.time() * 1000)
         all_trades = list(self.trades)
         if trade_after_sequence is None:
             selected_trades = (
@@ -790,6 +822,7 @@ class ActiveSymbolSession:
             )
         return {
             "lastPrice": self.last_price,
+            "clock": self.clock_reading,
             "trend": self.trend.value,
             "marketContext": self.market_context_public(),
             "analysisRuntime": self.analysis_runtime_public(),
@@ -840,20 +873,25 @@ class Opportunity:
 
 
 class TradingEngine:
-    def __init__(self, config: Settings) -> None:
+    def __init__(self, config: Settings, *, clock: RuntimeClock | None = None,
+                 capture_inputs: bool = False, rest_client=None, recorder=None,
+                 research_policy=None, configure_observability: bool = True) -> None:
+        self.clock = clock if clock is not None else SystemRuntimeClock()
         self.config = config
-        configure_telemetry(config)
-        self.rest = BybitRestClient(config)
+        if configure_observability:
+            configure_telemetry(config)
+        self.rest = rest_client if rest_client is not None else BybitRestClient(config)
         self.risk = RiskEngine(config)
-        self.broker = PaperBroker(config)
-        self.recorder = SessionRecorder(
+        self.broker = PaperBroker(config, clock=self.clock)
+        self.recorder = recorder if recorder is not None else SessionRecorder(
             config.session_dir,
+            clock=self.clock,
             queue_size=config.recorder_queue_size,
             critical_enqueue_timeout_seconds=(
                 config.recorder_critical_enqueue_timeout_seconds
             ),
         )
-        self.research_policy = ResearchPolicyRuntime.from_settings(
+        self.research_policy = research_policy if research_policy is not None else ResearchPolicyRuntime.from_settings(
             path=config.research_policy_file,
             mode=config.research_policy_mode,
         )
@@ -867,6 +905,9 @@ class TradingEngine:
             "weak_level_rejection": config.weak_level_rejection_enabled,
             "orderbook_density": config.density_enabled,
             "level_breakout": config.breakout_enabled,
+            # Opt-in through the existing UI/API toggle. The run manifest records
+            # the actual enabled strategy set; baseline config stays unchanged.
+            "price_action_hypothesis": False,
         }
         self.strategy_enabled: dict[str, bool] = {
             key: bool(configured_strategy_state.get(key, True))
@@ -951,6 +992,7 @@ class TradingEngine:
                 "hold_without_retest_seconds",
                 config.breakout_hold_without_retest_seconds,
             )
+            breakout_strategy.conditional_hold_enabled = config.e06_conditional_breakout_hold
             setattr(
                 breakout_strategy,
                 "absorption_efficiency_threshold",
@@ -1030,8 +1072,17 @@ class TradingEngine:
         self._stop = asyncio.Event()
         self._paper_timer_task: asyncio.Task | None = None
         self._run_started_at: float | None = None
+        self._run_started_mono: float | None = None
         self._run_deadline_at: float | None = None
         self._last_run_summary: dict | None = None
+        self._run_manifest: dict | None = None
+        self.market_clock = MarketClock(
+            max_rtt_ms=config.clock_max_rtt_ms,
+            max_sync_age_seconds=config.clock_max_sync_age_seconds,
+            max_uncertainty_ms=config.clock_max_uncertainty_ms,
+            wall_jump_ms=config.clock_wall_jump_ms,
+            drift_ppm=config.clock_drift_ppm,
+        )
         self._scanner_error: str | None = None
         self._last_scan_ok_at: float | None = None
         self._last_scan_error_at: float | None = None
@@ -1044,21 +1095,178 @@ class TradingEngine:
         self._arbiter_trigger_setups: set[
             tuple[str, str]
         ] = set()
+        # Experimental opt-in API until bootstrap/scheduler coverage is complete.
+        # The journal header explicitly prohibits treating this as full parity.
+        self._transport_worker_serial = 0
+        self.input_scopes = None
+        self._context_batch_serial = 0
+        self._source_request_serial = 0
+        self.input_journal = InputJournal(self.recorder.record, self.clock) if capture_inputs else None
+        if self.input_journal is not None:
+            self._record_input("manifest", None, {"phase": "capture", "manifest": build_run_manifest(
+                self.config, self.strategy_enabled,
+                code=code_provenance(Path(__file__).resolve().parents[1]),
+                policy=self.research_policy.public())})
+            self._record_input("policy_snapshot", None, {
+                "mode": self.research_policy.mode.value,
+                "manifest": self.research_policy.manifest,
+                "contentHash": fingerprint(self.research_policy.manifest),
+                "sourceFileSha256": self.research_policy.source_sha256})
+            self.input_scopes = InputScopes(self.input_journal)
+            self.clock = RecordingRuntimeClock(self.clock, self._record_clock_read)
+            self.broker.clock = self.clock
+            # Recorder metadata and journal envelopes retain the undecorated
+            # clock; recording a clock read must never recursively record itself.
+
+    def _record_clock_read(self, method, value) -> None:
+        if self.input_journal is not None and not self.input_journal.closed:
+            self._record_input("clock_read", None, {"method": method, "value": value,
+                "scopeId": self.input_scopes.current.get()})
+
+    def _record_scheduler(self, phase, symbol, task_id, reason="", delay=0.0, outcome=None):
+        if task_id is not None:
+            self._record_input("scheduler", symbol, {"phase": phase, "taskId": task_id,
+                "reason": reason, "delay": delay, "outcome": outcome})
+
+
+    def _record_input(self, kind: str, symbol: str | None, body: dict) -> None:
+        if self.input_journal is not None:
+            self.input_journal.append(kind, symbol, body)
 
     async def start(self) -> None:
+        self._record_input("service", None, {"phase": "start"})
         self._stop.clear()
         self.recorder.start_background_writer()
+        if self.config.exchange_clock_enabled:
+            await self._sync_clock_once()
         try:
             await self._scan_once()
         except Exception as exc:
             self._record_scanner_error("startup_scan_error", exc)
+        self._launch_service_tasks()
+
+    def _launch_service_tasks(self):
         self._tasks = [
             asyncio.create_task(self._scanner_loop(), name="scanner"),
             asyncio.create_task(self._context_loop(), name="context"),
             asyncio.create_task(self._arbiter_loop(), name="trade-arbiter"),
         ]
+        if self.config.exchange_clock_enabled:
+            self._tasks.append(asyncio.create_task(self._clock_loop(), name="exchange-clock"))
+
+    @input_scope("clock_sync", symbol_arg=False)
+    async def _sync_clock_once(self) -> bool:
+        try:
+            with source_await(self, 'clock'):
+                try:
+                    sample = await self.rest.clock_sample()
+                except Exception as exc:
+                    sample = SourceFailure(type(exc).__name__)
+            if isinstance(sample, SourceFailure):
+                return self._apply_clock_error(sample.error_type)
+            return self._apply_clock_sample(sample)
+        except Exception as exc:
+            # Keep the last bounded sample only until its configured expiry.
+            return self._apply_clock_error(type(exc).__name__)
+
+    def _apply_clock_sample(self, sample):
+        """Shared application of a recorded or live REST clock result."""
+        self._record_input("clock_sample", None, sample)
+        accepted = self.market_clock.synchronize(**sample)
+        self._emit("clock_sync", None, {"sample": sample, "accepted": accepted,
+                   "rejectionReason": self.market_clock.last_sync_rejection,
+                   "upperPaddingMs": self.market_clock.last_sync_upper_padding_ms,
+                   "clock": self._clock_state()})
+        return accepted
+
+    def _apply_clock_error(self, error_type):
+        self._record_input("clock_error", None, {"errorType": error_type})
+        self._emit("clock_sync_error", None, {"errorType": error_type})
+        return False
+
+    async def _input_sleep(self, source: str, delay: float) -> None:
+        if self.input_journal is None:
+            await self._periodic_sleep(delay)
+            return
+        identity = self.input_journal.sequence + 1
+        body = {"source": source, "id": identity, "delay": delay}
+        self._record_input("dispatch", None, {**body, "phase": "wait"})
+        try:
+            await self._periodic_sleep(delay)
+        except asyncio.CancelledError:
+            self._record_input("dispatch", None, {**body, "phase": "cancelled"})
+            raise
+        self._record_input("dispatch", None, {**body, "phase": "wake"})
+
+    async def _periodic_sleep(self, delay):
+        """Live wait adapter; replay supplies a controlled suspension."""
+        await asyncio.sleep(delay)
+
+    @input_scope("clock_loop")
+    async def _clock_loop(self) -> None:
+        interval = max(1.0, self.config.clock_sync_interval_seconds)
+        retry = min(2.0, interval)
+        delay = interval if self._clock_state()["valid"] else retry
+        while not self._stop.is_set():
+            await self._input_sleep("clock", delay)
+            if self._stop.is_set():
+                break
+            accepted = await self._sync_clock_once()
+            delay = interval if accepted else retry
+
+    def _clock_state(self, session: ActiveSymbolSession | None = None) -> dict | None:
+        if not self.config.exchange_clock_enabled:
+            return None
+        reading = self.market_clock.read(
+            mono=self.clock.perf_counter_ns() / 1e9, wall_ms=self.clock.time() * 1000,
+            latest_processed_event_ms=session.latest_processed_event_ms if session else None,
+        )
+        state = {**asdict(reading), "evaluationMs": reading.evaluation_ms,
+                 "contract": "exchange-bounds-v1"}
+        if session is not None:
+            session.receipt_clock_required = True
+            state["receiptAgesSeconds"] = {
+                key: None if stamp is None else receipt_age_seconds(
+                    now_mono=reading.monotonic_seconds, received_mono=stamp)
+                for key, stamp in (("fastBook", session.fast_receipt_mono),
+                                   ("deepBook", session.deep_receipt_mono),
+                                   ("trade", session.trade_receipt_mono))
+            }
+            session.clock_reading = state
+            if not reading.valid:
+                session.decisions.clear()
+        return state
+
+    def _clock_entry_block(self, session: ActiveSymbolSession) -> str | None:
+        state = self._clock_state(session)
+        if state is None:
+            return None
+        reason = None
+        if not state["valid"]:
+            reason = "clock:" + str(state["reason"])
+        elif not session.book_is_fresh() or not session.deep_book_is_fresh():
+            reason = "clock:stale_book_receipt"
+        else:
+            age = state["receiptAgesSeconds"]["trade"]
+            if age is None or age > self.config.trade_receipt_stale_seconds:
+                reason = "clock:stale_trade_receipt"
+            else:
+                for name, stamp, limit in (
+                    ("fast_book", session.fast_book_exchange_ts_ms, session.book_stale_after_seconds),
+                    ("deep_book", session.deep_book_exchange_ts_ms, session.deep_book_stale_after_seconds),
+                    ("trade", session.trade_exchange_ts_ms, self.config.trade_receipt_stale_seconds),
+                ):
+                    if stamp <= 0 or state["exchange_lower_ms"] - stamp > limit * 1000:
+                        reason = "clock:stale_" + name + "_event"
+                        break
+        state["entryBlockReason"] = reason
+        if reason != session.clock_block_reason:
+            session.clock_block_reason = reason
+            self._emit("clock_admission_changed", session.symbol, {"reason": reason, "clock": state})
+        return reason
 
     async def close(self) -> None:
+        self._record_input("service", None, {"phase": "close"})
         if self.running:
             self._stop_trading("shutdown")
         else:
@@ -1066,6 +1274,13 @@ class TradingEngine:
             self._close_all_positions("shutdown")
         self._cancel_run_timer()
         self._stop.set()
+        await self._shutdown_service_tasks()
+        await self.rest.close()
+        if self.input_journal is not None:
+            self.input_journal.close()
+        self.recorder.close()
+
+    async def _shutdown_service_tasks(self):
         for task, stop_event in self._worker_tasks.values():
             stop_event.set()
             task.cancel()
@@ -1080,10 +1295,10 @@ class TradingEngine:
             return_exceptions=True,
         )
         self._event_tasks.clear()
-        await self.rest.close()
-        self.recorder.close()
 
+    @input_scope("start_request", symbol_arg=False)
     def set_running(self, value: bool) -> None:
+        self._record_input("control", None, {"name": "set_running", "value": value})
         if value:
             if self.running:
                 return
@@ -1092,16 +1307,17 @@ class TradingEngine:
                 raise RuntimeError(
                     f"cannot start paper run: {blocked}"
                 )
-            now = time()
+            manifest = self._build_trading_manifest()
+            now = self.clock.time()
+            self._record_input("manifest", None, {"phase": "run", "manifest": manifest})
+            self._run_manifest = manifest
             self.running = True
             self._run_started_at = now
+            self._run_started_mono = self.clock.perf_counter_ns() / 1e9
             self._run_deadline_at = now + self.config.paper_run_duration_seconds
             self._last_run_summary = None
             self._cancel_run_timer()
-            self._paper_timer_task = asyncio.create_task(
-                self._paper_run_timer(),
-                name="paper-run-timer",
-            )
+            self._launch_run_timer()
             self._emit(
                 "bot_started",
                 None,
@@ -1111,6 +1327,8 @@ class TradingEngine:
                     "deadlineAt": self._run_deadline_at,
                     "durationSeconds": self.config.paper_run_duration_seconds,
                     "config": self._run_config_snapshot(),
+                    "manifest": manifest,
+                    "clock": self._clock_state(),
                 },
             )
             if self.research_policy.active:
@@ -1123,22 +1341,32 @@ class TradingEngine:
 
         self._stop_trading("bot_stop")
 
+    def _build_trading_manifest(self):
+        return build_run_manifest(self.config, self.strategy_enabled,
+            code=code_provenance(Path(__file__).resolve().parents[1]), policy=self.research_policy.public())
+
+    def _launch_run_timer(self):
+        self._paper_timer_task = asyncio.create_task(self._paper_run_timer(), name="paper-run-timer")
+
+    @input_scope("paper_timer")
     async def _paper_run_timer(self) -> None:
         try:
-            await asyncio.sleep(self.config.paper_run_duration_seconds)
+            await self._input_sleep("paper_timer", self.config.paper_run_duration_seconds)
         except asyncio.CancelledError:
             raise
         if self.running:
             self._stop_trading("duration_elapsed", cancel_timer=False)
 
+    @input_scope("stop", symbol_arg=False)
     def _stop_trading(self, reason: str, *, cancel_timer: bool = True) -> None:
+        self._record_input("control", None, {"name": "stop", "reason": reason})
         if (
             not self.running
             and not self.broker.positions
             and not self.broker.pending_entries
         ):
             return
-        stopped_at = time()
+        stopped_at = self.clock.time()
         self.running = False
         if cancel_timer:
             self._cancel_run_timer()
@@ -1146,11 +1374,18 @@ class TradingEngine:
         self._close_all_positions(reason)
         started_at = self._run_started_at
         summary = {
+            "manifestId": self._run_manifest["manifestId"] if self._run_manifest else None,
+            "manifestSha256": self._run_manifest["manifestSha256"] if self._run_manifest else None,
             "runLabel": self.config.run_label,
             "reason": reason,
             "startedAt": started_at,
             "stoppedAt": stopped_at,
-            "elapsedSeconds": max(0.0, stopped_at - started_at) if started_at else 0.0,
+            "elapsedSeconds": (
+                max(0.0, self.clock.perf_counter_ns() / 1e9 - self._run_started_mono)
+                if self.config.exchange_clock_enabled and self._run_started_mono is not None
+                else max(0.0, stopped_at - started_at) if started_at else 0.0
+            ),
+            "elapsedClock": "monotonic" if self.config.exchange_clock_enabled else "local_wall",
             "configuredDurationSeconds": self.config.paper_run_duration_seconds,
             "balance": self.broker.balance,
             "realizedPnl": self.broker.total_pnl,
@@ -1159,6 +1394,9 @@ class TradingEngine:
             "recorderHealth": self.recorder.health(),
         }
         self._last_run_summary = summary
+        if self._run_manifest is not None:
+            self._record_input("run_end", None, {"manifestId": self._run_manifest["manifestId"],
+                "manifestSha256": self._run_manifest["manifestSha256"], "reason": reason})
         self._emit("run_summary", None, summary)
         self._emit("bot_stopped", None, {"reason": reason})
         self._run_deadline_at = None
@@ -1253,15 +1491,21 @@ class TradingEngine:
             "replayIdleFrameSeconds": self.config.replay_idle_frame_seconds,
         }
 
+    @input_scope("toggle_strategy", symbol_arg=False)
     def toggle_strategy(self, key: str, enabled: bool) -> None:
+        self._record_input("control", None, {"name": "toggle_strategy", "key": key, "enabled": enabled})
         if key not in self.strategy_enabled:
             raise KeyError(key)
         self.strategy_enabled[key] = enabled
         if key == "orderbook_density" and not enabled:
             for session in self.sessions.values():
                 session.liquidity_evidence = None
-        self._emit("strategy_toggle", None, {"strategy": key, "enabled": enabled})
+        self._emit("strategy_toggle", None, {
+            "strategy": key, "enabled": enabled,
+            "manifestId": self._run_manifest["manifestId"] if self.running and self._run_manifest else None,
+        })
 
+    @input_scope("scanner_loop")
     async def _scanner_loop(self) -> None:
         while not self._stop.is_set():
             try:
@@ -1273,7 +1517,7 @@ class TradingEngine:
                         self.config.empty_startup_rescan_seconds,
                     )
                 )
-                await asyncio.sleep(max(0.1, delay))
+                await self._input_sleep("scanner", max(0.1, delay))
                 await self._scan_once()
             except asyncio.CancelledError:
                 raise
@@ -1285,12 +1529,21 @@ class TradingEngine:
         event: str,
         exc: Exception,
     ) -> None:
-        self._scanner_error = f"{type(exc).__name__}: {exc}"
-        self._last_scan_error_at = time()
+        failure = describe_source_error(exc)
+        self._record_input("source_error", None, {"source": "scanner", "errorType": failure.error_type})
+        self._scanner_error = f"{failure.error_type}: {failure.message}"
+        self._last_scan_error_at = self.clock.time()
         self._emit(event, None, {"error": self._scanner_error})
 
+    @input_scope("market_health")
     def market_health(self) -> dict:
-        now = time()
+        now = self.clock.time()
+        clock = self._clock_state()
+        market_now = clock["evaluationMs"] / 1000 if clock and clock["valid"] else now
+        clock_blocks = {
+            session.symbol: self._clock_entry_block(session)
+            for session in self.sessions.values()
+        }
         live_sessions = [
             session
             for session in self.sessions.values()
@@ -1300,11 +1553,15 @@ class TradingEngine:
             and session.deep_book_is_fresh(now)
             and session.confirmed_candle_is_fresh(
                 self.config.confirmed_candle_stale_seconds,
-                now,
+                market_now,
             )
+            and clock_blocks[session.symbol] is None
         ]
         ready = bool(self.candidates) and bool(live_sessions)
-        if self._scanner_error:
+        if clock is not None and not clock["valid"]:
+            ready = False
+            reason = "exchange clock is not ready: " + str(clock["reason"])
+        elif self._scanner_error:
             reason = self._scanner_error
         elif not self.candidates:
             reason = "scanner has no eligible candidates"
@@ -1316,7 +1573,7 @@ class TradingEngine:
                 for session in self.sessions.values()
                 if not session.confirmed_candle_is_fresh(
                     self.config.confirmed_candle_stale_seconds,
-                    now,
+                    market_now,
                 )
             ]
             stale_deep_books = [
@@ -1335,13 +1592,20 @@ class TradingEngine:
                     "waiting for synchronized deep L1000 book: "
                     + ", ".join(stale_deep_books[:6])
                     if stale_deep_books
-                    else "waiting for fresh synchronized websocket market data"
+                    else (
+                        "entry data checks: " + "; ".join(
+                            f"{symbol}: {block}" for symbol, block in clock_blocks.items() if block
+                        ) if any(clock_blocks.values())
+                        else "waiting for fresh synchronized websocket market data"
+                    )
                 )
             )
         else:
             reason = None
         return {
             "ready": ready,
+            "clock": clock,
+            "clockBlocks": clock_blocks,
             "reason": reason,
             "scannerError": self._scanner_error,
             "lastScanOkAt": self._last_scan_ok_at,
@@ -1362,21 +1626,32 @@ class TradingEngine:
         }
 
     def start_block_reason(self) -> str | None:
+        state = self._clock_state()
+        if state is not None and not state["valid"]:
+            return "exchange clock: " + str(state["reason"])
         health = self.market_health()
         return None if health["ready"] else str(
             health["reason"] or "market data is not ready"
         )
 
+    @input_scope("scan", symbol_arg=False)
     async def _scan_once(self) -> None:
-        candidates = await self.rest.active_candidates()
+        with source_await(self, 'scanner'):
+            candidates = await self.rest.active_candidates()
+        await self._apply_scanner_result(candidates)
+
+    async def _apply_scanner_result(self, candidates) -> None:
+        """Shared ranking, promotion and cleanup after a live or recorded scan."""
+        if self.input_journal is not None:
+            self._record_input("scanner_result", None, {"candidates": [asdict(c) for c in candidates]})
         if not candidates:
             raise RuntimeError(
                 "scanner returned zero eligible candidates"
             )
         self.candidates = candidates
         self._scanner_error = None
-        self._last_scan_ok_at = time()
-        now = time()
+        self._last_scan_ok_at = self.clock.time()
+        now = self.clock.time()
         candidate_map = {item.symbol: item for item in self.candidates}
 
         for symbol, session in self.sessions.items():
@@ -1429,6 +1704,7 @@ class TradingEngine:
         try:
             await self._bootstrap_symbol(symbol)
         except Exception as exc:
+            self._record_input("source_error", symbol, {"source": "bootstrap", "errorType": describe_source_error(exc).error_type})
             self._emit(
                 "symbol_bootstrap_error",
                 symbol,
@@ -1436,6 +1712,9 @@ class TradingEngine:
             )
             return
         self.sessions[symbol].last_ranked_at = now
+        self._launch_symbol_worker(symbol)
+
+    def _launch_symbol_worker(self, symbol):
         stop_event = asyncio.Event()
         task = asyncio.create_task(self._symbol_worker(symbol, stop_event), name=f"market-{symbol}")
         self._worker_tasks[symbol] = (task, stop_event)
@@ -1570,9 +1849,26 @@ class TradingEngine:
     def _track_event_task(
         self,
         task: asyncio.Task,
+        *, capture_id=None, symbol=None,
     ) -> None:
         self._event_tasks.add(task)
-        task.add_done_callback(self._event_tasks.discard)
+        def completed(done):
+            try:
+                if capture_id is not None:
+                    outcome = "cancelled" if done.cancelled() else "raised" if done.exception() is not None else "returned"
+                    self._record_scheduler("finished", symbol, capture_id, outcome=outcome)
+            finally:
+                self._complete_event_evaluation(symbol, done)
+                self._event_tasks.discard(done)
+        task.add_done_callback(completed)
+
+    def _complete_event_evaluation(self, symbol, owner):
+        session = self.sessions.get(symbol)
+        if session is not None and session.event_eval_owner is owner:
+            session.event_eval_pending = False
+            session.event_eval_capture_id = None
+            session.pending_latency_message = None
+            session.event_eval_owner = None
 
     def _schedule_event_evaluation(
         self,
@@ -1596,29 +1892,45 @@ class TradingEngine:
         if market_message is not None:
             session.pending_latency_message = market_message
         session.last_fast_event_at_ms = (
-            int(time() * 1000)
+            int(self.clock.time() * 1000)
             if observed_at_ms is None
             else int(observed_at_ms)
         )
         if session.event_eval_pending:
             session.fast_event_coalesced += 1
+            self._record_scheduler("coalesced", session.symbol, session.event_eval_capture_id, reason)
             return
 
         session.event_eval_pending = True
+        capture_id = self.input_journal.sequence + 1 if self.input_journal is not None else None
+        session.event_eval_capture_id = capture_id
+        self._record_scheduler("scheduled", session.symbol, capture_id, reason)
+        self._launch_event_evaluation(session.symbol, reason, capture_id)
+
+    def _launch_event_evaluation(self, symbol, reason, capture_id):
+        """Live task adapter; offline replay supplies a deterministic scheduler."""
         task = asyncio.create_task(
             self._run_event_evaluation(
-                session.symbol,
+                symbol,
                 reason,
+                capture_id=capture_id,
             ),
-            name=f"fast-eval-{session.symbol}",
+            name=f"fast-eval-{symbol}",
         )
-        self._track_event_task(task)
+        self.sessions[symbol].event_eval_owner = task
+        self._track_event_task(task, capture_id=capture_id, symbol=symbol)
 
+    async def _event_evaluation_sleep(self, delay):
+        await asyncio.sleep(delay)
+
+    @input_scope("event_evaluation", symbol_arg=True)
     async def _run_event_evaluation(
         self,
         symbol: str,
         reason: str,
+        *, capture_id=None,
     ) -> None:
+        self._record_scheduler("started", symbol, capture_id, reason)
         session = self.sessions.get(symbol)
         if session is None:
             return
@@ -1631,13 +1943,15 @@ class TradingEngine:
                 ),
             )
             elapsed = (
-                monotonic() - session.last_event_eval_at
+                self.clock.monotonic() - session.last_event_eval_at
                 if session.last_event_eval_at > 0
                 else min_interval
             )
             delay = max(0.0, min_interval - elapsed)
             if delay > 0:
-                await asyncio.sleep(delay)
+                self._record_scheduler("sleep", symbol, capture_id, reason, delay)
+                await self._event_evaluation_sleep(delay)
+                self._record_scheduler("resumed", symbol, capture_id, reason, delay)
 
             session = self.sessions.get(symbol)
             if session is None:
@@ -1645,13 +1959,13 @@ class TradingEngine:
             before = self._tradeable_event_fingerprint(
                 session
             )
-            now = monotonic()
+            now = self.clock.monotonic()
             session.last_eval = now
             session.last_event_eval_at = now
             session.fast_event_evaluations += 1
             session.last_fast_event_reason = reason
             latency_message = session.pending_latency_message
-            evaluation_started_ns = perf_counter_ns()
+            evaluation_started_ns = self.clock.perf_counter_ns()
 
             with span(
                 "strategy.event_evaluate",
@@ -1691,7 +2005,7 @@ class TradingEngine:
                         status="fallback",
                     )
                 latency_message.strategy_eval_finished_mono_ns = (
-                    perf_counter_ns()
+                    self.clock.perf_counter_ns()
                 )
                 observe_latency(
                     "strategy_evaluation",
@@ -1729,7 +2043,7 @@ class TradingEngine:
                     after_setups - before_setups
                 )
                 if latency_message is not None and new_fire_setups:
-                    latency_message.fire_mono_ns = perf_counter_ns()
+                    latency_message.fire_mono_ns = self.clock.perf_counter_ns()
                     strategy_name = sorted(
                         new_fire_setups
                     )[0][0]
@@ -1809,6 +2123,7 @@ class TradingEngine:
             current = self.sessions.get(symbol)
             if current is not None:
                 current.event_eval_pending = False
+                current.event_eval_capture_id = None
                 current.pending_latency_message = None
 
     def _research_book_depth(
@@ -1834,6 +2149,7 @@ class TradingEngine:
         return min(self.config.deep_orderbook_depth, 50)
 
     def _deactivate_symbol(self, symbol: str, reason: str) -> None:
+        self._record_input("symbol_lifecycle", symbol, {"action": "deactivate", "reason": reason})
         worker = self._worker_tasks.pop(symbol, None)
         if worker:
             task, stop_event = worker
@@ -1845,6 +2161,11 @@ class TradingEngine:
         self.sessions.pop(symbol, None)
 
     async def _bootstrap_symbol(self, symbol: str) -> None:
+        with source_await(self, 'bootstrap', symbol):
+            result = await self._fetch_bootstrap_result(symbol)
+        self._apply_bootstrap_result(symbol, result)
+
+    async def _fetch_bootstrap_result(self, symbol: str):
         (
             instrument,
             fee_schedule,
@@ -1876,7 +2197,21 @@ class TradingEngine:
                 self.config.bootstrap_1h_candles,
             ),
         )
-        now = time()
+        return instrument, fee_schedule, candles, context_5m, context_15m, context_1h
+
+    @input_scope("bootstrap_apply", symbol_arg=True)
+    def _apply_bootstrap_result(self, symbol: str, result) -> None:
+        """Apply the complete bootstrap without consulting REST."""
+        instrument, fee_schedule, candles, context_5m, context_15m, context_1h = result
+        if self.input_journal is not None:
+            self._record_input("bootstrap", symbol, {
+                "instrument": asdict(instrument) if instrument is not None else None,
+                "fees": asdict(fee_schedule) if fee_schedule is not None else None,
+                "candles": [asdict(c) for c in candles],
+                "context5m": [asdict(c) for c in context_5m],
+                "context15m": [asdict(c) for c in context_15m],
+                "context1h": [asdict(c) for c in context_1h]})
+        now = self.clock.time()
         scanner_candidate = next(
             (
                 item
@@ -1886,6 +2221,7 @@ class TradingEngine:
             None,
         )
         session = ActiveSymbolSession(
+            clock=self.clock,
             symbol=symbol,
             candles=candles,
             instrument=instrument,
@@ -1939,6 +2275,7 @@ class TradingEngine:
             emit=False,
         )
         self.sessions[symbol] = session
+        self._record_input("symbol_lifecycle", symbol, {"action": "activate", "reason": "bootstrap_completed"})
         self._emit(
             "symbol_activated",
             symbol,
@@ -1948,118 +2285,151 @@ class TradingEngine:
             },
         )
 
+    @input_scope("context_loop")
     async def _context_loop(self) -> None:
         while not self._stop.is_set():
             try:
-                await asyncio.sleep(60)
+                await self._input_sleep("context", 60)
                 items = list(self.sessions.items())
                 if not items:
                     continue
-                async def refresh(
-                    symbol: str,
-                    session: ActiveSymbolSession,
-                ):
-                    stale_1m = not session.confirmed_candle_is_fresh(
-                        self.config.confirmed_candle_stale_seconds,
-                    )
-                    one_minute = (
-                        self.rest.klines(
-                            symbol,
-                            "1",
-                            min(self.config.bootstrap_1m_candles, 240),
-                        )
-                        if stale_1m
-                        else asyncio.sleep(0, result=None)
-                    )
-                    return await asyncio.gather(
-                        one_minute,
-                        self.rest.klines(
-                            symbol,
-                            "5",
-                            self.config.bootstrap_5m_candles,
-                        ),
-                        self.rest.klines(
-                            symbol,
-                            "15",
-                            self.config.bootstrap_15m_candles,
-                        ),
-                        self.rest.klines(
-                            symbol,
-                            "60",
-                            self.config.bootstrap_1h_candles,
-                        ),
-                    )
-
-                results = await asyncio.gather(
-                    *(
-                        refresh(symbol, session)
-                        for symbol, session in items
-                    ),
-                    return_exceptions=True,
-                )
+                results = await self._fetch_context_results(items)
                 for (symbol, session), result in zip(
                     items,
                     results,
                     strict=True,
                 ):
-                    if isinstance(result, Exception):
+                    if isinstance(result, (Exception, SourceFailure)):
+                        error_type = result.error_type if isinstance(result, SourceFailure) else type(result).__name__
+                        self._record_input("source_error", symbol, {"source": "context", "errorType": error_type})
                         continue
-                    (
-                        refreshed_1m,
-                        context_5m,
-                        context_15m,
-                        context_1h,
-                    ) = result
-                    if refreshed_1m:
-                        age_before = session.confirmed_candle_age_seconds()
-                        by_start = {
-                            candle.start_ms: candle
-                            for candle in session.candles
-                        }
-                        for candle in refreshed_1m:
-                            previous = by_start.get(candle.start_ms)
-                            if (
-                                previous is not None
-                                and previous.confirmed
-                            ):
-                                candle.confirmed = True
-                            by_start[candle.start_ms] = candle
-                        session.candles = sorted(
-                            by_start.values(),
-                            key=lambda candle: candle.start_ms,
-                        )[-self.config.bootstrap_1m_candles:]
-                        age_after = session.confirmed_candle_age_seconds()
-                        self._emit(
-                            "candle_resync",
-                            symbol,
-                            {
-                                "reason": "stale_confirmed_1m",
-                                "ageBeforeSeconds": age_before,
-                                "ageAfterSeconds": age_after,
-                                "fetchedCandles": len(refreshed_1m),
-                            },
-                        )
-                    session.context_5m = [x for x in context_5m if x.confirmed]
-                    session.context_15m = [x for x in context_15m if x.confirmed]
-                    session.context_1h = [x for x in context_1h if x.confirmed]
-                    self._refresh_market_context(
-                        session,
-                        closed_1m=[
-                            x for x in session.candles
-                            if x.confirmed
-                        ],
-                        closed_5m=session.context_5m,
-                        closed_15m=session.context_15m,
-                        closed_1h=session.context_1h,
-                    )
-                    # REST context may correct the latest confirmed HTF bar.
-                    # Force the next live evaluation to rebuild structural
-                    # geometry from that refreshed confirmed-candle snapshot.
-                    session.static_analysis_key = None
+                    self._apply_context_result(session, result)
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
+                self._record_input("source_error", None, {"source": "context", "errorType": type(exc).__name__})
                 self._emit("context_error", None, {"error": str(exc)})
+
+    def _context_needs_1m(self, session):
+        return not session.confirmed_candle_is_fresh(self.config.confirmed_candle_stale_seconds)
+
+    async def _fetch_context_results(self, items):
+        """Live REST adapter; the loop applies results in the original item order."""
+        identity = self._begin_context_batch(items)
+        async def refresh(
+            symbol: str,
+            session: ActiveSymbolSession,
+        ):
+            self._record_input("context_await", symbol, {"id": identity, "phase": "request"})
+            stale_1m = self._context_needs_1m(session)
+            one_minute = (
+                self.rest.klines(
+                    symbol,
+                    "1",
+                    min(self.config.bootstrap_1m_candles, 240),
+                )
+                if stale_1m
+                else asyncio.sleep(0, result=None)
+            )
+            return await asyncio.gather(
+                one_minute,
+                self.rest.klines(
+                    symbol,
+                    "5",
+                    self.config.bootstrap_5m_candles,
+                ),
+                self.rest.klines(
+                    symbol,
+                    "15",
+                    self.config.bootstrap_15m_candles,
+                ),
+                self.rest.klines(
+                    symbol,
+                    "60",
+                    self.config.bootstrap_1h_candles,
+                ),
+            )
+
+        try:
+            results = await asyncio.gather(
+                *(refresh(symbol, session) for symbol, session in items),
+                return_exceptions=True,
+            )
+        except asyncio.CancelledError:
+            self._record_input("context_await", None, {"id": identity, "phase": "cancelled"})
+            raise
+        self._record_input("context_await", None, {"id": identity, "phase": "ready"})
+        return results
+
+    def _begin_context_batch(self, items):
+        self._context_batch_serial += 1
+        identity = self._context_batch_serial
+        self._record_input("context_await", None, {"id": identity, "phase": "wait",
+            "symbols": [symbol for symbol, _ in items]})
+        return identity
+
+    @input_scope("rest_context_apply", symbol_arg=True)
+    def _apply_context_result(self, session: ActiveSymbolSession, result) -> None:
+        """Apply one REST result; shared boundary for live and future replay."""
+        symbol = session.symbol
+        if self.input_journal is not None:
+            self._record_input("rest_context", symbol, {
+                "candles": None if result[0] is None else [asdict(c) for c in result[0]],
+                "context5m": [asdict(c) for c in result[1]],
+                "context15m": [asdict(c) for c in result[2]],
+                "context1h": [asdict(c) for c in result[3]]})
+        (
+            refreshed_1m,
+            context_5m,
+            context_15m,
+            context_1h,
+        ) = result
+        if refreshed_1m:
+            age_before = session.confirmed_candle_age_seconds()
+            by_start = {
+                candle.start_ms: candle
+                for candle in session.candles
+            }
+            for candle in refreshed_1m:
+                previous = by_start.get(candle.start_ms)
+                if (
+                    previous is not None
+                    and previous.confirmed
+                ):
+                    candle.confirmed = True
+                by_start[candle.start_ms] = candle
+            session.candles = sorted(
+                by_start.values(),
+                key=lambda candle: candle.start_ms,
+            )[-self.config.bootstrap_1m_candles:]
+            age_after = session.confirmed_candle_age_seconds()
+            self._emit(
+                "candle_resync",
+                symbol,
+                {
+                    "reason": "stale_confirmed_1m",
+                    "ageBeforeSeconds": age_before,
+                    "ageAfterSeconds": age_after,
+                    "fetchedCandles": len(refreshed_1m),
+                },
+            )
+        session.context_5m = [x for x in context_5m if x.confirmed]
+        session.context_15m = [x for x in context_15m if x.confirmed]
+        session.context_1h = [x for x in context_1h if x.confirmed]
+        self._refresh_market_context(
+            session,
+            closed_1m=[
+                x for x in session.candles
+                if x.confirmed
+            ],
+            closed_5m=session.context_5m,
+            closed_15m=session.context_15m,
+            closed_1h=session.context_1h,
+        )
+        # REST context may correct the latest confirmed HTF bar.
+        # Force the next live evaluation to rebuild structural
+        # geometry from that refreshed confirmed-candle snapshot.
+        session.static_analysis_key = None
 
     async def _process_public_trade_message(
         self,
@@ -2078,11 +2448,11 @@ class TradingEngine:
             return []
 
         ticks: list[TradeTick] = []
-        wall_now = time()
+        wall_now = self.clock.time()
         for row in rows:
             session.trade_sequence += 1
             tick = TradeTick(
-                ts_ms=int(row.get("T") or time() * 1000),
+                ts_ms=int(row.get("T") or self.clock.time() * 1000),
                 price=float(row["p"]),
                 size=float(row["v"]),
                 side=str(row.get("S") or ""),
@@ -2095,6 +2465,9 @@ class TradingEngine:
             )
             session.last_price = tick.price
             session.last_trade_stream_at = wall_now
+            session.trade_receipt_mono = (message.get("receipt_mono_ns", 0) or 0) / 1e9 or None
+            session.latest_processed_event_ms = max(session.latest_processed_event_ms, tick.ts_ms)
+            session.trade_exchange_ts_ms = max(session.trade_exchange_ts_ms, tick.ts_ms)
             prune_trades(
                 session.trades,
                 tick.ts_ms,
@@ -2117,16 +2490,13 @@ class TradingEngine:
             # strategy use this tick to decide whether the order is still
             # valid before the next exchange trade is processed.
             if session.symbol in self.broker.pending_entries:
-                session.last_eval = monotonic()
+                session.last_eval = self.clock.monotonic()
                 await self._evaluate(session)
 
         return ticks
 
-    async def _symbol_worker(
-        self,
-        symbol: str,
-        stop_event: asyncio.Event,
-    ) -> None:
+    def _market_handler(self, symbol: str):
+        """Create one worker's stateful handler, shared by live and offline adapters."""
         fast_depth = self.config.fast_orderbook_depth
         deep_depth = self.config.deep_orderbook_depth
         fast_book_state = OrderBookState(fast_depth)
@@ -2134,7 +2504,7 @@ class TradingEngine:
         fast_topic = f"orderbook.{fast_depth}."
         deep_topic = f"orderbook.{deep_depth}."
 
-        async def on_message(
+        async def apply_message(
             message: MarketMessage | dict,
         ) -> None:
             if isinstance(message, dict):
@@ -2152,8 +2522,11 @@ class TradingEngine:
             if session is None:
                 return
 
-            wall_now = time()
+            if self.input_journal is not None:
+                self.input_journal.market_message(symbol, message)
+            wall_now = self.clock.time()
             session.last_market_at = wall_now
+            session.receipt_clock_required = self.config.exchange_clock_enabled
             topic = str(message.get("topic") or "")
             is_fast_book = topic.startswith(fast_topic)
             is_deep_book = topic.startswith(deep_topic)
@@ -2203,7 +2576,10 @@ class TradingEngine:
                     or wall_now * 1000
                 )
                 session.last_book_at = wall_now
-                message.book_updated_mono_ns = perf_counter_ns()
+                session.fast_receipt_mono = message.receipt_mono_ns / 1e9 or None
+                session.latest_processed_event_ms = max(
+                    session.latest_processed_event_ms, int(message.cts or message.ts or 0))
+                message.book_updated_mono_ns = self.clock.perf_counter_ns()
                 observe_latency(
                     "processor_to_book",
                     max(
@@ -2231,6 +2607,7 @@ class TradingEngine:
                         session.fast_book_exchange_ts_ms
                     )
                     session.last_deep_book_at = wall_now
+                    session.deep_receipt_mono = session.fast_receipt_mono
 
                 data = message.get("data") or {}
                 ofi_usd = 0.0
@@ -2291,7 +2668,10 @@ class TradingEngine:
                     or wall_now * 1000
                 )
                 session.last_deep_book_at = wall_now
-                message.book_updated_mono_ns = perf_counter_ns()
+                session.deep_receipt_mono = message.receipt_mono_ns / 1e9 or None
+                session.latest_processed_event_ms = max(
+                    session.latest_processed_event_ms, int(message.cts or message.ts or 0))
+                message.book_updated_mono_ns = self.clock.perf_counter_ns()
                 observe_latency(
                     "processor_to_book",
                     max(
@@ -2327,7 +2707,7 @@ class TradingEngine:
             # Periodic evaluation remains a fallback, but deep-book-only
             # context updates never drive the latency-sensitive strategy loop.
             if not deep_only:
-                now = monotonic()
+                now = self.clock.monotonic()
                 evaluation_interval = (
                     self._evaluation_interval_seconds(
                         session
@@ -2342,6 +2722,7 @@ class TradingEngine:
                     await self._evaluate(session)
 
                 position = self.broker.positions.get(symbol)
+                self._clock_state(session)
 
                 if (
                     now - session.last_research_frame
@@ -2407,11 +2788,36 @@ class TradingEngine:
                             session.trade_sequence
                         )
 
+        async def on_message(message):
+            if self.input_scopes is None:
+                return await apply_message(message)
+            with self.input_scopes.enter("market_message", symbol):
+                return await apply_message(message)
+
+        return on_message, fast_book_state, deep_book_state
+
+    async def _symbol_worker(
+        self,
+        symbol: str,
+        stop_event: asyncio.Event,
+    ) -> None:
+        self._transport_worker_serial += 1
+        worker_id = self._transport_worker_serial
+        on_message, fast_book_state, deep_book_state = self._market_handler(symbol)
+        fast_depth = self.config.fast_orderbook_depth
+        deep_depth = self.config.deep_orderbook_depth
+
+        def capture_transport(event):
+            self._record_input("transport", symbol, {**event, "workerId": worker_id,
+                "fastState": self._transport_book_state(fast_book_state),
+                "deepState": self._transport_book_state(deep_book_state)})
+
         await stream_symbol(
             self.config.bybit_public_ws_url,
             symbol,
             on_message,
             stop_event,
+            **({"on_transport": capture_transport} if self.input_journal is not None else {}),
             fast_orderbook_depth=fast_depth,
             deep_orderbook_depth=deep_depth,
             market_queue_size=self.config.market_queue_size,
@@ -2422,6 +2828,13 @@ class TradingEngine:
                 self.config.market_queue_max_lag_seconds
             ),
         )
+
+    @staticmethod
+    def _transport_book_state(state):
+        return {"depth": state.depth, "synced": state.synced,
+                "updateId": state.last_update_id, "seq": state.last_seq,
+                "bids": [list(x) for x in sorted(state.bids.items(), reverse=True)],
+                "asks": [list(x) for x in sorted(state.asks.items())]}
 
     @staticmethod
     def _overlay_trade_on_forming_candle(
@@ -2572,7 +2985,7 @@ class TradingEngine:
         if forming is not None:
             snapshot_observed_at_ms = int(
                 message.get("ts")
-                or time() * 1000
+                or self.clock.time() * 1000
             )
             session.forming_kline_start_ms = (
                 forming.start_ms
@@ -2641,7 +3054,19 @@ class TradingEngine:
             cls._closed_candle_source_key(closed_1h),
         )
 
+    @input_scope("evaluate", symbol_arg=True)
     async def _evaluate(self, session: ActiveSymbolSession) -> None:
+        self._record_input("callback", session.symbol, {"name": "evaluate"})
+        clock = self._clock_state(session)
+        if clock is not None and not clock["valid"]:
+            for key in self.strategies:
+                session.decisions[key] = StrategyDecision(
+                    strategy=key, action=Action.WAIT,
+                    reasons=["Биржевое время недостоверно; новые входы запрещены"],
+                    details={"state": "clock_invalid", "clockReason": clock["reason"]},
+                )
+            self._validate_pending_entry(session)
+            return
         if not session.candles:
             return
 
@@ -2652,8 +3077,8 @@ class TradingEngine:
         if not closed_1m:
             return
 
-        now = time()
-        now_ms = int(now * 1000)
+        now_ms = clock["evaluationMs"] if clock is not None else int(self.clock.time() * 1000)
+        now = now_ms / 1000
         forming_1m = max(
             (candle for candle in session.candles if not candle.confirmed),
             key=lambda candle: candle.start_ms,
@@ -2819,7 +3244,7 @@ class TradingEngine:
                     },
                 )
             else:
-                density_started_ns = perf_counter_ns()
+                density_started_ns = self.clock.perf_counter_ns()
                 try:
                     with span(
                         "strategy.evaluate",
@@ -2837,6 +3262,7 @@ class TradingEngine:
                             structure=session.structure,
                             market_context=session.market_context,
                             observed_at_ms=now_ms,
+                            trade_flow=dict(trade_flow),
                         )
                 except Exception as exc:
                     error = f"{type(exc).__name__}: {exc}"
@@ -2872,7 +3298,7 @@ class TradingEngine:
                         max(
                             0.0,
                             (
-                                perf_counter_ns()
+                                self.clock.perf_counter_ns()
                                 - density_started_ns
                             )
                             / 1_000_000_000,
@@ -2902,7 +3328,7 @@ class TradingEngine:
 
         latency_message = session.pending_latency_message
         if latency_message is not None:
-            latency_message.features_ready_mono_ns = perf_counter_ns()
+            latency_message.features_ready_mono_ns = self.clock.perf_counter_ns()
             observe_latency(
                 "parse_to_features",
                 max(
@@ -2929,7 +3355,7 @@ class TradingEngine:
                     stream=stream_name(latency_message.topic),
                 )
             latency_message.strategy_eval_started_mono_ns = (
-                perf_counter_ns()
+                self.clock.perf_counter_ns()
             )
             observe_latency(
                 "parse_to_strategy",
@@ -2960,7 +3386,7 @@ class TradingEngine:
                 continue
             if not self.strategy_enabled.get(key, False):
                 continue
-            strategy_started_ns = perf_counter_ns()
+            strategy_started_ns = self.clock.perf_counter_ns()
             try:
                 with span(
                     "strategy.evaluate",
@@ -2978,6 +3404,7 @@ class TradingEngine:
                         structure=session.structure,
                         market_context=session.market_context,
                         observed_at_ms=now_ms,
+                        trade_flow=dict(trade_flow),
                     )
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"
@@ -3001,7 +3428,7 @@ class TradingEngine:
                     max(
                         0.0,
                         (
-                            perf_counter_ns()
+                            self.clock.perf_counter_ns()
                             - strategy_started_ns
                         )
                         / 1_000_000_000,
@@ -3475,7 +3902,7 @@ class TradingEngine:
             self._commit_market_context(
                 session,
                 observed_at_ms=(
-                    int(time() * 1000)
+                    int(self.clock.time() * 1000)
                     if observed_at_ms is None
                     else observed_at_ms
                 ),
@@ -4046,7 +4473,7 @@ class TradingEngine:
     ) -> None:
         if message is None:
             return
-        message.order_sent_mono_ns = perf_counter_ns()
+        message.order_sent_mono_ns = self.clock.perf_counter_ns()
         observe_latency(
             "fire_to_order",
             self._latency_seconds(
@@ -4068,7 +4495,7 @@ class TradingEngine:
     ) -> None:
         if message is None:
             return
-        message.order_ack_mono_ns = perf_counter_ns()
+        message.order_ack_mono_ns = self.clock.perf_counter_ns()
         observe_latency(
             "order_to_ack",
             self._latency_seconds(
@@ -4089,7 +4516,7 @@ class TradingEngine:
     ) -> None:
         if message is None:
             return
-        message.fill_mono_ns = perf_counter_ns()
+        message.fill_mono_ns = self.clock.perf_counter_ns()
         observe_latency(
             "order_to_fill",
             self._latency_seconds(
@@ -4113,10 +4540,11 @@ class TradingEngine:
             None,
         )
 
+    @input_scope("arbiter_loop")
     async def _arbiter_loop(self) -> None:
         while not self._stop.is_set():
             try:
-                await asyncio.sleep(self.config.arbiter_interval_seconds)
+                await self._input_sleep("arbiter", self.config.arbiter_interval_seconds)
                 if self.running:
                     self._arbitrate_once()
             except asyncio.CancelledError:
@@ -4124,9 +4552,17 @@ class TradingEngine:
             except Exception as exc:
                 self._emit("arbiter_error", None, {"error": str(exc)})
 
+    @input_scope("arbiter", symbol_arg=False)
     def _arbitrate_once(self) -> None:
+        self._record_input("callback", None, {"name": "arbiter"})
         opportunities: list[Opportunity] = []
-        now = time()
+        now = self.clock.time()
+        clock = self._clock_state()
+        if clock is not None and not clock["valid"]:
+            self._cancel_all_pending("clock_invalid")
+            for session in self.sessions.values():
+                session.decisions.clear()
+            return
         for event in self.broker.expire_pending(now):
             self._pop_pending_order_latency(
                 str(event.get("symbol") or ""),
@@ -4143,6 +4579,8 @@ class TradingEngine:
         }
 
         for session in self.sessions.values():
+            if self._clock_entry_block(session):
+                continue
             if session.symbol in self.broker.pending_entries:
                 continue
             existing_position = self.broker.positions.get(
@@ -4160,7 +4598,7 @@ class TradingEngine:
                 continue
             if not session.confirmed_candle_is_fresh(
                 self.config.confirmed_candle_stale_seconds,
-                now,
+                clock["evaluationMs"] / 1000 if clock is not None else now,
             ):
                 continue
 
@@ -4226,6 +4664,7 @@ class TradingEngine:
                 base_assessment = assess_candidate(
                     decision,
                     session.market_context,
+                    breakout_obstacle_veto=self.config.e01_breakout_obstacle_veto,
                     partial_take_at_r=(
                         self.config.partial_take_at_r
                     ),
@@ -4393,6 +4832,7 @@ class TradingEngine:
                     revised = assess_candidate(
                         decision,
                         session.market_context,
+                        breakout_obstacle_veto=self.config.e01_breakout_obstacle_veto,
                         partial_take_at_r=(
                             self.config.partial_take_at_r
                         ),
@@ -4600,6 +5040,7 @@ class TradingEngine:
             final_assessments = assess_session_candidates(
                 [row[0] for row in planned],
                 session.market_context,
+                breakout_obstacle_veto=self.config.e01_breakout_obstacle_veto,
                 partial_take_at_r=(
                     self.config.partial_take_at_r
                 ),
@@ -4674,6 +5115,8 @@ class TradingEngine:
             opportunities,
             key=lambda item: item.priority.key(),
         )
+        if self._clock_entry_block(best.session):
+            return
         if best.position_action == "add":
             allowed, reason = self.broker.can_add(
                 best.plan
@@ -4875,6 +5318,11 @@ class TradingEngine:
         semantic_arbitration: dict | None = None,
         selection_priority: dict | None = None,
     ) -> None:
+        clock = self._clock_state(session)
+        current = self.broker.positions.get(session.symbol)
+        if clock is not None and current is not None:
+            current.opened_exchange_ms = clock["evaluationMs"]
+            position = current.public()
         strategy_key = str(plan.get("strategy") or "")
         stats = self.strategy_stats.get(strategy_key)
         if stats is not None:
@@ -4882,7 +5330,7 @@ class TradingEngine:
         strategy = self.strategies.get(strategy_key)
         if strategy is not None and decision is not None:
             strategy.mark_opened(session.symbol, decision)
-        session.last_trade_at = time()
+        session.last_trade_at = self.clock.time()
         self._emit(
             "trade_opened",
             session.symbol,
@@ -4948,7 +5396,7 @@ class TradingEngine:
         strategy = self.strategies.get(strategy_key)
         if strategy is not None:
             strategy.mark_opened(session.symbol, decision)
-        session.last_trade_at = time()
+        session.last_trade_at = self.clock.time()
         self._emit(
             "position_added",
             session.symbol,
@@ -5222,7 +5670,7 @@ class TradingEngine:
 
         strategy_key = pending.plan.strategy
         decision = session.decisions.get(strategy_key)
-        reason: str | None = None
+        reason: str | None = self._clock_entry_block(session)
 
         if not self.strategy_enabled.get(strategy_key, False):
             reason = "strategy_disabled"
@@ -5299,8 +5747,12 @@ class TradingEngine:
         pos = self.broker.positions.get(session.symbol)
         if pos is None:
             return
+        clock = self._clock_state(session)
+        if clock is not None and not clock["valid"]:
+            return
         if (
-            time() - pos.opened_at
+            (self.clock.perf_counter_ns() / 1e9 - pos.opened_mono
+             if self.config.exchange_clock_enabled else self.clock.time() - pos.opened_at)
             < max(
                 0.0,
                 self.config.strategy_invalidation_grace_seconds,
@@ -5321,7 +5773,7 @@ class TradingEngine:
             last_price=session.last_price,
             book=session.orderbook,
             market_context=session.market_context,
-            observed_at_ms=int(time() * 1000),
+            observed_at_ms=clock["evaluationMs"] if clock is not None else int(self.clock.time() * 1000),
         )
         if not reason:
             return
@@ -5342,6 +5794,10 @@ class TradingEngine:
         trade_notional_usd: float | None = None,
         trade_side: str | None = None,
     ) -> None:
+        if self._clock_entry_block(session) and session.symbol in self.broker.pending_entries:
+            event = self.broker.cancel_pending(session.symbol, "clock_or_receipt_invalid")
+            if event:
+                self._handle_broker_events(session, [event])
         resolved_trade_price = (
             float(trade_price)
             if isinstance(trade_price, (int, float))
@@ -5469,6 +5925,11 @@ class TradingEngine:
         )
         if mark <= 0:
             return
+        clock = self._clock_state(session)
+        if clock is not None:
+            # Funding requires reliable exchange time; stop/target management
+            # continues even when the clock is invalid.
+            observed_at_ms = clock["evaluationMs"] or 0
         events = self.broker.mark(
             session.symbol,
             mark,
@@ -5484,7 +5945,7 @@ class TradingEngine:
                 or mark
             ),
             observed_at_ms=(
-                int(time() * 1000)
+                int(self.clock.time() * 1000)
                 if observed_at_ms is None
                 else observed_at_ms
             ),
@@ -5660,7 +6121,7 @@ class TradingEngine:
         if not strategy or not setup_id:
             return
         session.consumed_setups[strategy] = setup_id
-        session.cooldown_until[strategy] = time() + self.config.setup_rearm_seconds
+        session.cooldown_until[strategy] = self.clock.time() + self.config.setup_rearm_seconds
         session.nontradeable_since.pop(strategy, None)
         self._emit(
             "setup_consumed",
@@ -5783,7 +6244,11 @@ class TradingEngine:
         ):
             return
 
-        observed_at = time()
+        observed_at = (
+            session.market_context.observed_at_ms / 1000
+            if self.config.exchange_clock_enabled and session.market_context is not None
+            else self.clock.time()
+        )
         state = str(decision.details.get("state") or "")
         if state:
             previous_state = session.strategy_states.get(
@@ -5924,7 +6389,7 @@ class TradingEngine:
         self._emit("decision", session.symbol, payload)
 
     def _emit(self, event: str, symbol: str | None, payload: dict, snapshot: bool = False) -> None:
-        row = {"ts": time(), "event": event, "symbol": symbol, "payload": payload}
+        row = {"ts": self.clock.time(), "event": event, "symbol": symbol, "payload": payload}
         self.events.appendleft(row)
         stored = dict(payload)
         if snapshot and symbol in self.sessions:
@@ -5941,7 +6406,9 @@ class TradingEngine:
                 self.recorder.health()
             )
 
+    @input_scope("public_state")
     def public_state(self, selected_symbol: str | None = None) -> dict:
+        self._record_input("external", None, {"method": "public_state", "selectedSymbol": selected_symbol})
         working = list(self.sessions)
         if selected_symbol not in self.sessions:
             selected_symbol = working[0] if working else None
@@ -5952,7 +6419,7 @@ class TradingEngine:
             market["activityProfile"] = (
                 selected_candidate.public() if selected_candidate else None
             )
-        now = time()
+        now = self.clock.time()
         working_rows = []
 
         for symbol in working:

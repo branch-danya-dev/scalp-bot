@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "validatorVersion": "session-integrity-v3",
+  "status": "rejected",
+  "scope": "recorded_run_integrity_only",
+  "productionReady": false,
+  "source": {
+    "file": "G:\\scalp-bot\\data\\sessions\\session-20260925T091451Z.jsonl",
+    "snapshotBytes": 528461723,
+    "bytesRead": 528461723,
+    "snapshotSha256": "ec9d85689caae89912e03a344082a7c7644047f34e8607fddd0f778b7ec89a92",
+    "parsedRows": 79149
+  },
+  "policy": {
+    "futureToleranceMs": 0.0
+  },
+  "fileIssues": {},
+  "runs": [
+    {
+      "index": 1,
+      "label": "research-p0-clock-v2-smoke-15m",
+      "startedAt": 1790327711.9103596,
+      "configuredDurationSeconds": 900.0,
+      "completed": true,
+      "counts": {
+        "bot_started": 1,
+        "market_context_changed": 58557,
+        "research_frame": 2933,
+        "strategy_state_transition": 2300,
+        "decision": 3123,
+        "market_frame": 1752,
+        "clock_sync": 72,
+        "clock_admission_changed": 396,
+        "symbol_activated": 6,
+        "scanner_update": 13,
+        "entry_freshness_changed": 5,
+        "risk_reject": 8,
+        "trade_opened": 2,
+        "setup_consumed": 2,
+        "trade_closed": 2,
+        "setup_rearmed": 1,
+        "arbiter_blocked": 1,
+        "partial_take": 1,
+        "run_summary": 1
+      },
+      "clock": {
+        "frameSamples": 2897,
+        "tradeAfterRecord": 658,
+        "tradeAfterContext": 0,
+        "maxTradeAfterRecordMs": 257.637939453125,
+        "maxTradeAfterContextMs": 0.0
+      },
+      "pnl": {
+        "trades": 2,
+        "gross": 0.30009085900000887,
+        "fees": 2.5117705970241504,
+        "funding": 0.0,
+        "net": -2.2116797380241415
+      },
+      "findings": [
+        {
+          "code": "runtime_clock_invalid",
+          "severity": "error",
+          "count": 5,
+          "examples": [
+            {
+              "ts": 1790328534.96318,
+              "symbol": "BTCUSDT",
+              "event": "research_frame"
+            },
+            {
+              "ts": 1790328535.1167777,
+              "symbol": "ZECUSDT",
+              "event": "research_frame"
+            },
+            {
+              "ts": 1790328535.1297603,
+              "symbol": "DOGEUSDT",
+              "event": "research_frame"
+            }
+          ]
+        }
+      ],
+      "provenance": {
+        "status": "recorded_hashes_checked",
+        "manifestId": "91d544a89ec9401c93f75791e1e12edc",
+        "manifestSha256": "d79f06204dd4a3f10b361ebb6e59b0c3744c75b07b95ffa8429937401f30ffc3",
+        "summaryLink": "checked"
+      },
+      "stoppedAt": 1790328611.9130158,
+      "elapsedSeconds": 900.0296553000226,
+      "stopReason": "duration_elapsed",
+      "status": "rejected"
+    }
+  ],
+  "notValidated": [
+    "full_code_and_configuration_provenance",
+    "live_replay_parity",
+    "execution_model_accuracy",
+    "strategy_edge",
+    "network_event_completeness"
+  ]
+}

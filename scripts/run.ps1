@@ -1,5 +1,6 @@
 param(
-    [string]$Profile = ""
+    [string]$Profile = "",
+    [string]$SessionDirectory = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -42,6 +43,9 @@ if ($Profile) {
     Import-RunProfile $resolvedProfile
     $profileLabel = $Profile
 }
+if ($SessionDirectory) {
+    [Environment]::SetEnvironmentVariable("SCALP_SESSION_DIR", $SessionDirectory, "Process")
+}
 
 $runLabel = [Environment]::GetEnvironmentVariable("SCALP_RUN_LABEL", "Process")
 $durationSecondsRaw = [Environment]::GetEnvironmentVariable(
@@ -53,6 +57,22 @@ $durationMinutes = [math]::Round($durationSeconds / 60, 2)
 
 function RunEnv([string]$Name) {
     return [Environment]::GetEnvironmentVariable($Name, "Process")
+}
+
+function Invoke-LoggedPython([string[]]$Arguments) {
+    # Native console output can bypass Start-Transcript in Windows PowerShell.
+    # Route both streams through the host; stderr alone is not a failed process.
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $PSNativeCommandUseErrorActionPreference = $false
+        & $venvPython @Arguments 2>&1 | ForEach-Object { Write-Host $_.ToString() }
+        $nativeExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    return $nativeExitCode
 }
 
 $riskPct = [math]::Round([double](RunEnv "SCALP_RISK_FRACTION") * 100, 3)
@@ -96,24 +116,24 @@ Write-Host "Risk: base $riskPct% structural; $allInPct% max all-in loss; ${posit
 Write-Host "Economics gates: movement >=$moveFloorPct% ($moveFloorGate); winner-cost=$winnerGate; min-net=$netProfitGate; net-RR=$rrGate."
 Write-Host "Staged entries: $staged; breakout probe ${breakoutProbePct}% / rejection probe ${rejectionProbePct}% of setup risk."
 Write-Host "Evaluation cadence: event-driven=$eventDriven (min ${eventMinInterval}s); polling fallback idle ${idleEval}s / engaged ${engagedEval}s."
-Write-Host "Execution: density/rejection can use PostOnly maker entry; staged adds preserve the same setup risk envelope."
+Write-Host "Execution: breakout/rejection/trend entries are taker; density is evidence-only. Targets/partials use their configured execution profiles."
 Write-Host "Lifecycle: strategy-specific partial size and no-follow timeout; runner protected at net breakeven."
 Write-Host "Live:   http://127.0.0.1:8000/"
 Write-Host "Replay: http://127.0.0.1:8000/replay"
 Write-Host ""
 Write-Host "Running preflight tests..."
-& $venvPython .\scripts\test_preflight.py
-if ($LASTEXITCODE -ne 0) {
+$testExitCode = Invoke-LoggedPython @(".\scripts\test_preflight.py")
+if ($testExitCode -ne 0) {
     throw "Preflight tests failed. Paper run was not started."
 }
 
 Write-Host ""
 Write-Host "Checking live Bybit market data..."
-& $venvPython .\scripts\market_preflight.py
-if ($LASTEXITCODE -ne 0) {
+$marketExitCode = Invoke-LoggedPython @(".\scripts\market_preflight.py")
+if ($marketExitCode -ne 0) {
     throw "Live Bybit market preflight failed. Server was not started."
 }
 
 Write-Host ""
 Write-Host "Preflight passed. Starting server in this visible terminal..."
-& $venvPython -m uvicorn scalp_bot.app:app --host 127.0.0.1 --port 8000
+$global:LASTEXITCODE = Invoke-LoggedPython @("-m", "uvicorn", "scalp_bot.app:app", "--host", "127.0.0.1", "--port", "8000")

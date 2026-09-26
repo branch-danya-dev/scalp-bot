@@ -1,3 +1,5 @@
+> Historical stage document. Its launch/approval wording and tuning values are not the current project status. See [production roadmap](production-roadmap.md) and [HANDOFF](../HANDOFF.md). Existing launchers remain research tools, not evidence of production readiness.
+
 # Stage 27 — 10-hour research run
 
 This profile is intended for a single controlled 10-hour paper session on the current main trading semantics. It changes recording policy and run duration only; it does not increase risk, leverage, or loosen strategy admission.

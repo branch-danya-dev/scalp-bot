@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from time import time
+from time import perf_counter_ns
 from typing import Any
 
 from .config import Settings
+from .runtime_clock import RuntimeClock, SystemRuntimeClock
 from .domain import OrderBook, Side, TradePlan
 from .execution import (
     apply_entry_slippage,
@@ -68,6 +69,8 @@ class Position:
         default_factory=list
     )
     entry_legs: list[dict[str, Any]] = field(default_factory=list)
+    opened_mono: float = field(default_factory=lambda: perf_counter_ns() / 1e9)
+    opened_exchange_ms: int | None = None
 
     @property
     def initial_risk_usd(self) -> float:
@@ -181,6 +184,7 @@ class PendingEntry:
     position_action: str = "open"
     eligible_trade_notional_usd: float = 0.0
     required_trade_notional_usd: float = 0.0
+    created_mono: float = field(default_factory=lambda: perf_counter_ns() / 1e9)
 
     def public(self) -> dict:
         return {
@@ -206,7 +210,8 @@ class PendingEntry:
 
 
 class PaperBroker:
-    def __init__(self, config: Settings) -> None:
+    def __init__(self, config: Settings, *, clock: RuntimeClock | None = None) -> None:
+        self.clock = clock if clock is not None else SystemRuntimeClock()
         self.config = config
         self.balance = config.start_balance
         self.start_balance = config.start_balance
@@ -588,7 +593,8 @@ class PaperBroker:
             initial_stop=plan.stop,
             stop=plan.stop,
             target=plan.target,
-            opened_at=time(),
+            opened_at=self.clock.time(),
+            opened_mono=self.clock.perf_counter_ns() / 1e9,
             entry_fee_remaining=entry_fee,
             entry_fee_total_usd=entry_fee,
             last_price=fill,
@@ -607,7 +613,7 @@ class PaperBroker:
                 "fill": fill,
                 "entryFeeUsd": entry_fee,
                 "structuralRiskUsd": structural_risk_usd,
-                "addedAt": time(),
+                "addedAt": self.clock.time(),
                 "plan": plan.public(),
             }],
         )
@@ -702,7 +708,7 @@ class PaperBroker:
             "fill": fill,
             "entryFeeUsd": entry_fee,
             "structuralRiskUsd": incremental_structural_risk,
-            "addedAt": time(),
+            "addedAt": self.clock.time(),
             "plan": plan.public(),
         })
         return pos
@@ -724,11 +730,12 @@ class PaperBroker:
             raise RuntimeError("plan exceeds remaining portfolio exposure budget")
         if plan.expected_net_loss > self.available_risk_usd + 1e-9:
             raise RuntimeError("plan exceeds remaining all-in portfolio risk budget")
-        now = time()
+        now = self.clock.time()
         pending = PendingEntry(
             plan=plan,
             limit_price=plan.market_entry,
             created_at=now,
+            created_mono=self.clock.perf_counter_ns() / 1e9,
             expires_at=now + max(0.1, self.config.passive_entry_timeout_seconds),
             min_trade_ts_ms=min_trade_ts_ms,
             required_trade_notional_usd=(
@@ -772,11 +779,12 @@ class PaperBroker:
                     or "combined staged economics rejected"
                 )
             )
-        now = time()
+        now = self.clock.time()
         pending = PendingEntry(
             plan=plan,
             limit_price=plan.market_entry,
             created_at=now,
+            created_mono=self.clock.perf_counter_ns() / 1e9,
             expires_at=now
             + max(0.1, self.config.passive_entry_timeout_seconds),
             min_trade_ts_ms=min_trade_ts_ms,
@@ -812,10 +820,14 @@ class PaperBroker:
         self,
         now: float | None = None,
     ) -> list[dict]:
-        resolved = time() if now is None else now
+        resolved = self.clock.time() if now is None else now
         events: list[dict] = []
         for symbol, pending in list(self.pending_entries.items()):
-            if resolved < pending.expires_at:
+            expired = (
+                self.clock.perf_counter_ns() / 1e9 - pending.created_mono >= pending.expires_at - pending.created_at
+                if self.config.exchange_clock_enabled else resolved >= pending.expires_at
+            )
+            if not expired:
                 continue
             del self.pending_entries[symbol]
             events.append({
@@ -844,8 +856,12 @@ class PaperBroker:
         pending = self.pending_entries.get(symbol)
         if pending is None:
             return []
-        now = time()
-        if now >= pending.expires_at:
+        now = self.clock.time()
+        expired = (
+            self.clock.perf_counter_ns() / 1e9 - pending.created_mono >= pending.expires_at - pending.created_at
+            if self.config.exchange_clock_enabled else now >= pending.expires_at
+        )
+        if expired:
             del self.pending_entries[symbol]
             return [{
                 "event": "entry_cancelled",
@@ -1163,7 +1179,8 @@ class PaperBroker:
             return None
         if funding_time_ms <= pos.last_funding_time_ms:
             return None
-        if funding_time_ms <= int(pos.opened_at * 1000):
+        opened_ms = pos.opened_exchange_ms if self.config.exchange_clock_enabled else int(pos.opened_at * 1000)
+        if opened_ms is None or funding_time_ms <= opened_ms:
             return None
         if observed_at_ms < funding_time_ms:
             return None
@@ -1226,7 +1243,7 @@ class PaperBroker:
         realization_book = depth_book or book
         direction = 1 if pos.side == Side.LONG else -1
         executable = book.executable_exit(pos.side) or last_price
-        now = time()
+        now = self.clock.time()
         directional_move_pct = (
             direction * (executable - pos.entry) / pos.entry
             if pos.entry > 0
@@ -1296,7 +1313,7 @@ class PaperBroker:
                 else executable
             ),
             observed_at_ms=(
-                int(time() * 1000)
+                int(self.clock.time() * 1000)
                 if observed_at_ms is None
                 else int(observed_at_ms)
             ),
@@ -1528,7 +1545,7 @@ class PaperBroker:
             "reason": reason,
             "openedAt": pos.opened_at,
             "partialTakenAt": pos.partial_taken_at,
-            "closedAt": time(),
+            "closedAt": self.clock.time(),
             "strategyDetails": dict(pos.strategy_details),
         }
         self.total_closed_trades += 1
@@ -1713,7 +1730,7 @@ class PaperBroker:
             reason="partial_take",
         )
         pos.partial_taken = True
-        pos.partial_taken_at = time()
+        pos.partial_taken_at = self.clock.time()
         pos.partial_net_preview_usd = leg["net"]
         pos.partial_required_net_usd = required_net
         pos.partial_economic_ready = True
@@ -1971,7 +1988,8 @@ class PaperBroker:
         }
 
     def _should_cut_no_follow_through(self, pos: Position, gross_mark_original: float) -> bool:
-        age = time() - pos.opened_at
+        age = (self.clock.perf_counter_ns() / 1e9 - pos.opened_mono
+               if self.config.exchange_clock_enabled else self.clock.time() - pos.opened_at)
         timeout = no_follow_through_seconds(
             self.config,
             pos.strategy,

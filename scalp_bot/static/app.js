@@ -1,6 +1,8 @@
 let selectedSymbol = null;
 let chart = null;
 let candleSeries = null;
+let candleVolume = null;
+let executionDots = null;
 let overlaySeries = [];
 let priceLines = [];
 let tradeReviewSummaries = [];
@@ -54,6 +56,7 @@ function duration(seconds) {
 }
 
 const STRATEGY_LABELS = {
+  price_action_hypothesis:"Гипотеза цены · BETA",
   trend_structure: "Трендовый откат",
   weak_level_rejection: "Отбой от уровня",
   orderbook_density: "Ликвидность стакана",
@@ -196,6 +199,7 @@ function marketObjectLabel(value) {
 function reasonText(value) {
   const text = String(value || "");
   if (!text) return "—";
+  if (Object.hasOwn(EXIT_REASON_LABELS, text)) return exitReasonText(text);
   if (text === "portfolio risk budget exhausted") return "Исчерпан лимит риска портфеля";
   if (text === "portfolio exposure budget exhausted") return "Исчерпан лимит экспозиции портфеля";
   if (text === "insufficient visible entry depth after risk sizing") return "Недостаточная видимая глубина после расчёта риска";
@@ -219,14 +223,7 @@ function reasonText(value) {
   if (text === "deactivated") return "исключена из наблюдения";
   if (text === "stopped") return "остановлено";
   if (text === "closed") return "закрыто";
-  if (text === "target") return "цель";
-  if (text === "runner_target") return "цель раннера";
-  if (text === "stop") return "стоп";
-  if (text === "no_follow_through") return "нет продолжения движения";
   if (text === "partial_take") return "частичная фиксация";
-  if (text === "duration_elapsed") return "время прогона истекло";
-  if (text === "bot_stop") return "остановлено пользователем";
-  if (text === "shutdown") return "завершение приложения";
   return translatePhrase(text);
 }
 
@@ -255,14 +252,14 @@ function ensureChart() {
   if (chart) return;
   chart = LightweightCharts.createChart($("chart"), {
     autoSize: true,
-    layout: {background:{color:"transparent"}, textColor:"#6e6e73"},
+    ...chartThemeOptions(),
     localization: {
       locale: navigator.language,
       timeFormatter: time => new Date(Number(time) * 1000).toLocaleString()
     },
-    grid: {vertLines:{color:"#f1f1f3"}, horzLines:{color:"#f1f1f3"}},
     rightPriceScale: {borderVisible:false},
     timeScale: {
+      rightOffset:24,
       timeVisible:true,
       secondsVisible:timeframeUsesSeconds(selectedChartTimeframe),
       borderVisible:false,
@@ -273,9 +270,10 @@ function ensureChart() {
     }
   });
   candleSeries = chart.addCandlestickSeries({
-    upColor:"#34c759", downColor:"#ff453a", borderVisible:false,
-    wickUpColor:"#34c759", wickDownColor:"#ff453a"
+    ...chartCandleOptions()
   });
+  candleVolume = addCandleVolume(chart, candleSeries, $("volumeLegend"));
+  executionDots = addExecutionDots(chart);
 }
 
 function clearOverlays() {
@@ -286,7 +284,7 @@ function clearOverlays() {
   overlaySeries = [];
 }
 
-function addPriceLine(value, title, color="#8e8e93", style=2, width=1, axisLabelVisible=true) {
+function addPriceLine(value, title, color=CHART_COLORS.level, style=2, width=1, axisLabelVisible=true) {
   if (!candleSeries || value == null) return;
   priceLines.push(candleSeries.createPriceLine({
     price:Number(value), color, lineWidth:width, lineStyle:style,
@@ -321,7 +319,7 @@ function drawStructuralLevels(structure) {
     addPriceLine(
       mid,
       title,
-      htf ? "#af52de" : tf === "15m" ? "#5856d6" : "#b0b0b5",
+      htf ? CHART_COLORS.exit : tf === "15m" ? CHART_COLORS.htf : CHART_COLORS.level,
       htf ? 0 : 2,
       htf ? 2 : 1,
       htf
@@ -335,15 +333,15 @@ function drawActiveDecisionObjects(decisions) {
     const object = trace.object || {};
     const label = `${strategyLabel(decision.strategy)} · ${stateLabel(trace.state || decision.details?.state || "")}`;
     if (object.low != null && object.high != null) {
-      addPriceLine(object.low, label + " · низ", "#007aff", 0, 2, true);
-      addPriceLine(object.high, label + " · верх", "#007aff", 0, 2, true);
+      addPriceLine(object.low, label + " · низ", CHART_COLORS.entry, 0, 2, true);
+      addPriceLine(object.high, label + " · верх", CHART_COLORS.entry, 0, 2, true);
     } else if (object.price != null) {
-      addPriceLine(object.price, label, "#007aff", 0, 2, true);
+      addPriceLine(object.price, label, CHART_COLORS.entry, 0, 2, true);
     } else if (decision.watched_level != null) {
-      addPriceLine(decision.watched_level, label, "#007aff", 0, 2, true);
+      addPriceLine(decision.watched_level, label, CHART_COLORS.entry, 0, 2, true);
     }
     const target = decision.details?.liquidityTarget?.price;
-    if (target != null) addPriceLine(target, "цель по ликвидности", "#34c759", 2, 1, true);
+    if (target != null) addPriceLine(target, "цель по ликвидности", CHART_COLORS.up, 2, 1, true);
   });
 }
 
@@ -355,22 +353,25 @@ function renderVisuals(decisions, position, structure) {
   if (showTrendlines) {
     (structure?.trendlines || []).slice(0, levelFilter === "all" ? 4 : 2).forEach(line => {
       const series = chart.addLineSeries({
-        color:"#98989d", lineWidth:2, lineStyle:2,
+        color:CHART_COLORS.trend, lineWidth:2, lineStyle:2,
         priceLineVisible:false, lastValueVisible:false
       });
       series.setData([
-        {time: Math.floor(line.start_ms / 1000), price: line.start_price},
-        {time: Math.floor(line.end_ms / 1000), price: line.end_price},
+        {time: Math.floor(line.start_ms / 1000), value: line.start_price},
+        {time: Math.floor(line.end_ms / 1000), value: line.end_price},
       ]);
       overlaySeries.push(series);
     });
   }
 
   if (position) {
-    addPriceLine(position.entry, "ВХОД", "#007aff", 0, 2, true);
-    addPriceLine(position.stop, "СТОП", "#ff3b30", 0, 2, true);
-    addPriceLine(position.target, "ЦЕЛЬ", "#34c759", 0, 2, true);
+    addPriceLine(position.entry, "ВХОД", CHART_COLORS.entry, 0, 2, true);
+    addPriceLine(position.stop, "СТОП", CHART_COLORS.down, 0, 2, true);
+    addPriceLine(position.target, "ЦЕЛЬ", CHART_COLORS.up, 0, 2, true);
   }
+  candleSeries.applyOptions({autoscaleInfoProvider: includeTradePrices(
+    position ? [position.entry, position.stop, position.target] : []
+  )});
 }
 
 function renderMarketChart(market, position) {
@@ -392,6 +393,14 @@ function renderMarketChart(market, position) {
   } else {
     candleSeries.setData([]);
   }
+  candleVolume.setData(rows, `${market.symbol || ""} · ${selectedChartTimeframe}`);
+  const chartTrades = lastLiveClosedTrades.filter(trade => trade.symbol === market.symbol);
+  if (position) chartTrades.push(position);
+  const timeframe = market.chartSeries?.[selectedChartTimeframe] ? selectedChartTimeframe : "1m";
+  const seconds = {"5s":5, "15s":15, "1m":60, "5m":300, "10m":600, "15m":900, "1h":3600}[timeframe];
+  const markers = tradeChartMarkers(normalized, chartTrades, seconds);
+  candleSeries.setMarkers(markers);
+  executionDots.setMarkers(markers);
   renderVisuals(market.decisions, position, market.structure);
 }
 
@@ -569,13 +578,15 @@ function bindDomControls() {
   });
 }
 
-function renderStrategies(rows) {
+function renderStrategies(rows, locked=false) {
   $("strategyList").innerHTML = rows.map(row => {
     const stats = row.stats || {};
     const netClass = Number(stats.netPnl || 0) >= 0 ? "positive" : "negative";
     const stateCounts = stats.stateCounts || {};
     const funnelOrder = row.key === "trend_structure"
       ? ["search", "pullback", "test", "reclaim", "continuation"]
+      : row.key === "price_action_hypothesis"
+        ? ["search", "armed", "impulse", "found"]
       : row.key === "weak_level_rejection"
         ? ["search", "found", "approach", "test", "reject", "reaction"]
         : row.key === "orderbook_density"
@@ -605,7 +616,7 @@ function renderStrategies(rows) {
     return `<div class="strategy-card">
       <div class="strategy-row">
         <span><strong>${row.label}</strong><small>${row.key}</small></span>
-        <button class="switch ${row.enabled ? "on" : ""}" data-strategy="${row.key}" data-enabled="${row.enabled}"></button>
+        <button class="switch ${row.enabled ? "on" : ""}" ${locked ? 'disabled title="Состав зафиксирован профилем записи"' : ''} data-strategy="${row.key}" data-enabled="${row.enabled}" aria-label="${row.enabled ? "Отключить" : "Включить"} ${row.label}"></button>
       </div>
       <div class="strategy-stats">
         <span><small>Уникальные сетапы</small>${stats.uniqueTradeableSetups ?? stats.tradeableSignals ?? 0}</span>
@@ -677,6 +688,14 @@ function renderDecisions(decisions) {
     const blockerText = entryAssessment.allowed === false && Array.isArray(entryAssessment.blockers)
       ? ` · blocked: ${entryAssessment.blockers.join(", ")}`
       : "";
+    const hypothesis = decision.details?.hypothesis;
+    const patternLabel = {engulfing:"поглощение", wick_rejection:"отбой тенью", directional_expansion:"направленная свеча"};
+    const hypothesisText = hypothesis
+      ? `<div class="decision-object">${sideLabel(hypothesis.side)} · ${patternLabel[hypothesis.pattern] || "паттерн"} · объём ${Number(hypothesis.volumeRatio).toFixed(2)}×<br>Подтверждение ${price(hypothesis.trigger)} · стоп ${price(hypothesis.invalidation)} · цель ${price(hypothesis.target)}<br>Вход возможен до ${new Date(hypothesis.expiresAtMs).toLocaleTimeString()}</div>`
+      : "";
+    const contextText = decision.details?.beta
+      ? "Сценарий по закрытой 1m свече · вероятность не оценена"
+      : `Тренд legacy: <b>${trendLabel(trace.trend)}</b> · уверенность ${Number(trace.confidence || 0).toFixed(2)}`;
     return `<article class="decision-card">
       <div class="decision-card-head">
         <div>
@@ -686,7 +705,8 @@ function renderDecisions(decisions) {
         <time>${observed}</time>
       </div>
       <div class="decision-object">${traceObjectText(trace.object)}</div>
-      <div class="decision-context">Тренд legacy: <b>${trendLabel(trace.trend)}</b> · уверенность ${Number(trace.confidence || 0).toFixed(2)}${playbookText}${flowText}${liquidityText}${contextSnapshotText}${blockerText}</div>
+      ${hypothesisText}
+      <div class="decision-context">${contextText}${playbookText}${flowText}${liquidityText}${contextSnapshotText}${blockerText}</div>
       <div class="trace-tags">${confirmed || '<span class="trace-tag">нет подтверждений</span>'}</div>
       ${waiting ? `<div class="decision-wait"><small>Чего ждём</small><ul>${waiting}</ul></div>` : ""}
     </article>`;
@@ -709,7 +729,7 @@ function eventText(event) {
     return `${sideLabel(payload.plan?.side)} · ${money(payload.plan?.notional)} · net на цели ${money(payload.plan?.net_at_target ?? payload.plan?.expected_net_profit)} · playbook quality ${Number(payload.playbookSetupQuality ?? 0).toFixed(2)}${confluence ? " · confluence +" + confluence : ""}${fa ? " · flow " + flowAlignmentLabel(fa.classification) : ""}${la ? " · liq " + liquidityAlignmentLabel(la.classification) : ""}`;
   }
   if (event.event === "partial_take") return `частичная фиксация ${money(payload.netPnl)} · осталось ${money(payload.remainingNotional)} · стоп→${price(payload.newStop)}`;
-  if (event.event === "trade_closed") return `${reasonText(payload.reason)} · ${payload.exitMoveBps == null ? "—" : Number(payload.exitMoveBps).toFixed(1) + " bps"} · комиссия ${money(payload.fees)} · net ${money(payload.netPnl)}`;
+  if (event.event === "trade_closed") return `${exitReasonHtml(payload.reason)} · ${payload.exitMoveBps == null ? "—" : Number(payload.exitMoveBps).toFixed(1) + " bps"} · комиссия ${money(payload.fees)} · net ${money(payload.netPnl)}`;
   if (event.event === "risk_reject") {
     const d = payload.diagnostics || {};
     const economics = d.netAtTargetUsd != null
@@ -1172,7 +1192,7 @@ function renderOpportunityReview(report) {
         <h3>Выходы для проверки</h3>
         <div class="opportunity-list">
           ${exitRows.map(row => `<div class="opportunity-row early_exit_review">
-            <div><strong>${row.symbol}</strong><span>${strategyLabel(row.strategy)} · ${reasonText(row.reason)}</span></div>
+            <div><strong>${row.symbol}</strong><span>${strategyLabel(row.strategy)} · ${exitReasonHtml(row.reason)}</span></div>
             <div><span>${reviewClassLabel(row.classification)}</span><small>MFE после выхода ${row.postExitMfeR == null ? "—" : Number(row.postExitMfeR).toFixed(2) + "R"}</small></div>
           </div>`).join("") || '<div class="empty-row">Нет ранних выходов, требующих проверки.</div>'}
         </div>
@@ -1235,7 +1255,7 @@ function timelineText(row) {
     return `Позиция открыта @ ${price(position.entry)} · первый тейк ${bps(position.planned_first_take_move_pct)} · комиссия входа ${money(position.entry_fee_total_usd)}`;
   }
   if (row.event === "partial_take") return `Частичная фиксация · ${payload.moveBps == null ? "—" : Number(payload.moveBps).toFixed(1) + " bps"} · комиссия ${money(payload.fees)} · net ${money(payload.netPnl)}`;
-  if (row.event === "trade_closed") return `${reasonText(payload.reason || "closed")} · движение ${payload.exitMoveBps == null ? "—" : Number(payload.exitMoveBps).toFixed(1) + " bps"} · комиссия ${money(payload.fees)} · net ${money(payload.netPnl)}`;
+  if (row.event === "trade_closed") return `${exitReasonHtml(payload.reason)} · движение ${payload.exitMoveBps == null ? "—" : Number(payload.exitMoveBps).toFixed(1) + " bps"} · комиссия ${money(payload.fees)} · net ${money(payload.netPnl)}`;
   if (row.event === "risk_reject") return `Отклонено риском · ${reasonText(payload.reason)}`;
   if (row.event === "setup_blocked") return `Сетап заблокирован · ${reasonText(payload.reason)}`;
   if (row.event === "entry_freshness_changed") {
@@ -1325,7 +1345,7 @@ function renderTradeReviewDetail(reviewId, review) {
   const economics = details.economics || review.plan?.strategy_details?.economics || {};
   const plan = review.plan || {};
   $("tradeReviewInspectorMeta").textContent =
-    `${summary.symbol || "—"} · ${strategyLabel(summary.strategy)} · ${reasonText(summary.reason)}`;
+    `${summary.symbol || "—"} · ${strategyLabel(summary.strategy)} · ${exitReasonText(summary.reason)}`;
 
   root.innerHTML = `
     <div class="review-summary-metrics">
@@ -1342,7 +1362,10 @@ function renderTradeReviewDetail(reviewId, review) {
       <span><small>Плановый net R:R</small><strong>${economics.netRewardRisk == null ? "—" : Number(economics.netRewardRisk).toFixed(2)}</strong></span>
     </div>
     <div class="review-grid">
-      <div class="review-chart" data-review-chart="${reviewId}"></div>
+      <div class="review-chart-panel">
+        <div class="volume-legend" data-review-volume title="Объём в базовой монете; цвет соответствует направлению свечи."></div>
+        <div class="review-chart" data-review-chart="${reviewId}"></div>
+      </div>
       <div class="review-timeline">
         <div class="review-subtitle">Хронология решений</div>
         <div class="review-events">
@@ -1362,7 +1385,7 @@ function renderTradeReviewDetail(reviewId, review) {
       <div><b>Источник цели:</b> ${marketObjectLabel(details.targetSource || "—")}</div>
       <div><b>Исполнение:</b> ${economics.executionProfile?.entry || plan.entry_mode || "—"} → ${economics.executionProfile?.target_exit || "—"}</div>
       <div><b>Lifecycle cost:</b> ${economics.lifecycleCostPct == null ? "—" : pct(economics.lifecycleCostPct)}</div>
-      <div><b>Выход:</b> ${reasonText(summary.reason)}</div>
+      <div><b>Выход:</b> ${exitReasonHtml(summary.reason)}</div>
     </div>
     <div class="review-snapshots">
       ${reviewSnapshotHtml("На входе", review.openSnapshot)}
@@ -1373,15 +1396,16 @@ function renderTradeReviewDetail(reviewId, review) {
   if (!chartRoot || !window.LightweightCharts) return;
   const mini = LightweightCharts.createChart(chartRoot, {
     autoSize:true,
-    height:340,
-    layout:{background:{color:"transparent"}, textColor:"#6e6e73"},
-    grid:{vertLines:{color:"#f1f1f3"}, horzLines:{color:"#f1f1f3"}},
+    height:420,
+    ...chartThemeOptions(),
+    localization:{locale:navigator.language, timeFormatter:time => new Date(Number(time) * 1000).toLocaleString()},
     rightPriceScale:{borderVisible:false},
-    timeScale:{timeVisible:true, secondsVisible:false, borderVisible:false},
+    timeScale:{timeVisible:true, secondsVisible:false, borderVisible:false, tickMarkFormatter:time => chartLocalTime(time)},
   });
   const series = mini.addCandlestickSeries({
-    upColor:"#34c759", downColor:"#ff453a", borderVisible:false,
-    wickUpColor:"#34c759", wickDownColor:"#ff453a",
+    ...chartCandleOptions(),
+    priceFormat:chartPriceFormat(summary.entry),
+    autoscaleInfoProvider:includeTradePrices([summary.entry, summary.initialStop, summary.target, summary.exit]),
   });
   series.setData((review.candles || []).map(candle => ({
     time:Number(candle.time),
@@ -1390,6 +1414,8 @@ function renderTradeReviewDetail(reviewId, review) {
     low:Number(candle.low),
     close:Number(candle.close),
   })));
+  const reviewVolume = addCandleVolume(mini, series, root.querySelector("[data-review-volume]"));
+  reviewVolume.setData(review.candles || [], `${summary.symbol || ""} · 1m`);
   const line = (value, title, color) => {
     if (value == null) return;
     series.createPriceLine({
@@ -1397,11 +1423,24 @@ function renderTradeReviewDetail(reviewId, review) {
       lineStyle:0, axisLabelVisible:true,
     });
   };
-  line(summary.entry, "ВХОД", "#007aff");
-  line(summary.initialStop, "СТОП", "#ff3b30");
-  line(summary.target, "ЦЕЛЬ", "#34c759");
-  line(summary.exit, "ВЫХОД", "#af52de");
-  mini.timeScale().fitContent();
+  line(summary.entry, "ВХОД", CHART_COLORS.entry);
+  line(summary.initialStop, "СТОП", CHART_COLORS.down);
+  line(summary.target, "ЦЕЛЬ", CHART_COLORS.up);
+  line(summary.exit, "ВЫХОД", CHART_COLORS.exit);
+  const reviewCandles = review.candles || [];
+  if (reviewCandles.length && summary.openedAt != null && summary.closedAt != null) {
+    const firstIndex = reviewCandles.findIndex(row => Number(row.time) + 60 > summary.openedAt);
+    const lastIndex = reviewCandles.findIndex(row => Number(row.time) + 60 > summary.closedAt);
+    mini.timeScale().setVisibleLogicalRange({
+      from: Math.max(0, (firstIndex < 0 ? reviewCandles.length - 1 : firstIndex) - 5),
+      to: (lastIndex < 0 ? reviewCandles.length - 1 : lastIndex) + 3,
+    });
+  } else {
+    mini.timeScale().fitContent();
+  }
+  const reviewMarkers = tradeChartMarkers(reviewCandles, [summary]);
+  series.setMarkers(reviewMarkers);
+  addExecutionDots(mini).setMarkers(reviewMarkers);
   reviewCharts.set(reviewId, mini);
 }
 
@@ -1470,7 +1509,7 @@ function renderTrades(rows) {
         <span><small>MFE</small>${trade.maxFavorableMoveBps == null ? "—" : Number(trade.maxFavorableMoveBps).toFixed(1) + " bps"} @ ${clock(trade.mfeAt)}</span>
         <span><small>MAE</small>${trade.maxAdverseMoveBps == null ? "—" : Number(trade.maxAdverseMoveBps).toFixed(1) + " bps"} @ ${clock(trade.maeAt)}</span>
         <span><small>Комиссии</small>${money(trade.fees)}</span>
-        <span><small>Причина выхода</small>${reasonText(trade.reason)}</span>
+        <span><small>Причина выхода</small>${exitReasonHtml(trade.reason)}</span>
       </div>
       <div class="trade-card-actions">${reviewButton}</div>
     </article>`;
@@ -1497,8 +1536,14 @@ function render(data) {
     : marketReady
       ? "live observing"
       : "live disconnected";
-  $("startBtn").disabled = data.botRunning || !marketReady;
+  $("startBtn").disabled = data.botRunning || !marketReady || data.capture?.startAllowed === false;
   $("stopBtn").disabled = !data.botRunning;
+  const captureStatus = $("captureStatus");
+  if (captureStatus) {
+    captureStatus.classList.toggle("hidden", !data.capture);
+    captureStatus.classList.toggle("negative", Boolean(data.capture?.error));
+    captureStatus.textContent = data.capture?.message || "";
+  }
 
   const marketAlert = $("marketAlert");
   if (!marketReady) {
@@ -1549,7 +1594,7 @@ function render(data) {
 
   renderWorking(data.working);
   renderCandidates(data.candidates);
-  renderStrategies(data.strategies);
+  renderStrategies(data.strategies, Boolean(data.capture?.strategiesLocked));
   renderEvents(data.events);
   lastLiveClosedTrades = data.closedTrades;
   if (selectedReviewSession === "current" && data.closedTrades.length !== lastClosedTradeCount) {
@@ -1568,6 +1613,10 @@ function render(data) {
   }
 
   if (!data.market) {
+    if (candleSeries) { candleSeries.setMarkers([]); candleSeries.setData([]); }
+    if (executionDots) executionDots.setMarkers([]);
+    if (candleVolume) candleVolume.setData([]);
+    clearOverlays();
     $("symbolTitle").textContent = "—";
     $("symbolMeta").textContent = data.marketHealth?.reason
       ? `Рынок недоступен: ${data.marketHealth.reason}`

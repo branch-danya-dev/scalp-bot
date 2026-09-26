@@ -54,6 +54,7 @@ class EntryContextAssessment:
     liquidity_classification: str | None
     blockers: tuple[str, ...]
     reasons: tuple[str, ...]
+    htf_override: str | None = None
 
     def public(self) -> dict[str, Any]:
         return {
@@ -63,6 +64,7 @@ class EntryContextAssessment:
             "directionPlan": self.direction_plan.public(),
             "flowClassification": self.flow_classification,
             "liquidityClassification": self.liquidity_classification,
+            "htfOverride": self.htf_override,
             "blockers": list(self.blockers),
             "reasons": list(self.reasons),
         }
@@ -433,6 +435,8 @@ def assess_entry_context(
     action: Action,
     context: MarketContext | None,
     fallback_trend: Trend,
+    *,
+    breakout_confirmed: bool = False,
 ) -> EntryContextAssessment:
     if playbook == PlaybookKind.TREND_CONTINUATION:
         plan = continuation_direction_plan(context, fallback_trend)
@@ -449,6 +453,7 @@ def assess_entry_context(
 
     flow_classification = None
     liquidity_classification = None
+    htf_override = None
     if context is not None:
         flow_alignment = context.flow_alignment_for(action)
         if flow_alignment is not None:
@@ -495,7 +500,37 @@ def assess_entry_context(
                 and htf_bias == HTFBias.BULLISH
             )
             if counter_htf:
-                blockers.append("breakout_htf_opposed")
+                htf = context.htf_bias
+                local = context.local_regime
+                matching_regimes = (
+                    {LocalRegime.BULLISH_TREND, LocalRegime.BULLISH_IMPULSE}
+                    if action == Action.LONG
+                    else {LocalRegime.BEARISH_TREND, LocalRegime.BEARISH_IMPULSE}
+                )
+                # An isolated hourly bias is context, not an absolute veto,
+                # once the strategy has confirmed the break and local evidence
+                # agrees. Raw/probe entries must never use this exception.
+                if (
+                    breakout_confirmed
+                    and htf.alignment == "1h_only"
+                    and htf.trend_15m == Trend.FLAT
+                    and htf.trend_1h == (
+                        Trend.DOWN if action == Action.LONG else Trend.UP
+                    )
+                    and local is not None
+                    and local.regime in matching_regimes
+                    and local.direction == direction
+                    and flow_alignment is not None
+                    and flow_alignment.classification
+                    == FlowAlignmentClass.STRONGLY_ALIGNED
+                ):
+                    htf_override = "confirmed_local_breakout"
+                    reasons.append(
+                        "1h_only opposition is context-only: confirmed breakout, "
+                        "aligned local regime and 5s/15s/60s flow"
+                    )
+                else:
+                    blockers.append("breakout_htf_opposed")
 
         if (
             playbook == PlaybookKind.LEVEL_REJECTION
@@ -540,6 +575,7 @@ def assess_entry_context(
         liquidity_classification=liquidity_classification,
         blockers=tuple(blockers),
         reasons=tuple(reasons),
+        htf_override=htf_override,
     )
 
 

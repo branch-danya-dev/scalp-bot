@@ -12,6 +12,7 @@ PLAYBOOK_KEYS = {
     "trend_structure",
     "weak_level_rejection",
     "level_breakout",
+    "price_action_hypothesis",
 }
 
 FLOW_PRIORITY = {
@@ -485,6 +486,7 @@ def _raw_assessment(
     *,
     partial_take_at_r: float,
     partial_take_enabled: bool,
+    breakout_obstacle_veto: bool = False,
 ) -> SemanticCandidateAssessment:
     blockers: list[str] = []
     reasons: list[str] = []
@@ -497,6 +499,10 @@ def _raw_assessment(
     )
     if structural_path.blocked:
         blockers.append("mature_structural_obstacle_before_first_take")
+    if (breakout_obstacle_veto and decision.strategy == "level_breakout"
+            and structural_path.obstacle_before_first_take
+            and not structural_path.own_breakout_level_exempted):
+        blockers.append("e01_foreign_obstacle_before_first_take")
 
     entry_context = _details_mapping(
         decision,
@@ -624,12 +630,14 @@ def assess_candidate(
     *,
     partial_take_at_r: float = 1.0,
     partial_take_enabled: bool = True,
+    breakout_obstacle_veto: bool = False,
 ) -> SemanticCandidateAssessment:
     return _raw_assessment(
         decision,
         context,
         partial_take_at_r=partial_take_at_r,
         partial_take_enabled=partial_take_enabled,
+        breakout_obstacle_veto=breakout_obstacle_veto,
     )
 
 
@@ -639,6 +647,7 @@ def assess_session_candidates(
     *,
     partial_take_at_r: float = 1.0,
     partial_take_enabled: bool = True,
+    breakout_obstacle_veto: bool = False,
 ) -> dict[str, SemanticCandidateAssessment]:
     rows = [
         decision
@@ -654,6 +663,7 @@ def assess_session_candidates(
             context,
             partial_take_at_r=partial_take_at_r,
             partial_take_enabled=partial_take_enabled,
+            breakout_obstacle_veto=breakout_obstacle_veto,
         )
         for decision in rows
     }

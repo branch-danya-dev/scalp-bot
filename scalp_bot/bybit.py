@@ -140,6 +140,19 @@ class BybitRestClient:
     async def close(self) -> None:
         await self.client.aclose()
 
+    async def clock_sample(self) -> dict:
+        # Server timestamp belongs to the successful HTTP attempt. Pacing and
+        # earlier failed attempts happen before that sample and are not its RTT.
+        timing: dict = {}
+        result = await self._get("/v5/market/time", {}, timing=timing)
+        try:
+            nano = int(result["timeNano"])
+            if nano <= 0:
+                raise ValueError
+        except (KeyError, ValueError, TypeError) as exc:
+            raise BybitError("invalid server timeNano") from exc
+        return {"server_ms": nano / 1e6, **timing}
+
     async def _pace_request(self) -> None:
         minimum = max(0.0, self.config.rest_request_min_interval_seconds)
         if minimum <= 0:
@@ -169,7 +182,7 @@ class BybitRestClient:
         text = (response.text or "").replace("\n", " ").strip()
         return text[:240] or "<empty response>"
 
-    async def _get(self, path: str, params: dict[str, str | int]) -> dict:
+    async def _get(self, path: str, params: dict[str, str | int], *, timing: dict | None = None) -> dict:
         retries = max(0, self.config.rest_rate_limit_retries)
         endpoints = [
             self._active_rest_url,
@@ -185,10 +198,13 @@ class BybitRestClient:
             for attempt in range(retries + 1):
                 await self._pace_request()
                 try:
+                    sent_mono = perf_counter_ns() / 1e9
                     response = await self.client.get(
                         f"{base_url}{path}",
                         params=params,
                     )
+                    received_mono = perf_counter_ns() / 1e9
+                    received_wall_ms = time_ns() / 1e6
                 except httpx.RequestError as exc:
                     endpoint_errors.append(
                         f"{base_url}: {type(exc).__name__}: {exc}"
@@ -233,6 +249,9 @@ class BybitRestClient:
                 code = payload.get("retCode")
                 if code == 0:
                     self._active_rest_url = base_url
+                    if timing is not None:
+                        timing.update(sent_mono=sent_mono, received_mono=received_mono,
+                                      received_wall_ms=received_wall_ms)
                     return payload["result"]
 
                 if code == 10006 and attempt < retries:
@@ -840,11 +859,20 @@ async def _stream_topics(
     queue_size: int = 512,
     queue_put_timeout_seconds: float = 0.05,
     queue_max_lag_seconds: float = 0.50,
+    on_transport: Callable[[dict], None] | None = None,
+    on_backpressure: Callable[[dict], None] | None = None,
 ) -> None:
+    attempt = 0
+    def notify(phase: str, *, error_type=None, discarded=0):
+        if on_transport is not None:
+            on_transport({"phase": phase, "attempt": attempt, "topics": list(topics),
+                          "errorType": error_type, "discarded": discarded})
     while not stop_event.is_set():
+        attempt += 1
         processor: asyncio.Task | None = None
         queue: asyncio.Queue[MarketMessage] | None = None
         try:
+            notify("connecting")
             async with websockets.connect(
                 ws_url,
                 ping_interval=20,
@@ -860,6 +888,7 @@ async def _stream_topics(
                 queue = asyncio.Queue(
                     maxsize=max(1, int(queue_size)),
                 )
+                notify("subscription_sent")
                 processor = asyncio.create_task(
                     _process_market_queue(
                         queue,
@@ -982,8 +1011,12 @@ async def _stream_topics(
                                 f"(size={queue.maxsize})"
                             ) from exc
         except asyncio.CancelledError:
+            notify("cancelled")
             raise
-        except Exception:
+        except Exception as exc:
+            if on_backpressure is not None and isinstance(exc, MarketDataBackpressureError):
+                on_backpressure({"topics": list(topics), "errorType": type(exc).__name__, "message": str(exc)})
+            notify("fault", error_type=type(exc).__name__)
             if not stop_event.is_set():
                 await asyncio.sleep(2)
         finally:
@@ -994,6 +1027,7 @@ async def _stream_topics(
                     processor,
                     return_exceptions=True,
                 )
+            discarded = 0
             if queue is not None:
                 while True:
                     try:
@@ -1001,11 +1035,13 @@ async def _stream_topics(
                     except asyncio.QueueEmpty:
                         break
                     try:
+                        discarded += 1
                         if queued.otel_span is not None:
                             queued.otel_span.end()
                             queued.otel_span = None
                     finally:
                         queue.task_done()
+            notify("drained", discarded=discarded)
 
 
 async def stream_symbol(
@@ -1020,6 +1056,8 @@ async def stream_symbol(
     market_queue_size: int = 512,
     market_queue_put_timeout_seconds: float = 0.05,
     market_queue_max_lag_seconds: float = 0.50,
+    on_transport: Callable[[dict], None] | None = None,
+    on_backpressure: Callable[[dict], None] | None = None,
 ) -> None:
     valid_depths = {1, 50, 200, 1000}
     if orderbook_depth is not None:
@@ -1046,6 +1084,8 @@ async def stream_symbol(
             fast_topics,
             callback,
             stop_event,
+            on_transport=on_transport,
+            on_backpressure=on_backpressure,
             queue_size=market_queue_size,
             queue_put_timeout_seconds=(
                 market_queue_put_timeout_seconds
@@ -1058,12 +1098,14 @@ async def stream_symbol(
 
     # Keep the latency-sensitive and deep-liquidity feeds on independent
     # connections. A reconnect/desync on one depth must not stop the other.
-    await asyncio.gather(
-        _stream_topics(
+    tasks = [
+        asyncio.create_task(_stream_topics(
             ws_url,
             fast_topics,
             callback,
             stop_event,
+            on_transport=on_transport,
+            on_backpressure=on_backpressure,
             queue_size=market_queue_size,
             queue_put_timeout_seconds=(
                 market_queue_put_timeout_seconds
@@ -1071,12 +1113,14 @@ async def stream_symbol(
             queue_max_lag_seconds=(
                 market_queue_max_lag_seconds
             ),
-        ),
-        _stream_topics(
+        )),
+        asyncio.create_task(_stream_topics(
             ws_url,
             [f"orderbook.{deep_orderbook_depth}.{symbol}"],
             callback,
             stop_event,
+            on_transport=on_transport,
+            on_backpressure=on_backpressure,
             queue_size=market_queue_size,
             queue_put_timeout_seconds=(
                 market_queue_put_timeout_seconds
@@ -1084,5 +1128,14 @@ async def stream_symbol(
             queue_max_lag_seconds=(
                 market_queue_max_lag_seconds
             ),
-        ),
-    )
+        )),
+    ]
+    try:
+        await asyncio.gather(*tasks)
+    finally:
+        # A child can finish with an error/cancellation before its sibling.
+        # Keep ownership until both connections and their processors exit.
+        for task in tasks:
+            if not task.done() and not task.cancelling():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)

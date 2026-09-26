@@ -1,132 +1,97 @@
-# Scalp Bot — Stage 19
+# Scalp Bot
 
-Paper-trading research bot for short-horizon crypto perpetual strategies.
+Исследовательская система для краткосрочных стратегий на Bybit perpetuals. Текущий режим — **paper trading**. Положительное математическое ожидание после издержек не доказано; live execution не подключён.
 
-The current main branch is the post-Stage-17 technical/economic remediation
-state. It is **not** approved for a 12-hour audit until the Stage 19 code audit
-and short smoke are explicitly completed.
+## Текущий этап
 
-See:
+С 24 сентября 2026 проект ведётся по [плану доведения до production](docs/production-roadmap.md). Активный этап **P0: достоверность данных и воспроизводимость исследования**. Текущая задача и результаты проверок — в [HANDOFF.md](HANDOFF.md).
 
-- `docs/stage27-10h-run.md` — current controlled 10-hour run and sharded post-run analysis workflow.
-- `docs/stage19-technical-economic-remediation.md` — earlier remediation plan
-  and validation order.
-- `docs/trade-observatory.md` — replay/decision observability.
-- `docs/git-session-export.md` — Git-friendly sharded exports for 10-20h analysis.
-- `docs/session-preservation.md` — immutable raw archives, checksums and finalization workflow.
-- `docs/research-economics-refactor-2026-09-22.md` — earlier economics
-  investigation.
+[Углублённый аудит](docs/deep-profitability-audit-2026-09-24.md) охватывает 11 локальных сессий и 112 закрытых сделок разных версий. Последние два торговых прогона: 23 сделки, gross +$9.16, комиссии $27.13, net −$17.97. Это исследовательская выборка, не результат независимого подтверждения edge.
 
-## Current trading policy
+Подтверждённые направления работы: временная база признаков, разделение execution/opportunity freshness, causal response после пробоя, достижимость целей, допуск пробоев перед препятствиями, геометрия rejection-stop. Наличие автоматических тестов не подтверждает прибыльность.
 
-Tradeable playbooks:
+## Навигация
 
-- `weak_level_rejection`: early failed-break + local absorption.
-- `level_breakout`: mature horizontal level, ARMED pressure, accepted break,
-  absorption veto and either retest+hold or sustained hold with real
-  directional price response.
+- [Текущие профили: 1 час текущего состава → 12 часов всех стратегий, обычный UI и полная запись](docs/paper-capture-profiles.md).
+- [Разбор последнего обычного прогона: 33 минуты, 5 сделок, причины SUI/XPL и пропуска ETH](docs/paper-current-1h-results.md).
+- [Исправление конфликта часового контекста с подтверждённым локальным пробоем](docs/breakout-hourly-context.md).
+- [Гипотеза цены · BETA: отдельная paper-стратегия, правила и включение](docs/price-action-hypothesis-beta.md).
+- [Прежний обычный 1h без полного журнала входов](docs/paper-current-1h.md).
+- [Последний разбор E06: разрыв через 40м38с, убыток и отключённая частичная фиксация](docs/e06-independent-01-results.md).
+- [E06: штатный вариант и независимая запись — 30m smoke → 12h paper](docs/e06-independent-capture.md).
+- [UI парного прогона: капитал, сделки, позиции и состояние записи](docs/e06-independent-capture.md#наблюдение-в-ui).
+- [E01: отдельный технический парный прогон на 30 минут](docs/e01-smoke.md).
+- [Общий replay: реализованный источник времени и план записи входных событий](docs/p1-replay-design.md).
+- [Новая временная база и техническая проверка на 15 минут](docs/p0-clock-runtime.md).
+- [Результат 12-часового baseline 24–25 сентября](docs/p0-baseline-results-2026-09-25.md): 65 сделок, net −$4.14; breakout −$52.71, rejection +$48.57; временная база пока не проходит integrity.
+- [Production roadmap и критерии перехода](docs/production-roadmap.md).
+- [Протокол сравнительного эксперимента](docs/experiment-protocol.md).
+- [Контракт времени и проверки сессии](docs/data-time-contract.md).
+- [Аудит и доказательства](docs/deep-profitability-audit-2026-09-24.md).
+- [Хранение и финализация исходных сессий](docs/session-preservation.md).
+- [Git-friendly экспорт](docs/git-session-export.md), [интерфейс разбора сделок](docs/trade-observatory.md).
 
-Non-tradeable research components:
+Документы `stage*` и старые исследования сохраняют историю решений. Их инструкции не заменяют текущий roadmap. Предыдущий handoff сохранён в [архиве](docs/archive/handoff-stage27.md).
 
-- `trend_structure`: disabled until continuation logic proves forward edge.
-- `orderbook_density`: liquidity evidence only; it does not independently
-  open positions.
+## Что реализовано
 
-Breakout/rejection staged adds remain implemented for research but are disabled
-in the current policy.
+- Fast L50 и deep L1000, независимые проверки синхронизации/свежести; event-driven evaluation с polling fallback.
+- Подтверждённые свечи 1m/5m/15m/1h, формирующаяся 1m, лента, CVD/OFI, уровни и рыночный контекст.
+- Объёмы выбранного таймфрейма на основном графике, в разборе сделки и replay; OHLC/оборот/статус свечи при наведении.
+- Исполнение paper по доступной глубине, комиссии, резерв проскальзывания, подтверждение maker-fill лентой, частичные выходы и runner.
+- Запись событий в JSONL, delta trade tape, фоновые writer/ingest очереди, метрики задержек, архивы и почасовые пакеты анализа.
+- Исследовательские модули calibration, stability validation и promotion policy. Их наличие не означает завершённую валидацию стратегии.
 
-## Market model
+## Фактическая торговая политика baseline
 
-The engine combines:
+| Компонент | Поведение |
+|---|---|
+| `level_breakout` | Пробой зрелого уровня; retest-response или sustained-response |
+| `weak_level_rejection` | Failed break, локальное absorption и micro-response |
+| `trend_structure` | Отключён в исходном профиле; UI позволяет включить, что меняет эксперимент |
+| `orderbook_density` | Evidence-only, самостоятельно не открывает позиции |
+| `price_action_hypothesis` | Отдельная paper beta по закрытой свече/объёму/flow; выключена по умолчанию, включается в UI до Start |
+| Staged adds | Для breakout/rejection отключены |
 
-- confirmed 1m / 5m / 15m / 1h candles;
-- the forming 1m candle (body, range, wick position, range expansion, volume
-  pace and velocity);
-- public-trade flow/CVD and 5s/15s/60s imbalance;
-- best-level OFI and order-book liquidity evidence;
-- shared structural levels/trendlines;
-- current and previous UTC-day highs/lows;
-- a LocalRegime/HTF context layer;
-- exact ARMED/FIRE causal telemetry.
+Breakout блокируется при противоположном HTF/flow-контексте. Rejection блокируется при opposed flow и некоторых сочетаниях local/longer-flow opposition. Поэтому старое утверждение, что весь контекст является только предпочтением, больше неверно.
 
-LocalRegime is context/preference for breakout and rejection, not a hard side
-selector.
+Зрелое встречное препятствие перед first take для breakout сейчас уменьшает risk scale до 0.65; это не hard veto. Это поведение baseline, подлежащее проверке, а не доказанное преимущество.
 
-## Structural correctness
+Три направленные baseline-стратегии и опциональная beta входят как taker. `passive_entry_enabled=true` не делает их входы maker: нужна отдельная eligibility стратегии.
 
-- a selected breakout zone stays bound to the exact StructuralLevel generation;
-- distinct level approaches require a real departure plus time/bar separation;
-- ordinary and daily reference levels share one support/resistance taxonomy;
-- day/previous-day extremes are structural obstacles by definition;
-- hard breakout stops sit beyond the complete broken zone; reacceptance inside
-  the zone is a separate soft invalidation.
+## Риск и экономика
 
-## Execution model
+Checked-in `.env.example`: баланс $1,000, базовый структурный риск 0.5%, planned all-in loss до 1.25% на позицию, совокупный open risk до 2%, gross exposure до 5x на позицию / 10x на портфель. Это исследовательские настройки, не production-рекомендация.
 
-- entries and emergency/invalidated exits use executable book depth;
-- taker entry geometry includes configured slippage in the expected fill;
-- maker entries, partials and targets require public-trade-through confirmation;
-- pending maker entries are cancelled immediately if their setup becomes
-  invalid, late or changes identity;
-- spread is represented by executable bid/ask and is not subtracted again.
+Hard net reward/risk floor — 1.0. Более строгий RR gate, strategy expectancy gate и session-loss enforcement в исследовательском baseline отключены; winner-cost-share gate включён. Bare `Settings()` и `.env.example` могут различаться. Новые запуски записывают manifest фактической несекретной конфигурации, исходников и версий зависимостей; старым сессиям он задним числом не приписывается.
 
-## Economics and risk
+Плановая прибыль при target не равна математическому ожиданию. Spread уже представлен ценой исполнения; повторно вычитать его из gross нельзя.
 
-Default research account: $1,000.
-
-- base structural risk: 0.5% equity per setup;
-- max planned all-in loss: 1.25% equity per position;
-- aggregate open all-in risk cap: 2% equity;
-- max gross single-position exposure: 5x equity;
-- max gross portfolio exposure: 10x equity;
-- absolute planned net reward/risk floor: 1.0;
-- positive risk scaling above base is disabled until expectancy proves edge.
-
-RiskEngine and PaperBroker use the same partial/runner assumptions. A partial is
-planned only when that leg can meet the same economic threshold used by the
-paper broker. Weak-level rejection currently closes 30% at the early partial;
-breakout requires at least 2R gross target room before costs.
-
-## Scanner
-
-The active-symbol scanner separates raw activity from opportunity readiness.
-Readiness rewards compression -> fresh expansion while penalizing already-spent
-moves, reducing the old tendency to select only coins whose impulse had already
-occurred.
-
-## Telemetry
-
-Minor `market_context_changed` churn is compactly sampled (10s default);
-semantic regime/structure changes emit immediately. Full causal snapshots
-remain attached to decisions, state transitions, risk events and trades.
-
-This makes a future 12-hour session tractable without removing the data needed
-for strategy analysis.
-
-## Local setup
+## Локальная работа
 
 ```powershell
-git fetch origin
-git switch main
-git pull --ff-only origin main
-
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\scripts\setup.ps1
+.\.venv\Scripts\python.exe scripts/test_preflight.py
 ```
 
-The normal launcher loads `.env.example` first, then an optional checked-in
-research profile, so a stale local `.env` cannot silently alter a controlled
-run.
+`test_preflight.py` очищает `SCALP_*` и отключает локальный `.env` в дочернем тестовом процессе. Обычный `pytest` без изоляции может зависеть от локального профиля.
 
-Prepared but **not yet authorized**:
+Текущая задача — [часовой прогон текущего состава с полной записью](docs/paper-capture-profiles.md):
 
 ```powershell
-.\scripts\run-stage19-audit-smoke.ps1
+.\scripts\run-paper-capture-1h.ps1
 ```
 
-The exact 12-hour launcher remains:
+После проверок открыть http://127.0.0.1:8000/ и нажать Start. Через час бот завершит торговлю и закроет paper-позиции. Затем штатно остановить сервер через Ctrl+C и выполнить `.\scripts\check-paper-capture.ps1 -Profile 1h`. Данные и терминальный журнал сохраняются в новой папке `data/paper-captures/1h-<дата>-<id>`. Следующий профиль на 12 часов всех стратегий: `.\scripts\run-paper-capture-12h.ps1`. Основной UI со свечами и стаканом сохранён; один портфель, без конкурентов. Подробности и границы последующей симуляции — в инструкции выше.
+
+Перед сравнительным запуском заполнить [карточку эксперимента](docs/experiment-protocol.md). Изменение стратегий внутри контрольного прогона делает его непригодным для сравнения неизменного профиля.
+
+После записи сессии:
 
 ```powershell
-.\scripts\run-global-audit-12h.ps1
+.\.venv\Scripts\python.exe scripts/validate-session.py data/sessions/session-YYYYMMDDTHHMMSSZ.jsonl --output data/session-validation.json
 ```
 
-Do not launch the 12-hour profile before the Stage 19 smoke is reviewed.
+Путь сессии заменить фактическим. Output должен быть новым файлом. Exit code: 0 — реализованные проверки пройдены, 1 — нарушения, 2 — недостаточно данных. `checks_passed` не подтверждает воспроизводимость всего движка, прибыльность или готовность к live.
+
+Исходные сессии не менять и не коммитить. Для публикации результатов использовать проверенные компактные экспорты и сохранять raw по процедуре preservation.

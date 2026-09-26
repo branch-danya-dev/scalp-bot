@@ -1,3 +1,5 @@
+> Historical stage document. Its launch/approval wording and tuning values are not the current project status. See [production roadmap](production-roadmap.md) and [HANDOFF](../HANDOFF.md). Existing launchers remain research tools, not evidence of production readiness.
+
 # Stage 19 technical/economic remediation plan
 
 This document converts the 14-point audit after the failed Stage 17 smoke into

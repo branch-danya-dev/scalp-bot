@@ -1,0 +1,24 @@
+{
+  "schema": "replay-input-v1",
+  "structuralStatus": "incomplete",
+  "parityReady": false,
+  "coverage": "not_recorded",
+  "missingCoverage": [
+    "bootstrap_and_rest_context",
+    "scanner_and_symbol_lifecycle",
+    "every_runtime_clock_read",
+    "scheduler_dispatch_and_completion",
+    "manifest_binding"
+  ],
+  "headerPresent": false,
+  "footerPresent": false,
+  "missingReceiptCount": 0,
+  "counts": {},
+  "issues": {},
+  "source": {
+    "file": "session-20260925T091451Z.jsonl",
+    "snapshotBytes": 1213151756,
+    "bytesRead": 1213151756,
+    "snapshotSha256": "a76810bf5b5f3188070f7bd9dca4fb888c7cdebb704a9a81cec87ecec1eaae32"
+  }
+}

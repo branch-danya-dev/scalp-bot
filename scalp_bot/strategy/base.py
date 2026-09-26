@@ -24,6 +24,7 @@ class Strategy:
         structure: "MarketStructure | None" = None,
         market_context: "MarketContext | None" = None,
         observed_at_ms: int | None = None,
+        trade_flow: dict | None = None,
     ) -> StrategyDecision:
         raise NotImplementedError
 

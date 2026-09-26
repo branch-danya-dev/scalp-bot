@@ -1,3 +1,5 @@
+> Historical stage document. Its launch/approval wording and tuning values are not the current project status. See [production roadmap](production-roadmap.md) and [HANDOFF](../HANDOFF.md). Existing launchers remain research tools, not evidence of production readiness.
+
 # Strategy Rework v2 — principles from the first paper run
 
 This document preserves the reasoning behind the post-run patch so later tuning does not turn provisional thresholds into accidental "rules of the market".

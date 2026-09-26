@@ -25,6 +25,7 @@ const REPLAY_EVENT_LABELS = {
   symbol_activated:"Монета активирована", symbol_deactivated:"Монета исключена",
 };
 const REPLAY_STRATEGY_LABELS = {
+  price_action_hypothesis:"Гипотеза цены · BETA",
   trend_structure:"Трендовый откат", weak_level_rejection:"Отбой от уровня",
   orderbook_density:"Плотность в стакане", level_breakout:"Пробой уровня",
 };
@@ -35,6 +36,7 @@ function replaySideLabel(value) { return REPLAY_SIDE_LABELS[String(value || "").
 function replayReason(value) {
   const text = String(value || "");
   if (!text) return "—";
+  if (Object.hasOwn(EXIT_REASON_LABELS, text)) return exitReasonText(text);
   if (text.startsWith("setup expired: entry drift")) return text.replace("setup expired: entry drift", "Сетап устарел: дрейф входа");
   if (text.startsWith("setup expired after depth: entry drift")) return text.replace("setup expired after depth: entry drift", "Сетап устарел после проверки глубины: дрейф входа");
   if (text.startsWith("net at target")) return text.replace("net at target", "Net на цели").replace("after estimated trading costs", "после расчётных торговых издержек").replace("required", "требуется");
@@ -42,18 +44,13 @@ function replayReason(value) {
   if (text === "setup consumed") return "сетап использован";
   if (text === "rearmed") return "переактивирован";
   if (text === "deactivated") return "исключена из наблюдения";
-  if (text === "target") return "цель";
-  if (text === "runner_target") return "цель раннера";
-  if (text === "stop") return "стоп";
-  if (text === "no_follow_through") return "нет продолжения движения";
   if (text === "partial_take") return "частичная фиксация";
-  if (text === "duration_elapsed") return "время прогона истекло";
-  if (text === "bot_stop") return "остановлено пользователем";
-  if (text === "shutdown") return "завершение приложения";
   return text.replaceAll("_", " ");
 }
 
 let chart, candleSeries, bundle = null;
+let candleVolume = null;
+let executionDots = null;
 let currentIndex = -1;
 let candleMap = new Map();
 let overlaySeries = [];
@@ -71,12 +68,11 @@ function ensureChart() {
   if (chart) return;
   chart = LightweightCharts.createChart($("replayChart"), {
     autoSize:true,
-    layout:{background:{color:"transparent"}, textColor:"#6e6e73"},
+    ...chartThemeOptions(),
     localization:{
       locale:navigator.language,
       timeFormatter:time => new Date(Number(time) * 1000).toLocaleString()
     },
-    grid:{vertLines:{color:"#f1f1f3"}, horzLines:{color:"#f1f1f3"}},
     rightPriceScale:{borderVisible:false},
     timeScale:{
       timeVisible:true,
@@ -86,9 +82,10 @@ function ensureChart() {
     }
   });
   candleSeries = chart.addCandlestickSeries({
-    upColor:"#34c759", downColor:"#ff453a", borderVisible:false,
-    wickUpColor:"#34c759", wickDownColor:"#ff453a"
+    ...chartCandleOptions()
   });
+  candleVolume = addCandleVolume(chart, candleSeries, $("replayVolumeLegend"));
+  executionDots = addExecutionDots(chart);
 }
 
 function resetCandleMap() {
@@ -106,31 +103,34 @@ function clearOverlays() {
   overlaySeries = [];
 }
 
-function addPriceLine(value, title, color="#8e8e93", style=2) {
+function addPriceLine(value, title, color=CHART_COLORS.level, style=2) {
   if (value == null) return;
   priceLines.push(candleSeries.createPriceLine({price:Number(value), color, lineWidth:1, lineStyle:style, axisLabelVisible:true, title}));
 }
 
 function applyVisuals(visuals) {
   for (const overlay of visuals?.overlays || []) {
-    if (overlay.type === "price") addPriceLine(overlay.price, overlay.label || "уровень", "#8e8e93", 2);
+    if (overlay.type === "price") addPriceLine(overlay.price, overlay.label || "уровень", CHART_COLORS.level, 2);
     if (overlay.type === "zone") {
-      addPriceLine(overlay.low, `${overlay.label || "зона"} · низ`, "#8e8e93", 2);
-      addPriceLine(overlay.high, `${overlay.label || "зона"} · верх`, "#8e8e93", 2);
+      addPriceLine(overlay.low, `${overlay.label || "зона"} · низ`, CHART_COLORS.level, 2);
+      addPriceLine(overlay.high, `${overlay.label || "зона"} · верх`, CHART_COLORS.level, 2);
     }
     if (overlay.type === "line" && overlay.points?.length >= 2) {
-      const series = chart.addLineSeries({color:"#7c7c80", lineWidth:1, lineStyle:2, priceLineVisible:false, lastValueVisible:false});
-      series.setData(overlay.points);
+      const series = chart.addLineSeries({color:CHART_COLORS.trend, lineWidth:1, lineStyle:2, priceLineVisible:false, lastValueVisible:false});
+      series.setData(overlay.points.map(point => ({time:point.time, value:point.value ?? point.price})));
       overlaySeries.push(series);
     }
   }
 }
 
 function applyPosition(position) {
+  candleSeries.applyOptions({autoscaleInfoProvider:includeTradePrices(
+    position ? [position.entry, position.stop, position.target] : []
+  )});
   if (!position) return;
-  addPriceLine(position.entry, "вход", "#007aff", 0);
-  addPriceLine(position.stop, "стоп", "#ff3b30", 2);
-  addPriceLine(position.target, "цель", "#34c759", 2);
+  addPriceLine(position.entry, "вход", CHART_COLORS.entry, 0);
+  addPriceLine(position.stop, "стоп", CHART_COLORS.down, 2);
+  addPriceLine(position.target, "цель", CHART_COLORS.up, 2);
 }
 
 function renderBook(book) {
@@ -149,26 +149,28 @@ function markerFor(event) {
   const payload = event.payload || {};
   if (event.event === "trade_opened") {
     const side = payload.plan?.side || "long";
-    return {time:Math.floor(event.ts), position:side === "long" ? "belowBar" : "aboveBar", shape:side === "long" ? "arrowUp" : "arrowDown", color:side === "long" ? "#34c759" : "#ff453a", text:`ВХОД ${replaySideLabel(side)}`};
+    return executionChartMarker(payload.position?.opened_at ?? event.ts, payload.position?.entry, side);
   }
   if (event.event === "partial_take") {
-    return {time:Math.floor(event.ts), position:"aboveBar", shape:"circle", color:"#34c759", text:`ЧАСТЬ ${money(payload.netPnl)}`};
+    return {time:Math.floor(event.ts), position:"aboveBar", shape:"circle", color:CHART_COLORS.up, text:`ЧАСТЬ ${money(payload.netPnl)}`};
   }
   if (event.event === "trade_closed") {
-    return {time:Math.floor(event.ts), position:"aboveBar", shape:"circle", color:"#007aff", text:`ВЫХОД ${money(payload.netPnl)}`};
+    return executionChartMarker(payload.closedAt ?? event.ts, payload.exit, payload.side, true);
   }
   if (event.event === "risk_reject") {
-    return {time:Math.floor(event.ts), position:"aboveBar", shape:"square", color:"#8e8e93", text:"ОТКАЗ"};
+    return {time:Math.floor(event.ts), position:"aboveBar", shape:"square", color:CHART_COLORS.level, text:"ОТКАЗ"};
   }
   return null;
 }
 
 function renderMarkers(ts) {
-  const markers = (bundle?.events || []).filter(e => e.ts <= ts).map(markerFor).filter(Boolean).sort((a,b) => a.time - b.time);
-  candleSeries.setMarkers(markers);
+  const markers = (bundle?.events || []).filter(e => e.ts <= ts).map(markerFor).filter(Boolean);
+  const aligned = markersOnCandles([...candleMap.values()], markers);
+  candleSeries.setMarkers(aligned);
+  executionDots.setMarkers(aligned);
 }
 
-function eventText(event) {
+function eventText(event, html = true) {
   const payload = event.payload || {};
   if (event.event === "decision") {
     const state = payload.details?.state ? ` · ${payload.details.state}` : "";
@@ -176,7 +178,7 @@ function eventText(event) {
   }
   if (event.event === "trade_opened") return `${replaySideLabel(payload.plan?.side)} · вход ${price(payload.position?.entry)} · стоп ${price(payload.position?.stop)} · цель ${price(payload.position?.target)} · R:R ${Number(payload.plan?.net_reward_risk || 0).toFixed(2)}`;
   if (event.event === "partial_take") return `частичная фиксация ${money(payload.netPnl)} · остаток ${money(payload.remainingNotional)} · стоп→${price(payload.newStop)} · цель раннера ${price(payload.newTarget)}`;
-  if (event.event === "trade_closed") return `${replayReason(payload.reason)} · net ${money(payload.netPnl)} · MAE ${Number(payload.maeR || 0).toFixed(2)}R · MFE ${Number(payload.mfeR || 0).toFixed(2)}R`;
+  if (event.event === "trade_closed") return `${html ? exitReasonHtml(payload.reason) : exitReasonText(payload.reason)} · net ${money(payload.netPnl)} · MAE ${Number(payload.maeR || 0).toFixed(2)}R · MFE ${Number(payload.mfeR || 0).toFixed(2)}R`;
   if (event.event === "risk_reject") return replayReason(payload.reason || "Отклонено риском");
   if (event.event === "setup_blocked") return `${replayStrategyLabel(payload.strategy)} · ${replayReason(payload.reason)}`;
   if (event.event === "setup_consumed") return `${replayStrategyLabel(payload.strategy)} · сетап использован`;
@@ -214,7 +216,7 @@ function renderEventDetail(event) {
   const payload = event.payload || {};
   const lines = [
     `${new Date(event.ts * 1000).toLocaleString()} · ${event.event}`,
-    eventText(event)
+    eventText(event, false)
   ];
   if (payload.plan) lines.push(`номинал ${money(payload.plan.notional)} · ожидаемый net ${money(payload.plan.expected_net_profit)} · net-риск ${money(payload.plan.expected_net_loss)} · R:R ${Number(payload.plan.net_reward_risk || 0).toFixed(2)} · издержки ${money(payload.plan.estimated_costs)}`);
   $("replayDecision").textContent = lines.join("\n");
@@ -227,11 +229,11 @@ function renderOverlayForFrame(frame) {
   const payload = selectedEvent.payload || {};
   applyVisuals(payload.visuals || payload.decision?.visuals);
   if (payload.plan) {
-    addPriceLine(payload.plan.market_entry, "вход", "#007aff", 0);
-    addPriceLine(payload.plan.stop, "стоп", "#ff3b30", 2);
-    addPriceLine(payload.plan.target, "цель", "#34c759", 2);
+    addPriceLine(payload.plan.market_entry, "вход", CHART_COLORS.entry, 0);
+    addPriceLine(payload.plan.stop, "стоп", CHART_COLORS.down, 2);
+    addPriceLine(payload.plan.target, "цель", CHART_COLORS.up, 2);
   }
-  if (payload.watched_level != null) addPriceLine(payload.watched_level, "наблюдаемый уровень", "#8e8e93", 2);
+  if (payload.watched_level != null) addPriceLine(payload.watched_level, "наблюдаемый уровень", CHART_COLORS.level, 2);
 }
 
 function seek(index) {
@@ -248,6 +250,7 @@ function seek(index) {
   const frame = frames[index];
   applyChartPrecision(frame.lastPrice);
   candleSeries.setData([...candleMap.values()].sort((a,b) => a.time - b.time));
+  candleVolume.setData([...candleMap.values()].sort((a,b) => a.time - b.time), `${bundle.symbol || ""} · 1m`);
   renderMarkers(frame.ts);
   renderBook(frame.orderbook);
   renderOverlayForFrame(frame);
@@ -306,7 +309,9 @@ async function loadBundle(resetSymbols) {
   currentIndex = -1;
   resetCandleMap();
   candleSeries.setData([...candleMap.values()].sort((a,b) => a.time - b.time));
+  candleVolume.setData([...candleMap.values()].sort((a,b) => a.time - b.time), `${bundle.symbol || ""} · 1m`);
   candleSeries.setMarkers([]);
+  executionDots.setMarkers([]);
   clearOverlays();
   renderEvents();
   renderEventDetail(null);

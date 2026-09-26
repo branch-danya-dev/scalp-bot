@@ -1,0 +1,18 @@
+{
+  "run_label": "e06-native-smoke-30m-v1",
+  "paper_run_duration_seconds": 1800,
+  "exchange_clock_enabled": true,
+  "clock_sync_interval_seconds": 5.0,
+  "fee_rate_mode": "configured",
+  "event_driven_evaluation_enabled": false,
+  "research_policy_mode": "off",
+  "e01_breakout_obstacle_veto": false,
+  "e06_conditional_breakout_hold": false,
+  "breakout_hold_without_retest_seconds": 8.0,
+  "breakout_staged_entries_enabled": false,
+  "research_frame_seconds": 5.0,
+  "replay_engaged_frame_seconds": 5.0,
+  "replay_idle_frame_seconds": 15.0,
+  "research_trade_delta_enabled": true,
+  "replay_trade_delta_enabled": true
+}

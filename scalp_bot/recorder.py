@@ -5,14 +5,17 @@ from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Condition, Event, Lock, Thread
-from time import monotonic, time
+from time import monotonic
 
 import msgspec
+
+from .runtime_clock import RuntimeClock, SystemRuntimeClock
 
 
 _ROW_ENCODER = msgspec.json.Encoder()
 _RECORDER_STOP = object()
 _BULK_RECORDER_EVENTS = {
+    "replay_input",
     "research_frame",
     "market_frame",
     "market_context_changed",
@@ -101,7 +104,9 @@ class SessionRecorder:
         *,
         queue_size: int = 8192,
         critical_enqueue_timeout_seconds: float = 0.01,
+        clock: RuntimeClock | None = None,
     ) -> None:
+        self.clock = clock if clock is not None else SystemRuntimeClock()
         self.root = Path(directory)
         self.root.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -260,9 +265,10 @@ class SessionRecorder:
         symbol: str | None,
         payload: dict,
     ) -> None:
+        observed_at = self.clock.time()
         row = {
-            "ts": time(),
-            "iso": datetime.now(UTC).isoformat(),
+            "ts": observed_at,
+            "iso": datetime.fromtimestamp(observed_at, UTC).isoformat(),
             "event": event,
             "symbol": symbol,
             "payload": payload,

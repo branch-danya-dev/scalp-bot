@@ -1,0 +1,15 @@
+{
+  "run_label": "e01-technical-smoke-30m-v3",
+  "paper_run_duration_seconds": 1800,
+  "exchange_clock_enabled": true,
+  "clock_sync_interval_seconds": 5.0,
+  "fee_rate_mode": "configured",
+  "event_driven_evaluation_enabled": false,
+  "research_policy_mode": "off",
+  "e01_breakout_obstacle_veto": false,
+  "research_frame_seconds": 5.0,
+  "replay_engaged_frame_seconds": 5.0,
+  "replay_idle_frame_seconds": 15.0,
+  "research_trade_delta_enabled": true,
+  "replay_trade_delta_enabled": true
+}

@@ -1,0 +1,258 @@
+{
+  "purpose": "Observed P0 baseline; not strategy validation or causal backtest",
+  "inputFile": "session-20260924T195114Z.jsonl",
+  "inputSnapshotBytes": 25254067578,
+  "inputSnapshotSha256": "9081f3c5df42c21ab288464dd81af2bcd40efe5808690af8398ea4973d0aab1e",
+  "validatorSourceSha256": "c4c1911263a1800622b3a1556db074733046ba0863aa7b78d216a48a2e6c7f00",
+  "integrity": {
+    "validatorVersion": "session-integrity-v1",
+    "status": "rejected",
+    "policy": {
+      "futureToleranceMs": 0.0
+    },
+    "fileIssues": {},
+    "runs": [
+      {
+        "index": 1,
+        "label": "research-p0-baseline-v1-12h",
+        "startedAt": 1790279501.9967399,
+        "configuredDurationSeconds": 43200.0,
+        "completed": true,
+        "counts": {
+          "bot_started": 1,
+          "market_context_changed": 2913157,
+          "strategy_state_transition": 74404,
+          "decision": 91647,
+          "research_frame": 166560,
+          "market_frame": 100667,
+          "symbol_activated": 6,
+          "scanner_update": 620,
+          "entry_freshness_changed": 297,
+          "trade_opened": 65,
+          "setup_consumed": 65,
+          "trade_closed": 65,
+          "setup_rearmed": 64,
+          "partial_take": 22,
+          "economic_shadow": 17,
+          "risk_reject": 444,
+          "arbiter_blocked": 18,
+          "run_summary": 1
+        },
+        "clock": {
+          "frameSamples": 163462,
+          "tradeAfterRecord": 7095,
+          "tradeAfterContext": 14780,
+          "maxTradeAfterRecordMs": 190.6982421875,
+          "maxTradeAfterContextMs": 220.0
+        },
+        "pnl": {
+          "trades": 65,
+          "gross": 89.11852730660324,
+          "fees": 93.26308188232495,
+          "funding": 0.0,
+          "net": -4.144554575721703
+        },
+        "findings": [
+          {
+            "code": "trade_timestamp_after_context",
+            "severity": "error",
+            "count": 14780,
+            "examples": [
+              {
+                "ts": 1790291726.5523534,
+                "symbol": "ETHUSDT",
+                "event": "research_frame"
+              },
+              {
+                "ts": 1790291750.2446027,
+                "symbol": "SOLUSDT",
+                "event": "research_frame"
+              },
+              {
+                "ts": 1790291771.9538953,
+                "symbol": "SOLUSDT",
+                "event": "research_frame"
+              }
+            ]
+          },
+          {
+            "code": "trade_timestamp_after_record",
+            "severity": "error",
+            "count": 7095,
+            "examples": [
+              {
+                "ts": 1790293438.7157178,
+                "symbol": "SOXLUSDT",
+                "event": "research_frame"
+              },
+              {
+                "ts": 1790293631.3407614,
+                "symbol": "NEARUSDT",
+                "event": "research_frame"
+              },
+              {
+                "ts": 1790293910.1754634,
+                "symbol": "DOGEUSDT",
+                "event": "research_frame"
+              }
+            ]
+          }
+        ],
+        "stoppedAt": 1790322702.1492722,
+        "elapsedSeconds": 43200.152532339096,
+        "stopReason": "duration_elapsed",
+        "status": "rejected"
+      }
+    ],
+    "notValidated": [
+      "full_code_and_configuration_provenance",
+      "live_replay_parity",
+      "execution_model_accuracy",
+      "strategy_edge",
+      "network_event_completeness"
+    ]
+  },
+  "total": {
+    "n": 65,
+    "wins": 21,
+    "gross": 89.11852730660326,
+    "fees": 93.26308188232497,
+    "net": -4.144554575721702,
+    "profitFactor": 0.9689308288734024,
+    "medianHold": 98.31176328659058
+  },
+  "strategies": {
+    "level_breakout": {
+      "n": 47,
+      "wins": 10,
+      "gross": 3.819131042601833,
+      "fees": 56.53165537407286,
+      "net": -52.71252433147103,
+      "profitFactor": 0.39960814941749556,
+      "medianHold": 114.50762414932251
+    },
+    "weak_level_rejection": {
+      "n": 18,
+      "wins": 11,
+      "gross": 85.29939626400143,
+      "fees": 36.731426508252106,
+      "net": 48.56796975574933,
+      "profitFactor": 2.06506868158102,
+      "medianHold": 78.39665675163269
+    }
+  },
+  "exits": {
+    "breakout_failed_back_inside": {
+      "n": 30,
+      "wins": 0,
+      "gross": -37.30535230799885,
+      "fees": 30.838899437405402,
+      "net": -68.14425174540426,
+      "profitFactor": 0.0,
+      "medianHold": 119.39329326152802
+    },
+    "duration_elapsed": {
+      "n": 1,
+      "wins": 0,
+      "gross": 1.2890613400004065,
+      "fees": 2.558262533519,
+      "net": -1.2692011935185936,
+      "profitFactor": 0.0,
+      "medianHold": 277.8774998188019
+    },
+    "no_follow_through": {
+      "n": 4,
+      "wins": 0,
+      "gross": -8.405986619999382,
+      "fees": 6.620826806121,
+      "net": -15.026813426120384,
+      "profitFactor": 0.0,
+      "medianHold": 88.66711473464966
+    },
+    "runner_target": {
+      "n": 7,
+      "wins": 7,
+      "gross": 112.25834893600062,
+      "fees": 9.228109936835402,
+      "net": 103.03023899916522,
+      "profitFactor": null,
+      "medianHold": 307.77685928344727
+    },
+    "stop": {
+      "n": 21,
+      "wins": 13,
+      "gross": 12.109909826600239,
+      "fees": 38.22399908197876,
+      "net": -26.114089255378524,
+      "profitFactor": 0.38477626463829334,
+      "medianHold": 84.08445692062378
+    },
+    "target": {
+      "n": 1,
+      "wins": 1,
+      "gross": 13.656822551999957,
+      "fees": 3.7663635500964006,
+      "net": 9.890459001903556,
+      "profitFactor": null,
+      "medianHold": 76.49931335449219
+    },
+    "weak_level_invalidated": {
+      "n": 1,
+      "wins": 0,
+      "gross": -4.4842764199997225,
+      "fees": 2.026620536369,
+      "net": -6.510896956368723,
+      "profitFactor": 0.0,
+      "medianHold": 17.230143070220947
+    }
+  },
+  "recorder": {
+    "background": true,
+    "queuedRows": 3348736,
+    "writtenRows": 3348735,
+    "pendingRows": 1,
+    "queueDepth": 1,
+    "queueCapacity": 8192,
+    "droppedRows": 0,
+    "droppedBulkRows": 0,
+    "droppedCriticalRows": 0,
+    "writerError": null
+  },
+  "breakoutObstacleGroups": [
+    {
+      "obstacleBeforeFirstTake": true,
+      "count": 43,
+      "wins": 6,
+      "net": -73.12149215835743
+    },
+    {
+      "obstacleBeforeFirstTake": false,
+      "count": 4,
+      "wins": 4,
+      "net": 20.408967826886403
+    }
+  ],
+  "rejectionWithoutBestNet": 3.822781586830615,
+  "diagnostics": {
+    "snapshotBytes": 25299540499,
+    "runWindow": [
+      1790279501.9967399,
+      1790322702.1492722
+    ],
+    "riskEventReasons": {
+      "economic_gate:": 256,
+      "economic_safety:": 187,
+      "setup expired after depth:": 1
+    },
+    "contextBlockEvents": {
+      "breakout_htf_opposed": 94,
+      "rejection_flow_opposed": 59,
+      "rejection_local_and_longer_flow_opposed": 35,
+      "breakout_flow_opposed": 3
+    },
+    "postExitScope": "sampled last prices during 300 seconds, not executable replay",
+    "failedBreakoutCount": 30,
+    "failedBreakoutObservedTargetHitsAfterExit": 0,
+    "failedBreakoutObservedInitialStopHitsAfterExit": 5
+  }
+}

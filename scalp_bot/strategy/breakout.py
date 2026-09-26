@@ -90,8 +90,18 @@ class LevelBreakoutStrategy(Strategy):
     retest_tolerance_bps = 3.0
     retest_response_min_bps = 2.0
     hold_without_retest_seconds = 8.0
+    conditional_hold_enabled = False
     absorption_efficiency_threshold = 0.35
     min_directional_response_bps = 5.0
+
+    def _sustained_hold_seconds(self, pressure: dict) -> float:
+        # E06 uses current confirmed structure; it does not reset the break timer
+        # or change retest confirmation. Missing structure keeps the base hold.
+        if (self.conditional_hold_enabled
+                and (pressure.get("nearCloses") or 0) >= 2
+                and (pressure.get("compressedPullbacks") or 0) >= 2):
+            return 3.0
+        return self.hold_without_retest_seconds
 
     def __init__(self) -> None:
         self._states: dict[str, BreakoutWatchState] = {}
@@ -421,6 +431,7 @@ class LevelBreakoutStrategy(Strategy):
         structure: "MarketStructure | None" = None,
         market_context: "MarketContext | None" = None,
         observed_at_ms: int | None = None,
+        trade_flow: dict | None = None,
     ) -> StrategyDecision:
         context_plan = breakout_direction_plan(
             market_context,
@@ -674,7 +685,7 @@ class LevelBreakoutStrategy(Strategy):
             state.fire_price = 0.0
             state.probe_opened = False
         visuals = zone_visual(zone, "breakout zone")
-        flow = compute_trade_flow(trades, observed_at_ms)
+        flow = compute_trade_flow(trades, observed_at_ms) if trade_flow is None else trade_flow
         level_tolerance = max(
             zone.width_pct * 1.5,
             book.spread_pct * 2.0,
@@ -1141,13 +1152,14 @@ class LevelBreakoutStrategy(Strategy):
             >= self.min_break_hold_seconds
             and retest_response_ready
         )
+        required_sustained_hold = self._sustained_hold_seconds(pressure)
         sustained_response_ready = (
             directional_response_bps
             >= self.min_directional_response_bps
         )
         sustained_hold_ready = (
             held_seconds
-            >= self.hold_without_retest_seconds
+            >= required_sustained_hold
             and sustained_response_ready
         )
         confirmation_mode = (
@@ -1265,7 +1277,7 @@ class LevelBreakoutStrategy(Strategy):
                             self.retest_response_min_bps
                         ),
                         "sustainedHoldSecondsRequired": (
-                            self.hold_without_retest_seconds
+                            required_sustained_hold
                         ),
                         "sustainedResponseReady": (
                             sustained_response_ready
@@ -1306,6 +1318,7 @@ class LevelBreakoutStrategy(Strategy):
             action,
             market_context,
             trend,
+            breakout_confirmed=confirmation_ready,
         )
         if not entry_context.allowed:
             return StrategyDecision(
@@ -1330,6 +1343,8 @@ class LevelBreakoutStrategy(Strategy):
                     "acceptanceFlow": acceptance_flow.public(),
                     "acceptanceBoundary": acceptance_boundary,
                     "breakHoldSeconds": held_seconds,
+                    "breakoutConfirmationMode": confirmation_mode,
+                    "breakoutConfirmed": confirmation_ready,
                     "entryContextAssessment": entry_context.public(),
                 },
             )
@@ -1580,7 +1595,7 @@ class LevelBreakoutStrategy(Strategy):
                     self.retest_response_min_bps
                 ),
                 "sustainedHoldSecondsRequired": (
-                    self.hold_without_retest_seconds
+                    required_sustained_hold
                 ),
                 "sustainedResponseReady": (
                     sustained_response_ready

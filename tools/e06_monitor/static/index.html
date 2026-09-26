@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scalp Bot · Paper Monitor</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+<main>
+  <header>
+    <div class="brand"><span class="logo">S</span><div><h1>Scalp Bot <span class="badge">ЭКСПЕРИМЕНТ</span></h1><p>Монитор сравнения · контроль и кандидат · paper</p></div></div>
+    <div class="connection"><span id="connection" class="pill">Подключение к монитору…</span><span id="updated" class="muted">Обновление каждые 2 секунды</span></div>
+  </header>
+  <div id="alert" role="status" aria-live="polite" class="notice">Загрузка состояния…</div>
+  <section class="card run">
+    <div class="row"><div><p class="eyebrow">ТЕКУЩИЙ ЭТАП</p><h2 id="phase-title">Ожидание записи</h2></div><span id="timing" class="timing">—</span></div>
+    <progress id="progress" max="100" value="0" aria-label="Прогресс текущего периода"></progress>
+    <div id="phases" class="phases"></div>
+    <p id="capture" class="path"></p>
+  </section>
+  <section id="portfolios" class="portfolios" aria-label="Сравнение портфелей"></section>
+  <section class="card chart-card">
+    <div class="row"><div><h2>Капитал во времени</h2><p id="chart-note" class="muted">Баланс + открытый PnL по оценке paper-брокера · USDT</p></div><div class="legend"><span class="baseline-dot">Контроль</span><span class="candidate-dot">Кандидат</span></div></div>
+    <div class="chart-wrap"><canvas id="chart" role="img" aria-label="График капитала двух портфелей"></canvas><p id="chart-empty" class="chart-empty">График появится после начала записи</p></div>
+    <div class="comparison"><span>Кандидат − контроль</span><strong id="delta">—</strong><span class="muted">Текущая разница капитала, не вывод о прибыльности стратегии</span></div>
+  </section>
+  <section class="card">
+    <div class="row"><div><h2>Открытые позиции</h2><p class="muted">Снимки из журналов; время каждого снимка указано отдельно</p></div><span id="history" class="muted"></span></div>
+    <div class="table-scroll"><table><thead><tr><th>Портфель</th><th>Инструмент</th><th>Сторона</th><th>Вход</th><th>Стоп / цель</th><th>Объём, USDT</th><th>Открытый PnL</th><th>Снимок</th></tr></thead><tbody id="positions"></tbody></table></div>
+  </section>
+  <section class="card">
+    <div class="row"><div><h2>Закрытые сделки</h2><p class="muted">Последние 100 сделок каждого портфеля · net за полный цикл, включая частичные выходы</p></div><label class="filter">Портфель <select id="trade-filter"><option value="all">Оба</option><option value="baseline">Контроль</option><option value="candidate">Кандидат</option></select></label></div>
+    <div class="table-scroll"><table><thead><tr><th>Закрытие</th><th>Портфель</th><th>Инструмент</th><th>Стратегия</th><th>Сторона</th><th>Вход → выход</th><th>Комиссии</th><th>Net, USDT</th><th>Причина</th></tr></thead><tbody id="trades"></tbody></table></div>
+  </section>
+  <section class="card"><h2>Рыночные данные</h2><div id="health" class="health"></div></section>
+  <footer>Монитор читает локальную запись. Поток Bybit получает процесс прогона; сделки исполняются в paper. Закрытие этой страницы не останавливает запись.</footer>
+</main>
+</body>
+</html>

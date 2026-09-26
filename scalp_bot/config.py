@@ -26,8 +26,19 @@ class Settings(BaseSettings):
     bybit_api_secret: SecretStr = SecretStr("")
     bybit_private_recv_window_ms: int = 5000
     fee_rate_mode: str = "account_if_available"
+    # Legacy deterministic replay/tests may opt out; checked-in runtime profile enables this.
+    exchange_clock_enabled: bool = False
+    clock_sync_interval_seconds: float = 20.0
+    clock_max_rtt_ms: float = 400.0
+    clock_max_sync_age_seconds: float = 60.0
+    clock_max_uncertainty_ms: float = 250.0
+    clock_wall_jump_ms: float = 250.0
+    clock_drift_ppm: float = 50.0
+    trade_receipt_stale_seconds: float = 5.0
 
     start_balance: float = 1_000.0
+    e01_breakout_obstacle_veto: bool = False
+    e06_conditional_breakout_hold: bool = False
     min_turnover_usd: float = 150_000_000.0
     liquid_universe_size: int = 30
     working_symbols: int = 6

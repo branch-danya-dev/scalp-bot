@@ -398,6 +398,7 @@ class DensityBounceStrategy(Strategy):
         structure: "MarketStructure | None" = None,
         market_context: "MarketContext | None" = None,
         observed_at_ms: int | None = None,
+        trade_flow: dict | None = None,
     ) -> StrategyDecision:
         if not candles or not book.bids or not book.asks or not symbol:
             if symbol:
@@ -554,7 +555,7 @@ class DensityBounceStrategy(Strategy):
             self._states[symbol] = state
 
         wall_price = float(state.price)
-        flow = compute_trade_flow(trades, observed_at_ms)
+        flow = compute_trade_flow(trades, observed_at_ms) if trade_flow is None else trade_flow
         level_tolerance = max(self.touch_pct * 2, 0.0006)
         level_flow = flow_at_level(
             trades,
