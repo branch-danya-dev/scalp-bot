@@ -7,6 +7,7 @@ from enum import StrEnum
 
 from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .base import Strategy
+from ..scenario_identity import assigned_ref, level_ref
 from .targets import structural_target, movement_budget
 
 if TYPE_CHECKING:
@@ -67,6 +68,7 @@ class RejectionWatchState:
 
 
 class WeakLevelRejectionStrategy(Strategy):
+    minimum_history = 40
     key = "weak_level_rejection"
     label = "Отбой от слабого уровня"
 
@@ -80,6 +82,11 @@ class WeakLevelRejectionStrategy(Strategy):
     micro_response_min_bps = 1.5
     micro_response_min_seconds = 0.50
     micro_response_max_seconds = 6.0
+
+    @classmethod
+    def can_prepare(cls, level, candles, price: float, side: str) -> bool:
+        return len(candles) >= cls.minimum_history and cls._structural_level_is_tradeable(
+            level, price, "support" if side == "long" else "resistance")
 
     def __init__(self) -> None:
         self._states: dict[str, RejectionWatchState] = {}
@@ -1095,7 +1102,7 @@ class WeakLevelRejectionStrategy(Strategy):
             trend,
         )
         if (
-            len(candles) < 40
+            len(candles) < self.minimum_history
             or not symbol
             or not context_plan.allowed_directions
         ):
@@ -1116,7 +1123,11 @@ class WeakLevelRejectionStrategy(Strategy):
         if price <= 0:
             return StrategyDecision(self.key, Action.WAIT, ["Нет текущей цены"])
 
+        binding = assigned_ref(market_context, self.key)
         state = self._states.setdefault(symbol, RejectionWatchState())
+        if binding and state.pinned_generation_id and binding.key != state.pinned_generation_id:
+            self.reset(symbol)
+            state = self._states.setdefault(symbol, RejectionWatchState())
         now = (
             observed_at_ms / 1000
             if observed_at_ms is not None
@@ -1244,7 +1255,8 @@ class WeakLevelRejectionStrategy(Strategy):
             resistance_candidates = [
                 level
                 for level in structure.levels
-                if self._structural_level_is_tradeable(
+                if (binding is None or level_ref(level) == binding)
+                and self._structural_level_is_tradeable(
                     level,
                     price,
                     "resistance",
@@ -1253,7 +1265,8 @@ class WeakLevelRejectionStrategy(Strategy):
             support_candidates = [
                 level
                 for level in structure.levels
-                if self._structural_level_is_tradeable(
+                if (binding is None or level_ref(level) == binding)
+                and self._structural_level_is_tradeable(
                     level,
                     price,
                     "support",
@@ -1291,9 +1304,11 @@ class WeakLevelRejectionStrategy(Strategy):
                 if support_level is not None
                 else None
             )
-        else:
+        elif binding is None:
             resistance = self._select_weak_zone(candles, price, "resistance")
             support = self._select_weak_zone(candles, price, "support")
+        else:
+            resistance = support = None
         allowed_kinds = set()
         if Trend.UP in context_plan.allowed_directions:
             allowed_kinds.add("support")

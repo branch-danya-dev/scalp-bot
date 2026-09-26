@@ -18,7 +18,7 @@ from .execution import (
     fee_rate_for_details,
     slippage_rate,
 )
-from .strategy_policy import no_follow_through_seconds, partial_take_fraction
+from .strategy_policy import no_follow_through_seconds, partial_take_fraction, may_extend_runner
 
 
 _UNSET_TRADE_PRICE = object()
@@ -1755,19 +1755,9 @@ class PaperBroker:
 
         risk_distance = self._initial_risk_distance(pos)
         runner_stop = self._runner_breakeven_stop(pos)
-        target_source = str(
-            pos.strategy_details.get("targetSource") or ""
-        )
-        structural_liquidity_target = (
-            target_source == "liquidity"
-            or isinstance(
-                pos.strategy_details.get("liquidityTarget"),
-                dict,
-            )
-        )
         if pos.side == Side.LONG:
             pos.stop = max(pos.stop, runner_stop)
-            if not structural_liquidity_target and not pos.strategy_details.get("scenario"):
+            if may_extend_runner(pos.strategy_details):
                 pos.target = max(
                     pos.target,
                     pos.entry
@@ -1775,7 +1765,7 @@ class PaperBroker:
                 )
         else:
             pos.stop = min(pos.stop, runner_stop)
-            if not structural_liquidity_target and not pos.strategy_details.get("scenario"):
+            if may_extend_runner(pos.strategy_details):
                 pos.target = min(
                     pos.target,
                     pos.entry

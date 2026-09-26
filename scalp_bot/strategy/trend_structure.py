@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .base import Strategy
+from ..scenario_identity import assigned_ref, trendline_ref, trendline_anchor
 from .targets import structural_target, movement_budget
 from .common import compute_trade_flow
 from .flow import flow_at_level
@@ -48,6 +49,7 @@ class TrendPullbackState:
 
 
 class TrendStructureStrategy(Strategy):
+    minimum_history = 40
     key = "trend_structure"
     label = "Трендовый откат с подтверждением"
 
@@ -57,6 +59,13 @@ class TrendStructureStrategy(Strategy):
     continuation_bps = 1.0
     aggressive_pullback_volume_ratio = 1.35
     aggressive_pullback_range_ratio = 1.35
+
+    @classmethod
+    def can_prepare(cls, line, candles, price: float, side: str) -> bool:
+        long = side == "long"
+        return bool(len(candles) >= cls.minimum_history and price > 0 and line is not None
+            and line.kind == ("support" if long else "resistance") and line.touches >= 3
+            and (line.slope_per_bar > 0 if long else line.slope_per_bar < 0))
 
     def __init__(self) -> None:
         self._states: dict[str, TrendPullbackState] = {}
@@ -73,13 +82,7 @@ class TrendStructureStrategy(Strategy):
 
     @staticmethod
     def _anchor_key(line: "TrendLine") -> tuple:
-        return (
-            line.kind,
-            line.timeframe,
-            line.start_ms,
-            round(line.start_price, 8),
-            round(line.slope_per_bar, 10),
-        )
+        return trendline_anchor(line)
 
     @staticmethod
     def _prepared_opportunity(
@@ -334,7 +337,7 @@ class TrendStructureStrategy(Strategy):
         playbook_trend = context_plan.primary_direction
 
         if (
-            len(candles) < 40
+            len(candles) < self.minimum_history
             or playbook_trend == Trend.FLAT
             or structure is None
         ):
@@ -356,7 +359,9 @@ class TrendStructureStrategy(Strategy):
 
         long_side = playbook_trend == Trend.UP
         kind = "support" if long_side else "resistance"
-        line = structure.trendline(kind)
+        binding = assigned_ref(market_context, self.key)
+        line = (next((line for line in structure.trendlines if trendline_ref(line) == binding), None)
+                if binding else structure.trendline(kind))
         slope_aligned = (
             line is not None
             and (

@@ -42,5 +42,6 @@ def preparation_plan(strategy, scenario, decision, book, candles, structure):
         movement=movement_budget(candles))
     return StrategyDecision(strategy.key, action, ["owner preparation; entry event still required"],
         entry=price, stop=stop, target=target, setup_id=scenario.scenario_id,
-        details={"expectedImpulsePct":movement_budget(candles)/price, "targetSource":source,
+        details={"scenario": scenario.public(),
+                 "expectedImpulsePct":movement_budget(candles)/price, "targetSource":source,
                  "riskScale":.65, "preparationOnly":True})

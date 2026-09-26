@@ -1,5 +1,6 @@
-"""Exact golden outputs captured before the trade-flow hot-path optimization."""
+"""Preoptimization golden values; tolerate only libm-level float rounding."""
 import json
+import math
 from pathlib import Path
 import random
 
@@ -32,4 +33,30 @@ def flow_cases():
 def test_flow_exactly_matches_preoptimization_results(index):
     expected = json.loads(Path(__file__).with_name('trade_flow_golden.json').read_text())
     trades, now = flow_cases()[index]
-    assert compute_trade_flow(trades, now) == expected[index]
+    assert_golden(compute_trade_flow(trades, now), expected[index])
+
+
+def assert_golden(actual, expected):
+    assert actual.keys() == expected.keys()
+    for key, wanted in expected.items():
+        value = actual[key]
+        # flow_cases contains 10 ** rng.uniform(...). Its libm-generated input
+        # is not bit-identical on every platform. Only nonzero finite floats
+        # receive a four-ULP allowance, NOT a percentage/monetary tolerance.
+        # Discrete decisions, counts, zeros and missing values remain exact.
+        if type(wanted) is float and wanted != 0 and math.isfinite(wanted):
+            assert type(value) is float and math.isfinite(value), key
+            assert abs(value-wanted) <= 4*math.ulp(wanted), (key, value, wanted)
+        else:
+            assert type(value) is type(wanted) and value == wanted, (key, value, wanted)
+
+
+@pytest.mark.parametrize("expected,actual", [
+    ({"participationConfirmed": True}, {"participationConfirmed": False}),
+    ({"tradeCount5s": 3}, {"tradeCount5s": 4}),
+    ({"cvd5s": 0.0}, {"cvd5s": 1e-15}),
+    ({"cvd5s": 100.0}, {"cvd5s": 100.0+8*math.ulp(100.0)}),
+])
+def test_golden_portability_does_not_hide_decisions_or_material_changes(expected, actual):
+    with pytest.raises(AssertionError):
+        assert_golden(actual, expected)
