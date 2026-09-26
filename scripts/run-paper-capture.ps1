@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("1h", "12h", "24h")][string]$Profile = "1h",
+    [ValidateSet("1h", "12h", "24h", "current-12h")][string]$Profile = "1h",
     [switch]$Check
 )
 
@@ -34,6 +34,8 @@ try {
         New-Item -ItemType Directory -Path $captureDirectory | Out-Null
         Start-Transcript -LiteralPath (Join-Path $captureDirectory "terminal.log") -NoClobber | Out-Null
         $transcriptStarted = $true
+        & $venvPython (Join-Path $PSScriptRoot "paper-capture-preflight.py")
+        if ($LASTEXITCODE -ne 0) { throw "Capture profile preflight failed before server start." }
         Write-Host "One bot. Main UI: http://127.0.0.1:8000/"
         Write-Host "Press Start when market data is ready. After trading stops, capture seals automatically."
         Write-Host "Wait for the saved-capture message in the UI. Charts remain available; Ctrl+C only closes the server."

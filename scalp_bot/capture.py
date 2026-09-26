@@ -25,6 +25,7 @@ from .run_manifest import code_provenance
 
 PROFILES = {
     "current-1h": {"seconds": 3600, "trend": False, "beta": False, "freeGiB": 20},
+    "current-12h": {"seconds": 43200, "trend": False, "beta": False, "freeGiB": 100},
     "all-12h": {"seconds": 43200, "trend": True, "beta": True, "freeGiB": 100},
     "current-24h": {"seconds": 86400, "trend": False, "beta": False, "freeGiB": 200,
                     "targetNetReturnFraction": 0.10},
@@ -43,6 +44,8 @@ def validate_profile(config, profile):
             or not config.exchange_clock_enabled or not config.event_driven_evaluation_enabled
             or config.research_policy_mode != "off" or config.fee_rate_mode != "configured"):
         raise ValueError("capture settings differ from the selected profile")
+    if profile == "current-12h" and config.price_action_hypothesis_enabled:
+        raise ValueError("current-12h keeps beta disabled")
     return spec
 
 
