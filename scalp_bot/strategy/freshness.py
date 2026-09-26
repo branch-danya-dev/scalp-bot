@@ -65,9 +65,8 @@ class EntryFreshness:
         }
 
 
-# Stage 13 uses the market opportunity as the freshness object.  Keep the old
-# type/function names as compatibility aliases because reports and earlier
-# research stages already consume "entryFreshness".
+# Shared schema, distinct anchors: execution freshness starts at FIRE;
+# breakout opportunity freshness measures the current price episode.
 OpportunityFreshness = EntryFreshness
 OpportunityFreshnessClass = EntryFreshnessClass
 
@@ -175,6 +174,8 @@ def classify_entry_freshness(
     current_price: float,
     observed_ts: float,
     source: str,
+    expected_impulse_pct: float | None = None,
+    include_time_budget: bool = True,
 ) -> EntryFreshness:
     reasons: list[str] = []
     age = (
@@ -182,7 +183,7 @@ def classify_entry_freshness(
         if trigger_ts is not None
         else None
     )
-    duration = _expected_duration_seconds(decision)
+    duration = _expected_duration_seconds(decision) if include_time_budget else None
     time_spent = (
         age / duration
         if age is not None and duration is not None and duration > 0
@@ -232,7 +233,10 @@ def classify_entry_freshness(
         float(current_price),
     )
     favorable_move = max(0.0, signed_move)
-    expected = _expected_impulse_pct(decision, current_price)
+    expected = (
+        expected_impulse_pct if expected_impulse_pct is not None
+        else _expected_impulse_pct(decision, current_price)
+    )
     move_spent = (
         favorable_move / expected
         if expected is not None and expected > 0

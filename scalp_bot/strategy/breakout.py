@@ -64,6 +64,7 @@ class BreakoutWatchState:
     retest_price: float = 0.0
     fire_at: float = 0.0
     fire_price: float = 0.0
+    opportunity_trigger: dict | None = None
     probe_opened: bool = False
 
 
@@ -683,6 +684,7 @@ class LevelBreakoutStrategy(Strategy):
             state.retest_price = 0.0
             state.fire_at = 0.0
             state.fire_price = 0.0
+            state.opportunity_trigger = None
             state.probe_opened = False
         visuals = zone_visual(zone, "breakout zone")
         flow = compute_trade_flow(trades, observed_at_ms) if trade_flow is None else trade_flow
@@ -878,6 +880,27 @@ class LevelBreakoutStrategy(Strategy):
             price > zone.high * (1 + break_buffer)
             if long_side
             else price < zone.low * (1 - break_buffer)
+        )
+
+        # Observe the price episode BEFORE any flow/hold confirmation. Anchoring
+        # at FIRE would call every first signal fresh even after a large move.
+        # Freeze the boundary and impulse estimate: later volatility must not
+        # expand the budget to make an already distant entry look fresh again.
+        if not broke:
+            state.opportunity_trigger = None
+        elif state.opportunity_trigger is None:
+            boundary = zone.high if long_side else zone.low
+            impulse = max(zone.width * 1.3, typical_range_abs(candles) * 2.0)
+            state.opportunity_trigger = {
+                "observedAtMs": int(market_now * 1000),
+                "price": boundary,
+                "expectedImpulsePct": impulse / boundary,
+                "source": "breakout_price_episode",
+                "generation": list(generation),
+            }
+        context_details["opportunityTrigger"] = (
+            dict(state.opportunity_trigger)
+            if state.opportunity_trigger is not None else None
         )
 
         if not broke:

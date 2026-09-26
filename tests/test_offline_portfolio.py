@@ -29,20 +29,23 @@ def install_signal(engine):
 
 
 async def fixture(tmp_path, monkeypatch, exit_kind='shutdown', production=False,
-                  file_capture=False, event_driven=False, beta=False):
+                  file_capture=False, event_driven=False, beta=False, capture_factory=None):
     clock = ReplayRuntimeClock(wall_seconds=4805, mono_ns=10**10)
     recorder = None
-    if file_capture:
+    if file_capture and capture_factory is None:
         from scalp_bot.capture import CaptureRecorder
         recorder = CaptureRecorder(str(tmp_path), clock=clock)
-    live = TradingEngine(Settings(_env_file=None, session_dir=str(tmp_path),
+    config = Settings(_env_file=None, session_dir=str(tmp_path),
         exchange_clock_enabled=True, event_driven_evaluation_enabled=event_driven,
         trend_structure_enabled=not production, weak_level_rejection_enabled=False,
         density_enabled=False, breakout_enabled=production, partial_take_enabled=False,
         paper_run_duration_seconds=61 if exit_kind == 'duration_elapsed' else 14400,
         working_symbols=1, min_net_profit_usd=0, min_net_profit_equity_fraction=0,
         min_net_reward_risk=0, absolute_min_net_reward_risk=0,
-        max_leverage=1, risk_fraction=.01), clock=clock, capture_inputs=True, recorder=recorder)
+        max_leverage=1, risk_fraction=.01)
+    capture = capture_factory(config, clock) if capture_factory else None
+    live = capture.engine if capture else TradingEngine(
+        config, clock=clock, capture_inputs=True, recorder=recorder)
     prefix = [] if file_capture else [json.loads(line)['payload'] for line in live.recorder.path.read_text().splitlines()
                                     if json.loads(line)['event'] == 'replay_input']
     if not production:
@@ -114,6 +117,9 @@ async def fixture(tmp_path, monkeypatch, exit_kind='shutdown', production=False,
             data=[{'T': t.ts_ms - 25200000, 'p': str(t.price), 'v': str(t.size), 'S': t.side} for t in flow]))
     live.set_running(True)
     assert live.running
+    if capture:
+        capture.started = True
+        monitor = asyncio.create_task(capture.monitor())
     if file_capture:
         live.public_state()
     if production:
@@ -151,7 +157,12 @@ async def fixture(tmp_path, monkeypatch, exit_kind='shutdown', production=False,
                 break
         assert not live.running
         assert live._last_run_summary['reason'] == 'duration_elapsed'
-    await live.close()
+    if exit_kind == 'bot_stop':
+        live.set_running(False)
+    if capture:
+        await asyncio.wait_for(monitor, timeout=5)
+    else:
+        await live.close()
     return live, prefix, rows
 
 

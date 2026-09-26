@@ -218,6 +218,8 @@ function reasonText(value) {
   if (text === "mature_structural_obstacle_before_first_take") return "Зрелый структурный уровень перекрывает путь до первого тейка";
   if (text === "opposing_playbook_conflict") return "Противоположные playbook одновременно дают исполнимые сигналы";
   if (text === "execution_context_not_ready") return "Контекст исполнения не готов";
+  if (text === "opportunity_exhausted") return "Цена прошла допустимую долю оценённого импульса";
+  if (text === "entry_signal_exhausted") return "Готовый сигнал устарел до исполнения";
   if (text === "setup consumed") return "сетап использован";
   if (text === "rearmed") return "переактивирован";
   if (text === "deactivated") return "исключена из наблюдения";
@@ -1244,7 +1246,7 @@ function timelineText(row) {
         ? ` ${price(object.low)}–${price(object.high)}`
         : "";
     const waiting = (trace.waitingFor || []).slice(0, 2).map(translatePhrase).join(" · ");
-    const freshness = payload.details?.entryFreshness || trace.evidence?.entryFreshness;
+    const freshness = payload.details?.opportunityFreshness || payload.details?.entryFreshness || trace.evidence?.entryFreshness;
     const freshnessText = freshness
       ? ` · вход ${entryFreshnessLabel(freshness.classification)}${freshness.moveSpentRatio == null ? "" : " · spent " + (Number(freshness.moveSpentRatio) * 100).toFixed(0) + "%"}${freshness.confirmationAgeSeconds == null ? "" : " · age " + Number(freshness.confirmationAgeSeconds).toFixed(1) + "с"}`
       : "";
@@ -1259,8 +1261,9 @@ function timelineText(row) {
   if (row.event === "risk_reject") return `Отклонено риском · ${reasonText(payload.reason)}`;
   if (row.event === "setup_blocked") return `Сетап заблокирован · ${reasonText(payload.reason)}`;
   if (row.event === "entry_freshness_changed") {
-    const freshness = payload.entryFreshness || {};
-    return `Свежесть входа: ${entryFreshnessLabel(freshness.classification)}${freshness.moveSpentRatio == null ? "" : " · spent " + (Number(freshness.moveSpentRatio) * 100).toFixed(0) + "%"}${freshness.confirmationAgeSeconds == null ? "" : " · age " + Number(freshness.confirmationAgeSeconds).toFixed(1) + "с"}`;
+    const freshness = payload.opportunityFreshness || payload.entryFreshness || {};
+    const executionAge = payload.entryFreshness?.confirmationAgeSeconds;
+    return `Сценарий: ${entryFreshnessLabel(freshness.classification)}${freshness.moveSpentRatio == null ? "" : " · пройдено от оценки хода " + (Number(freshness.moveSpentRatio) * 100).toFixed(0) + "%"}${freshness.confirmationAgeSeconds == null ? "" : " · возраст эпизода " + Number(freshness.confirmationAgeSeconds).toFixed(1) + "с"}${executionAge == null ? "" : " · после сигнала " + Number(executionAge).toFixed(2) + "с"}`;
   }
   return row.event.replaceAll("_", " ");
 }

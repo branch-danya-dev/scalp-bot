@@ -35,7 +35,8 @@ try {
         Start-Transcript -LiteralPath (Join-Path $captureDirectory "terminal.log") -NoClobber | Out-Null
         $transcriptStarted = $true
         Write-Host "One bot. Main UI: http://127.0.0.1:8000/"
-        Write-Host "Press Start when market data is ready. After auto-stop press Ctrl+C once to seal the capture."
+        Write-Host "Press Start when market data is ready. After trading stops, capture seals automatically."
+        Write-Host "Wait for the saved-capture message in the UI. Charts remain available; Ctrl+C only closes the server."
         Write-Host "Do not edit source files or update dependencies during the capture."
         Write-Host "After shutdown verify: .\scripts\check-paper-capture.ps1 -Profile $Profile"
         & (Join-Path $PSScriptRoot "run.ps1") -Profile $profileFile -SessionDirectory $captureDirectory

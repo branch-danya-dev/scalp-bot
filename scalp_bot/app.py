@@ -33,11 +33,10 @@ async def lifespan(_: FastAPI):
         if monitor is not None:
             monitor.cancel()
             await asyncio.gather(monitor, return_exceptions=True)
-        try:
+        if capture is not None:
+            await capture.close()
+        else:
             await engine.close()
-        finally:
-            if capture is not None:
-                capture.finish()
 
 
 app = FastAPI(title="Scalp Bot", version="0.2.0", lifespan=lifespan)
@@ -62,7 +61,7 @@ async def replay() -> FileResponse:
 
 @app.get("/api/state")
 async def state(symbol: str | None = Query(default=None)) -> dict:
-    result = engine.public_state(symbol)
+    result = capture.state(symbol) if capture is not None else engine.public_state(symbol)
     if capture is not None:
         result["capture"] = capture.public()
     return result
@@ -163,7 +162,8 @@ async def start_bot() -> dict:
 
 @app.post("/api/bot/stop")
 async def stop_bot() -> dict:
-    engine.set_running(False)
+    if capture is None or (not capture.finished and capture._close_task is None):
+        engine.set_running(False)
     return {"ok": True, "running": False}
 
 

@@ -545,6 +545,10 @@ def _raw_assessment(
 
     if freshness_class == "exhausted":
         blockers.append("opportunity_exhausted")
+    execution_freshness = _details_mapping(decision, "entryFreshness") or freshness
+    execution_freshness_class = str(execution_freshness.get("classification") or "unknown")
+    if execution_freshness_class == "exhausted" and freshness_class != "exhausted":
+        blockers.append("entry_signal_exhausted")
 
     managed_breakout_obstacle = (
         decision.strategy == "level_breakout"
@@ -555,6 +559,7 @@ def _raw_assessment(
     if managed_breakout_obstacle:
         obstacle_consumption_ready = (
             freshness_class in {"fresh", "acceptable"}
+            and execution_freshness_class in {"fresh", "acceptable"}
             and flow_class in {"strongly_aligned", "aligned"}
             and liquidity_class != "opposed"
         )
@@ -569,12 +574,13 @@ def _raw_assessment(
             )
 
     risk_scale = structural_path.risk_scale
-    if freshness_class == "late":
+    freshness_classes = {freshness_class, execution_freshness_class}
+    if "late" in freshness_classes:
         risk_scale = min(risk_scale, 0.65)
-    elif freshness_class == "acceptable":
-        risk_scale = min(risk_scale, 0.85)
-    elif freshness_class == "unknown":
+    elif "unknown" in freshness_classes:
         risk_scale = min(risk_scale, 0.80)
+    elif "acceptable" in freshness_classes:
+        risk_scale = min(risk_scale, 0.85)
     elif (
         freshness_class == "fresh"
         and structural_path.risk_scale >= 1.0

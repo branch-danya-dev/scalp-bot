@@ -149,6 +149,8 @@ class PaperCapture:
         self.error = None
         self.started = False
         self.finished = False
+        self._close_task = None
+        self._final_states = None
         self.source_root = Path(__file__).resolve().parents[1]
         self.recorder = CaptureRecorder(config.session_dir, queue_size=config.recorder_queue_size,
             critical_enqueue_timeout_seconds=config.recorder_critical_enqueue_timeout_seconds)
@@ -183,7 +185,7 @@ class PaperCapture:
 
     def before_start(self):
         self.error = self.error or self.recorder.inputs.error
-        if self.started or self.error:
+        if self.started or self.error or self.finished or self._close_task is not None:
             raise RuntimeError("Эта запись уже запускалась или повреждена; нужен новый запуск сервера")
         if not self._source_matches():
             raise RuntimeError("Код изменён после начала записи; перезапустите сервер")
@@ -220,13 +222,54 @@ class PaperCapture:
                     self._write_status("invalid")
                 except OSError:
                     pass  # UI still exposes error if the disk cannot be written.
+            if self.error or (self.started and not self.engine.running):
+                await self.close()
+                return
+
+    def state(self, symbol=None):
+        # Reading the engine after its footer would append clock/scope inputs
+        # to a closed journal. Serve immutable final views while the UI stays up.
+        if self._final_states is not None:
+            return deepcopy(self._final_states.get(symbol, self._final_states[None]))
+        return self.engine.public_state(symbol)
+
+    async def close(self):
+        # Auto-stop and ASGI shutdown may race. Cancellation of the monitor
+        # must not cancel the only task draining writers and sealing the file.
+        if self._close_task is None:
+            self._close_task = asyncio.create_task(self._close(), name="capture-close")
+        await asyncio.shield(self._close_task)
+
+    async def _close(self):
+        if not self.engine.running:
+            self._final_states = {
+                symbol: deepcopy(self.engine.public_state(symbol))
+                for symbol in [None, *self.engine.sessions]
+            }
+        try:
+            await self.engine.close()
+        except Exception as exc:
+            self.error = self.error or f"capture shutdown failed: {type(exc).__name__}"
+            raise
+        finally:
+            self.finish()
+        if self._final_states is not None:
+            for state in self._final_states.values():
+                state["recorderHealth"] = self.recorder.health()
+                summary = state.get("run", {}).get("lastSummary")
+                if summary:
+                    state["run"]["elapsedSeconds"] = summary["elapsedSeconds"]
 
     def public(self):
         done = self.started and not self.engine.running
-        return dict(profile=self.profile, startAllowed=not self.started and not self.error,
+        return dict(profile=self.profile,
+            startAllowed=not (self.started or self.error or self.finished or self._close_task is not None),
             strategiesLocked=True, error=self.error,
+            status=("invalid" if self.error else "sealed" if self.finished
+                    else "sealing" if self._close_task is not None else "recording"),
             message=("Запись повреждена: " + self.error if self.error else
-                     "Прогон завершён. Остановите сервер через Ctrl+C для завершения записи." if done else
+                     "Запись сохранена. Графики и сделки показывают итог прогона." if self.finished else
+                     "Прогон завершён. Сохраняем запись автоматически…" if done else
                      "Полная запись для симуляции включена · состав стратегий зафиксирован"))
 
     def finish(self):
@@ -243,7 +286,13 @@ class PaperCapture:
             self.error = self.error or "input journal footer missing"
         if not self.recorder.inputs.closed or self.recorder.inputs.thread.is_alive():
             self.error = self.error or "input writer not closed"
-        self._write_status("invalid" if self.error else "sealed")
+        try:
+            self._write_status("invalid" if self.error else "sealed")
+        except OSError:
+            # Never advertise a saved capture when its completion marker could
+            # not be persisted, even if the market writers finished successfully.
+            self.error = self.error or "capture completion metadata could not be saved"
+            raise
 
 
 def from_environment(config, environ):

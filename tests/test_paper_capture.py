@@ -127,8 +127,7 @@ async def test_real_profiles_archive_source_and_lock_composition(tmp_path, monke
         with pytest.raises(FileExistsError):
             PaperCapture(config, profile)
     finally:
-        await capture.engine.close()
-        capture.finish()
+        await capture.close()
 
 
 @pytest.mark.asyncio
@@ -147,8 +146,7 @@ async def test_writer_loss_invalidates_capture_and_stops_trading(tmp_path, monke
     finally:
         monitor.cancel()
         await asyncio.gather(monitor, return_exceptions=True)
-        await capture.engine.close()
-        capture.finish()
+        await capture.close()
     assert json.loads((tmp_path / 'capture.json').read_text())['status'] == 'invalid'
 
 
@@ -183,8 +181,7 @@ async def test_api_capture_controls_keep_single_start_and_reject_strategy_change
         await api.stop_bot()
         assert calls == [True, False]
     finally:
-        await capture.engine.close()
-        capture.finish()
+        await capture.close()
 
 
 def test_truncated_gzip_and_invalid_index_are_not_accepted(tmp_path):
@@ -196,3 +193,88 @@ def test_truncated_gzip_and_invalid_index_are_not_accepted(tmp_path):
     with pytest.raises((EOFError, OSError, KeyError)):
         IndexedInputs.build(path, database)
     assert not database.exists()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('exit_kind', ['duration_elapsed', 'bot_stop'])
+async def test_stop_seals_real_capture_and_ui_reads_do_not_append_after_footer(tmp_path, monkeypatch, exit_kind):
+    import scalp_bot.app as api
+    from scalp_bot.engine import TradingEngine
+    holder = []
+    # Use the short, deterministic market fixture with the real capture owner,
+    # monitor, timer, writers and source archive. Production profiles keep 1h/12h.
+    monkeypatch.setattr('scalp_bot.capture.validate_profile', lambda *_: dict(freeGiB=0, beta=False))
+    def factory(config, clock):
+        capture = PaperCapture(config, 'fixture', engine_factory=lambda cfg, **kwargs:
+            TradingEngine(cfg, clock=clock, **kwargs))
+        holder.append(capture)
+        return capture
+    live, _, _ = await fixture(tmp_path, monkeypatch, production=True,
+        exit_kind=exit_kind, file_capture=True, event_driven=True, capture_factory=factory)
+    capture = holder[0]
+    monkeypatch.setattr(api, 'capture', capture)
+    monkeypatch.setattr(api, 'engine', live)
+    assert capture.public()['status'] == 'sealed'
+    assert not capture.public()['startAllowed']
+    assert json.loads((tmp_path / 'capture.json').read_text())['status'] == 'sealed'
+    size = live.recorder.inputs.path.stat().st_size
+    sequence = live.input_journal.sequence
+    first = await api.state('AAA')
+    assert first['market']['symbol'] == 'AAA'
+    assert not first['positions'] and not first['botRunning']
+    assert len(first['closedTrades']) == 1
+    assert first['run']['lastSummary']['reason'] == exit_kind
+    first['market']['symbol'] = 'mutated response'
+    assert (await api.state('AAA'))['market']['symbol'] == 'AAA'
+    assert (await api.state('missing'))['market']['symbol'] == 'AAA'
+    await api.stop_bot()
+    await asyncio.gather(capture.close(), capture.close())  # later ASGI shutdown
+    assert live.input_journal.sequence == sequence
+    assert live.recorder.inputs.path.stat().st_size == size
+    assert live.recorder.inputs.error is None
+    report = await verify_capture(tmp_path)
+    assert report['status'] == 'baseline_replay_matched'
+    assert report['closedTrades'] == 1
+    assert report['balance'] == live.broker.balance
+
+
+@pytest.mark.asyncio
+async def test_capture_close_survives_cancelled_monitor_waiter(tmp_path, monkeypatch):
+    config = profile_settings(tmp_path, monkeypatch, '1h')
+    monkeypatch.setattr('scalp_bot.capture.shutil.disk_usage', lambda _: SimpleNamespace(free=200 * 1024**3))
+    capture = PaperCapture(config, 'current-1h')
+    entered, release = asyncio.Event(), asyncio.Event()
+    real_close = capture.engine.close
+    calls = []
+    async def delayed_close():
+        calls.append('close')
+        entered.set()
+        await release.wait()
+        await real_close()
+    monkeypatch.setattr(capture.engine, 'close', delayed_close)
+    waiter = asyncio.create_task(capture.close())
+    await entered.wait()
+    waiter.cancel()
+    await asyncio.gather(waiter, return_exceptions=True)
+    assert not capture.finished
+    assert capture.public()['status'] == 'sealing'
+    release.set()
+    await capture.close()
+    assert calls == ['close']
+    assert capture.public()['status'] == 'sealed'
+    assert capture.recorder.inputs.closed
+
+
+@pytest.mark.asyncio
+async def test_completion_metadata_failure_never_advertises_sealed(tmp_path, monkeypatch):
+    config = profile_settings(tmp_path, monkeypatch, '1h')
+    monkeypatch.setattr('scalp_bot.capture.shutil.disk_usage', lambda _: SimpleNamespace(free=200 * 1024**3))
+    capture = PaperCapture(config, 'current-1h')
+    def cannot_save(_):
+        raise OSError('disk unavailable')
+    monkeypatch.setattr(capture, '_write_status', cannot_save)
+    with pytest.raises(OSError, match='disk unavailable'):
+        await capture.close()
+    assert capture.recorder.inputs.closed
+    assert capture.public()['status'] == 'invalid'
+    assert 'metadata' in capture.public()['error']

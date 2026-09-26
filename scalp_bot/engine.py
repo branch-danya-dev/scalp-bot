@@ -4284,8 +4284,23 @@ class TradingEngine:
             source=str(anchor.get("source") or "unknown"),
         )
         freshness_public = freshness.public()
-        decision.details["opportunityFreshness"] = freshness_public
         decision.details["entryFreshness"] = freshness_public
+        opportunity_public = freshness_public
+        opportunity_trigger = details.get("opportunityTrigger")
+        if strategy == "level_breakout" and isinstance(opportunity_trigger, dict):
+            opportunity_public = classify_entry_freshness(
+                decision,
+                trigger_price=opportunity_trigger["price"],
+                trigger_ts=opportunity_trigger["observedAtMs"] / 1000,
+                current_price=float(current_price or 0.0),
+                observed_ts=observed_at,
+                source=opportunity_trigger["source"],
+                expected_impulse_pct=opportunity_trigger["expectedImpulsePct"],
+                # Waiting is not spent price movement. Signal staleness still
+                # uses the independent FIRE clock in entryFreshness above.
+                include_time_budget=False,
+            ).public()
+        decision.details["opportunityFreshness"] = opportunity_public
         if decision.tradeable:
             decision.details["causalTriggerSource"] = freshness.source
             prepared = details.get("preparedOpportunity")
@@ -4330,6 +4345,9 @@ class TradingEngine:
         fingerprint = (
             object_key,
             freshness.classification.value,
+            opportunity_public["classification"],
+            opportunity_public["triggerTs"],
+            round(opportunity_public["effectiveSpentRatio"] or 0.0, 1),
             (
                 round(float(freshness.effective_spent_ratio), 1)
                 if freshness.effective_spent_ratio is not None
@@ -4354,7 +4372,7 @@ class TradingEngine:
                 ),
                 "state": state,
                 "entryFreshness": freshness_public,
-                "opportunityFreshness": freshness_public,
+                "opportunityFreshness": opportunity_public,
                 "decision": decision.public(),
             },
         )
