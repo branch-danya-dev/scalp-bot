@@ -65,6 +65,7 @@ class RejectionWatchState:
     fire_at: float = 0.0
     fire_price: float = 0.0
     probe_opened: bool = False
+    confirmation_episode: str | None = None
 
 
 class WeakLevelRejectionStrategy(Strategy):
@@ -247,6 +248,19 @@ class WeakLevelRejectionStrategy(Strategy):
             state.fire_at = 0.0
             state.fire_price = 0.0
             state.probe_opened = False
+
+        scenario = getattr(market_context, "scenario", None) or {}
+        episode = scenario.get("episodeKey")
+        if episode and scenario.get("state") not in {"ORDER_PENDING", "IN_POSITION"}:
+            if state.confirmation_episode is not None and episode != state.confirmation_episode:
+                # A fresh sweep of this object cannot inherit absorption/fire
+                # from its previous excursion. Keep the preparation anchor and
+                # lifetime: this is not a freshness/risk reset or a new hold.
+                state.absorption_at = 0.0
+                state.absorption_price = 0.0
+                state.fire_at = 0.0
+                state.fire_price = 0.0
+            state.confirmation_episode = episode
 
         if generation_id in state.used_generations:
             return StrategyDecision(

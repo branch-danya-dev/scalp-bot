@@ -391,7 +391,7 @@ class ScenarioRouter:
             decision.details["scenario"] = s.public()
             return decision
         if not decision.tradeable:
-            if decision.details.get("state") in {"armed","break","test","reclaim","pullback","reject"}:
+            if s.frozen is None and decision.details.get("state") in {"armed","break","test","reclaim","pullback","reject"}:
                 self.transition(s,"PREPARED",now,"owner preparing its causal event")
             decision.details["scenario"] = s.public()
             return decision

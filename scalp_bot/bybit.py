@@ -877,6 +877,10 @@ async def _stream_topics(
                 ws_url,
                 ping_interval=20,
                 ping_timeout=20,
+                # The engine allows five seconds for all workers to drain.
+                # The library default (ten seconds) can outlive that budget
+                # and leave transport attempts open when the journal seals.
+                close_timeout=2,
             ) as ws:
                 await ws.send(
                     _JSON_ENCODER.encode({
