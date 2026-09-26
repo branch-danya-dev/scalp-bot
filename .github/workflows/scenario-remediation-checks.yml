@@ -1,0 +1,43 @@
+name: scenario-remediation-checks
+
+on:
+  push:
+    branches: [fix/scenario-router-r01-r05]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scalp_bot/**'
+      - 'tests/**'
+      - '.github/workflows/scenario-remediation-checks.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Save exact tracked source for reproducible offline review
+        run: |
+          mkdir -p /tmp/scenario-validation
+          git rev-parse HEAD > /tmp/scenario-validation/commit.txt
+          git archive --format=tar HEAD > /tmp/scenario-validation/source.tar
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Run offline tests
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/test_preflight.py 2>&1 | tee /tmp/scenario-validation/pytest.txt
+      - name: Upload source and validation log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenario-validation-${{ github.sha }}
+          path: /tmp/scenario-validation/
+          retention-days: 7
