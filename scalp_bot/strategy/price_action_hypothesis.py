@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from ..domain import Action, Candle, OrderBook, StrategyDecision, TradeTick, Trend
 from .base import Strategy
+from .scenario_objects import candle_object_id, matches_assignment
 from .targets import structural_target, movement_budget
 from .liquidity import find_liquidity_targets
 from .common import compute_trade_flow
@@ -88,6 +89,8 @@ class PriceActionHypothesisStrategy(Strategy):
         if len(closed) < 21:
             return wait("BETA: нужны 21 закрытая минутная свеча")
         bar, previous = closed[-1], closed[-2]
+        if not matches_assignment(context, self.key, candle_object_id(bar.start_ms)):
+            return wait("BETA: assigned candle object was replaced; await reassignment")
         closed_at = bar.start_ms + 60_000
         if not 0 <= now - closed_at < 60_000:
             return wait("BETA: сценарий свечи истёк")

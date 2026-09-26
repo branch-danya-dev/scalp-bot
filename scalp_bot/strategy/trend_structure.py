@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .base import Strategy
+from .scenario_objects import trendline_object_id, matches_assignment
 from .targets import structural_target, movement_budget
 from .common import compute_trade_flow
 from .flow import flow_at_level
@@ -356,7 +357,9 @@ class TrendStructureStrategy(Strategy):
 
         long_side = playbook_trend == Trend.UP
         kind = "support" if long_side else "resistance"
-        line = structure.trendline(kind)
+        eligible_lines = [line for line in structure.trendlines if line.kind == kind
+            and matches_assignment(market_context, self.key, trendline_object_id(line))]
+        line = max(eligible_lines, key=lambda line: line.score) if eligible_lines else None
         slope_aligned = (
             line is not None
             and (

@@ -13,6 +13,12 @@ from statistics import median
 from .domain import Action, StrategyDecision, Trend
 from .strategy.price_action_hypothesis import PriceActionHypothesisStrategy
 from .strategy.structure import directional_level_kind
+from .strategy.breakout import LevelBreakoutStrategy
+from .strategy.weak_level_rejection import WeakLevelRejectionStrategy
+from .strategy.scenario_objects import (
+    level_object_id, trendline_object_id, candle_object_id, decision_object_id,
+)
+from .scenario_episodes import FailedBreakEpisodes
 
 
 ROLES = {
@@ -59,10 +65,13 @@ class Scenario:
     cancellation: str | None = None
     last_transition_reason: str | None = None
     version: int = 1
-    candidate_signatures: tuple[str, ...] = ()
+    candidate_signatures: tuple[str, ...] = ()  # legacy serialized contracts
+    object_id: str | None = None
+    market_basis: str | None = None
 
     def public(self):
         return dict(schemaVersion=1, scenarioId=self.scenario_id, owner=self.owner,
+            marketObjectId=self.object_id, marketBasis=self.market_basis,
             side=self.side, state=self.state, generation=self.signature, setupId=self.setup_id,
             planVersion=self.version, reasons=list(self.reasons), anchor=self.anchor,
             movementBudget=self.frozen["budget"] if self.frozen else self.range_abs * 2, expectedEvent=EVENTS.get(self.owner, "legacy position protection"),
@@ -88,6 +97,7 @@ class ScenarioRouter:
         self._consumed: dict[str, dict[str, tuple[float, float]]] = {}
         self._transitions: list[tuple[str, dict]] = []
         self._recent = {}
+        self._episodes: dict[str, FailedBreakEpisodes] = {}
 
     def transition(self, s, state, now, reason):
         if s.state == state:
@@ -99,7 +109,13 @@ class ScenarioRouter:
             s.prepared_mono = now
         if state in TERMINAL:
             s.ended_mono = now
-            for key in {s.signature, *s.candidate_signatures}:
+            # Consume this market episode, not every candidate seen beside it.
+            # Also prevent changing the owner/direction as a risk-retry fallback
+            # on the SAME object. A new actual failed break has a distinct basis.
+            keys = {s.market_basis or s.signature}
+            if s.object_id:
+                keys.add(f"{s.object_id}:approach")
+            for key in keys:
                 self._consumed.setdefault(s.symbol, {})[key] = (s.anchor, s.range_abs)
         self._transitions.append((s.symbol, dict(s.public(), previousState=previous,
             transitionMono=now, transitionReason=reason)))
@@ -128,13 +144,15 @@ class ScenarioRouter:
             plan.side.value, saved.get("generation", str(plan.setup_id)),
             saved.get("anchor", anchor), max(saved.get("movementBudget", 0)/2, 1e-12),
             now, now, now+self.preparation_seconds, ["restored execution owner"],
-            setup_id=plan.setup_id)
+            setup_id=plan.setup_id, level=deepcopy(saved.get("level") or {}),
+            object_id=saved.get("marketObjectId"), market_basis=saved.get("marketBasis"))
         self.scenarios[symbol] = s
         return s
 
     def observe(self, symbol, context, candles, structure, enabled, now, *, position=None, pending=None):
         """Evaluate applicability, not already-fired strategy signals."""
-        situation, candidates = self.assess(context, candles, structure, enabled)
+        episodes = self._episodes.setdefault(symbol, FailedBreakEpisodes())
+        situation, candidates = self.assess(context, candles, structure, enabled, episodes=episodes)
         samples = self._recent.setdefault(symbol, deque(maxlen=120))
         if context is not None:
             fast_flow = context.flow.horizons.get(5) if context.flow else None
@@ -170,6 +188,14 @@ class ScenarioRouter:
             reason = None
             if not enabled.get(s.owner, False):
                 reason = "strategy_disabled"
+            elif s.object_id and s.owner in {"level_breakout", "weak_level_rejection"} and not any(
+                    level_object_id(level) == s.object_id and level.lifecycle != "broken"
+                    for level in (structure.levels if structure else [])):
+                reason = "assigned_market_object_unavailable"
+            elif s.object_id and s.owner == "trend_structure" and not any(
+                    trendline_object_id(line) == s.object_id
+                    for line in (structure.trendlines if structure else [])):
+                reason = "assigned_market_object_unavailable"
             elif now >= s.expires_mono:
                 reason = "scenario_expired"
             elif price > 0 and abs(price-s.anchor) > 3*s.range_abs:
@@ -186,7 +212,7 @@ class ScenarioRouter:
                 self.transition(s, "EXPIRED" if reason == "scenario_expired" else "INVALIDATED", now, reason)
                 return None  # Reassess at the NEXT market observation, not risk fallback.
             return s  # No score-based churn while the market hypothesis still holds.
-        eligible = [c for c in candidates if c["signature"] not in consumed]
+        eligible = [c for c in candidates if c["marketBasis"] not in consumed]
         if not eligible:
             if situation["status"] != "INSUFFICIENT_DATA":
                 situation["status"] = "NO_SUITABLE_SCENARIO"
@@ -198,13 +224,13 @@ class ScenarioRouter:
         s = Scenario(symbol, f"{symbol}:scenario:{n}", choice["owner"], choice["side"],
             choice["signature"], choice["anchor"], situation["rangeAbs"], now, now,
             now+self.preparation_seconds, choice["reasons"], level=choice.get("level", {}),
-            state="OBSERVING", candidate_signatures=tuple(c["signature"] for c in candidates))
+            state="OBSERVING", object_id=choice["objectId"], market_basis=choice["marketBasis"])
         self.scenarios[symbol] = s
         self.transition(s, "ASSIGNED", now, "applicable market scenario selected before signal")
         return s
 
     @staticmethod
-    def assess(context, candles, structure, enabled):
+    def assess(context, candles, structure, enabled, *, episodes=None):
         rows = [c for c in candles if c.confirmed and context is not None
                 and c.start_ms+60_000 <= context.observed_at_ms]
         availability = {key: dict(role=role, status="disabled" if not enabled.get(key, False)
@@ -240,7 +266,9 @@ class ScenarioRouter:
             flow=context.flow.public() if context.flow else None,
             liquidity=context.liquidity.public() if context.liquidity else None)
         candidates = []
-        def add(owner, side, anchor, key, priority, reason, level=None):
+        def add(owner, side, anchor, key, priority, reason, level=None, *, object_id=None, episode=None):
+            if object_id is None:
+                return
             if not enabled.get(owner, False):
                 return
             minimum = 21 if owner == "price_action_hypothesis" else 40
@@ -258,7 +286,8 @@ class ScenarioRouter:
                 obstacleDistanceInRanges=min(obstacles) if obstacles else None)
             candidates.append(dict(owner=owner, side=side, anchor=anchor,
                 signature=f"{owner}:{side}:{key}", priority=priority,
-                distance=abs(price-anchor)/span, reasons=[reason], level=level or {}))
+                distance=abs(price-anchor)/span, reasons=[reason], level=level or {},
+                objectId=object_id, marketBasis=f"{object_id}:{episode or 'approach'}"))
         # One near structural object, with candle/flow evidence for routing only;
         # the assigned playbook must still observe its own entry event.
         for level in (structure.levels if structure else []):
@@ -268,34 +297,45 @@ class ScenarioRouter:
             side = "long" if kind == "support" else "short"
             last = rows[-1]
             forming = context.forming_candle
-            low = min(last.low, forming.low) if forming else last.low
-            high = max(last.high, forming.high) if forming else last.high
-            failed = ((low<level.low and price>level.high) if side=="long"
-                      else (high>level.high and price<level.low))
-            key = level.generation_id or level.level_id or f"{kind}:{level.center:.10g}"
-            if failed or regime in {"range", "transition", "unclear"}:
-                rejection_key = f"{key}:failed:{forming.start_ms if forming else last.start_ms}" if failed else key
+            object_id = level_object_id(level)
+            if object_id is None or level.lifecycle == "broken":
+                continue
+            tracker = episodes if episodes is not None else FailedBreakEpisodes()
+            failed_event = tracker.observe(object_id, level, side, price,
+                context.observed_at_ms, [last, forming])
+            failed = failed_event is not None
+            key = level.generation_id
+            if ((failed or regime in {"range", "transition", "unclear"})
+                    and WeakLevelRejectionStrategy._structural_level_is_tradeable(level, price, kind)):
+                rejection_key = f"{key}:failed:{failed_event}" if failed else key
                 add("weak_level_rejection", side, level.center, rejection_key, 90 if failed else 50,
-                    "failed break/reclaim" if failed else "range boundary reaction", level.public())
+                    "failed break/reclaim" if failed else "range boundary reaction", level.public(),
+                    object_id=object_id, episode=f"failed:{failed_event}" if failed else None)
             break_side = "short" if side=="long" else "long"
             break_direction = Trend.DOWN if break_side=="short" else Trend.UP
-            if not failed:
+            if (not failed
+                    and LevelBreakoutStrategy._structural_level_is_tradeable(
+                        level, rows, long_candidate=break_side == "long")
+                    and LevelBreakoutStrategy._select_structural_candidate(
+                        [level], price, long_side=break_side == "long") is not None):
                 # Local direction/flow is a preference, never an hourly veto on
                 # an actual boundary break in the opposite direction.
                 preference = int(direction == break_direction) + int(
                     context.flow is not None and context.flow.dominant_direction == break_direction)
                 add("level_breakout", break_side, level.center, key, 70+preference,
-                    "approach to structural boundary / expansion", level.public())
+                    "approach to structural boundary / expansion", level.public(), object_id=object_id)
         if regime != "pullback":
             parent = direction
         if regime in {"pullback","bullish_trend","bearish_trend"} and parent in {Trend.UP, Trend.DOWN} and structure:
             lines = [line for line in structure.trendlines
                      if line.kind == ("support" if parent==Trend.UP else "resistance")]
             for line in lines:
-                if abs(price-line.current_price)<=2*span:
+                if (line.touches >= 3 and (line.slope_per_bar > 0 if parent == Trend.UP else line.slope_per_bar < 0)
+                        and abs(price-line.current_price)<=2*span):
                     add("trend_structure", "long" if parent==Trend.UP else "short", line.current_price,
                         f"{line.kind}:{line.start_ms}:{line.end_ms}", 80,
-                        "directional pullback at existing trendline", line.public())
+                        "directional pullback at existing trendline", line.public(),
+                        object_id=trendline_object_id(line))
         # Beta is a named closed-candle pattern, never a catch-all fallback.
         htf = context.htf_bias
         if htf and local and regime != "range":
@@ -306,7 +346,8 @@ class ScenarioRouter:
                 pattern = PriceActionHypothesisStrategy._pattern(rows[-1], rows[-2], sign)
                 if pattern and result["volumeRatio"] is not None and result["volumeRatio"]>=1.2:
                     add("price_action_hypothesis", "long" if sign==1 else "short", rows[-1].close,
-                        str(rows[-1].start_ms), 60, f"closed candle {pattern} with relative volume")
+                        str(rows[-1].start_ms), 60, f"closed candle {pattern} with relative volume",
+                        object_id=candle_object_id(rows[-1].start_ms))
         if not candidates:
             insufficient = any(row["status"]=="insufficient_data" for row in availability.values())
             result["status"]="INSUFFICIENT_DATA" if insufficient else "NO_SUITABLE_SCENARIO"
@@ -332,6 +373,8 @@ class ScenarioRouter:
             return StrategyDecision(s.owner, Action.WAIT, [reason], details={"state":"scenario_invalidated","scenario":s.public()})
         if decision.action.value != s.side:
             return reject("owner changed hypothesis direction")
+        if s.object_id is not None and decision_object_id(decision) != s.object_id:
+            return reject("owner plan does not match assigned market object")
         if s.frozen is None:
             if s.prepared_mono is None:
                 s.prepared_mono = now
@@ -350,7 +393,8 @@ class ScenarioRouter:
                 watched_level=decision.watched_level,
                 entryArea=[entry-budget*.25,entry+budget*.25],
                 details={k:deepcopy(decision.details[k]) for k in (
-                    "zone","hypothesis","opportunityTrigger","opportunityArm","fireTrigger",
+                    "zone","levelLifecycle","levelGeneration","zoneGeneration",
+                    "trendline","trendlineAnchor","hypothesis","opportunityTrigger","opportunityArm","fireTrigger",
                     "preparedOpportunity","entryContextAssessment","targetSource","allowRunner")
                     if k in decision.details}, budget=budget,
                 opportunityPrice=opportunity_price,

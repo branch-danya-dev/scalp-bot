@@ -131,7 +131,9 @@ async def test_legacy_foreign_obstacle_flag_cannot_add_second_context_veto(tmp_p
         session.market_context = context(resistance=mature_level('resistance', 100.45, 100.45, generation='other'))
         session.decisions = {'level_breakout': decision('level_breakout', Action.LONG,
             entry=100.365, stop=99.9, target=101.5, watched_level=100.24,
-            details=dict(state='impulse', levelLifecycle={'generation_id': 'own'},
+            # Keep the actually assigned entry object. The different level above
+            # is only an opposing obstacle, not permission to replace ownership.
+            details=dict(state='impulse', levelLifecycle=deepcopy(engine.router.scenarios['AAA'].level),
                 opportunityFreshness={'classification': 'fresh'},
                 flowAlignment={'classification': 'strongly_aligned'}))}
     await pair.apply(feed[-1])

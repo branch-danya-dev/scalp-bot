@@ -8,6 +8,7 @@ from statistics import median
 
 from ..domain import Action, Candle, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .base import Strategy
+from .scenario_objects import level_object_id, matches_assignment
 from .targets import structural_target
 
 if TYPE_CHECKING:
@@ -498,7 +499,8 @@ class LevelBreakoutStrategy(Strategy):
                     structural_rows = [
                         level
                         for level in structure.levels
-                        if self._structural_level_is_tradeable(
+                        if matches_assignment(market_context, self.key, level_object_id(level))
+                        and self._structural_level_is_tradeable(
                             level,
                             candles,
                             long_candidate=long_candidate,
@@ -559,6 +561,7 @@ class LevelBreakoutStrategy(Strategy):
                         for level in structure.levels
                         if level.generation_id
                         == state.armed_generation_id
+                        and matches_assignment(market_context, self.key, level_object_id(level))
                     ),
                     None,
                 )

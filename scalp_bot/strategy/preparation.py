@@ -16,7 +16,7 @@ def preparation_plan(strategy, scenario, decision, book, candles, structure):
     if not price:
         return None
     span = typical_range_abs(candles)
-    zone = decision.details.get("zone") or scenario.level
+    zone = scenario.level or decision.details.get("zone") or {}
     stop = None
     if strategy.key in {"level_breakout", "weak_level_rejection"} and zone.get("low") and zone.get("high"):
         low, high = zone["low"], zone["high"]
@@ -43,4 +43,6 @@ def preparation_plan(strategy, scenario, decision, book, candles, structure):
     return StrategyDecision(strategy.key, action, ["owner preparation; entry event still required"],
         entry=price, stop=stop, target=target, setup_id=scenario.scenario_id,
         details={"expectedImpulsePct":movement_budget(candles)/price, "targetSource":source,
-                 "riskScale":.65, "preparationOnly":True})
+                 "riskScale":.65, "preparationOnly":True,
+                 "scenario": {"scenarioId": scenario.scenario_id, "owner": scenario.owner,
+                              "marketObjectId": scenario.object_id}})

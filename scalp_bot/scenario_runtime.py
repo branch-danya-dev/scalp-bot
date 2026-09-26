@@ -3,6 +3,7 @@ from dataclasses import replace
 
 from .domain import Action, StrategyDecision
 from .scenario import TERMINAL
+from .strategy.scenario_objects import decision_object_id
 from .strategy.semantic_arbiter import SemanticCandidateAssessment, assess_structural_path
 
 
@@ -72,7 +73,8 @@ class ScenarioRuntime:
         """Compatibility telemetry; no second context/strategy contest."""
         s=self.router.scenarios.get(session.symbol)
         owned=bool(s and s.owner==decision.strategy and s.state not in TERMINAL
-                   and s.side==decision.action.value)
+                   and s.side==decision.action.value
+                   and (s.object_id is None or decision_object_id(decision)==s.object_id))
         path=assess_structural_path(decision,session.market_context,
             partial_take_at_r=self.config.partial_take_at_r,
             partial_take_enabled=self.config.partial_take_enabled)
@@ -90,7 +92,9 @@ class ScenarioRuntime:
 
     def _scenario_entry_valid(self, session, decision):
         s=self.router.scenarios.get(session.symbol)
-        if not s or s.owner!=decision.strategy or s.state in TERMINAL:
+        if (not s or s.owner!=decision.strategy or s.state in TERMINAL
+                or s.side!=decision.action.value
+                or (s.object_id is not None and decision_object_id(decision)!=s.object_id)):
             return False
         now=self.clock.perf_counter_ns()/1e9
         if s.state != "IN_POSITION" and now>=s.expires_mono:

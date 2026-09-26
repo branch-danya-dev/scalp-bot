@@ -28,10 +28,11 @@ def install_signal(engine):
     engine.strategies['trend_structure'].evaluate = evaluate
     # This fixture controls BOTH the scenario and the signal. Production tests
     # below use the actual router, history, strategy and cold replay unchanged.
-    def controlled_situation(context, candles, structure, enabled):
+    def controlled_situation(context, candles, structure, enabled, *, episodes=None):
         return ({"status":"OBSERVING", "rangeAbs":1}, [dict(
             owner="trend_structure", side="long", anchor=100,
-            signature="controlled:market:g1", priority=1, distance=0,
+            signature="controlled:market:g1", marketBasis="controlled:market:g1",
+            objectId=None, priority=1, distance=0,
             reasons=["controlled portfolio integration scenario"])])
     engine.router.assess = controlled_situation
 
