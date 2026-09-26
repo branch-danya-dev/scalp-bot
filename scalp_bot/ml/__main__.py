@@ -10,7 +10,7 @@ def main() -> int:
     print(json.dumps({
         "stage": STAGE, "model_trained": MODEL_TRAINED,
         "runtime_connected": RUNTIME_CONNECTED, "order_authority": False,
-        "next_step": "M1b: source coverage, causal features, executable labels and purged time splits",
+        "next_step": "M1b2: raw-to-context parity, historical metadata, coverage, executable labels and purged splits",
         "roadmap": "docs/ml/ROADMAP.md",
     }, sort_keys=True))
     return 0

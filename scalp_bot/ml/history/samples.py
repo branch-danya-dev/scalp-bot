@@ -11,6 +11,7 @@ from pathlib import Path
 import time
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
+from .alignment import align_archives
 from .importer import import_archive, sha256_file
 from .sources import ArchiveSpec, PROVIDERS
 
@@ -71,7 +72,15 @@ def main(argv=None):
         report["sources"].append(result)
         (args.output/"report.json").write_text(json.dumps(report,indent=2)+"\n",encoding="utf-8")
         print(provider,result["status"],flush=True)
-    return int(any(item["status"] == "failed" for item in report["sources"]))
+    if all(item["status"] == "complete_import" for item in report["sources"]):
+        try:
+            report["alignment"] = align_archives(args.output/"tardis-trades", args.output/"tardis-l2",
+                                                  args.output/"aligned")
+        except Exception as exc:
+            report["alignment"] = dict(status="failed", error=f"{type(exc).__name__}: {exc}")
+    (args.output/"report.json").write_text(json.dumps(report, indent=2)+"\n", encoding="utf-8")
+    return int(any(item["status"] == "failed" for item in report["sources"])
+               or report.get("alignment", {}).get("status") != "complete")
 
 
 if __name__ == "__main__":

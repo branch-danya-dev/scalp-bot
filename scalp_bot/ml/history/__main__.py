@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import sys
 
+from .alignment import AlignmentLimits, align_archives
 from .importer import import_archive
 from .sources import ArchiveSpec, PROVIDERS
 
@@ -23,10 +24,18 @@ def main(argv=None) -> int:
     imp.add_argument("--input", type=Path, required=True)
     imp.add_argument("--output", type=Path, required=True)
     imp.add_argument("--expected-sha256")
+    align = commands.add_parser("align", help="group local Tardis trade/L2 imports by collector time")
+    align.add_argument("--trades", type=Path, required=True)
+    align.add_argument("--book", type=Path, required=True)
+    align.add_argument("--output", type=Path, required=True)
+    align.add_argument("--silence-warning-us", type=int, default=5_000_000)
     args = parser.parse_args(argv)
     try:
         if args.command == "plan":
             result = ArchiveSpec(args.provider, args.symbol, args.day, args.purpose).public()
+        elif args.command == "align":
+            result = align_archives(args.trades, args.book, args.output,
+                                   limits=AlignmentLimits(silence_warning_us=args.silence_warning_us))
         else:
             spec = ArchiveSpec.from_public(json.loads(args.source.read_text(encoding="utf-8-sig")))
             result = import_archive(args.input, spec, args.output, expected_sha256=args.expected_sha256)
