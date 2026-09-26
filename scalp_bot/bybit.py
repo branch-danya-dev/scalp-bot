@@ -850,6 +850,24 @@ async def _process_market_queue(
             queue.task_done()
 
 
+async def _receive_or_processor_failure(ws, processor):
+    """A dead consumer must wake a silent socket immediately, not after 35s."""
+    receive = asyncio.create_task(ws.recv(decode=False))
+    try:
+        done, _ = await asyncio.wait((receive, processor), timeout=35,
+                                     return_when=asyncio.FIRST_COMPLETED)
+        if processor in done:
+            await processor  # Propagate the original queue/handler failure.
+            raise RuntimeError("market processor stopped unexpectedly")
+        if receive not in done:
+            raise TimeoutError("market socket receive timeout")
+        return receive.result()
+    finally:
+        if not receive.done():
+            receive.cancel()
+        await asyncio.gather(receive, return_exceptions=True)
+
+
 async def _stream_topics(
     ws_url: str,
     topics: list[str],
@@ -917,10 +935,7 @@ async def _stream_topics(
                             "market processor stopped unexpectedly"
                         )
 
-                    raw = await asyncio.wait_for(
-                        ws.recv(decode=False),
-                        timeout=35,
-                    )
+                    raw = await _receive_or_processor_failure(ws, processor)
                     # Receipt is captured immediately after recv returns so
                     # socket wait time isn't counted as parser work.
                     receipt_wall_ns = time_ns()

@@ -2823,6 +2823,7 @@ class TradingEngine(ScenarioRuntime):
         deep_depth = self.config.deep_orderbook_depth
 
         def capture_transport(event):
+            self._invalidate_transport(symbol, event, fast_book_state, deep_book_state)
             self._record_input("transport", symbol, {**event, "workerId": worker_id,
                 "fastState": self._transport_book_state(fast_book_state),
                 "deepState": self._transport_book_state(deep_book_state)})
@@ -2832,7 +2833,7 @@ class TradingEngine(ScenarioRuntime):
             symbol,
             on_message,
             stop_event,
-            **({"on_transport": capture_transport} if self.input_journal is not None else {}),
+            on_transport=capture_transport,
             fast_orderbook_depth=fast_depth,
             deep_orderbook_depth=deep_depth,
             market_queue_size=self.config.market_queue_size,
@@ -2843,6 +2844,44 @@ class TradingEngine(ScenarioRuntime):
                 self.config.market_queue_max_lag_seconds
             ),
         )
+
+    def _invalidate_transport(self, symbol, event, fast_state, deep_state):
+        if event.get("phase") not in {"connecting", "fault", "cancelled"}:
+            return
+        session = self.sessions.get(symbol)
+        if session is None:
+            return
+        topics = event.get("topics", [])
+        fast = f"orderbook.{self.config.fast_orderbook_depth}.{symbol}" in topics
+        deep = f"orderbook.{self.config.deep_orderbook_depth}.{symbol}" in topics
+        if fast:
+            fast_state._clear()
+            session.book_synced = False
+            session.last_book_at = 0
+            session.fast_receipt_mono = None
+            session.orderbook = OrderBook()
+        if deep:
+            deep_state._clear()
+            session.deep_book_synced = False
+            session.last_deep_book_at = 0
+            session.deep_receipt_mono = None
+            session.deep_orderbook = OrderBook()
+        if fast or deep:
+            session.decisions.clear()
+            self._validate_pending_entry(session)
+            # Keep protective/execution ownership; discard only preparations.
+            invalidate = getattr(self.router, "invalidate_preparations", None)
+            if invalidate is not None:
+                invalidate(symbol, self.clock.perf_counter_ns()/1e9, "transport_epoch_changed")
+            else:
+                scenario = self.router.scenarios.get(symbol)
+                if scenario and scenario.state not in {"ORDER_PENDING", "IN_POSITION"}:
+                    self.router.transition(scenario, "INVALIDATED", self.clock.perf_counter_ns()/1e9,
+                                           "transport_epoch_changed")
+            for key, strategy in self.strategies.items():
+                if symbol not in self.broker.positions and symbol not in self.broker.pending_entries:
+                    strategy.reset(symbol)
+            self._scenario_events()
 
     @staticmethod
     def _transport_book_state(state):
