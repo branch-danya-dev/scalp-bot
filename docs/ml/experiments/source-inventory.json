@@ -1,0 +1,60 @@
+{
+  "selected_source": "stopped audited current-12h, all seven actual scanner members",
+  "selected_artifact": "data/ml/impulse-v1-final",
+  "network_download_bytes": 0,
+  "dataset_manifest": "dataset-manifest.json",
+  "capture_raw_compressed_sha256": "caf9cf7c293faab93d3832a96b52298beb12da4316ed55c2f414e346dd337a6d",
+  "decoded_input_sha256": "818fc0734f5153dcbb7747e0f5b3559801fcafb828b6874d422b07a014b54106",
+  "source_archive_sha256": "28bac774c9d6af0f4641576a509fcf0e6f44fad77c3483efeeb1b10838dcb852",
+  "external_sources": [
+    {
+      "provider": "bybit-public-trades",
+      "market": "linear_perpetual",
+      "symbol": "NEARUSDT",
+      "day": "2024-01-01",
+      "raw_sha256": "d22dafcb6f54a83f5b82bace4109c828e0645916a150242aa4fbc7f22f96f1a2",
+      "bytes": 5849647,
+      "selected": false,
+      "reason": "format smoke previously inspected; historical instrument lot/tick/multiplier and full coverage not certified; not independent holdout",
+      "quantity_unit": "exchange_native",
+      "clock": null,
+      "source_report": "../external-history-format-report.json"
+    },
+    {
+      "provider": "tardis-trades",
+      "market": "linear_perpetual",
+      "symbol": "NEARUSDT",
+      "day": "2024-01-01",
+      "raw_sha256": "8098054023c04fb1776397e5a2992786da1a1411a347c2b2ed7675fe83e16ebd",
+      "bytes": 4551925,
+      "selected": false,
+      "reason": "format smoke previously inspected; historical instrument lot/tick/multiplier and full coverage not certified; not independent holdout",
+      "quantity_unit": "exchange_native",
+      "clock": "tardis_collector",
+      "source_report": "../external-history-format-report.json"
+    },
+    {
+      "provider": "tardis-l2",
+      "market": "linear_perpetual",
+      "symbol": "NEARUSDT",
+      "day": "2024-01-01",
+      "raw_sha256": "2885cf168383fdc9a10821b6dbc67a11a6f1b30ff88d057b0dac1685032c55a6",
+      "bytes": 46835081,
+      "selected": false,
+      "reason": "format smoke previously inspected; historical instrument lot/tick/multiplier and full coverage not certified; not independent holdout",
+      "quantity_unit": "exchange_native",
+      "clock": "tardis_collector",
+      "source_report": "../external-history-format-report.json"
+    }
+  ],
+  "other_local_captures": {
+    "1h-20260926-123243-230-fcf4035f": "stale metadata says recording, inputRows=3; not admitted as verified holdout",
+    "24h-20260926-151653-835-9dde484e": "stale metadata says recording, inputRows=3; not admitted as verified holdout"
+  },
+  "limitations": [
+    "single audited development session",
+    "original journal incomplete transport teardown, not sealed",
+    "unobserved structural/liquidity feature groups explicit missing",
+    "no independent multi-period model validation"
+  ]
+}

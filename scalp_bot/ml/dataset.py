@@ -27,7 +27,8 @@ def read_events(source):
         with gzip.open(source,"rt",encoding="utf-8") as stream:
             for line in stream:
                 row=json.loads(line)
-                if row.get("event")=="replay_input":
+                if row.get("event")=="replay_input" and row["payload"]["kind"] in {
+                        "bootstrap","symbol_lifecycle","transport","market_message","run_end"}:
                     yield row["payload"]
 
 
@@ -155,6 +156,7 @@ def build_dataset(source, output, capture_id, *, max_events=5_000_000):
         deadline=now+policy["horizon_seconds"]*1_000_000_000
         for side in ("long","short"):
             row=dict(ref=asdict(snapshot.ref),features=list(snapshot.values),side=side,
+                snapshot_quote=adapter.session.orderbook.executable_entry(Side(side)),
                 label_end_ns=deadline,episode=f"{capture_id}:{now//60_000_000_000}")
             pending[symbol].append(PendingLabel(row,adapter.epoch,deadline,
                                                now+policy["latency_ms"]*1_000_000))

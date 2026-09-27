@@ -6,7 +6,7 @@
   "capture_id": "790eebd906ac4a41baf69eccb5b69ae3",
   "source": "G:\\scalp-bot\\data\\audit-two-hour-20260927\\inputs.sqlite",
   "source_subset_sha256": "16b5dab430ad2cdc5e2cf99382c91a65e0ebd4cfc34c1b3a92fd2db7799b33f8",
-  "dataset_sha256": "91a5282e6c6d1dfa9e7fdbbac9bed0fa7a6d7cfb37d9b49f1f31e9cfd6294902",
+  "dataset_sha256": "d41d66da5dd8746c779cad43798ab7f95b3e39f4c8de19ac153ceb84cec6f4b1",
   "feature_schema": "market-context-v1:dd86ef9b9197904ed2516bbcadbb173331155b49ade52d3394701685ae70601c",
   "feature_names": [
     "book_ready",
@@ -341,6 +341,6 @@
     "structure features"
   ],
   "retention": "local until owner deletes; no automatic expiry or provider redistribution",
-  "artifact_path": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\data\\ml\\impulse-v1",
+  "artifact_path": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\data\\ml\\impulse-v1-final",
   "portfolio_result": null
 }

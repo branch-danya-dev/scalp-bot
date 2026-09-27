@@ -169,8 +169,15 @@ def evaluate(dataset_dir, model_dir):
     metadata=predictor.metadata
     if sha256_file(dataset_dir/"dataset.jsonl")!=metadata["dataset_sha256"]:
         raise ValueError("evaluation dataset mismatch; register a new evaluation explicitly")
+    if sha256_file(model_dir/"logistic.npz")!=metadata["logistic_sha256"]:
+        raise ValueError("logistic artifact checksum mismatch")
     weights=np.load(model_dir/"logistic.npz",allow_pickle=False)
     report=dict(model_version=metadata["model_version"],scope=metadata["scope"],splits={},by_symbol={})
+    train_rows=[r for r in rows if r["split"]=="train"]
+    priors=np.asarray([sum(r["label"]==c for r in train_rows)/len(train_rows) for c in CLASSES])
+    payouts=np.asarray([np.mean([r["net_usdt"] for r in train_rows if r["label"]==c]) for c in CLASSES])
+    report["train_class_conditional_mean_net_usdt"]=dict(zip(CLASSES,payouts.tolist()))
+    report["expectancy_warning"]="probability-weighted train class payouts are diagnostic estimates, not guaranteed conditional payouts or portfolio returns"
     for split in ("train","calibration","validation","test"):
         subset=[r for r in rows if r["split"]==split]
         matrix=transform(raw_matrix(subset),metadata["preprocessing"])
@@ -178,7 +185,9 @@ def evaluate(dataset_dir, model_dir):
         lp=np.exp(logits);lp/=lp.sum(axis=1,keepdims=True)
         lp=temperature(lp,metadata["temperatures"]["logistic"])
         cp=predictor.predict_rows(subset);rp=rule_probabilities(subset)
-        report["splits"][split]={"catboost":metrics(subset,cp),"logistic":metrics(subset,lp),"fixed_rule":metrics(subset,rp)}
+        report["splits"][split]={"catboost":metrics(subset,cp),"logistic":metrics(subset,lp),"fixed_rule":metrics(subset,rp),
+            "train_prior":metrics(subset,np.tile(priors,(len(subset),1)))}
+        report["splits"][split]["catboost"]["estimated_mean_net_from_train_payouts"]=float((cp@payouts).mean())
         if split=="test":
             for symbol in sorted({r["ref"]["symbol"] for r in subset}):
                 indices=[i for i,r in enumerate(subset) if r["ref"]["symbol"]==symbol]

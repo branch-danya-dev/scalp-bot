@@ -22,7 +22,8 @@ from .contracts import SnapshotRef
 class CaptureContext:
     def __init__(self, symbol, capture_id, bootstrap, mono_ns):
         self.symbol, self.capture_id = symbol, capture_id
-        self.session = ActiveSymbolSession(symbol, candles=[Candle(**c) for c in bootstrap["candles"]])
+        self.session = ActiveSymbolSession(symbol, candles=[Candle(**c) for c in bootstrap["candles"]],
+            activated_at=bootstrap["candles"][-1]["start_ms"]/1000)
         self.instrument = InstrumentSpec(**bootstrap["instrument"])
         self.book_state = OrderBookState(50)
         self.epoch = 0

@@ -1,0 +1,10 @@
+{
+  "cpu": "AMD Ryzen 5 7600X",
+  "physical_cores": 6,
+  "logical_processors": 12,
+  "ram_bytes": 33405825024,
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.13.15",
+  "training_threads": 1,
+  "worker_processes": 1
+}
