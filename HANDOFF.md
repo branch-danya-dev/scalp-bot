@@ -1,3 +1,17 @@
+# Current handoff — Demo / paper preparation
+
+Новый режим `demo-paper-execution-1h-v1` реализован отдельно от обычного запуска и PR59. [Протокол и ручной Start](DEMO_PAPER_1H_PROTOCOL.md), [implementation review](DEMO_PAPER_IMPLEMENTATION_REVIEW.md), [паспорт](docs/demo-paper-1h/passport.json), [проверки](docs/demo-paper-1h/VALIDATION.md).
+
+Один scanner/MarketContext/arbiter, парное резервирование и две независимые execution queues/ledgers. Оба контура получают одинаковое исходное количество; фактические fills, комиссии, partial и остатки принадлежат каждому исполнителю. Символ освобождается только после завершения и сверки обоих. Demo-only REST/private WS, без fallback, cancel-all, изменения плеча или чужих заявок. Stop/TP семантика заранее описана: локальные исполнимые bid/ask плюс явные resting maker limits; нет подмены биржевым LastPrice-stop.
+
+V2 подключается через отдельный research adapter с прежними .55, сеткой 10 секунд и планом 30/15/30. Обычный готовый предварительно оценённый план сохраняет приоритет. Worker не получает секретов или брокера, защита остаётся в родительском процессе. 60 реальных прогнозов сохранённых весов снова воздержались; synthetic long/short fills существуют только в contract fixtures.
+
+Локального `.env.demo-paper.local` нет. Его заполняет владелец на компьютере по пустому шаблону; ключ не передавать в чат. Connected preflight и отдельный Start не выполнялись. Часовой результат, преимущество Demo и торговая полезность ML пока не измерены. Режим по умолчанию выключен; код/тесты/CI не запускают рынок. PR59 `next-paper-8h-v1`, 28800 секунд и его цели не менялись.
+
+Артефакты подготовки: `G:/scalp-bot/data/audit-demo-paper-preparation`. Исходный raw, baseline main, предыдущие отчёты, datasets и V1/V2 сохранены. Следующий раздел — завершённая предшествующая диагностика, её ограничения продолжают действовать.
+
+---
+
 # Handoff — PR58 trade-plan diagnosis
 
 Ветка `codex/parallel-scenarios-ml-v1`, [draft PR58](https://github.com/branch-danya-dev/scalp-bot/pull/58). Текущий этап описан в [TRADE_PLAN_DIAGNOSIS.md](TRADE_PLAN_DIAGNOSIS.md); предыдущий [readiness review](PR58_READINESS_REVIEW.md) и его исходные отчёты сохранены. Worktree/venv: `C:/Users/workingspace/.codex/worktrees/parallel-scenarios-ml/scalp-bot`.

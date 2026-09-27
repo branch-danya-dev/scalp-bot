@@ -1,0 +1,110 @@
+{
+  "root": "G:\\scalp-bot\\data\\audit-demo-paper-preparation",
+  "files": {
+    "execution-targeted-final.txt": {
+      "bytes": 182,
+      "sha256": "8d051d645dc27b42b72b7e558588a2fbe21cb654a34cbad0d779ad55b3e1e949"
+    },
+    "foreign-scope-after.txt": {
+      "bytes": 101,
+      "sha256": "0bb2c26ac922a2666f1866b489ec87ee648b8924798a2185fbca92d27c4fb08e"
+    },
+    "foreign-scope-before.txt": {
+      "bytes": 13849,
+      "sha256": "7b59db4d33042ad2328a28ea431ed51f1b7b76db72465b5cb30851b7a2986b68"
+    },
+    "full-preflight-v1.txt": {
+      "bytes": 3129,
+      "sha256": "597bb34ece5e3cdf440d74cb4c94ee790850bd3949d663259dfe68d80f77e911"
+    },
+    "full-preflight-v2.txt": {
+      "bytes": 1735,
+      "sha256": "f0c00f29888ab5626aea9d04f67ff8f7e5b5ac0a9d521c8a93c94d00c86a1def"
+    },
+    "full-preflight-v3.txt": {
+      "bytes": 1735,
+      "sha256": "be30ae9e69fbc48de01b6851fcf2d7866a7b0466eb8e640023135f311ff98730"
+    },
+    "full-preflight-v4.txt": {
+      "bytes": 1735,
+      "sha256": "3fa0ae8d01de996924c408b765da4d36fccb2c8e3f2dcb17053416e8c719d565"
+    },
+    "launcher-preflight-final.json": {
+      "bytes": 1754,
+      "sha256": "baa9e9a77eaf2d7074ca9bf83cd7e6d62493a8839c9e43085c6a23bc4f9b32a6"
+    },
+    "local-preflight-final.json": {
+      "bytes": 1757,
+      "sha256": "c415d7bb8243c9fbbe76269c7e26587a174be51a60c7f04a38c4e9fb5c63e0bd"
+    },
+    "local-preflight-pinned.json": {
+      "bytes": 1758,
+      "sha256": "440747162d811ce7615b86b418f13308cd6f624c52ca404c918b55f79ea7f404"
+    },
+    "ml-audit-after.txt": {
+      "bytes": 183,
+      "sha256": "1a0e73f70d504b88ce861a49ce4687cee1d2c5cd820fb320d939ffccb4c431cc"
+    },
+    "ml-audit-before-v2.txt": {
+      "bytes": 6973,
+      "sha256": "c24ec9083051d0d3af1c5c681b2a5c9a54f7bbe0ca6365ffa6e057d7944153ce"
+    },
+    "ml-audit-before.txt": {
+      "bytes": 8182,
+      "sha256": "ef51cefbe2f407d28164555df9e3d6f680dae8515dd4d7d814c90ac999f83d61"
+    },
+    "offline-final-v3/historical-decisions.jsonl": {
+      "bytes": 9270266,
+      "sha256": "6601d5edd22f63c2aad6bdf662f97e18a0cdbb19bbe8913d98096aebc816171f"
+    },
+    "offline-final-v3/real-v2-forecasts.json": {
+      "bytes": 82151,
+      "sha256": "92035fa5255e130e5dc55ab48c0d44f418cfd5627f135e5ef7dda5552a93409e"
+    },
+    "offline-final-v3/report.json": {
+      "bytes": 1746,
+      "sha256": "00d3bac0fc22cab0da5f220ad466c2672c2069ad4e95577deda901fb42c835da"
+    },
+    "offline-v1/historical-decisions.jsonl": {
+      "bytes": 9270266,
+      "sha256": "6601d5edd22f63c2aad6bdf662f97e18a0cdbb19bbe8913d98096aebc816171f"
+    },
+    "offline-v1/real-v2-forecasts.json": {
+      "bytes": 82152,
+      "sha256": "777b01eed7b2afb0236647ba9b9820bb29e5424cdbc9b1cf0e988e4520a1d775"
+    },
+    "offline-v1/report.json": {
+      "bytes": 1749,
+      "sha256": "0a2497cec75c7e89fea4e7080d611f94dde5f4bd1c412c558af07732c6deff77"
+    },
+    "reporting-boundaries-after.txt": {
+      "bytes": 183,
+      "sha256": "a9c3de57be480855e0e8104462787085633fc86954b08a550d1b72345cbc5145"
+    },
+    "reporting-boundaries-before.txt": {
+      "bytes": 3686,
+      "sha256": "8af1c2606c0bf978d160642f9ef50f0c31adb6650f8eb3bcdffbceb8d33f3379"
+    },
+    "targeted-final-v1.txt": {
+      "bytes": 2347,
+      "sha256": "2b65ae00779df323158638c633f24ec25c154ab3ef3810ba07d7984c75ca344e"
+    },
+    "targeted-final-v2.txt": {
+      "bytes": 183,
+      "sha256": "0d5e41a4183893a81a396b73646b08b841807e7ba21054bffee39a4f4cbaf8f1"
+    },
+    "targeted-final-v3.txt": {
+      "bytes": 183,
+      "sha256": "0cfbe6e03aa5c08d9195e028a95adc9c814fad5cbedeb0b964ba1b3abfb58d35"
+    },
+    "worker-isolated-v2/real-v2-forecasts.json": {
+      "bytes": 82151,
+      "sha256": "b6642381ee8966c8a3dac347dd6040412cd12a2fec915c484f3b2382c6d7d5d0"
+    },
+    "worker-isolated-v2/report.json": {
+      "bytes": 519,
+      "sha256": "87ea6c05388300192cac66062113fbaafba7041d35529725430808e48d175cec"
+    }
+  },
+  "notes": "Completed offline preparation. Failed attempts retained. final-ci.json adds final pushed-head run/jobs/log hashes separately."
+}

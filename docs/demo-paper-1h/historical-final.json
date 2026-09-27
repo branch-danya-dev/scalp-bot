@@ -1,0 +1,61 @@
+{
+  "worker": {
+    "scope": "60 pre-existing validation snapshots, unchanged weights, inference only",
+    "forecasts": 60,
+    "selected": 0,
+    "worker": {
+      "module": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\scalp_bot\\__init__.py",
+      "pid": 26900,
+      "exchange_imported": false,
+      "resources": {
+        "cpu_seconds": 0.671875,
+        "rss_mb": 94.09375,
+        "peak_rss_mb": 94.09375
+      }
+    },
+    "order_authority": false
+  },
+  "historical": {
+    "scope": "historical raw-input integration only; no Demo matching/portfolio result",
+    "source": "G:\\scalp-bot\\data\\audit-two-hour-20260927\\inputs.sqlite",
+    "selected_source_sha256": "b99f2eb5bebf254a5cd1374d8face78356cfc5e2c440373154e1bf29b15e1f77",
+    "events": 36121,
+    "counts": {
+      "clock_sample": 8,
+      "scanner_result": 3,
+      "bootstrap": 7,
+      "symbol_lifecycle": 7,
+      "transport": 28,
+      "market_message": 36053,
+      "control": 1,
+      "manifest": 1,
+      "rest_context": 13
+    },
+    "historical_seconds": 179.9930725,
+    "evaluations": 4757,
+    "symbols": [
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT",
+      "ENAUSDT",
+      "BTCUSDT",
+      "ZECUSDT",
+      "NEARUSDT"
+    ],
+    "recorder_counts": {
+      "clock_sync": 8,
+      "symbol_activated": 7,
+      "market_context_changed": 4757,
+      "strategy_state_transition": 248,
+      "decision": 354,
+      "research_frame": 374,
+      "market_frame": 189,
+      "scenario_transition": 20,
+      "entry_freshness_changed": 3
+    },
+    "positions": 0,
+    "network_allowed": false,
+    "source_first_sequence": 2,
+    "source_last_sequence": 462395
+  }
+}

@@ -1,3 +1,13 @@
+# Current ML handoff — isolated Demo research adapter
+
+V2 weights/dataset/schema, .55, 10-second sampling, 60-second causal coverage and 30/15 bps / 30-second plan are unchanged. No V3, retraining, first-ready sampling or new learned policy. New `scalp_bot/demo_paper/ml_adapter.py` is an explicit opt-in research admission boundary; `ml/shadow.py` still has no order side effect. Worker messages contain features/forecasts only; Demo secrets remain outside worker arguments/environment. Both sides share the ordinary paired risk reservation and the existing ready-rule priority.
+
+Actual fills anchor each arm's 30/15 bps plan as in the labels; timeout remains anchored to the original observation. Forecast timestamps/epoch/schema/drift are not refreshed. Local synthetic contracts exercise long/short, abstention, partials, timeout and parent protection; they are not model market trades. Offline saved V2 inference on 60 original validation snapshots selected zero entries. The corrected isolated worker diagnostic reports no exchange module imported in the child.
+
+No model fill, Demo account connection or one-hour measurement occurred. The owner-only launcher is documented in [DEMO_PAPER_1H_PROTOCOL.md](DEMO_PAPER_1H_PROTOCOL.md). `ML_TRADING_NOT_TESTED` is mandatory if the separately started experiment again has no ML fills. No threshold reduction or technical test trades are permitted in that hour. Existing weak economic ranking and >100 ms burst observations remain unresolved by this implementation.
+
+---
+
 # ML handoff — immutable V2, fixed-plan diagnosis
 
 V1/V2, datasets, weights, calibration и threshold0.55 сохранены. Новой модели, labels или обучения V3 в этом этапе нет. [Model card V2](docs/pr58-readiness/MODEL_CARD_V2.md), [исходные manifests/команды](docs/pr58-readiness/COMMANDS.md) и [новый диагноз](docs/pr58-trade-plan/ML_DIAGNOSIS.md).
