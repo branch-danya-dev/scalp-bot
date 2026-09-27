@@ -36,7 +36,8 @@ def main(argv=None):
         run_shadow(args.dataset,args.model,args.output,args.limit)
     else:
         from . import STAGE,MODEL_TRAINED,RUNTIME_CONNECTED
-        print(json.dumps(dict(stage=STAGE,model_trained=MODEL_TRAINED,runtime_connected=RUNTIME_CONNECTED,
+        print(json.dumps(dict(stage=STAGE,bundled_model_trained=MODEL_TRAINED,runtime_connected=RUNTIME_CONNECTED,
+             training_implemented=True,artifact_manifest_required=True,
              order_authority=False,next_step="explicit build-dataset/train/evaluate/predict/shadow commands")))
     return 0
 

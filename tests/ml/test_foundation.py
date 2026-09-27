@@ -108,8 +108,8 @@ def test_rejects_unknown_phase():
 def test_status_does_not_train_or_connect():
     output = subprocess.check_output([sys.executable, "-m", "scalp_bot.ml"], text=True)
     status = json.loads(output)
-    assert status["stage"] == "M1_DATA_IN_PROGRESS"
-    assert not status["model_trained"] and not status["runtime_connected"] and not status["order_authority"]
+    assert status["stage"] == "M2_TECHNICAL_M3_OFFLINE"
+    assert not status["bundled_model_trained"] and not status["runtime_connected"] and not status["order_authority"]
 
 
 def test_existing_runtime_does_not_import_ml():

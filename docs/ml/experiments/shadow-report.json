@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "model_version": "catboost-impulse-v1:d901a0d0e55b33cc",
+  "rows": 200,
+  "forecasts": 200,
+  "reasons": {
+    "probability_abstention": 200
+  },
+  "data_to_proposal_ms": {
+    "p50": 3.0725,
+    "p95": 3.1324,
+    "p99": 3.26
+  },
+  "submit_ms": {
+    "p50": 0.046,
+    "p95": 0.0609,
+    "p99": 0.072
+  },
+  "coalesced": 0,
+  "dropped": 0,
+  "worker_failure": null,
+  "worker": {
+    "module": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\scalp_bot\\__init__.py",
+    "pid": 13484,
+    "exchange_imported": false,
+    "resources": {
+      "cpu_seconds": 0.6875,
+      "rss_mb": 93.78125,
+      "peak_rss_mb": 93.78125
+    }
+  },
+  "resources": {
+    "cpu_seconds": 0.796875,
+    "rss_mb": 97.16796875,
+    "peak_rss_mb": 97.16796875
+  },
+  "platform": "Windows-11-10.0.26200-SP0",
+  "shutdown_complete": true,
+  "source_mapping": "original refs retained; availability translated to local replay delivery domain",
+  "order_authority": false,
+  "portfolio_touched": false,
+  "latency_budget_passed": true
+}
