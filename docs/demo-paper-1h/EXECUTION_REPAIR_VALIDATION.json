@@ -1,0 +1,172 @@
+{
+  "observed_at": "2026-09-27T18:48:53.356133+00:00",
+  "head": "1c5d670b2e89b0af589607571e5da63429e6bc9c",
+  "previous_run": "data/audit-demo-paper-1h-20260927-174758",
+  "connected_preflight": {
+    "status": "CONNECTED_NO_ORDER_PREFLIGHT",
+    "account_mode": "REGULAR_MARGIN",
+    "orders_sent": 0,
+    "all_account_scopes_flat": true
+  },
+  "targeted_tests": {
+    "passed": 69,
+    "command": "python -m pytest tests/demo_paper tests/test_transport_recovery.py tests/test_paper_20260922_regression.py -q"
+  },
+  "ordinary_terminal_pid": 9816,
+  "ordinary_launcher": "scripts/run-paper-1h.ps1",
+  "launch_authorization": "Latest explicit user request to make both ordinary and Bybit runs work; Demo-only.",
+  "full_tests": {
+    "passed": 1470,
+    "command": "python scripts/test_preflight.py",
+    "seconds": 243.14,
+    "log": "full-tests.log",
+    "sha256": "999c258775b4c68ae22d0e1715ac358a16a52ac82b28f42cf8207c5fc44c9f0a"
+  },
+  "ci": {
+    "run_id": 36341896376,
+    "head": "1c5d670b2e89b0af589607571e5da63429e6bc9c",
+    "conclusion": "success",
+    "jobs": {
+      "test": {
+        "id": 108683485068,
+        "conclusion": "success"
+      },
+      "ml-windows": {
+        "id": 108683485254,
+        "conclusion": "success"
+      }
+    }
+  },
+  "ordinary": {
+    "terminal_pid": 9816,
+    "runtime_pid": 19060,
+    "started_at_moscow": "2026-09-27T21:51:32+03:00",
+    "launcher_full_tests_passed": 1470,
+    "launcher_test_seconds": 209.93,
+    "ui": "http://127.0.0.1:8000/",
+    "transcript": "data/run-logs/paper-current-1h-20260927-214713-770.log"
+  },
+  "demo": {
+    "terminal_pid": 14324,
+    "runtime_pid": 19376,
+    "worker_pid": 8000,
+    "output": "data/audit-demo-paper-1h-repair-20260927",
+    "start_moscow": "2026-09-27T21:51:42+03:00",
+    "accepting_since_moscow": "2026-09-27T21:51:59+03:00",
+    "passport_sha256": "c1fffddfa76ab234bb0eda6d54225a04ecda2a3f1d10da5a0d34108c585beab3"
+  },
+  "status": "BOTH_RUNNING_VERIFIED_HOUR_IN_PROGRESS",
+  "observation": {
+    "offset": 252519275,
+    "counts": {
+      "connected_preflight": 1,
+      "account_reconciled": 21,
+      "start": 1,
+      "symbol_preflight": 7,
+      "entry_readiness": 2,
+      "ml_features": 22,
+      "ml_submit": 42,
+      "ml_predict": 41,
+      "ml_decision": 41
+    },
+    "latest": {
+      "account_reconciled": {
+        "iso": "2026-09-27T18:53:15.072545+00:00",
+        "payload": {
+          "positions": {},
+          "research_balances": {
+            "demo": 1000.0,
+            "paper": 1000.0
+          }
+        }
+      },
+      "start": {
+        "iso": "2026-09-27T18:51:42.788929+00:00",
+        "payload": {
+          "start_ns": 642271074851100,
+          "deadline_ns": 645871074851100
+        }
+      },
+      "entry_readiness": {
+        "iso": "2026-09-27T18:51:59.893301+00:00",
+        "payload": {
+          "accepting": true,
+          "reason": null,
+          "clock": {
+            "local_wall_ms": 1790535119893.2651,
+            "monotonic_seconds": 642288.1791524,
+            "exchange_lower_ms": 1790535120122.0715,
+            "exchange_upper_ms": 1790535120369.455,
+            "uncertainty_ms": 123.6917724609375,
+            "sync_age_seconds": 0.008771899971179664,
+            "valid": true,
+            "reason": null,
+            "evaluationMs": 1790535120370,
+            "contract": "exchange-bounds-v1"
+          }
+        }
+      }
+    },
+    "capture_bytes": 252519275,
+    "observed_at": "2026-09-27T18:53:19.901795+00:00",
+    "result_exists": false,
+    "ordinary": {
+      "botRunning": true,
+      "mode": "paper",
+      "run": {
+        "label": "paper-current-1h",
+        "configuredDurationSeconds": 3600.0,
+        "startedAt": 1790535092.2096856,
+        "deadlineAt": 1790538692.2096856,
+        "elapsedSeconds": 107.73086190223694,
+        "remainingSeconds": 3492.269138097763,
+        "lastSummary": null
+      },
+      "marketHealth": {
+        "ready": true,
+        "clock": {
+          "local_wall_ms": 1790535199940.581,
+          "monotonic_seconds": 642368.2265055,
+          "exchange_lower_ms": 1790535200154.0183,
+          "exchange_upper_ms": 1790535200426.1497,
+          "uncertainty_ms": 136.065673828125,
+          "sync_age_seconds": 19.682165500009432,
+          "valid": true,
+          "reason": null,
+          "evaluationMs": 1790535200427,
+          "contract": "exchange-bounds-v1"
+        },
+        "clockBlocks": {
+          "ETHUSDT": null,
+          "QNTUSDT": null,
+          "XRPUSDT": null,
+          "ZECUSDT": null,
+          "SOLUSDT": null,
+          "BTCUSDT": null,
+          "NEARUSDT": null
+        },
+        "reason": null,
+        "scannerError": null,
+        "lastScanOkAt": 1790535199.5827153,
+        "lastScanErrorAt": null,
+        "candidateCount": 9,
+        "activeSymbolCount": 7,
+        "liveSymbolCount": 7,
+        "fastBookReadyCount": 7,
+        "deepBookReadyCount": 7
+      },
+      "recorderHealth": {
+        "background": true,
+        "queuedRows": 6546,
+        "writtenRows": 6546,
+        "pendingRows": 0,
+        "queueDepth": 0,
+        "queueCapacity": 8192,
+        "droppedRows": 0,
+        "droppedBulkRows": 0,
+        "droppedCriticalRows": 0,
+        "writerError": null
+      }
+    }
+  }
+}

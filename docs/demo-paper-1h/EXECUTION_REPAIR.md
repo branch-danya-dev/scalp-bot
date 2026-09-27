@@ -12,3 +12,16 @@
 Подключённый preflight 27.09.2026 прошёл: аккаунт Demo, REGULAR_MARGIN, открытых позиций и заявок во всех проверяемых категориях нет. Сам preflight не создавал заявок. Новый запуск теперь явно разрешён последним сообщением владельца. Результаты фактического запуска будут записаны отдельно.
 
 Риск, плечо, partial, стопы, ML V2/.55, паспорт, recorder и проверки свежести не менялись. Прежний прерванный запуск остаётся INCOMPLETE, ML_TRADING_NOT_TESTED. Его превышение latency не объявляется исправленным этими изменениями; 20/5/250 ms остаются прежними.
+
+## Фактическое подтверждение запуска
+
+Код: `1c5d670b2e89b0af589607571e5da63429e6bc9c`. Полный `python scripts/test_preflight.py`: 1470 passed / 243.14 s. Штатный `scripts/run-paper-1h.ps1` повторно выполнил полный preflight в пользовательской папке: 1470 passed / 209.93 s; публичные REST, L50/L1000, publicTrade/kline прошли. [Полный CI 36341896376](https://github.com/branch-danya-dev/scalp-bot/actions/runs/36341896376): Linux tests + JavaScript и Windows ML/spawn — success.
+
+По новому явному разрешению владельца выполнены оба запуска в видимых терминалах:
+
+- Обычный `paper-current-1h`: POST `/api/bot/start` принят в 21:51:32 МСК 27.09.2026, `botRunning=true`, `marketHealth.ready=true`, часы валидны, семь свежих быстрых/глубоких книг, recorder drops=0. UI: http://127.0.0.1:8000/.
+- Парный Demo/paper: общий Start 21:51:42, первая clock sample отклонена в рамках прежней границы; 21:51:59 получена валидная синхронизация и `accepting=true`. На контрольной отметке 21:53:19 — 21 успешная сверка аккаунта, семь активированных инструментов, 41 завершённый прогноз. Отказов заявок, reconciliation failures и private gaps не записано; естественных пар ещё нет. Принудительных сделок для проверки не создавалось.
+
+Это подтверждение действующих запусков, **не завершённый час и не доказательство новых fills/доходности**. Оба режима самостоятельно ограничены 3600 секундами; финальная Demo-сверка имеет прежние дополнительные 90 секунд. Никакого продления, повторного автоматического Start, private mainnet или изменения PR59.
+
+Локальные подтверждения: `data/audit-demo-execution-repair-20260927/verification.json`, `observation.json`, `full-tests.log`; обычный transcript `data/run-logs/paper-current-1h-20260927-214713-770.log`; новый Demo capture/result root `data/audit-demo-paper-1h-repair-20260927`. [Компактный receipt](EXECUTION_REPAIR_VALIDATION.json). Старые captures, настройки `.env`/Demo-секреты, baseline и V1/V2 не изменены.
