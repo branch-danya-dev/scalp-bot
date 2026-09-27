@@ -55,7 +55,8 @@ class Worker:
     def poll(self):return []
 
 
-async def test_full_mock_start_partial_cancel_stop_reconcile_report(tmp_path,monkeypatch):
+@pytest.mark.parametrize("initial_clock_rejected",[False,True])
+async def test_full_mock_start_partial_cancel_stop_reconcile_report(tmp_path,monkeypatch,initial_clock_rejected):
     import scalp_bot.demo_paper.runtime as runtime
     root=tmp_path/"synthetic-session";cfg=settings(root/"capture")
     session=Session(cfg,metadata(),tmp_path,Credentials("FAKE_KEY","FAKE_SECRET","123"),{},root)
@@ -69,11 +70,23 @@ async def test_full_mock_start_partial_cancel_stop_reconcile_report(tmp_path,mon
     spec=InstrumentSpec("BTCUSDT","Trading",.01,.001,.001,5,100,100,480,100)
     book=OrderBook(bids=[(99.99,100)],asks=[(100,100)])
     async def bootstrap():
+        mono=time.perf_counter_ns()/1e9;wall=time.time()*1000
+        assert session.engine.market_clock.synchronize(server_ms=wall,
+            sent_mono=mono-(.4595151 if initial_clock_rejected else .01),
+            received_mono=mono,received_wall_ms=wall) is (not initial_clock_rejected)
         market=ActiveSymbolSession("BTCUSDT",clock=session.clock)
         market.orderbook=book;market.last_book_at=time.time();market.book_synced=True;market.instrument=spec
         session.engine.sessions["BTCUSDT"]=market
         session.portfolio.books["BTCUSDT"]=book;session.arms["paper"].venue.market("BTCUSDT",book)
         async def submit_then_stop():
+            if initial_clock_rejected:
+                await asyncio.sleep(.02)
+                session.engine._arbitrate_once()
+                assert session.portfolio.stop_reason is None and not session.portfolio.accepting
+                assert not exchange.commands
+                mono=time.perf_counter_ns()/1e9;wall=time.time()*1000
+                assert session.engine.market_clock.synchronize(server_ms=wall,
+                    sent_mono=mono-.2380371,received_mono=mono,received_wall_ms=wall)
             while not session.portfolio.accepting:await asyncio.sleep(.001)
             intent=Intent.freeze(session.run,plan(),1,time.perf_counter_ns())
             assert session.portfolio.admit(intent,spec)[0]
@@ -96,6 +109,13 @@ async def test_full_mock_start_partial_cancel_stop_reconcile_report(tmp_path,mon
     assert sum(not p["reduceOnly"] for p in creates)==1
     assert all(p["reduceOnly"] for p in creates[1:])
     assert result["recorder_health"]["droppedRows"]==0
+    starts=[e for e in session.events if e["event"]=="start"]
+    assert len(starts)==1
+    assert starts[0]["payload"]["deadline_ns"]-starts[0]["payload"]["start_ns"]==3_600_000_000_000
+    if initial_clock_rejected:
+        readiness=[e["payload"] for e in session.events if e["event"]=="entry_readiness"]
+        assert readiness[0]["reason"]=="clock:sync_rtt_exceeded"
+        assert any(r["accepting"] for r in readiness[1:])
 
 
 async def test_signed_funding_dedup_and_unconfirmed_boundary(tmp_path):

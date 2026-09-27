@@ -57,6 +57,7 @@ class Session:
         self.engine=PairedEngine(config,self.portfolio,self.worker,self.adapter,rest_client=self.public,
             recorder=self.recorder,capture_inputs=True,configure_observability=False)
         self.rest.before_write=self.before_write
+        self._entry_readiness_key=None
 
     def before_write(self,path,params):
         if path!="/v5/order/create":return
@@ -181,6 +182,22 @@ class Session:
         return all(any(pair==p and symbol==s and abs(stamp-due)<=2000 for p,s,stamp in self.observed_funding)
                    for pair,symbol,due in self.expected_funding)
 
+    def refresh_admission(self):
+        """Wait without exposure; never bypass clock bounds or resurrect Stop."""
+        clock=self.engine._clock_state()
+        clock_valid=clock is None or clock["valid"]
+        if not clock_valid and self.portfolio.has_execution_work:
+            self.portfolio.halt("clock_invalid")
+        reason=self.portfolio.stop_reason
+        if reason is None and self.stop.is_set():reason="operator_stop"
+        if reason is None and not self.private_ready.is_set():reason="private_not_ready"
+        if reason is None and not clock_valid:reason="clock:"+str(clock["reason"])
+        self.portfolio.accepting=reason is None
+        key=(self.portfolio.accepting,reason)
+        if key!=self._entry_readiness_key:
+            self._entry_readiness_key=key
+            self.emit("entry_readiness",dict(accepting=self.portfolio.accepting,reason=reason,clock=clock))
+
     async def run_session(self):
         restore=install_stop_signals(self.stop)
         reason="preflight_failed";complete=False
@@ -203,8 +220,9 @@ class Session:
             self.tasks.extend(asyncio.create_task(self.manage(n)) for n in self.arms)
             self.tasks.append(asyncio.create_task(self.account_loop()))
             await asyncio.wait_for(self.engine.start(),30)
-            self.engine.running=True;self.portfolio.accepting=True
+            self.engine.running=True;self.refresh_admission()
             while not self.stop.is_set() and not self.portfolio.stop_reason and time.perf_counter_ns()-self.start_ns<3_600_000_000_000:
+                self.refresh_admission()
                 self.engine.poll_ml()
                 health=self.recorder.health()
                 if health["writerError"] or health["droppedRows"]:self.portfolio.halt("recorder_failure")

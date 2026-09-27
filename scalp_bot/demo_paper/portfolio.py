@@ -139,6 +139,11 @@ class PairedPortfolio:
         self.started_ns=None;self.last_health_ns=0;self.cancel_entries=set();self.exit_reasons={};self.dispatching=set()
 
     @property
+    def has_execution_work(self):
+        return bool(self.reservations or self.positions or self.dispatching
+                    or any(not queue.empty() for queue in self.queues.values()))
+
+    @property
     def balance(self): return min(a.broker.balance for a in self.arms.values())
     @property
     def available_notional(self):

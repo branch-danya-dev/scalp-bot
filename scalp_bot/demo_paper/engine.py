@@ -153,7 +153,14 @@ class PairedEngine(TradingEngine):
         if self.worker:self.worker.deactivate(symbol)
         if symbol in self.portfolio.by_symbol:self.portfolio.halt("public_transport_gap")
 
-    def _cancel_all_pending(self,reason):self.portfolio.halt(reason)
+    def _cancel_all_pending(self,reason):
+        if reason=="clock_invalid" and not self.portfolio.has_execution_work:
+            # The ordinary arbiter cancels pending entries while time is not
+            # synchronized. An empty startup has nothing to cancel or close;
+            # retain the clock retry loop instead of terminating the hour.
+            self.portfolio.accepting=False
+            return
+        self.portfolio.halt(reason)
     def _close_all_positions(self,reason):self.portfolio.halt(reason)
     def _stop_trading(self,reason,**kwargs):
         self.running=False;self.portfolio.halt(reason)

@@ -1,3 +1,11 @@
+# Latest handoff — owner startup clock repair
+
+Исправлена преждевременная остановка пустого Demo/paper-прогона после первого отклонённого clock sample: теперь входы закрыты до подтверждённой синхронизации, повторная проверка работает внутри исходного часа. При наличии резервирования/заявки/позиции потеря часов по-прежнему запускает безопасное завершение. Лимиты 400 ms, freshness и паспорт не менялись. [Разбор и проверки](docs/demo-paper-1h/STARTUP_CLOCK_FIX.md).
+
+Первый ручной запуск владельца прошёл Demo preflight, но завершился с нулём пар; исходные журналы сохранены. 77 регрессий прошли. Повторного рыночного запуска агент не выполнял. Следующие разделы описывают прежний этап подготовки, до этой попытки владельца.
+
+---
+
 # Current handoff — Demo / paper preparation
 
 Новый режим `demo-paper-execution-1h-v1` реализован отдельно от обычного запуска и PR59. [Протокол и ручной Start](DEMO_PAPER_1H_PROTOCOL.md), [implementation review](DEMO_PAPER_IMPLEMENTATION_REVIEW.md), [паспорт](docs/demo-paper-1h/passport.json), [проверки](docs/demo-paper-1h/VALIDATION.md).
