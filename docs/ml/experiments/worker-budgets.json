@@ -1,0 +1,16 @@
+{
+  "fixed_before_measurement":true,
+  "worker_processes":1,
+  "model_threads":1,
+  "inflight_queue":1,
+  "latest_mailbox_symbols":12,
+  "forecast_ttl_ms":1000,
+  "prediction_timeout_ms":2000,
+  "shutdown_timeout_ms":1000,
+  "startup_budget_seconds":30,
+  "event_loop_p99_ms":20,
+  "event_loop_p99_added_ms":5,
+  "data_to_proposal_p99_ms":250,
+  "rss_worker_mb":512,
+  "training_max_seconds":300,
+  "note":"Budgets are acceptance measurements, not assumed guarantees. Offline replay duration excludes accelerated source clock."}

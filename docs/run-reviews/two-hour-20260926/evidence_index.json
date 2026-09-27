@@ -1,0 +1,4359 @@
+{
+  "file": "session-20260926T193029Z.jsonl",
+  "lineBase": 1,
+  "byteOffsets": "uncompressed original JSONL",
+  "timestamps": "output wall time UTC / display Europe/Moscow UTC+03; durations use recorded monotonic",
+  "events": {
+    "124178": {
+      "line": 124178,
+      "byteOffset": 1030282412,
+      "wallUtc": "2026-09-26T20:25:14.064008+00:00",
+      "event": "trade_opened",
+      "symbol": "ZECUSDT"
+    },
+    "125255": {
+      "line": 125255,
+      "byteOffset": 1041952869,
+      "wallUtc": "2026-09-26T20:25:37.466927+00:00",
+      "event": "trade_closed",
+      "symbol": "ZECUSDT"
+    },
+    "125252": {
+      "line": 125252,
+      "byteOffset": 1041222559,
+      "wallUtc": "2026-09-26T20:25:37.458154+00:00",
+      "event": "partial_take",
+      "symbol": "ZECUSDT"
+    },
+    "119999": {
+      "line": 119999,
+      "byteOffset": 998800254,
+      "wallUtc": "2026-09-26T20:23:40.742497+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "124175": {
+      "line": 124175,
+      "byteOffset": 1030144358,
+      "wallUtc": "2026-09-26T20:25:14.050355+00:00",
+      "event": "decision",
+      "symbol": "ZECUSDT"
+    },
+    "120000": {
+      "line": 120000,
+      "byteOffset": 998802121,
+      "wallUtc": "2026-09-26T20:23:40.743233+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "123659": {
+      "line": 123659,
+      "byteOffset": 1025918049,
+      "wallUtc": "2026-09-26T20:25:03.543053+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "124068": {
+      "line": 124068,
+      "byteOffset": 1029253652,
+      "wallUtc": "2026-09-26T20:25:12.220366+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "124172": {
+      "line": 124172,
+      "byteOffset": 1030107335,
+      "wallUtc": "2026-09-26T20:25:14.044046+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "124176": {
+      "line": 124176,
+      "byteOffset": 1030213583,
+      "wallUtc": "2026-09-26T20:25:14.053685+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "124177": {
+      "line": 124177,
+      "byteOffset": 1030247991,
+      "wallUtc": "2026-09-26T20:25:14.058329+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "125253": {
+      "line": 125253,
+      "byteOffset": 1041918268,
+      "wallUtc": "2026-09-26T20:25:37.460353+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "160366": {
+      "line": 160366,
+      "byteOffset": 1335123580,
+      "wallUtc": "2026-09-26T20:40:11.063527+00:00",
+      "event": "trade_opened",
+      "symbol": "ENAUSDT"
+    },
+    "161120": {
+      "line": 161120,
+      "byteOffset": 1344637621,
+      "wallUtc": "2026-09-26T20:40:23.252564+00:00",
+      "event": "trade_closed",
+      "symbol": "ENAUSDT"
+    },
+    "159741": {
+      "line": 159741,
+      "byteOffset": 1325348362,
+      "wallUtc": "2026-09-26T20:40:01.698065+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "160361": {
+      "line": 160361,
+      "byteOffset": 1333906501,
+      "wallUtc": "2026-09-26T20:40:11.009947+00:00",
+      "event": "decision",
+      "symbol": "ENAUSDT"
+    },
+    "159742": {
+      "line": 159742,
+      "byteOffset": 1325350261,
+      "wallUtc": "2026-09-26T20:40:01.701849+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "160111": {
+      "line": 160111,
+      "byteOffset": 1328632113,
+      "wallUtc": "2026-09-26T20:40:06.998966+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "160359": {
+      "line": 160359,
+      "byteOffset": 1333872004,
+      "wallUtc": "2026-09-26T20:40:11.006473+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "160364": {
+      "line": 160364,
+      "byteOffset": 1335054637,
+      "wallUtc": "2026-09-26T20:40:11.042439+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "160365": {
+      "line": 160365,
+      "byteOffset": 1335089103,
+      "wallUtc": "2026-09-26T20:40:11.047484+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "161118": {
+      "line": 161118,
+      "byteOffset": 1344602966,
+      "wallUtc": "2026-09-26T20:40:23.241570+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "161927": {
+      "line": 161927,
+      "byteOffset": 1353445825,
+      "wallUtc": "2026-09-26T20:40:36.768055+00:00",
+      "event": "trade_opened",
+      "symbol": "XRPUSDT"
+    },
+    "162007": {
+      "line": 162007,
+      "byteOffset": 1354455344,
+      "wallUtc": "2026-09-26T20:40:38.573731+00:00",
+      "event": "trade_closed",
+      "symbol": "XRPUSDT"
+    },
+    "161771": {
+      "line": 161771,
+      "byteOffset": 1351262030,
+      "wallUtc": "2026-09-26T20:40:34.526585+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "161914": {
+      "line": 161914,
+      "byteOffset": 1352396318,
+      "wallUtc": "2026-09-26T20:40:36.574952+00:00",
+      "event": "decision",
+      "symbol": "XRPUSDT"
+    },
+    "161915": {
+      "line": 161915,
+      "byteOffset": 1352439896,
+      "wallUtc": "2026-09-26T20:40:36.594080+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "161772": {
+      "line": 161772,
+      "byteOffset": 1351263899,
+      "wallUtc": "2026-09-26T20:40:34.531470+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "161863": {
+      "line": 161863,
+      "byteOffset": 1351999902,
+      "wallUtc": "2026-09-26T20:40:35.779448+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "161912": {
+      "line": 161912,
+      "byteOffset": 1352379505,
+      "wallUtc": "2026-09-26T20:40:36.569368+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "161925": {
+      "line": 161925,
+      "byteOffset": 1353441275,
+      "wallUtc": "2026-09-26T20:40:36.743158+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "161926": {
+      "line": 161926,
+      "byteOffset": 1353443544,
+      "wallUtc": "2026-09-26T20:40:36.745772+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "162005": {
+      "line": 162005,
+      "byteOffset": 1354452879,
+      "wallUtc": "2026-09-26T20:40:38.553194+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "164503": {
+      "line": 164503,
+      "byteOffset": 1375759425,
+      "wallUtc": "2026-09-26T20:41:27.589360+00:00",
+      "event": "trade_opened",
+      "symbol": "ETHUSDT"
+    },
+    "169625": {
+      "line": 169625,
+      "byteOffset": 1429647356,
+      "wallUtc": "2026-09-26T20:43:09.764746+00:00",
+      "event": "trade_closed",
+      "symbol": "ETHUSDT"
+    },
+    "164414": {
+      "line": 164414,
+      "byteOffset": 1374821238,
+      "wallUtc": "2026-09-26T20:41:25.835589+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "164500": {
+      "line": 164500,
+      "byteOffset": 1375491236,
+      "wallUtc": "2026-09-26T20:41:27.533603+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "164415": {
+      "line": 164415,
+      "byteOffset": 1374823088,
+      "wallUtc": "2026-09-26T20:41:25.846639+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "164498": {
+      "line": 164498,
+      "byteOffset": 1375404789,
+      "wallUtc": "2026-09-26T20:41:27.528263+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "164501": {
+      "line": 164501,
+      "byteOffset": 1375638831,
+      "wallUtc": "2026-09-26T20:41:27.538953+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "164502": {
+      "line": 164502,
+      "byteOffset": 1375699122,
+      "wallUtc": "2026-09-26T20:41:27.557593+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "169623": {
+      "line": 169623,
+      "byteOffset": 1429586872,
+      "wallUtc": "2026-09-26T20:43:09.756634+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "234686": {
+      "line": 234686,
+      "byteOffset": 1961147670,
+      "wallUtc": "2026-09-26T21:09:02.483069+00:00",
+      "event": "trade_opened",
+      "symbol": "ZECUSDT"
+    },
+    "234768": {
+      "line": 234768,
+      "byteOffset": 1962698591,
+      "wallUtc": "2026-09-26T21:09:04.802182+00:00",
+      "event": "trade_closed",
+      "symbol": "ZECUSDT"
+    },
+    "233620": {
+      "line": 233620,
+      "byteOffset": 1952266706,
+      "wallUtc": "2026-09-26T21:08:36.481970+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "234683": {
+      "line": 234683,
+      "byteOffset": 1961053164,
+      "wallUtc": "2026-09-26T21:09:02.465973+00:00",
+      "event": "decision",
+      "symbol": "ZECUSDT"
+    },
+    "233621": {
+      "line": 233621,
+      "byteOffset": 1952268631,
+      "wallUtc": "2026-09-26T21:08:36.483835+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "234651": {
+      "line": 234651,
+      "byteOffset": 1960842976,
+      "wallUtc": "2026-09-26T21:09:01.921195+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "234681": {
+      "line": 234681,
+      "byteOffset": 1961036269,
+      "wallUtc": "2026-09-26T21:09:02.462865+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "234684": {
+      "line": 234684,
+      "byteOffset": 1961096737,
+      "wallUtc": "2026-09-26T21:09:02.469357+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "234685": {
+      "line": 234685,
+      "byteOffset": 1961122199,
+      "wallUtc": "2026-09-26T21:09:02.473339+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "234766": {
+      "line": 234766,
+      "byteOffset": 1962672937,
+      "wallUtc": "2026-09-26T21:09:04.793596+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "277452": {
+      "line": 277452,
+      "byteOffset": 2315066856,
+      "wallUtc": "2026-09-26T21:25:39.951322+00:00",
+      "event": "trade_opened",
+      "symbol": "ZECUSDT"
+    },
+    "277934": {
+      "line": 277934,
+      "byteOffset": 2320034304,
+      "wallUtc": "2026-09-26T21:25:50.071061+00:00",
+      "event": "trade_closed",
+      "symbol": "ZECUSDT"
+    },
+    "274925": {
+      "line": 274925,
+      "byteOffset": 2289223843,
+      "wallUtc": "2026-09-26T21:24:52.492645+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "277449": {
+      "line": 277449,
+      "byteOffset": 2314973694,
+      "wallUtc": "2026-09-26T21:25:39.913608+00:00",
+      "event": "decision",
+      "symbol": "ZECUSDT"
+    },
+    "274926": {
+      "line": 274926,
+      "byteOffset": 2289225713,
+      "wallUtc": "2026-09-26T21:24:52.500861+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "275065": {
+      "line": 275065,
+      "byteOffset": 2290275993,
+      "wallUtc": "2026-09-26T21:24:55.002728+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "275079": {
+      "line": 275079,
+      "byteOffset": 2290343866,
+      "wallUtc": "2026-09-26T21:24:55.226182+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "275156": {
+      "line": 275156,
+      "byteOffset": 2290915392,
+      "wallUtc": "2026-09-26T21:24:56.627045+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "275166": {
+      "line": 275166,
+      "byteOffset": 2290949435,
+      "wallUtc": "2026-09-26T21:24:56.807891+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "275212": {
+      "line": 275212,
+      "byteOffset": 2291561476,
+      "wallUtc": "2026-09-26T21:24:57.361061+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "275275": {
+      "line": 275275,
+      "byteOffset": 2292057913,
+      "wallUtc": "2026-09-26T21:24:58.337625+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "277447": {
+      "line": 277447,
+      "byteOffset": 2314957106,
+      "wallUtc": "2026-09-26T21:25:39.906522+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "277450": {
+      "line": 277450,
+      "byteOffset": 2315016223,
+      "wallUtc": "2026-09-26T21:25:39.917221+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "277451": {
+      "line": 277451,
+      "byteOffset": 2315041534,
+      "wallUtc": "2026-09-26T21:25:39.921082+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "277932": {
+      "line": 277932,
+      "byteOffset": 2320008798,
+      "wallUtc": "2026-09-26T21:25:50.043658+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "24": {
+      "line": 24,
+      "byteOffset": 898359,
+      "wallUtc": "2026-09-26T19:30:36.303218+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "1816": {
+      "line": 1816,
+      "byteOffset": 16525273,
+      "wallUtc": "2026-09-26T19:31:33.357318+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "76": {
+      "line": 76,
+      "byteOffset": 2039388,
+      "wallUtc": "2026-09-26T19:30:38.866964+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "9382": {
+      "line": 9382,
+      "byteOffset": 78662509,
+      "wallUtc": "2026-09-26T19:34:59.577379+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "739": {
+      "line": 739,
+      "byteOffset": 8232651,
+      "wallUtc": "2026-09-26T19:31:00.519743+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "11518": {
+      "line": 11518,
+      "byteOffset": 96121199,
+      "wallUtc": "2026-09-26T19:36:00.738339+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "1836": {
+      "line": 1836,
+      "byteOffset": 16692847,
+      "wallUtc": "2026-09-26T19:31:34.163601+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "9358": {
+      "line": 9358,
+      "byteOffset": 78547961,
+      "wallUtc": "2026-09-26T19:34:59.293931+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "2357": {
+      "line": 2357,
+      "byteOffset": 21045693,
+      "wallUtc": "2026-09-26T19:31:50.338676+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "6018": {
+      "line": 6018,
+      "byteOffset": 51140155,
+      "wallUtc": "2026-09-26T19:33:29.210012+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "3800": {
+      "line": 3800,
+      "byteOffset": 32484532,
+      "wallUtc": "2026-09-26T19:32:29.038086+00:00",
+      "event": "risk_reject",
+      "symbol": "NEARUSDT"
+    },
+    "6054": {
+      "line": 6054,
+      "byteOffset": 51504032,
+      "wallUtc": "2026-09-26T19:33:30.144285+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "11083": {
+      "line": 11083,
+      "byteOffset": 92836615,
+      "wallUtc": "2026-09-26T19:35:47.992849+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "9367": {
+      "line": 9367,
+      "byteOffset": 78597339,
+      "wallUtc": "2026-09-26T19:34:59.346619+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "14324": {
+      "line": 14324,
+      "byteOffset": 124123605,
+      "wallUtc": "2026-09-26T19:37:17.219458+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "9386": {
+      "line": 9386,
+      "byteOffset": 78681160,
+      "wallUtc": "2026-09-26T19:34:59.627982+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "13527": {
+      "line": 13527,
+      "byteOffset": 117507422,
+      "wallUtc": "2026-09-26T19:36:55.873632+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "12956": {
+      "line": 12956,
+      "byteOffset": 107920506,
+      "wallUtc": "2026-09-26T19:36:40.851293+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "12959": {
+      "line": 12959,
+      "byteOffset": 108412641,
+      "wallUtc": "2026-09-26T19:36:40.876059+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "12965": {
+      "line": 12965,
+      "byteOffset": 108912724,
+      "wallUtc": "2026-09-26T19:36:41.140241+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "12989": {
+      "line": 12989,
+      "byteOffset": 109698150,
+      "wallUtc": "2026-09-26T19:36:41.658499+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "13000": {
+      "line": 13000,
+      "byteOffset": 110292626,
+      "wallUtc": "2026-09-26T19:36:41.917103+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "13041": {
+      "line": 13041,
+      "byteOffset": 111148466,
+      "wallUtc": "2026-09-26T19:36:42.951872+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "13060": {
+      "line": 13060,
+      "byteOffset": 111757081,
+      "wallUtc": "2026-09-26T19:36:43.470746+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "13386": {
+      "line": 13386,
+      "byteOffset": 115024494,
+      "wallUtc": "2026-09-26T19:36:52.174962+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "13402": {
+      "line": 13402,
+      "byteOffset": 115577445,
+      "wallUtc": "2026-09-26T19:36:52.704477+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "13410": {
+      "line": 13410,
+      "byteOffset": 116082938,
+      "wallUtc": "2026-09-26T19:36:52.967017+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "11106": {
+      "line": 11106,
+      "byteOffset": 92950914,
+      "wallUtc": "2026-09-26T19:35:48.806918+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "16866": {
+      "line": 16866,
+      "byteOffset": 146047301,
+      "wallUtc": "2026-09-26T19:38:21.840718+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "12128": {
+      "line": 12128,
+      "byteOffset": 101331236,
+      "wallUtc": "2026-09-26T19:36:18.192734+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "14762": {
+      "line": 14762,
+      "byteOffset": 127751767,
+      "wallUtc": "2026-09-26T19:37:28.210255+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "13549": {
+      "line": 13549,
+      "byteOffset": 117642940,
+      "wallUtc": "2026-09-26T19:36:56.677003+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "18228": {
+      "line": 18228,
+      "byteOffset": 160672283,
+      "wallUtc": "2026-09-26T19:38:53.954890+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "15765": {
+      "line": 15765,
+      "byteOffset": 136065135,
+      "wallUtc": "2026-09-26T19:37:53.848740+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "15826": {
+      "line": 15826,
+      "byteOffset": 137027364,
+      "wallUtc": "2026-09-26T19:37:55.404304+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "17238": {
+      "line": 17238,
+      "byteOffset": 149052948,
+      "wallUtc": "2026-09-26T19:38:30.207118+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "17248": {
+      "line": 17248,
+      "byteOffset": 149678213,
+      "wallUtc": "2026-09-26T19:38:30.310543+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "17263": {
+      "line": 17263,
+      "byteOffset": 150229381,
+      "wallUtc": "2026-09-26T19:38:30.579030+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "17277": {
+      "line": 17277,
+      "byteOffset": 150820820,
+      "wallUtc": "2026-09-26T19:38:30.838972+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "17290": {
+      "line": 17290,
+      "byteOffset": 151376340,
+      "wallUtc": "2026-09-26T19:38:31.102555+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "17314": {
+      "line": 17314,
+      "byteOffset": 152033631,
+      "wallUtc": "2026-09-26T19:38:31.618892+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "17332": {
+      "line": 17332,
+      "byteOffset": 152583936,
+      "wallUtc": "2026-09-26T19:38:31.894149+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "17347": {
+      "line": 17347,
+      "byteOffset": 153234945,
+      "wallUtc": "2026-09-26T19:38:32.156096+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "14355": {
+      "line": 14355,
+      "byteOffset": 124357148,
+      "wallUtc": "2026-09-26T19:37:18.049126+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "26199": {
+      "line": 26199,
+      "byteOffset": 223962519,
+      "wallUtc": "2026-09-26T19:42:18.202463+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "14619": {
+      "line": 14619,
+      "byteOffset": 126680771,
+      "wallUtc": "2026-09-26T19:37:25.135204+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "21997": {
+      "line": 21997,
+      "byteOffset": 189878000,
+      "wallUtc": "2026-09-26T19:40:26.526717+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "14773": {
+      "line": 14773,
+      "byteOffset": 127819896,
+      "wallUtc": "2026-09-26T19:37:28.374732+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "15730": {
+      "line": 15730,
+      "byteOffset": 135786012,
+      "wallUtc": "2026-09-26T19:37:52.744619+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "16900": {
+      "line": 16900,
+      "byteOffset": 146314793,
+      "wallUtc": "2026-09-26T19:38:22.642818+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "21718": {
+      "line": 21718,
+      "byteOffset": 187587414,
+      "wallUtc": "2026-09-26T19:40:17.958734+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "16914": {
+      "line": 16914,
+      "byteOffset": 146440824,
+      "wallUtc": "2026-09-26T19:38:22.808730+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "28719": {
+      "line": 28719,
+      "byteOffset": 244290962,
+      "wallUtc": "2026-09-26T19:43:22.992488+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "22572": {
+      "line": 22572,
+      "byteOffset": 194710664,
+      "wallUtc": "2026-09-26T19:40:43.497308+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "33875": {
+      "line": 33875,
+      "byteOffset": 286367967,
+      "wallUtc": "2026-09-26T19:45:43.629806+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "22935": {
+      "line": 22935,
+      "byteOffset": 197828033,
+      "wallUtc": "2026-09-26T19:40:53.555174+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "34244": {
+      "line": 34244,
+      "byteOffset": 289537948,
+      "wallUtc": "2026-09-26T19:45:53.683840+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "33498": {
+      "line": 33498,
+      "byteOffset": 282856709,
+      "wallUtc": "2026-09-26T19:45:34.495982+00:00",
+      "event": "risk_reject",
+      "symbol": "NEARUSDT"
+    },
+    "26687": {
+      "line": 26687,
+      "byteOffset": 228199503,
+      "wallUtc": "2026-09-26T19:42:31.222099+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "37919": {
+      "line": 37919,
+      "byteOffset": 318926462,
+      "wallUtc": "2026-09-26T19:47:31.417747+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "27760": {
+      "line": 27760,
+      "byteOffset": 236623859,
+      "wallUtc": "2026-09-26T19:42:59.842503+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "38920": {
+      "line": 38920,
+      "byteOffset": 327417639,
+      "wallUtc": "2026-09-26T19:47:59.915234+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "30632": {
+      "line": 30632,
+      "byteOffset": 260225448,
+      "wallUtc": "2026-09-26T19:44:16.873616+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "41662": {
+      "line": 41662,
+      "byteOffset": 349878526,
+      "wallUtc": "2026-09-26T19:49:17.190896+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "34271": {
+      "line": 34271,
+      "byteOffset": 289665349,
+      "wallUtc": "2026-09-26T19:45:54.541429+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "45051": {
+      "line": 45051,
+      "byteOffset": 377817704,
+      "wallUtc": "2026-09-26T19:50:54.756210+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "41672": {
+      "line": 41672,
+      "byteOffset": 349912719,
+      "wallUtc": "2026-09-26T19:49:17.410849+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "52564": {
+      "line": 52564,
+      "byteOffset": 438764200,
+      "wallUtc": "2026-09-26T19:54:17.634447+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "41831": {
+      "line": 41831,
+      "byteOffset": 351426934,
+      "wallUtc": "2026-09-26T19:49:21.927921+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "43030": {
+      "line": 43030,
+      "byteOffset": 361579257,
+      "wallUtc": "2026-09-26T19:49:57.270098+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "43838": {
+      "line": 43838,
+      "byteOffset": 368079390,
+      "wallUtc": "2026-09-26T19:50:19.904330+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "48582": {
+      "line": 48582,
+      "byteOffset": 405658237,
+      "wallUtc": "2026-09-26T19:52:26.738636+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "45059": {
+      "line": 45059,
+      "byteOffset": 377925048,
+      "wallUtc": "2026-09-26T19:50:54.978414+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "56181": {
+      "line": 56181,
+      "byteOffset": 469637082,
+      "wallUtc": "2026-09-26T19:55:55.020783+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "46288": {
+      "line": 46288,
+      "byteOffset": 388059705,
+      "wallUtc": "2026-09-26T19:51:29.370389+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "57369": {
+      "line": 57369,
+      "byteOffset": 479776616,
+      "wallUtc": "2026-09-26T19:56:29.398314+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "47473": {
+      "line": 47473,
+      "byteOffset": 397773736,
+      "wallUtc": "2026-09-26T19:52:01.870409+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "58510": {
+      "line": 58510,
+      "byteOffset": 489724262,
+      "wallUtc": "2026-09-26T19:57:02.047477+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "52587": {
+      "line": 52587,
+      "byteOffset": 439161805,
+      "wallUtc": "2026-09-26T19:54:18.389878+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "55239": {
+      "line": 55239,
+      "byteOffset": 461792608,
+      "wallUtc": "2026-09-26T19:55:30.582675+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "55248": {
+      "line": 55248,
+      "byteOffset": 461839858,
+      "wallUtc": "2026-09-26T19:55:30.656627+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "63149": {
+      "line": 63149,
+      "byteOffset": 531794317,
+      "wallUtc": "2026-09-26T19:59:20.566997+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "61179": {
+      "line": 61179,
+      "byteOffset": 513437540,
+      "wallUtc": "2026-09-26T19:58:20.564192+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "58807": {
+      "line": 58807,
+      "byteOffset": 492104747,
+      "wallUtc": "2026-09-26T19:57:10.039782+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "62603": {
+      "line": 62603,
+      "byteOffset": 526941536,
+      "wallUtc": "2026-09-26T19:59:02.592892+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "64426": {
+      "line": 64426,
+      "byteOffset": 542770356,
+      "wallUtc": "2026-09-26T19:59:58.892949+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "68842": {
+      "line": 68842,
+      "byteOffset": 578233022,
+      "wallUtc": "2026-09-26T20:01:54.263722+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "64579": {
+      "line": 64579,
+      "byteOffset": 544007274,
+      "wallUtc": "2026-09-26T20:00:02.803254+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "67078": {
+      "line": 67078,
+      "byteOffset": 564426372,
+      "wallUtc": "2026-09-26T20:01:10.667937+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "67059": {
+      "line": 67059,
+      "byteOffset": 564279316,
+      "wallUtc": "2026-09-26T20:01:10.425744+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "69281": {
+      "line": 69281,
+      "byteOffset": 581772658,
+      "wallUtc": "2026-09-26T20:02:05.497360+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "67085": {
+      "line": 67085,
+      "byteOffset": 564453026,
+      "wallUtc": "2026-09-26T20:01:10.723542+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "78080": {
+      "line": 78080,
+      "byteOffset": 656660666,
+      "wallUtc": "2026-09-26T20:06:10.815702+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "68848": {
+      "line": 68848,
+      "byteOffset": 578257133,
+      "wallUtc": "2026-09-26T20:01:54.315887+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "72769": {
+      "line": 72769,
+      "byteOffset": 611404151,
+      "wallUtc": "2026-09-26T20:03:37.987129+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "70514": {
+      "line": 70514,
+      "byteOffset": 592230585,
+      "wallUtc": "2026-09-26T20:02:37.506457+00:00",
+      "event": "risk_reject",
+      "symbol": "NEARUSDT"
+    },
+    "69362": {
+      "line": 69362,
+      "byteOffset": 582480823,
+      "wallUtc": "2026-09-26T20:02:07.553552+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "75098": {
+      "line": 75098,
+      "byteOffset": 631075785,
+      "wallUtc": "2026-09-26T20:04:44.987806+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "71027": {
+      "line": 71027,
+      "byteOffset": 597138928,
+      "wallUtc": "2026-09-26T20:02:53.293141+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "77719": {
+      "line": 77719,
+      "byteOffset": 653423907,
+      "wallUtc": "2026-09-26T20:06:01.243224+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "77373": {
+      "line": 77373,
+      "byteOffset": 650707256,
+      "wallUtc": "2026-09-26T20:05:51.999028+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "79384": {
+      "line": 79384,
+      "byteOffset": 666850513,
+      "wallUtc": "2026-09-26T20:06:42.750008+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "77780": {
+      "line": 77780,
+      "byteOffset": 654105178,
+      "wallUtc": "2026-09-26T20:06:02.121529+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "77899": {
+      "line": 77899,
+      "byteOffset": 655068872,
+      "wallUtc": "2026-09-26T20:06:05.119799+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "78089": {
+      "line": 78089,
+      "byteOffset": 656692440,
+      "wallUtc": "2026-09-26T20:06:11.044068+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "85369": {
+      "line": 85369,
+      "byteOffset": 719764599,
+      "wallUtc": "2026-09-26T20:09:11.105595+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "78461": {
+      "line": 78461,
+      "byteOffset": 659594147,
+      "wallUtc": "2026-09-26T20:06:19.773388+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "81914": {
+      "line": 81914,
+      "byteOffset": 686075090,
+      "wallUtc": "2026-09-26T20:07:46.413318+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "79868": {
+      "line": 79868,
+      "byteOffset": 671068401,
+      "wallUtc": "2026-09-26T20:06:58.192509+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "83496": {
+      "line": 83496,
+      "byteOffset": 698702609,
+      "wallUtc": "2026-09-26T20:08:25.341604+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "79976": {
+      "line": 79976,
+      "byteOffset": 671932038,
+      "wallUtc": "2026-09-26T20:06:59.720615+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "85048": {
+      "line": 85048,
+      "byteOffset": 717490709,
+      "wallUtc": "2026-09-26T20:09:05.046965+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "80214": {
+      "line": 80214,
+      "byteOffset": 673643105,
+      "wallUtc": "2026-09-26T20:07:07.049827+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "84028": {
+      "line": 84028,
+      "byteOffset": 706980797,
+      "wallUtc": "2026-09-26T20:08:39.817772+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "83856": {
+      "line": 83856,
+      "byteOffset": 701535479,
+      "wallUtc": "2026-09-26T20:08:35.631896+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "86704": {
+      "line": 86704,
+      "byteOffset": 731298102,
+      "wallUtc": "2026-09-26T20:09:36.725779+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "83905": {
+      "line": 83905,
+      "byteOffset": 702039582,
+      "wallUtc": "2026-09-26T20:08:36.713244+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "83916": {
+      "line": 83916,
+      "byteOffset": 702580469,
+      "wallUtc": "2026-09-26T20:08:36.872183+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "83960": {
+      "line": 83960,
+      "byteOffset": 703506521,
+      "wallUtc": "2026-09-26T20:08:38.165443+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "83979": {
+      "line": 83979,
+      "byteOffset": 704163561,
+      "wallUtc": "2026-09-26T20:08:38.690288+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "83991": {
+      "line": 83991,
+      "byteOffset": 704756773,
+      "wallUtc": "2026-09-26T20:08:38.959376+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "84001": {
+      "line": 84001,
+      "byteOffset": 705364482,
+      "wallUtc": "2026-09-26T20:08:39.229572+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "84007": {
+      "line": 84007,
+      "byteOffset": 705870875,
+      "wallUtc": "2026-09-26T20:08:39.502955+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "84020": {
+      "line": 84020,
+      "byteOffset": 706433290,
+      "wallUtc": "2026-09-26T20:08:39.776437+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "84037": {
+      "line": 84037,
+      "byteOffset": 707036144,
+      "wallUtc": "2026-09-26T20:08:40.043879+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "84041": {
+      "line": 84041,
+      "byteOffset": 707537081,
+      "wallUtc": "2026-09-26T20:08:40.308877+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "84050": {
+      "line": 84050,
+      "byteOffset": 708164463,
+      "wallUtc": "2026-09-26T20:08:40.571910+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "84058": {
+      "line": 84058,
+      "byteOffset": 708675651,
+      "wallUtc": "2026-09-26T20:08:40.841337+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "84076": {
+      "line": 84076,
+      "byteOffset": 709297975,
+      "wallUtc": "2026-09-26T20:08:41.546800+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "84194": {
+      "line": 84194,
+      "byteOffset": 710886728,
+      "wallUtc": "2026-09-26T20:08:44.780000+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "85149": {
+      "line": 85149,
+      "byteOffset": 718253689,
+      "wallUtc": "2026-09-26T20:09:06.872693+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "84742": {
+      "line": 84742,
+      "byteOffset": 715274402,
+      "wallUtc": "2026-09-26T20:08:59.093676+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "85862": {
+      "line": 85862,
+      "byteOffset": 722887529,
+      "wallUtc": "2026-09-26T20:09:18.300357+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "85098": {
+      "line": 85098,
+      "byteOffset": 717771823,
+      "wallUtc": "2026-09-26T20:09:05.863349+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "85927": {
+      "line": 85927,
+      "byteOffset": 723236595,
+      "wallUtc": "2026-09-26T20:09:19.464582+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "85182": {
+      "line": 85182,
+      "byteOffset": 718371193,
+      "wallUtc": "2026-09-26T20:09:07.684654+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "85803": {
+      "line": 85803,
+      "byteOffset": 722392359,
+      "wallUtc": "2026-09-26T20:09:17.317096+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "85376": {
+      "line": 85376,
+      "byteOffset": 719791236,
+      "wallUtc": "2026-09-26T20:09:11.160247+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "85923": {
+      "line": 85923,
+      "byteOffset": 723218009,
+      "wallUtc": "2026-09-26T20:09:19.445408+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "85421": {
+      "line": 85421,
+      "byteOffset": 719998089,
+      "wallUtc": "2026-09-26T20:09:11.861542+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "90746": {
+      "line": 90746,
+      "byteOffset": 764972977,
+      "wallUtc": "2026-09-26T20:11:03.745984+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "86216": {
+      "line": 86216,
+      "byteOffset": 725394079,
+      "wallUtc": "2026-09-26T20:09:26.044267+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "90556": {
+      "line": 90556,
+      "byteOffset": 763552955,
+      "wallUtc": "2026-09-26T20:10:59.278363+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "87764": {
+      "line": 87764,
+      "byteOffset": 743160630,
+      "wallUtc": "2026-09-26T20:09:59.244432+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "86438": {
+      "line": 86438,
+      "byteOffset": 727646513,
+      "wallUtc": "2026-09-26T20:09:31.197554+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "89364": {
+      "line": 89364,
+      "byteOffset": 755646460,
+      "wallUtc": "2026-09-26T20:10:35.414475+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "87928": {
+      "line": 87928,
+      "byteOffset": 744843284,
+      "wallUtc": "2026-09-26T20:10:02.299656+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "99277": {
+      "line": 99277,
+      "byteOffset": 835205410,
+      "wallUtc": "2026-09-26T20:14:58.897213+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "89392": {
+      "line": 89392,
+      "byteOffset": 755815458,
+      "wallUtc": "2026-09-26T20:10:35.939812+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "100850": {
+      "line": 100850,
+      "byteOffset": 847127432,
+      "wallUtc": "2026-09-26T20:15:35.978417+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "89413": {
+      "line": 89413,
+      "byteOffset": 755947923,
+      "wallUtc": "2026-09-26T20:10:36.270037+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "99577": {
+      "line": 99577,
+      "byteOffset": 837429750,
+      "wallUtc": "2026-09-26T20:15:06.877696+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "94779": {
+      "line": 94779,
+      "byteOffset": 798624454,
+      "wallUtc": "2026-09-26T20:12:58.546229+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "96978": {
+      "line": 96978,
+      "byteOffset": 816568342,
+      "wallUtc": "2026-09-26T20:13:58.506595+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "95294": {
+      "line": 95294,
+      "byteOffset": 803082423,
+      "wallUtc": "2026-09-26T20:13:13.041040+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "107365": {
+      "line": 107365,
+      "byteOffset": 897625739,
+      "wallUtc": "2026-09-26T20:18:13.052790+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "96982": {
+      "line": 96982,
+      "byteOffset": 816586609,
+      "wallUtc": "2026-09-26T20:13:58.551150+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "100537": {
+      "line": 100537,
+      "byteOffset": 844646535,
+      "wallUtc": "2026-09-26T20:15:28.599831+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "98067": {
+      "line": 98067,
+      "byteOffset": 825240090,
+      "wallUtc": "2026-09-26T20:14:27.730196+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "107241": {
+      "line": 107241,
+      "byteOffset": 896740989,
+      "wallUtc": "2026-09-26T20:18:10.044922+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "99595": {
+      "line": 99595,
+      "byteOffset": 837687040,
+      "wallUtc": "2026-09-26T20:15:07.435627+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "111727": {
+      "line": 111727,
+      "byteOffset": 932916784,
+      "wallUtc": "2026-09-26T20:20:07.514618+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "99614": {
+      "line": 99614,
+      "byteOffset": 837866921,
+      "wallUtc": "2026-09-26T20:15:07.690602+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "111750": {
+      "line": 111750,
+      "byteOffset": 933138007,
+      "wallUtc": "2026-09-26T20:20:08.087328+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "100543": {
+      "line": 100543,
+      "byteOffset": 844751340,
+      "wallUtc": "2026-09-26T20:15:28.679105+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "102052": {
+      "line": 102052,
+      "byteOffset": 856701550,
+      "wallUtc": "2026-09-26T20:16:07.146170+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "101705": {
+      "line": 101705,
+      "byteOffset": 853988377,
+      "wallUtc": "2026-09-26T20:15:58.482672+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "109517": {
+      "line": 109517,
+      "byteOffset": 915290487,
+      "wallUtc": "2026-09-26T20:19:08.206281+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "102058": {
+      "line": 102058,
+      "byteOffset": 856724855,
+      "wallUtc": "2026-09-26T20:16:07.197536+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "113904": {
+      "line": 113904,
+      "byteOffset": 950528502,
+      "wallUtc": "2026-09-26T20:21:07.214063+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "107270": {
+      "line": 107270,
+      "byteOffset": 896919338,
+      "wallUtc": "2026-09-26T20:18:10.899983+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "118739": {
+      "line": 118739,
+      "byteOffset": 989317695,
+      "wallUtc": "2026-09-26T20:23:10.936130+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "111743": {
+      "line": 111743,
+      "byteOffset": 932991559,
+      "wallUtc": "2026-09-26T20:20:08.014899+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "113596": {
+      "line": 113596,
+      "byteOffset": 948206576,
+      "wallUtc": "2026-09-26T20:20:59.854811+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "111778": {
+      "line": 111778,
+      "byteOffset": 933269246,
+      "wallUtc": "2026-09-26T20:20:08.943774+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "121775": {
+      "line": 121775,
+      "byteOffset": 1012428161,
+      "wallUtc": "2026-09-26T20:24:21.974412+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "113534": {
+      "line": 113534,
+      "byteOffset": 947726470,
+      "wallUtc": "2026-09-26T20:20:58.490380+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "124555": {
+      "line": 124555,
+      "byteOffset": 1034370074,
+      "wallUtc": "2026-09-26T20:25:21.867333+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "113556": {
+      "line": 113556,
+      "byteOffset": 947941472,
+      "wallUtc": "2026-09-26T20:20:58.809083+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "123443": {
+      "line": 123443,
+      "byteOffset": 1024523863,
+      "wallUtc": "2026-09-26T20:24:58.859275+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "113603": {
+      "line": 113603,
+      "byteOffset": 948232910,
+      "wallUtc": "2026-09-26T20:20:59.915331+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "115682": {
+      "line": 115682,
+      "byteOffset": 965163477,
+      "wallUtc": "2026-09-26T20:21:53.631316+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "113915": {
+      "line": 113915,
+      "byteOffset": 950686872,
+      "wallUtc": "2026-09-26T20:21:07.432731+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "126541": {
+      "line": 126541,
+      "byteOffset": 1053437311,
+      "wallUtc": "2026-09-26T20:26:07.455169+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "118751": {
+      "line": 118751,
+      "byteOffset": 989357077,
+      "wallUtc": "2026-09-26T20:23:11.149132+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "131905": {
+      "line": 131905,
+      "byteOffset": 1097700558,
+      "wallUtc": "2026-09-26T20:28:11.179962+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "121780": {
+      "line": 121780,
+      "byteOffset": 1012449131,
+      "wallUtc": "2026-09-26T20:24:22.025648+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "131412": {
+      "line": 131412,
+      "byteOffset": 1094027434,
+      "wallUtc": "2026-09-26T20:28:01.610336+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "130303": {
+      "line": 130303,
+      "byteOffset": 1085010899,
+      "wallUtc": "2026-09-26T20:27:37.541765+00:00",
+      "event": "risk_reject",
+      "symbol": "SOLUSDT"
+    },
+    "123471": {
+      "line": 123471,
+      "byteOffset": 1024684612,
+      "wallUtc": "2026-09-26T20:24:59.650469+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "136404": {
+      "line": 136404,
+      "byteOffset": 1131154497,
+      "wallUtc": "2026-09-26T20:29:59.654395+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "126550": {
+      "line": 126550,
+      "byteOffset": 1053501352,
+      "wallUtc": "2026-09-26T20:26:07.516662+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "136348": {
+      "line": 136348,
+      "byteOffset": 1130853973,
+      "wallUtc": "2026-09-26T20:29:58.527073+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "131431": {
+      "line": 131431,
+      "byteOffset": 1094251744,
+      "wallUtc": "2026-09-26T20:28:01.814592+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "131913": {
+      "line": 131913,
+      "byteOffset": 1097773564,
+      "wallUtc": "2026-09-26T20:28:11.218321+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "131937": {
+      "line": 131937,
+      "byteOffset": 1097887698,
+      "wallUtc": "2026-09-26T20:28:12.020532+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "143927": {
+      "line": 143927,
+      "byteOffset": 1190121445,
+      "wallUtc": "2026-09-26T20:33:12.141323+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "132035": {
+      "line": 132035,
+      "byteOffset": 1098604342,
+      "wallUtc": "2026-09-26T20:28:14.400775+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "133330": {
+      "line": 133330,
+      "byteOffset": 1108071797,
+      "wallUtc": "2026-09-26T20:28:44.169476+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "133274": {
+      "line": 133274,
+      "byteOffset": 1107479681,
+      "wallUtc": "2026-09-26T20:28:43.371357+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "140202": {
+      "line": 140202,
+      "byteOffset": 1161752725,
+      "wallUtc": "2026-09-26T20:31:40.701283+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "136604": {
+      "line": 136604,
+      "byteOffset": 1132782456,
+      "wallUtc": "2026-09-26T20:30:04.445817+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "143331": {
+      "line": 143331,
+      "byteOffset": 1185628141,
+      "wallUtc": "2026-09-26T20:32:58.591458+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "137152": {
+      "line": 137152,
+      "byteOffset": 1137079463,
+      "wallUtc": "2026-09-26T20:30:19.750271+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "149069": {
+      "line": 149069,
+      "byteOffset": 1230558719,
+      "wallUtc": "2026-09-26T20:35:19.967271+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "140234": {
+      "line": 140234,
+      "byteOffset": 1162035328,
+      "wallUtc": "2026-09-26T20:31:41.519008+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "151865": {
+      "line": 151865,
+      "byteOffset": 1253813971,
+      "wallUtc": "2026-09-26T20:36:41.654501+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "143349": {
+      "line": 143349,
+      "byteOffset": 1185710240,
+      "wallUtc": "2026-09-26T20:32:58.890132+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "150456": {
+      "line": 150456,
+      "byteOffset": 1242347865,
+      "wallUtc": "2026-09-26T20:35:59.238298+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "150460": {
+      "line": 150460,
+      "byteOffset": 1242366268,
+      "wallUtc": "2026-09-26T20:35:59.289150+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "158310": {
+      "line": 158310,
+      "byteOffset": 1308021068,
+      "wallUtc": "2026-09-26T20:39:37.917289+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "151890": {
+      "line": 151890,
+      "byteOffset": 1254155930,
+      "wallUtc": "2026-09-26T20:36:42.470173+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "152585": {
+      "line": 152585,
+      "byteOffset": 1260040702,
+      "wallUtc": "2026-09-26T20:37:02.509000+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "152623": {
+      "line": 152623,
+      "byteOffset": 1260418263,
+      "wallUtc": "2026-09-26T20:37:03.310192+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "155412": {
+      "line": 155412,
+      "byteOffset": 1283318627,
+      "wallUtc": "2026-09-26T20:38:20.474361+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "155448": {
+      "line": 155448,
+      "byteOffset": 1283572042,
+      "wallUtc": "2026-09-26T20:38:21.288060+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "158458": {
+      "line": 158458,
+      "byteOffset": 1312045009,
+      "wallUtc": "2026-09-26T20:39:39.895886+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "157503": {
+      "line": 157503,
+      "byteOffset": 1300129630,
+      "wallUtc": "2026-09-26T20:39:18.379781+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "158707": {
+      "line": 158707,
+      "byteOffset": 1315199252,
+      "wallUtc": "2026-09-26T20:39:44.365453+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "158284": {
+      "line": 158284,
+      "byteOffset": 1306615636,
+      "wallUtc": "2026-09-26T20:39:37.678776+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "158302": {
+      "line": 158302,
+      "byteOffset": 1307496980,
+      "wallUtc": "2026-09-26T20:39:37.864368+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "158334": {
+      "line": 158334,
+      "byteOffset": 1308189054,
+      "wallUtc": "2026-09-26T20:39:38.224720+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "158357": {
+      "line": 158357,
+      "byteOffset": 1308930092,
+      "wallUtc": "2026-09-26T20:39:38.493294+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "158379": {
+      "line": 158379,
+      "byteOffset": 1309586696,
+      "wallUtc": "2026-09-26T20:39:38.762252+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "158400": {
+      "line": 158400,
+      "byteOffset": 1310131635,
+      "wallUtc": "2026-09-26T20:39:39.028862+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "158420": {
+      "line": 158420,
+      "byteOffset": 1310894532,
+      "wallUtc": "2026-09-26T20:39:39.311516+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "158453": {
+      "line": 158453,
+      "byteOffset": 1311522822,
+      "wallUtc": "2026-09-26T20:39:39.840954+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "158541": {
+      "line": 158541,
+      "byteOffset": 1312713306,
+      "wallUtc": "2026-09-26T20:39:41.309153+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "158548": {
+      "line": 158548,
+      "byteOffset": 1313223354,
+      "wallUtc": "2026-09-26T20:39:41.422534+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "158565": {
+      "line": 158565,
+      "byteOffset": 1313800620,
+      "wallUtc": "2026-09-26T20:39:41.688336+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "158360": {
+      "line": 158360,
+      "byteOffset": 1309427467,
+      "wallUtc": "2026-09-26T20:39:38.532470+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "158883": {
+      "line": 158883,
+      "byteOffset": 1317558770,
+      "wallUtc": "2026-09-26T20:39:47.574703+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "158440": {
+      "line": 158440,
+      "byteOffset": 1311437166,
+      "wallUtc": "2026-09-26T20:39:39.728475+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "158887": {
+      "line": 158887,
+      "byteOffset": 1317577057,
+      "wallUtc": "2026-09-26T20:39:47.583294+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "158712": {
+      "line": 158712,
+      "byteOffset": 1315221098,
+      "wallUtc": "2026-09-26T20:39:44.417042+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "159008": {
+      "line": 159008,
+      "byteOffset": 1319949211,
+      "wallUtc": "2026-09-26T20:39:49.335900+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "158874": {
+      "line": 158874,
+      "byteOffset": 1316545147,
+      "wallUtc": "2026-09-26T20:39:47.406159+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "158876": {
+      "line": 158876,
+      "byteOffset": 1317038980,
+      "wallUtc": "2026-09-26T20:39:47.459636+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "158902": {
+      "line": 158902,
+      "byteOffset": 1317682235,
+      "wallUtc": "2026-09-26T20:39:47.772550+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "158923": {
+      "line": 158923,
+      "byteOffset": 1318398295,
+      "wallUtc": "2026-09-26T20:39:48.048069+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "158940": {
+      "line": 158940,
+      "byteOffset": 1319089414,
+      "wallUtc": "2026-09-26T20:39:48.311048+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "158919": {
+      "line": 158919,
+      "byteOffset": 1318361549,
+      "wallUtc": "2026-09-26T20:39:48.029673+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "161102": {
+      "line": 161102,
+      "byteOffset": 1344308587,
+      "wallUtc": "2026-09-26T20:40:23.016778+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "158945": {
+      "line": 158945,
+      "byteOffset": 1319592148,
+      "wallUtc": "2026-09-26T20:39:48.402310+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "159029": {
+      "line": 159029,
+      "byteOffset": 1320057606,
+      "wallUtc": "2026-09-26T20:39:49.595088+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "159133": {
+      "line": 159133,
+      "byteOffset": 1320982351,
+      "wallUtc": "2026-09-26T20:39:51.786424+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "161146": {
+      "line": 161146,
+      "byteOffset": 1345707706,
+      "wallUtc": "2026-09-26T20:40:23.750709+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "160152": {
+      "line": 160152,
+      "byteOffset": 1328891883,
+      "wallUtc": "2026-09-26T20:40:07.576590+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "160164": {
+      "line": 160164,
+      "byteOffset": 1329415404,
+      "wallUtc": "2026-09-26T20:40:07.758804+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "160182": {
+      "line": 160182,
+      "byteOffset": 1330064785,
+      "wallUtc": "2026-09-26T20:40:08.040846+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "160199": {
+      "line": 160199,
+      "byteOffset": 1330748680,
+      "wallUtc": "2026-09-26T20:40:08.314497+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "160224": {
+      "line": 160224,
+      "byteOffset": 1331441909,
+      "wallUtc": "2026-09-26T20:40:08.848182+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "160239": {
+      "line": 160239,
+      "byteOffset": 1332077438,
+      "wallUtc": "2026-09-26T20:40:09.118189+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "160353": {
+      "line": 160353,
+      "byteOffset": 1333278252,
+      "wallUtc": "2026-09-26T20:40:10.915134+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "160362": {
+      "line": 160362,
+      "byteOffset": 1333976657,
+      "wallUtc": "2026-09-26T20:40:11.026005+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "160387": {
+      "line": 160387,
+      "byteOffset": 1336228826,
+      "wallUtc": "2026-09-26T20:40:11.351633+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "160402": {
+      "line": 160402,
+      "byteOffset": 1336761301,
+      "wallUtc": "2026-09-26T20:40:11.624771+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "160420": {
+      "line": 160420,
+      "byteOffset": 1337610018,
+      "wallUtc": "2026-09-26T20:40:11.891630+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "160473": {
+      "line": 160473,
+      "byteOffset": 1338535433,
+      "wallUtc": "2026-09-26T20:40:12.607005+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "159575": {
+      "line": 159575,
+      "byteOffset": 1324476110,
+      "wallUtc": "2026-09-26T20:39:59.111124+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "160108": {
+      "line": 160108,
+      "byteOffset": 1328624649,
+      "wallUtc": "2026-09-26T20:40:06.977401+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "159804": {
+      "line": 159804,
+      "byteOffset": 1325979249,
+      "wallUtc": "2026-09-26T20:40:02.531734+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "160576": {
+      "line": 160576,
+      "byteOffset": 1339808865,
+      "wallUtc": "2026-09-26T20:40:14.233797+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "160592": {
+      "line": 160592,
+      "byteOffset": 1339999693,
+      "wallUtc": "2026-09-26T20:40:14.496771+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "161270": {
+      "line": 161270,
+      "byteOffset": 1346559023,
+      "wallUtc": "2026-09-26T20:40:25.737537+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "161245": {
+      "line": 161245,
+      "byteOffset": 1346465368,
+      "wallUtc": "2026-09-26T20:40:25.388178+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "161347": {
+      "line": 161347,
+      "byteOffset": 1347530463,
+      "wallUtc": "2026-09-26T20:40:27.236337+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "161448": {
+      "line": 161448,
+      "byteOffset": 1348185158,
+      "wallUtc": "2026-09-26T20:40:29.724823+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "161717": {
+      "line": 161717,
+      "byteOffset": 1350765267,
+      "wallUtc": "2026-09-26T20:40:33.704031+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "161466": {
+      "line": 161466,
+      "byteOffset": 1348437417,
+      "wallUtc": "2026-09-26T20:40:30.021802+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "172825": {
+      "line": 172825,
+      "byteOffset": 1455772353,
+      "wallUtc": "2026-09-26T20:44:16.224327+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "161477": {
+      "line": 161477,
+      "byteOffset": 1348493950,
+      "wallUtc": "2026-09-26T20:40:30.136225+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "161709": {
+      "line": 161709,
+      "byteOffset": 1350735952,
+      "wallUtc": "2026-09-26T20:40:33.581069+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "161732": {
+      "line": 161732,
+      "byteOffset": 1350930875,
+      "wallUtc": "2026-09-26T20:40:33.885833+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "162807": {
+      "line": 162807,
+      "byteOffset": 1361232329,
+      "wallUtc": "2026-09-26T20:40:52.306870+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "161828": {
+      "line": 161828,
+      "byteOffset": 1351693276,
+      "wallUtc": "2026-09-26T20:40:35.297016+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "162236": {
+      "line": 162236,
+      "byteOffset": 1357088906,
+      "wallUtc": "2026-09-26T20:40:42.273688+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "162013": {
+      "line": 162013,
+      "byteOffset": 1355039014,
+      "wallUtc": "2026-09-26T20:40:38.659917+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "162141": {
+      "line": 162141,
+      "byteOffset": 1356292779,
+      "wallUtc": "2026-09-26T20:40:40.721212+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "162150": {
+      "line": 162150,
+      "byteOffset": 1356347014,
+      "wallUtc": "2026-09-26T20:40:40.800226+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "163117": {
+      "line": 163117,
+      "byteOffset": 1363564762,
+      "wallUtc": "2026-09-26T20:40:59.347836+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "162322": {
+      "line": 162322,
+      "byteOffset": 1357501643,
+      "wallUtc": "2026-09-26T20:40:43.972986+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "162684": {
+      "line": 162684,
+      "byteOffset": 1360287101,
+      "wallUtc": "2026-09-26T20:40:49.981839+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "163142": {
+      "line": 163142,
+      "byteOffset": 1363703810,
+      "wallUtc": "2026-09-26T20:40:59.864336+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "163204": {
+      "line": 163204,
+      "byteOffset": 1364312976,
+      "wallUtc": "2026-09-26T20:41:01.093450+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "163582": {
+      "line": 163582,
+      "byteOffset": 1367277020,
+      "wallUtc": "2026-09-26T20:41:10.393454+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "163725": {
+      "line": 163725,
+      "byteOffset": 1368930960,
+      "wallUtc": "2026-09-26T20:41:13.388065+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "163681": {
+      "line": 163681,
+      "byteOffset": 1368494368,
+      "wallUtc": "2026-09-26T20:41:12.643366+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "163948": {
+      "line": 163948,
+      "byteOffset": 1371479087,
+      "wallUtc": "2026-09-26T20:41:17.288792+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "163705": {
+      "line": 163705,
+      "byteOffset": 1368690067,
+      "wallUtc": "2026-09-26T20:41:13.114873+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "164240": {
+      "line": 164240,
+      "byteOffset": 1373466739,
+      "wallUtc": "2026-09-26T20:41:22.950915+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "163737": {
+      "line": 163737,
+      "byteOffset": 1369104918,
+      "wallUtc": "2026-09-26T20:41:13.545839+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "164233": {
+      "line": 164233,
+      "byteOffset": 1373431463,
+      "wallUtc": "2026-09-26T20:41:22.820934+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "163764": {
+      "line": 163764,
+      "byteOffset": 1369236365,
+      "wallUtc": "2026-09-26T20:41:14.235594+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "163874": {
+      "line": 163874,
+      "byteOffset": 1370584692,
+      "wallUtc": "2026-09-26T20:41:16.101135+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "163928": {
+      "line": 163928,
+      "byteOffset": 1371400647,
+      "wallUtc": "2026-09-26T20:41:16.926652+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "164279": {
+      "line": 164279,
+      "byteOffset": 1373674460,
+      "wallUtc": "2026-09-26T20:41:23.735123+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "164324": {
+      "line": 164324,
+      "byteOffset": 1374098491,
+      "wallUtc": "2026-09-26T20:41:24.535529+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "164361": {
+      "line": 164361,
+      "byteOffset": 1374512893,
+      "wallUtc": "2026-09-26T20:41:25.023021+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "164354": {
+      "line": 164354,
+      "byteOffset": 1374443011,
+      "wallUtc": "2026-09-26T20:41:24.976534+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "165534": {
+      "line": 165534,
+      "byteOffset": 1388078615,
+      "wallUtc": "2026-09-26T20:41:50.027120+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "167365": {
+      "line": 167365,
+      "byteOffset": 1408282939,
+      "wallUtc": "2026-09-26T20:42:32.135700+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "171822": {
+      "line": 171822,
+      "byteOffset": 1448153844,
+      "wallUtc": "2026-09-26T20:43:54.803935+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "168764": {
+      "line": 168764,
+      "byteOffset": 1420685114,
+      "wallUtc": "2026-09-26T20:42:54.784884+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "168766": {
+      "line": 168766,
+      "byteOffset": 1421164373,
+      "wallUtc": "2026-09-26T20:42:54.816142+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "167372": {
+      "line": 167372,
+      "byteOffset": 1408325691,
+      "wallUtc": "2026-09-26T20:42:32.254185+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "170574": {
+      "line": 170574,
+      "byteOffset": 1437812402,
+      "wallUtc": "2026-09-26T20:43:29.108945+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "167506": {
+      "line": 167506,
+      "byteOffset": 1408922565,
+      "wallUtc": "2026-09-26T20:42:34.194065+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "167890": {
+      "line": 167890,
+      "byteOffset": 1412319123,
+      "wallUtc": "2026-09-26T20:42:39.464602+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "167553": {
+      "line": 167553,
+      "byteOffset": 1409319607,
+      "wallUtc": "2026-09-26T20:42:34.783106+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "174571": {
+      "line": 174571,
+      "byteOffset": 1469283479,
+      "wallUtc": "2026-09-26T20:44:57.285944+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "170863": {
+      "line": 170863,
+      "byteOffset": 1440159042,
+      "wallUtc": "2026-09-26T20:43:35.991948+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "171628": {
+      "line": 171628,
+      "byteOffset": 1446455731,
+      "wallUtc": "2026-09-26T20:43:51.171769+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "171445": {
+      "line": 171445,
+      "byteOffset": 1444672488,
+      "wallUtc": "2026-09-26T20:43:48.022979+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "175176": {
+      "line": 175176,
+      "byteOffset": 1473669345,
+      "wallUtc": "2026-09-26T20:45:09.062682+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "175905": {
+      "line": 175905,
+      "byteOffset": 1479824635,
+      "wallUtc": "2026-09-26T20:45:27.829626+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "179766": {
+      "line": 179766,
+      "byteOffset": 1510992450,
+      "wallUtc": "2026-09-26T20:47:00.784077+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "179805": {
+      "line": 179805,
+      "byteOffset": 1511427149,
+      "wallUtc": "2026-09-26T20:47:01.905559+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "193369": {
+      "line": 193369,
+      "byteOffset": 1630982872,
+      "wallUtc": "2026-09-26T20:52:01.917761+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "180080": {
+      "line": 180080,
+      "byteOffset": 1513795162,
+      "wallUtc": "2026-09-26T20:47:08.982634+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "181338": {
+      "line": 181338,
+      "byteOffset": 1521855302,
+      "wallUtc": "2026-09-26T20:47:30.160550+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "180427": {
+      "line": 180427,
+      "byteOffset": 1516283130,
+      "wallUtc": "2026-09-26T20:47:16.289129+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "194073": {
+      "line": 194073,
+      "byteOffset": 1636226183,
+      "wallUtc": "2026-09-26T20:52:16.339087+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "180641": {
+      "line": 180641,
+      "byteOffset": 1517825295,
+      "wallUtc": "2026-09-26T20:47:20.121502+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "181331": {
+      "line": 181331,
+      "byteOffset": 1521776643,
+      "wallUtc": "2026-09-26T20:47:30.081149+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "181427": {
+      "line": 181427,
+      "byteOffset": 1522330959,
+      "wallUtc": "2026-09-26T20:47:31.730611+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "181546": {
+      "line": 181546,
+      "byteOffset": 1523642642,
+      "wallUtc": "2026-09-26T20:47:33.275326+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "181590": {
+      "line": 181590,
+      "byteOffset": 1523910465,
+      "wallUtc": "2026-09-26T20:47:34.088898+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "188373": {
+      "line": 188373,
+      "byteOffset": 1597805669,
+      "wallUtc": "2026-09-26T20:50:27.731179+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "181877": {
+      "line": 181877,
+      "byteOffset": 1526169973,
+      "wallUtc": "2026-09-26T20:47:38.620461+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "183098": {
+      "line": 183098,
+      "byteOffset": 1540048667,
+      "wallUtc": "2026-09-26T20:48:01.930585+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "181883": {
+      "line": 181883,
+      "byteOffset": 1526211819,
+      "wallUtc": "2026-09-26T20:47:38.642280+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "195094": {
+      "line": 195094,
+      "byteOffset": 1643926148,
+      "wallUtc": "2026-09-26T20:52:38.679532+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "183459": {
+      "line": 183459,
+      "byteOffset": 1546556324,
+      "wallUtc": "2026-09-26T20:48:10.640097+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "184558": {
+      "line": 184558,
+      "byteOffset": 1567255971,
+      "wallUtc": "2026-09-26T20:48:39.050429+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "185034": {
+      "line": 185034,
+      "byteOffset": 1574810066,
+      "wallUtc": "2026-09-26T20:48:54.840431+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "185987": {
+      "line": 185987,
+      "byteOffset": 1580452993,
+      "wallUtc": "2026-09-26T20:49:25.545963+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "186099": {
+      "line": 186099,
+      "byteOffset": 1581233155,
+      "wallUtc": "2026-09-26T20:49:29.678161+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "190101": {
+      "line": 190101,
+      "byteOffset": 1609342667,
+      "wallUtc": "2026-09-26T20:51:03.009959+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "187038": {
+      "line": 187038,
+      "byteOffset": 1586644701,
+      "wallUtc": "2026-09-26T20:49:58.491120+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "190035": {
+      "line": 190035,
+      "byteOffset": 1608781354,
+      "wallUtc": "2026-09-26T20:51:02.049131+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "188411": {
+      "line": 188411,
+      "byteOffset": 1598028159,
+      "wallUtc": "2026-09-26T20:50:28.568946+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "190071": {
+      "line": 190071,
+      "byteOffset": 1609118023,
+      "wallUtc": "2026-09-26T20:51:02.504861+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "189804": {
+      "line": 189804,
+      "byteOffset": 1607233507,
+      "wallUtc": "2026-09-26T20:50:58.851049+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "202816": {
+      "line": 202816,
+      "byteOffset": 1707560347,
+      "wallUtc": "2026-09-26T20:55:58.899657+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "190155": {
+      "line": 190155,
+      "byteOffset": 1609589701,
+      "wallUtc": "2026-09-26T20:51:03.820859+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "196495": {
+      "line": 196495,
+      "byteOffset": 1655202179,
+      "wallUtc": "2026-09-26T20:53:11.185410+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "190687": {
+      "line": 190687,
+      "byteOffset": 1613006614,
+      "wallUtc": "2026-09-26T20:51:12.986033+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "192606": {
+      "line": 192606,
+      "byteOffset": 1625585970,
+      "wallUtc": "2026-09-26T20:51:46.713334+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "194105": {
+      "line": 194105,
+      "byteOffset": 1636343829,
+      "wallUtc": "2026-09-26T20:52:17.165184+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "205779": {
+      "line": 205779,
+      "byteOffset": 1731908155,
+      "wallUtc": "2026-09-26T20:57:17.492543+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "198209": {
+      "line": 198209,
+      "byteOffset": 1670420730,
+      "wallUtc": "2026-09-26T20:53:58.589345+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "209989": {
+      "line": 209989,
+      "byteOffset": 1765187447,
+      "wallUtc": "2026-09-26T20:58:58.599318+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "201079": {
+      "line": 201079,
+      "byteOffset": 1693700054,
+      "wallUtc": "2026-09-26T20:55:14.456841+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "213257": {
+      "line": 213257,
+      "byteOffset": 1790818086,
+      "wallUtc": "2026-09-26T21:00:14.592758+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "205929": {
+      "line": 205929,
+      "byteOffset": 1733203350,
+      "wallUtc": "2026-09-26T20:57:21.576403+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "206216": {
+      "line": 206216,
+      "byteOffset": 1735582503,
+      "wallUtc": "2026-09-26T20:57:28.696771+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "206575": {
+      "line": 206575,
+      "byteOffset": 1738438026,
+      "wallUtc": "2026-09-26T20:57:38.591993+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "219103": {
+      "line": 219103,
+      "byteOffset": 1841552976,
+      "wallUtc": "2026-09-26T21:02:38.817782+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "206586": {
+      "line": 206586,
+      "byteOffset": 1738517921,
+      "wallUtc": "2026-09-26T20:57:38.762601+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "210356": {
+      "line": 210356,
+      "byteOffset": 1768065289,
+      "wallUtc": "2026-09-26T20:59:07.579648+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "207496": {
+      "line": 207496,
+      "byteOffset": 1745485827,
+      "wallUtc": "2026-09-26T20:57:59.082280+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "209725": {
+      "line": 209725,
+      "byteOffset": 1762983452,
+      "wallUtc": "2026-09-26T20:58:51.145452+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "210002": {
+      "line": 210002,
+      "byteOffset": 1765314195,
+      "wallUtc": "2026-09-26T20:58:58.892145+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "222306": {
+      "line": 222306,
+      "byteOffset": 1866329232,
+      "wallUtc": "2026-09-26T21:03:58.881283+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "210365": {
+      "line": 210365,
+      "byteOffset": 1768164453,
+      "wallUtc": "2026-09-26T20:59:07.636760+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "219448": {
+      "line": 219448,
+      "byteOffset": 1844204643,
+      "wallUtc": "2026-09-26T21:02:46.411628+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "212540": {
+      "line": 212540,
+      "byteOffset": 1785402786,
+      "wallUtc": "2026-09-26T20:59:58.503163+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "218167": {
+      "line": 218167,
+      "byteOffset": 1834242171,
+      "wallUtc": "2026-09-26T21:02:16.032047+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "217621": {
+      "line": 217621,
+      "byteOffset": 1825479187,
+      "wallUtc": "2026-09-26T21:02:03.891440+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "217691": {
+      "line": 217691,
+      "byteOffset": 1826348410,
+      "wallUtc": "2026-09-26T21:02:05.546022+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "217705": {
+      "line": 217705,
+      "byteOffset": 1826992952,
+      "wallUtc": "2026-09-26T21:02:05.821896+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "217739": {
+      "line": 217739,
+      "byteOffset": 1827806835,
+      "wallUtc": "2026-09-26T21:02:06.627112+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "217824": {
+      "line": 217824,
+      "byteOffset": 1829027566,
+      "wallUtc": "2026-09-26T21:02:08.175148+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "218027": {
+      "line": 218027,
+      "byteOffset": 1831167864,
+      "wallUtc": "2026-09-26T21:02:12.820979+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "218045": {
+      "line": 218045,
+      "byteOffset": 1831713145,
+      "wallUtc": "2026-09-26T21:02:13.028088+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "218120": {
+      "line": 218120,
+      "byteOffset": 1832727572,
+      "wallUtc": "2026-09-26T21:02:14.763964+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "218124": {
+      "line": 218124,
+      "byteOffset": 1833306094,
+      "wallUtc": "2026-09-26T21:02:14.828435+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "217434": {
+      "line": 217434,
+      "byteOffset": 1823819996,
+      "wallUtc": "2026-09-26T21:01:58.771697+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "229920": {
+      "line": 229920,
+      "byteOffset": 1923365592,
+      "wallUtc": "2026-09-26T21:06:58.825353+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "218179": {
+      "line": 218179,
+      "byteOffset": 1834386806,
+      "wallUtc": "2026-09-26T21:02:16.236204+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "220988": {
+      "line": 220988,
+      "byteOffset": 1855925750,
+      "wallUtc": "2026-09-26T21:03:26.220160+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "219137": {
+      "line": 219137,
+      "byteOffset": 1841929245,
+      "wallUtc": "2026-09-26T21:02:39.621088+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "231550": {
+      "line": 231550,
+      "byteOffset": 1936054356,
+      "wallUtc": "2026-09-26T21:07:39.657789+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "222258": {
+      "line": 222258,
+      "byteOffset": 1865992003,
+      "wallUtc": "2026-09-26T21:03:58.078446+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "234479": {
+      "line": 234479,
+      "byteOffset": 1959663293,
+      "wallUtc": "2026-09-26T21:08:58.269126+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "222799": {
+      "line": 222799,
+      "byteOffset": 1869962736,
+      "wallUtc": "2026-09-26T21:04:08.937117+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "233616": {
+      "line": 233616,
+      "byteOffset": 1952248288,
+      "wallUtc": "2026-09-26T21:08:36.427265+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "234543": {
+      "line": 234543,
+      "byteOffset": 1960065697,
+      "wallUtc": "2026-09-26T21:08:59.284987+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "247421": {
+      "line": 247421,
+      "byteOffset": 2064017021,
+      "wallUtc": "2026-09-26T21:13:59.448744+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "234770": {
+      "line": 234770,
+      "byteOffset": 1963424524,
+      "wallUtc": "2026-09-26T21:09:04.820911+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "247667": {
+      "line": 247667,
+      "byteOffset": 2066070476,
+      "wallUtc": "2026-09-26T21:14:04.885389+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "236967": {
+      "line": 236967,
+      "byteOffset": 1981484502,
+      "wallUtc": "2026-09-26T21:09:58.883108+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "249912": {
+      "line": 249912,
+      "byteOffset": 2083759697,
+      "wallUtc": "2026-09-26T21:14:58.909277+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "236976": {
+      "line": 236976,
+      "byteOffset": 1981706478,
+      "wallUtc": "2026-09-26T21:09:58.984324+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "249929": {
+      "line": 249929,
+      "byteOffset": 2083996598,
+      "wallUtc": "2026-09-26T21:14:59.045145+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "240330": {
+      "line": 240330,
+      "byteOffset": 2008935774,
+      "wallUtc": "2026-09-26T21:11:16.109250+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "253162": {
+      "line": 253162,
+      "byteOffset": 2109606108,
+      "wallUtc": "2026-09-26T21:16:16.861067+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "247467": {
+      "line": 247467,
+      "byteOffset": 2064218215,
+      "wallUtc": "2026-09-26T21:14:00.264184+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "260002": {
+      "line": 260002,
+      "byteOffset": 2170340375,
+      "wallUtc": "2026-09-26T21:18:59.524637+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "250989": {
+      "line": 250989,
+      "byteOffset": 2092092347,
+      "wallUtc": "2026-09-26T21:15:24.715761+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "252366": {
+      "line": 252366,
+      "byteOffset": 2103369708,
+      "wallUtc": "2026-09-26T21:15:58.651329+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "252381": {
+      "line": 252381,
+      "byteOffset": 2103472411,
+      "wallUtc": "2026-09-26T21:15:58.952278+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "264904": {
+      "line": 264904,
+      "byteOffset": 2206939817,
+      "wallUtc": "2026-09-26T21:20:58.997756+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "252898": {
+      "line": 252898,
+      "byteOffset": 2107536229,
+      "wallUtc": "2026-09-26T21:16:10.015369+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "254819": {
+      "line": 254819,
+      "byteOffset": 2129674745,
+      "wallUtc": "2026-09-26T21:16:58.993388+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "254312": {
+      "line": 254312,
+      "byteOffset": 2119426281,
+      "wallUtc": "2026-09-26T21:16:47.527427+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "254318": {
+      "line": 254318,
+      "byteOffset": 2119932523,
+      "wallUtc": "2026-09-26T21:16:47.640088+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "254330": {
+      "line": 254330,
+      "byteOffset": 2120480478,
+      "wallUtc": "2026-09-26T21:16:47.906201+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "254342": {
+      "line": 254342,
+      "byteOffset": 2121038251,
+      "wallUtc": "2026-09-26T21:16:48.175322+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "254354": {
+      "line": 254354,
+      "byteOffset": 2121579379,
+      "wallUtc": "2026-09-26T21:16:48.448560+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "254375": {
+      "line": 254375,
+      "byteOffset": 2122399367,
+      "wallUtc": "2026-09-26T21:16:48.719462+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "254412": {
+      "line": 254412,
+      "byteOffset": 2123228553,
+      "wallUtc": "2026-09-26T21:16:49.515845+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "254423": {
+      "line": 254423,
+      "byteOffset": 2123747890,
+      "wallUtc": "2026-09-26T21:16:49.787957+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "254438": {
+      "line": 254438,
+      "byteOffset": 2124264156,
+      "wallUtc": "2026-09-26T21:16:50.051879+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "254451": {
+      "line": 254451,
+      "byteOffset": 2124815055,
+      "wallUtc": "2026-09-26T21:16:50.319759+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "254464": {
+      "line": 254464,
+      "byteOffset": 2125411492,
+      "wallUtc": "2026-09-26T21:16:50.585180+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "254476": {
+      "line": 254476,
+      "byteOffset": 2125934290,
+      "wallUtc": "2026-09-26T21:16:50.852090+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "254514": {
+      "line": 254514,
+      "byteOffset": 2126718589,
+      "wallUtc": "2026-09-26T21:16:51.655022+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "254831": {
+      "line": 254831,
+      "byteOffset": 2129759123,
+      "wallUtc": "2026-09-26T21:16:59.184584+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "256060": {
+      "line": 256060,
+      "byteOffset": 2140126136,
+      "wallUtc": "2026-09-26T21:17:28.765217+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "255658": {
+      "line": 255658,
+      "byteOffset": 2136958580,
+      "wallUtc": "2026-09-26T21:17:19.636997+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "268045": {
+      "line": 268045,
+      "byteOffset": 2230953487,
+      "wallUtc": "2026-09-26T21:22:19.802919+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "256678": {
+      "line": 256678,
+      "byteOffset": 2144909640,
+      "wallUtc": "2026-09-26T21:17:42.981896+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "257004": {
+      "line": 257004,
+      "byteOffset": 2147698376,
+      "wallUtc": "2026-09-26T21:17:51.222322+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "257382": {
+      "line": 257382,
+      "byteOffset": 2150389392,
+      "wallUtc": "2026-09-26T21:17:58.889932+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "268512": {
+      "line": 268512,
+      "byteOffset": 2234447703,
+      "wallUtc": "2026-09-26T21:22:31.008316+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "262327": {
+      "line": 262327,
+      "byteOffset": 2187375770,
+      "wallUtc": "2026-09-26T21:19:55.685706+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "272368": {
+      "line": 272368,
+      "byteOffset": 2270043887,
+      "wallUtc": "2026-09-26T21:24:00.357257+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "272330": {
+      "line": 272330,
+      "byteOffset": 2269256227,
+      "wallUtc": "2026-09-26T21:23:59.468044+00:00",
+      "event": "risk_reject",
+      "symbol": "NEARUSDT"
+    },
+    "268526": {
+      "line": 268526,
+      "byteOffset": 2234617947,
+      "wallUtc": "2026-09-26T21:22:31.145388+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "268612": {
+      "line": 268612,
+      "byteOffset": 2235218028,
+      "wallUtc": "2026-09-26T21:22:33.045029+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "268618": {
+      "line": 268618,
+      "byteOffset": 2235239973,
+      "wallUtc": "2026-09-26T21:22:33.103441+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "268889": {
+      "line": 268889,
+      "byteOffset": 2237880672,
+      "wallUtc": "2026-09-26T21:22:39.777467+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "268893": {
+      "line": 268893,
+      "byteOffset": 2238080853,
+      "wallUtc": "2026-09-26T21:22:39.822093+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "269694": {
+      "line": 269694,
+      "byteOffset": 2248600871,
+      "wallUtc": "2026-09-26T21:22:58.208036+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "269602": {
+      "line": 269602,
+      "byteOffset": 2243700900,
+      "wallUtc": "2026-09-26T21:22:56.667992+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "269615": {
+      "line": 269615,
+      "byteOffset": 2244313103,
+      "wallUtc": "2026-09-26T21:22:56.800715+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "269625": {
+      "line": 269625,
+      "byteOffset": 2244839618,
+      "wallUtc": "2026-09-26T21:22:56.999304+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "269641": {
+      "line": 269641,
+      "byteOffset": 2245431310,
+      "wallUtc": "2026-09-26T21:22:57.285153+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "269667": {
+      "line": 269667,
+      "byteOffset": 2246099570,
+      "wallUtc": "2026-09-26T21:22:57.791437+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "269670": {
+      "line": 269670,
+      "byteOffset": 2246603309,
+      "wallUtc": "2026-09-26T21:22:57.852235+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "269685": {
+      "line": 269685,
+      "byteOffset": 2247628619,
+      "wallUtc": "2026-09-26T21:22:58.049329+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "269689": {
+      "line": 269689,
+      "byteOffset": 2248107611,
+      "wallUtc": "2026-09-26T21:22:58.130115+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "269793": {
+      "line": 269793,
+      "byteOffset": 2249356361,
+      "wallUtc": "2026-09-26T21:23:00.151960+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "269839": {
+      "line": 269839,
+      "byteOffset": 2249983258,
+      "wallUtc": "2026-09-26T21:23:01.054588+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "271387": {
+      "line": 271387,
+      "byteOffset": 2261588586,
+      "wallUtc": "2026-09-26T21:23:34.756381+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "272293": {
+      "line": 272293,
+      "byteOffset": 2268825884,
+      "wallUtc": "2026-09-26T21:23:58.942642+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "272756": {
+      "line": 272756,
+      "byteOffset": 2272898264,
+      "wallUtc": "2026-09-26T21:24:08.896971+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "287981": {
+      "line": 287981,
+      "byteOffset": 2390206729,
+      "wallUtc": "2026-09-26T21:29:09.176263+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "273388": {
+      "line": 273388,
+      "byteOffset": 2277279028,
+      "wallUtc": "2026-09-26T21:24:21.897338+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "278717": {
+      "line": 278717,
+      "byteOffset": 2326557972,
+      "wallUtc": "2026-09-26T21:26:05.283519+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "273758": {
+      "line": 273758,
+      "byteOffset": 2279931725,
+      "wallUtc": "2026-09-26T21:24:30.275611+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "273778": {
+      "line": 273778,
+      "byteOffset": 2280134100,
+      "wallUtc": "2026-09-26T21:24:30.560289+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "273785": {
+      "line": 273785,
+      "byteOffset": 2280159293,
+      "wallUtc": "2026-09-26T21:24:30.639922+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "273814": {
+      "line": 273814,
+      "byteOffset": 2280308832,
+      "wallUtc": "2026-09-26T21:24:31.070561+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "273819": {
+      "line": 273819,
+      "byteOffset": 2280328989,
+      "wallUtc": "2026-09-26T21:24:31.126836+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "274295": {
+      "line": 274295,
+      "byteOffset": 2284813401,
+      "wallUtc": "2026-09-26T21:24:40.968729+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "274604": {
+      "line": 274604,
+      "byteOffset": 2287166999,
+      "wallUtc": "2026-09-26T21:24:46.598069+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "274613": {
+      "line": 274613,
+      "byteOffset": 2287211332,
+      "wallUtc": "2026-09-26T21:24:46.695816+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "275410": {
+      "line": 275410,
+      "byteOffset": 2293170387,
+      "wallUtc": "2026-09-26T21:25:00.836790+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "278682": {
+      "line": 278682,
+      "byteOffset": 2326434240,
+      "wallUtc": "2026-09-26T21:26:04.877202+00:00",
+      "event": "scenario_transition",
+      "symbol": "ENAUSDT"
+    },
+    "275634": {
+      "line": 275634,
+      "byteOffset": 2294644861,
+      "wallUtc": "2026-09-26T21:25:04.810102+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "275658": {
+      "line": 275658,
+      "byteOffset": 2295264707,
+      "wallUtc": "2026-09-26T21:25:05.187075+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "275670": {
+      "line": 275670,
+      "byteOffset": 2295786301,
+      "wallUtc": "2026-09-26T21:25:05.462981+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "275684": {
+      "line": 275684,
+      "byteOffset": 2296539011,
+      "wallUtc": "2026-09-26T21:25:05.725414+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "275698": {
+      "line": 275698,
+      "byteOffset": 2297140774,
+      "wallUtc": "2026-09-26T21:25:05.995234+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "275715": {
+      "line": 275715,
+      "byteOffset": 2297675107,
+      "wallUtc": "2026-09-26T21:25:06.273556+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "275734": {
+      "line": 275734,
+      "byteOffset": 2298351831,
+      "wallUtc": "2026-09-26T21:25:06.551412+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "275750": {
+      "line": 275750,
+      "byteOffset": 2299084653,
+      "wallUtc": "2026-09-26T21:25:06.820635+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "275781": {
+      "line": 275781,
+      "byteOffset": 2299655280,
+      "wallUtc": "2026-09-26T21:25:07.375314+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "275794": {
+      "line": 275794,
+      "byteOffset": 2300178977,
+      "wallUtc": "2026-09-26T21:25:07.654043+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "275810": {
+      "line": 275810,
+      "byteOffset": 2300710201,
+      "wallUtc": "2026-09-26T21:25:07.916208+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "275827": {
+      "line": 275827,
+      "byteOffset": 2301244287,
+      "wallUtc": "2026-09-26T21:25:08.206136+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "275869": {
+      "line": 275869,
+      "byteOffset": 2302065060,
+      "wallUtc": "2026-09-26T21:25:08.834008+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "275905": {
+      "line": 275905,
+      "byteOffset": 2302954553,
+      "wallUtc": "2026-09-26T21:25:09.413089+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "277196": {
+      "line": 277196,
+      "byteOffset": 2312489048,
+      "wallUtc": "2026-09-26T21:25:35.375761+00:00",
+      "event": "risk_reject",
+      "symbol": "ENAUSDT"
+    },
+    "278646": {
+      "line": 278646,
+      "byteOffset": 2326200157,
+      "wallUtc": "2026-09-26T21:26:04.099148+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "279891": {
+      "line": 279891,
+      "byteOffset": 2334977686,
+      "wallUtc": "2026-09-26T21:26:28.425041+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "282055": {
+      "line": 282055,
+      "byteOffset": 2350145163,
+      "wallUtc": "2026-09-26T21:27:14.231248+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "284195": {
+      "line": 284195,
+      "byteOffset": 2364659164,
+      "wallUtc": "2026-09-26T21:27:55.204094+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "283964": {
+      "line": 283964,
+      "byteOffset": 2362910677,
+      "wallUtc": "2026-09-26T21:27:50.995362+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "284273": {
+      "line": 284273,
+      "byteOffset": 2365162760,
+      "wallUtc": "2026-09-26T21:27:56.490316+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "284200": {
+      "line": 284200,
+      "byteOffset": 2364680443,
+      "wallUtc": "2026-09-26T21:27:55.224672+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "300195": {
+      "line": 300195,
+      "byteOffset": 2472835750,
+      "wallUtc": "2026-09-26T21:32:55.732776+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "285231": {
+      "line": 285231,
+      "byteOffset": 2371349919,
+      "wallUtc": "2026-09-26T21:28:13.804905+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "285578": {
+      "line": 285578,
+      "byteOffset": 2373512262,
+      "wallUtc": "2026-09-26T21:28:19.952063+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "287851": {
+      "line": 287851,
+      "byteOffset": 2389234828,
+      "wallUtc": "2026-09-26T21:29:06.838711+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "290936": {
+      "line": 290936,
+      "byteOffset": 2411578987,
+      "wallUtc": "2026-09-26T21:30:00.717449+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "287986": {
+      "line": 287986,
+      "byteOffset": 2390228002,
+      "wallUtc": "2026-09-26T21:29:09.232227+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "304177": {
+      "line": 304177,
+      "byteOffset": 2500002182,
+      "wallUtc": "2026-09-26T21:34:09.423893+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "288032": {
+      "line": 288032,
+      "byteOffset": 2390516479,
+      "wallUtc": "2026-09-26T21:29:10.182937+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "288181": {
+      "line": 288181,
+      "byteOffset": 2394037683,
+      "wallUtc": "2026-09-26T21:29:12.298120+00:00",
+      "event": "scenario_transition",
+      "symbol": "ZECUSDT"
+    },
+    "288108": {
+      "line": 288108,
+      "byteOffset": 2391160653,
+      "wallUtc": "2026-09-26T21:29:11.236101+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "288124": {
+      "line": 288124,
+      "byteOffset": 2391759319,
+      "wallUtc": "2026-09-26T21:29:11.392523+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "288128": {
+      "line": 288128,
+      "byteOffset": 2392239338,
+      "wallUtc": "2026-09-26T21:29:11.479599+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "288145": {
+      "line": 288145,
+      "byteOffset": 2392774623,
+      "wallUtc": "2026-09-26T21:29:11.755283+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "288162": {
+      "line": 288162,
+      "byteOffset": 2393392596,
+      "wallUtc": "2026-09-26T21:29:12.034626+00:00",
+      "event": "risk_reject",
+      "symbol": "ZECUSDT"
+    },
+    "292702": {
+      "line": 292702,
+      "byteOffset": 2422433161,
+      "wallUtc": "2026-09-26T21:30:34.451431+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "294138": {
+      "line": 294138,
+      "byteOffset": 2432207705,
+      "wallUtc": "2026-09-26T21:30:58.768328+00:00",
+      "event": "scenario_transition",
+      "symbol": "NEARUSDT"
+    },
+    "293667": {
+      "line": 293667,
+      "byteOffset": 2429251155,
+      "wallUtc": "2026-09-26T21:30:51.134308+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "305509": {
+      "line": 305509,
+      "byteOffset": 2509460103,
+      "wallUtc": "2026-09-26T21:34:36.203661+00:00",
+      "event": "scenario_transition",
+      "symbol": "BTCUSDT"
+    },
+    "300389": {
+      "line": 300389,
+      "byteOffset": 2474131828,
+      "wallUtc": "2026-09-26T21:32:59.069101+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "315488": {
+      "line": 315488,
+      "byteOffset": 2579158396,
+      "wallUtc": "2026-09-26T21:37:59.109337+00:00",
+      "event": "scenario_transition",
+      "symbol": "SOLUSDT"
+    },
+    "305214": {
+      "line": 305214,
+      "byteOffset": 2507362486,
+      "wallUtc": "2026-09-26T21:34:31.173356+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "310004": {
+      "line": 310004,
+      "byteOffset": 2539973156,
+      "wallUtc": "2026-09-26T21:35:58.226749+00:00",
+      "event": "scenario_transition",
+      "symbol": "XRPUSDT"
+    },
+    "306723": {
+      "line": 306723,
+      "byteOffset": 2517481340,
+      "wallUtc": "2026-09-26T21:34:58.065346+00:00",
+      "event": "risk_reject",
+      "symbol": "XRPUSDT"
+    },
+    "305523": {
+      "line": 305523,
+      "byteOffset": 2509635100,
+      "wallUtc": "2026-09-26T21:34:36.367948+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "306734": {
+      "line": 306734,
+      "byteOffset": 2518044838,
+      "wallUtc": "2026-09-26T21:34:58.314762+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "306783": {
+      "line": 306783,
+      "byteOffset": 2518677613,
+      "wallUtc": "2026-09-26T21:34:59.127436+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "310589": {
+      "line": 310589,
+      "byteOffset": 2543791116,
+      "wallUtc": "2026-09-26T21:36:09.088463+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "164325": {
+      "line": 164325,
+      "byteOffset": 1374100302,
+      "wallUtc": "2026-09-26T20:41:24.539677+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "164417": {
+      "line": 164417,
+      "byteOffset": 1374826753,
+      "wallUtc": "2026-09-26T20:41:25.849293+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "164511": {
+      "line": 164511,
+      "byteOffset": 1376786396,
+      "wallUtc": "2026-09-26T20:41:27.726056+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "165924": {
+      "line": 165924,
+      "byteOffset": 1391848357,
+      "wallUtc": "2026-09-26T20:41:58.112337+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "169624": {
+      "line": 169624,
+      "byteOffset": 1429647114,
+      "wallUtc": "2026-09-26T20:43:09.756720+00:00",
+      "event": "setup_consumed",
+      "symbol": "ETHUSDT"
+    },
+    "169630": {
+      "line": 169630,
+      "byteOffset": 1430724026,
+      "wallUtc": "2026-09-26T20:43:09.806063+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "180642": {
+      "line": 180642,
+      "byteOffset": 1517827139,
+      "wallUtc": "2026-09-26T20:47:20.122647+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "181323": {
+      "line": 181323,
+      "byteOffset": 1521756172,
+      "wallUtc": "2026-09-26T20:47:29.800224+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "181428": {
+      "line": 181428,
+      "byteOffset": 1522332756,
+      "wallUtc": "2026-09-26T20:47:31.733092+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "181591": {
+      "line": 181591,
+      "byteOffset": 1523912338,
+      "wallUtc": "2026-09-26T20:47:34.094736+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "181593": {
+      "line": 181593,
+      "byteOffset": 1523916039,
+      "wallUtc": "2026-09-26T20:47:34.097436+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "181912": {
+      "line": 181912,
+      "byteOffset": 1526357626,
+      "wallUtc": "2026-09-26T20:47:39.025942+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "182206": {
+      "line": 182206,
+      "byteOffset": 1529606415,
+      "wallUtc": "2026-09-26T20:47:44.501558+00:00",
+      "event": "setup_rearmed",
+      "symbol": "ETHUSDT"
+    },
+    "182234": {
+      "line": 182234,
+      "byteOffset": 1529722768,
+      "wallUtc": "2026-09-26T20:47:45.091080+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "182638": {
+      "line": 182638,
+      "byteOffset": 1534465573,
+      "wallUtc": "2026-09-26T20:47:52.591861+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "182663": {
+      "line": 182663,
+      "byteOffset": 1535351095,
+      "wallUtc": "2026-09-26T20:47:52.983143+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "182904": {
+      "line": 182904,
+      "byteOffset": 1537264327,
+      "wallUtc": "2026-09-26T20:47:58.295071+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "182918": {
+      "line": 182918,
+      "byteOffset": 1537617880,
+      "wallUtc": "2026-09-26T20:47:58.529263+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "182943": {
+      "line": 182943,
+      "byteOffset": 1538109913,
+      "wallUtc": "2026-09-26T20:47:58.866014+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "183081": {
+      "line": 183081,
+      "byteOffset": 1539539188,
+      "wallUtc": "2026-09-26T20:48:01.716590+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "183176": {
+      "line": 183176,
+      "byteOffset": 1541101019,
+      "wallUtc": "2026-09-26T20:48:03.657346+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "183199": {
+      "line": 183199,
+      "byteOffset": 1541884712,
+      "wallUtc": "2026-09-26T20:48:04.211136+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "183233": {
+      "line": 183233,
+      "byteOffset": 1542637400,
+      "wallUtc": "2026-09-26T20:48:05.076859+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "184758": {
+      "line": 184758,
+      "byteOffset": 1571599782,
+      "wallUtc": "2026-09-26T20:48:45.068341+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "187514": {
+      "line": 187514,
+      "byteOffset": 1590479599,
+      "wallUtc": "2026-09-26T20:50:11.274973+00:00",
+      "event": "scenario_transition",
+      "symbol": "ETHUSDT"
+    },
+    "187516": {
+      "line": 187516,
+      "byteOffset": 1591030883,
+      "wallUtc": "2026-09-26T20:50:11.306652+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "188375": {
+      "line": 188375,
+      "byteOffset": 1597809066,
+      "wallUtc": "2026-09-26T20:50:27.732583+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "188413": {
+      "line": 188413,
+      "byteOffset": 1598031410,
+      "wallUtc": "2026-09-26T20:50:28.572175+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "189753": {
+      "line": 189753,
+      "byteOffset": 1606877291,
+      "wallUtc": "2026-09-26T20:50:58.162435+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "190073": {
+      "line": 190073,
+      "byteOffset": 1609121423,
+      "wallUtc": "2026-09-26T20:51:02.505224+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "190689": {
+      "line": 190689,
+      "byteOffset": 1613009917,
+      "wallUtc": "2026-09-26T20:51:12.989811+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "192608": {
+      "line": 192608,
+      "byteOffset": 1625589420,
+      "wallUtc": "2026-09-26T20:51:46.713534+00:00",
+      "event": "decision",
+      "symbol": "ETHUSDT"
+    },
+    "161774": {
+      "line": 161774,
+      "byteOffset": 1351267565,
+      "wallUtc": "2026-09-26T20:40:34.536698+00:00",
+      "event": "decision",
+      "symbol": "XRPUSDT"
+    },
+    "184816": {
+      "line": 184816,
+      "byteOffset": 1573560555,
+      "wallUtc": "2026-09-26T20:48:46.950220+00:00",
+      "event": "clock_admission_changed",
+      "symbol": "ETHUSDT"
+    },
+    "187517": {
+      "line": 187517,
+      "byteOffset": 1592702070,
+      "wallUtc": "2026-09-26T20:50:11.316508+00:00",
+      "event": "clock_admission_changed",
+      "symbol": "ETHUSDT"
+    },
+    "188372": {
+      "line": 188372,
+      "byteOffset": 1597803031,
+      "wallUtc": "2026-09-26T20:50:27.728977+00:00",
+      "event": "market_context_changed",
+      "symbol": "ETHUSDT"
+    },
+    "190070": {
+      "line": 190070,
+      "byteOffset": 1609115428,
+      "wallUtc": "2026-09-26T20:51:02.501841+00:00",
+      "event": "market_context_changed",
+      "symbol": "ETHUSDT"
+    },
+    "192605": {
+      "line": 192605,
+      "byteOffset": 1625583293,
+      "wallUtc": "2026-09-26T20:51:46.711208+00:00",
+      "event": "market_context_changed",
+      "symbol": "ETHUSDT"
+    }
+  },
+  "captureId": "current-12h-20260926-222654-704-f604f5f6",
+  "captureManifestId": "790eebd906ac4a41baf69eccb5b69ae3",
+  "runManifestId": "5b0b67f84b1a41ea9b88202f2e113050",
+  "commit": "3403b03011a5e89f6f0c4ecb03c6f76df4b7f1e1",
+  "trackedDirty": false,
+  "sourceSha256": "28bac774c9d6af0f4641576a509fcf0e6f44fad77c3483efeeb1b10838dcb852",
+  "configSha256": "6ca9edc38dbd3f4fe2d62fa6716f543dd5527b86310a625472e7eb64c3adfdaa",
+  "runtimeSha256": "a76d4f412046217c3118c9feca98999be494982aaeb7f507cf091804805f1da7",
+  "manifestSha256": "d65c6a5e6d1042461a6341094a8c66619ae9615d2fc7c1c55fce592571a9a8dd",
+  "hashes": {
+    "output_jsonl": "0ec5faa9b9def181d962ad7116abb43f77ae28e98862936a609d956ed45debbf",
+    "inputs_gzip": "caf9cf7c293faab93d3832a96b52298beb12da4316ed55c2f414e346dd337a6d",
+    "inputs_decoded_jsonl": "818fc0734f5153dcbb7747e0f5b3559801fcafb828b6874d422b07a014b54106",
+    "source_zip": "20549872bebc71b73e92bd32adcd5287f44cda5669c2611877276664551f7a8f"
+  },
+  "inputFile": "session-20260926T193029Z.inputs.jsonl.gz",
+  "inputSequenceBase": 1,
+  "inputReferences": "I references payload.sequence; decoded input hashing includes exact raw lines. All derived quote tables retain source input_sequence. Not output line numbers.",
+  "indexes": "Local reusable SQLite: data/audit-two-hour-20260927/{inputs,outputs,quotes}.sqlite; not published. Raw originals untouched.",
+  "strategyConfig": {
+    "enabled": [
+      "level_breakout",
+      "orderbook_density",
+      "weak_level_rejection"
+    ],
+    "evidenceOnly": [
+      "orderbook_density"
+    ],
+    "tradeable": [
+      "level_breakout",
+      "weak_level_rejection"
+    ]
+  },
+  "sourceVerification": "All 80 source archive members byte-identical to baseline. Runtime package versions matched; no dependency changes.",
+  "limitations": [
+    "No complete portfolio replay certified.",
+    "Prepared/ready counts are deduplicated by scenario and episode, not assumed statistically independent.",
+    "Input receipt monotonic controls quote freshness; wall/Bybit timestamp difference is not network latency."
+  ]
+}

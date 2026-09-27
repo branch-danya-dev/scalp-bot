@@ -1,0 +1,38 @@
+Baseline module: <baseline>\scalp_bot\strategy\weak_level_rejection.py
+F.FFFF                                                                   [100%]
+================================== FAILURES ===================================
+___________ test_recorded_xrp_new_sweep_rejects_stale_confirmation ____________
+<audit-worktree>\tests\test_two_hour_defects.py:56: in test_recorded_xrp_new_sweep_rejects_stale_confirmation
+    assert not decision.tradeable
+E   AssertionError: assert not True
+E    +  where True = StrategyDecision(strategy='weak_level_rejection', action=<Action.LONG: 'long'>, reasons=['Слабый уровень: 1 отдельных ...6695, 'roundConfluence': False, 'contextAligned': True}}, setup_id='weak_level_rejection:long:S:day_low:2026-09-26:g1').tradeable
+_______ test_new_rejection_episode_cannot_reuse_previous_absorption[1] ________
+<audit-worktree>\tests\test_two_hour_defects.py:95: in test_new_rejection_episode_cannot_reuse_previous_absorption
+    assert not changed.tradeable
+E   AssertionError: assert not True
+E    +  where True = StrategyDecision(strategy='weak_level_rejection', action=<Action.LONG: 'long'>, reasons=['Слабый уровень: 1 отдельных ...nAtLevel': 1.0, 'roundConfluence': True, 'contextAligned': True}}, setup_id='weak_level_rejection:long:support:28:100').tradeable
+_______ test_new_rejection_episode_cannot_reuse_previous_absorption[-1] _______
+<audit-worktree>\tests\test_two_hour_defects.py:95: in test_new_rejection_episode_cannot_reuse_previous_absorption
+    assert not changed.tradeable
+E   AssertionError: assert not True
+E    +  where True = StrategyDecision(strategy='weak_level_rejection', action=<Action.SHORT: 'short'>, reasons=['Слабый уровень: 1 отдельны...evel': 1.0, 'roundConfluence': True, 'contextAligned': True}}, setup_id='weak_level_rejection:short:resistance:28:100').tradeable
+_____ test_ready_contract_does_not_reenter_preparation_after_risk_reject ______
+<audit-worktree>\tests\test_two_hour_defects.py:115: in test_ready_contract_does_not_reenter_preparation_after_risk_reject
+    assert s.state == "ARMED"
+E   AssertionError: assert 'PREPARED' == 'ARMED'
+E
+E     - ARMED
+E     + PREPARED
+______ test_slow_websocket_close_drains_before_engine_shutdown_deadline _______
+<audit-worktree>\tests\test_two_hour_defects.py:164: in test_slow_websocket_close_drains_before_engine_shutdown_deadline
+    await engine._shutdown_service_tasks()
+scalp_bot\engine.py:1311: in _shutdown_service_tasks
+    raise TimeoutError("service tasks did not acknowledge shutdown")
+E   TimeoutError: service tasks did not acknowledge shutdown
+=========================== short test summary info ===========================
+FAILED <audit-worktree>\tests\test_two_hour_defects.py::test_recorded_xrp_new_sweep_rejects_stale_confirmation
+FAILED <audit-worktree>\tests\test_two_hour_defects.py::test_new_rejection_episode_cannot_reuse_previous_absorption[1]
+FAILED <audit-worktree>\tests\test_two_hour_defects.py::test_new_rejection_episode_cannot_reuse_previous_absorption[-1]
+FAILED <audit-worktree>\tests\test_two_hour_defects.py::test_ready_contract_does_not_reenter_preparation_after_risk_reject
+FAILED <audit-worktree>\tests\test_two_hour_defects.py::test_slow_websocket_close_drains_before_engine_shutdown_deadline
+5 failed, 1 passed in 5.82s

@@ -1,0 +1,305 @@
+{
+  "schema_version": 3,
+  "windows": [
+    {
+      "report": "latency-window1-v1.json",
+      "source_start_ns": 558320334214600,
+      "historical_seconds": 60,
+      "warmup_seconds": 120,
+      "source_sha256": "9cb2b0cf7cc5884971fa46cf9cd87a3b7eed0bf3b5fa64caee85d37189948ba2",
+      "summary": {
+        "1": {
+          "event_loop_p99_range_ms": [
+            18.3559,
+            19.3125
+          ],
+          "forecasts_per_repeat": [
+            1796,
+            1796,
+            1796
+          ],
+          "max_added_p99_ms": 0.9566000000000017,
+          "all_added_pass": true,
+          "all_absolute_pass": true,
+          "all_decisions_and_ledger_identical": true,
+          "coalesced": [
+            0,
+            0,
+            0
+          ],
+          "dropped": [
+            0,
+            0,
+            0
+          ],
+          "max_predict_p99_ms": 0.9943,
+          "max_data_to_adapter_p99_ms": 51.3431,
+          "recorder_dropped_rows": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "data_to_adapter_budget_pass": true
+        },
+        "4": {
+          "event_loop_p99_range_ms": [
+            20.1743,
+            21.8427
+          ],
+          "forecasts_per_repeat": [
+            1791,
+            1789,
+            1790
+          ],
+          "max_added_p99_ms": 0.741500000000002,
+          "all_added_pass": true,
+          "all_absolute_pass": false,
+          "all_decisions_and_ledger_identical": true,
+          "coalesced": [
+            5,
+            7,
+            6
+          ],
+          "dropped": [
+            0,
+            0,
+            0
+          ],
+          "max_predict_p99_ms": 0.9295,
+          "max_data_to_adapter_p99_ms": 360.135575,
+          "recorder_dropped_rows": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "data_to_adapter_budget_pass": false
+        }
+      },
+      "observations": [
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency\\1-0-0.measurements.json",
+          "sha256": "a1780dba010b06c10e052112501ba0b17fecbdb6b2e1de619037ff20644bb033",
+          "bytes": 288625
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency\\1-0-1.measurements.json",
+          "sha256": "ef42af53a060bd77171d2c65d86ef9275c8a5e566504610fe9990f823544e0de",
+          "bytes": 434939
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency\\1-1-1.measurements.json",
+          "sha256": "048f0147012683b268b7c893fc739dbdf98537a08090c5536a033fb1b5809da2",
+          "bytes": 435242
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency\\1-1-0.measurements.json",
+          "sha256": "674db4226dd1acd81e6144240529b6b6d8af973067ad3bb0786327aece56d565",
+          "bytes": 289299
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency\\1-2-0.measurements.json",
+          "sha256": "fd1174f745062ed83e52886e6b45ae53f7965f07c7c0292fb1a0067507e02ee2",
+          "bytes": 288588
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency\\1-2-1.measurements.json",
+          "sha256": "9d7bbf7560a4b8813be374cd73d0d85fe514508fd9cbc51cb169ec9c9586f68d",
+          "bytes": 434931
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency\\4-0-0.measurements.json",
+          "sha256": "9cb856f3875024a3cf63bf3a0a90678edd62e407aeb9147434a8c609a5a27348",
+          "bytes": 267078
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency\\4-0-1.measurements.json",
+          "sha256": "f1af52fcb46531ba6edbb9f7326acf18d03d88913038e3938ba13739c45e4397",
+          "bytes": 421373
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency\\4-1-1.measurements.json",
+          "sha256": "edfae7863c6fd0f9c460f26765c1a54422090aea12b5ea88fa26150bb77e35fa",
+          "bytes": 416896
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency\\4-1-0.measurements.json",
+          "sha256": "0824a8ec8276cc5b826134dfb603a73edd83e3d5225e548cc2f71f58d9d3fe8e",
+          "bytes": 261793
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency\\4-2-0.measurements.json",
+          "sha256": "95bee3f23993734e724c95bd220fc90ce3f401b2876dda47783ee5a26453bc7e",
+          "bytes": 260976
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency\\4-2-1.measurements.json",
+          "sha256": "8d2cec00a1c2e78bc77272b4ce6cbc2c23894b57c31aa7d58495493275bcc8a6",
+          "bytes": 411969
+        }
+      ]
+    },
+    {
+      "report": "latency-window2-v2.json",
+      "source_start_ns": 558380334214600,
+      "historical_seconds": 60,
+      "warmup_seconds": 180,
+      "source_sha256": "2605a3a5766192f25ce0ea356ef7387dd44bd2acb974cb8332ac893ed8f5cd79",
+      "summary": {
+        "1": {
+          "event_loop_p99_range_ms": [
+            16.4073,
+            18.0906
+          ],
+          "forecasts_per_repeat": [
+            1896,
+            1896,
+            1896
+          ],
+          "max_added_p99_ms": 1.542300000000001,
+          "all_added_pass": true,
+          "all_absolute_pass": true,
+          "all_decisions_and_ledger_identical": true,
+          "coalesced": [
+            1,
+            1,
+            1
+          ],
+          "dropped": [
+            0,
+            0,
+            0
+          ],
+          "max_predict_p99_ms": 0.7888,
+          "max_data_to_adapter_p99_ms": 44.9895,
+          "recorder_dropped_rows": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "data_to_adapter_budget_pass": true
+        },
+        "4": {
+          "event_loop_p99_range_ms": [
+            15.7238,
+            17.8852
+          ],
+          "forecasts_per_repeat": [
+            1895,
+            1895,
+            1892
+          ],
+          "max_added_p99_ms": 1.5793,
+          "all_added_pass": true,
+          "all_absolute_pass": true,
+          "all_decisions_and_ledger_identical": true,
+          "coalesced": [
+            2,
+            2,
+            5
+          ],
+          "dropped": [
+            0,
+            0,
+            0
+          ],
+          "max_predict_p99_ms": 0.7038,
+          "max_data_to_adapter_p99_ms": 293.855925,
+          "recorder_dropped_rows": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "data_to_adapter_budget_pass": false
+        }
+      },
+      "observations": [
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\1-0-0.measurements.json",
+          "sha256": "09fcf32f9ec961e88e50132d1549bf1327d2992251148cf682db82d0a0b3c56d",
+          "bytes": 287479
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\1-0-1.measurements.json",
+          "sha256": "da5b0d9f77a8cf9b490cfe023abb811a1e7cbd06c25001cedc04d61c750c009b",
+          "bytes": 438670
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\1-1-1.measurements.json",
+          "sha256": "718b27e5e3978bd228d8426936856523b802377d9e84a2cfedc7008b9ccca019",
+          "bytes": 438531
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\1-1-0.measurements.json",
+          "sha256": "8eeecae0125e91cea45fdd8443c8c8556b2895c2a0f6cb9da7286a04b88a06f6",
+          "bytes": 287484
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\1-2-0.measurements.json",
+          "sha256": "afaa1fbf9d4b19e75c845f8557f3feaab57d07648a1a4eea41b7e5531802ef3d",
+          "bytes": 288081
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\1-2-1.measurements.json",
+          "sha256": "5d7d7f6c4337df12eac848f188533e66ad3a97b22db06ec131bd78d7a9580556",
+          "bytes": 438251
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\4-0-0.measurements.json",
+          "sha256": "52fcbf3267d464c4bd258ba7e4cb04538d4eee2d70fd4de84c5b82e4de4eef67",
+          "bytes": 258143
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\4-0-1.measurements.json",
+          "sha256": "de647399d8e2eb4847264a98f3c02625840343bcc92e6831d4e39b93bc3df6b7",
+          "bytes": 414846
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\4-1-1.measurements.json",
+          "sha256": "d56df284be827f5e6414a3a66e38529737110538ac3c8c96b8d63db98c93de0f",
+          "bytes": 414842
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\4-1-0.measurements.json",
+          "sha256": "cb3bc99716cf2ce772c00c2aabeb53feb0ed472bfe2589733ae35f5df3b2a193",
+          "bytes": 257682
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\4-2-0.measurements.json",
+          "sha256": "f5ed940666a5967735ab446d52bd86f0e09c3adb42643c46e44a2ab8cd4df99e",
+          "bytes": 257435
+        },
+        {
+          "path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\4-2-1.measurements.json",
+          "sha256": "2cc4573030fd851398d37685db09612db35a59a65fa96e48ad68e7b85802007f",
+          "bytes": 413349
+        }
+      ]
+    }
+  ],
+  "budgets": {
+    "event_loop_p99_ms": 20,
+    "added_shadow_p99_ms": 5,
+    "data_to_adapter_p99_ms": 250
+  },
+  "source": "fixed original recorded event cadence, every selected event, production SessionRecorder background writer",
+  "normal_speed": 1,
+  "burst_speed": 4,
+  "repeats_per_pair": 3,
+  "background": "window1 overlapped independent offline reconstructions; window2 overlapped full local tests. CPU/background load was not held constant, so cross-window/model latency differences are not causal effects.",
+  "metric_versions": "v1/window1 metric2 data_to_proposal_ms actually means delivery through adapter including abstention; window2 metric3 names adapter separately, proposal timings absent when no proposal emitted. Raw files retained unchanged.",
+  "old_sleep_metric": "old synthetic54ms sleep duration retained in earlier artifacts; metric-definition change is not reported as acceleration",
+  "result": "added shadow budget5ms passed; absolute20ms failed in window1 burst even off; delivered adapter250ms failed in burst on both windows. No complete performance admission.",
+  "clock_scope": "ordinary engine uses declared historical logical clock for deterministic semantics; worker/arrival latency uses wall perf clock. This throughput harness does not certify live freshness under OS/network scheduling or replay a real WebSocket producer queue."
+}

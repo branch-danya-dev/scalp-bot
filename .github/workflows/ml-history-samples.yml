@@ -1,0 +1,28 @@
+name: ml-history-format-samples
+on:
+  push:
+    branches: [feat/ml-impulse-foundation]
+    paths:
+      - 'scalp_bot/ml/history/**'
+      - '.github/workflows/ml-history-samples.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-format-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Bounded public archive import without model or exchange connection
+        run: python -m scalp_bot.ml.history.samples --output /tmp/ml-history-format
+      - name: Preserve metadata only, not vendor datasets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ml-history-format-${{ github.sha }}
+          path: /tmp/ml-history-format/report.json
+          retention-days: 14

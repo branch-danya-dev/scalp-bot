@@ -1,0 +1,225 @@
+{
+  "model_version": "catboost-impulse-v1:de82a510bf523330",
+  "scope": "technical first candidate, one audited session, no independent holdout",
+  "splits": {
+    "train": {
+      "catboost": {
+        "samples": 5212,
+        "log_loss": 0.17238565989600454,
+        "brier": 0.07072498896402583,
+        "ece_10_bins": 0.06519341658637849,
+        "selected": 0,
+        "coverage": 0.0,
+        "abstention": 1.0,
+        "selected_mean_net_usdt": null,
+        "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+      },
+      "logistic": {
+        "samples": 5212,
+        "log_loss": 0.2239145913077241,
+        "brier": 0.09872730548275017,
+        "ece_10_bins": 0.12236673002506238,
+        "selected": 0,
+        "coverage": 0.0,
+        "abstention": 1.0,
+        "selected_mean_net_usdt": null,
+        "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+      },
+      "fixed_rule": {
+        "samples": 5212,
+        "log_loss": 0.6209449537123972,
+        "brier": 0.324205679201842,
+        "ece_10_bins": 0.2968917881811205,
+        "selected": 392,
+        "coverage": 0.07521105141980046,
+        "abstention": 0.9247889485801996,
+        "selected_mean_net_usdt": -0.13339814971479988,
+        "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+      }
+    },
+    "calibration": {
+      "catboost": {
+        "samples": 1448,
+        "log_loss": 0.4645681905034982,
+        "brier": 0.25814347077647315,
+        "ece_10_bins": 0.04035196547051108,
+        "selected": 0,
+        "coverage": 0.0,
+        "abstention": 1.0,
+        "selected_mean_net_usdt": null,
+        "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+      },
+      "logistic": {
+        "samples": 1448,
+        "log_loss": 0.5513585310233748,
+        "brier": 0.288035567106398,
+        "ece_10_bins": 0.05962315449158233,
+        "selected": 15,
+        "coverage": 0.010359116022099447,
+        "abstention": 0.9896408839779005,
+        "selected_mean_net_usdt": -0.1044721052925861,
+        "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+      },
+      "fixed_rule": {
+        "samples": 1448,
+        "log_loss": 0.7922925205195682,
+        "brier": 0.45171270718232054,
+        "ece_10_bins": 0.12658839779005537,
+        "selected": 222,
+        "coverage": 0.15331491712707182,
+        "abstention": 0.8466850828729282,
+        "selected_mean_net_usdt": -0.09728615671978906,
+        "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+      }
+    },
+    "validation": {
+      "catboost": {
+        "samples": 1450,
+        "log_loss": 0.2544792670706332,
+        "brier": 0.12407614229561377,
+        "ece_10_bins": 0.04530060702914322,
+        "selected": 0,
+        "coverage": 0.0,
+        "abstention": 1.0,
+        "selected_mean_net_usdt": null,
+        "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+      },
+      "logistic": {
+        "samples": 1450,
+        "log_loss": 0.3050172134993687,
+        "brier": 0.1505683752025813,
+        "ece_10_bins": 0.11573600746222125,
+        "selected": 0,
+        "coverage": 0.0,
+        "abstention": 1.0,
+        "selected_mean_net_usdt": null,
+        "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+      },
+      "fixed_rule": {
+        "samples": 1450,
+        "log_loss": 0.6768772498486643,
+        "brier": 0.3656758620689655,
+        "ece_10_bins": 0.2411379310344829,
+        "selected": 153,
+        "coverage": 0.10551724137931034,
+        "abstention": 0.8944827586206896,
+        "selected_mean_net_usdt": -0.1383132484407041,
+        "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+      }
+    },
+    "test": {
+      "catboost": {
+        "samples": 1807,
+        "log_loss": 0.4195112723968406,
+        "brier": 0.2325440221987018,
+        "ece_10_bins": 0.07519066774342299,
+        "selected": 0,
+        "coverage": 0.0,
+        "abstention": 1.0,
+        "selected_mean_net_usdt": null,
+        "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+      },
+      "logistic": {
+        "samples": 1807,
+        "log_loss": 0.5008421153590201,
+        "brier": 0.23942685016941115,
+        "ece_10_bins": 0.07739078293194732,
+        "selected": 1,
+        "coverage": 0.0005534034311012728,
+        "abstention": 0.9994465965688988,
+        "selected_mean_net_usdt": -0.30316113966900793,
+        "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+      },
+      "fixed_rule": {
+        "samples": 1807,
+        "log_loss": 0.7309692278424759,
+        "brier": 0.4073796347537355,
+        "ece_10_bins": 0.18436635307138916,
+        "selected": 187,
+        "coverage": 0.10348644161593802,
+        "abstention": 0.896513558384062,
+        "selected_mean_net_usdt": -0.11656274187982453,
+        "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+      }
+    }
+  },
+  "by_symbol": {
+    "BTCUSDT": {
+      "samples": 290,
+      "log_loss": 0.07255611120623803,
+      "brier": 0.00850599426010473,
+      "ece_10_bins": 0.06967832846509857,
+      "selected": 0,
+      "coverage": 0.0,
+      "abstention": 1.0,
+      "selected_mean_net_usdt": null,
+      "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+    },
+    "ENAUSDT": {
+      "samples": 274,
+      "log_loss": 0.5813956532767904,
+      "brier": 0.3399158315943849,
+      "ece_10_bins": 0.032992917791630993,
+      "selected": 0,
+      "coverage": 0.0,
+      "abstention": 1.0,
+      "selected_mean_net_usdt": null,
+      "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+    },
+    "ETHUSDT": {
+      "samples": 274,
+      "log_loss": 0.12660472011504745,
+      "brier": 0.04062169266765755,
+      "ece_10_bins": 0.06087592036952201,
+      "selected": 0,
+      "coverage": 0.0,
+      "abstention": 1.0,
+      "selected_mean_net_usdt": null,
+      "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+    },
+    "NEARUSDT": {
+      "samples": 237,
+      "log_loss": 0.7371932531271347,
+      "brier": 0.46067667611781044,
+      "ece_10_bins": 0.11554802911181693,
+      "selected": 0,
+      "coverage": 0.0,
+      "abstention": 1.0,
+      "selected_mean_net_usdt": null,
+      "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+    },
+    "SOLUSDT": {
+      "samples": 234,
+      "log_loss": 0.10003316635313494,
+      "brier": 0.023590397518472778,
+      "ece_10_bins": 0.06223968937379713,
+      "selected": 0,
+      "coverage": 0.0,
+      "abstention": 1.0,
+      "selected_mean_net_usdt": null,
+      "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+    },
+    "XRPUSDT": {
+      "samples": 252,
+      "log_loss": 0.1444889541255198,
+      "brier": 0.03740301187625277,
+      "ece_10_bins": 0.10979916870986274,
+      "selected": 0,
+      "coverage": 0.0,
+      "abstention": 1.0,
+      "selected_mean_net_usdt": null,
+      "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+    },
+    "ZECUSDT": {
+      "samples": 246,
+      "log_loss": 1.254023237010256,
+      "brier": 0.7697030238933528,
+      "ece_10_bins": 0.34275282241467625,
+      "selected": 0,
+      "coverage": 0.0,
+      "abstention": 1.0,
+      "selected_mean_net_usdt": null,
+      "payoff_scope": "independent fixed nominal labels; overlapping capital not a portfolio"
+    }
+  }
+}

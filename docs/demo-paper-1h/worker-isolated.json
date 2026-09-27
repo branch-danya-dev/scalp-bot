@@ -1,0 +1,18 @@
+{
+  "worker": {
+    "scope": "60 pre-existing validation snapshots, unchanged weights, inference only",
+    "forecasts": 60,
+    "selected": 0,
+    "worker": {
+      "module": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\scalp_bot\\__init__.py",
+      "pid": 12572,
+      "exchange_imported": false,
+      "resources": {
+        "cpu_seconds": 0.625,
+        "rss_mb": 93.99609375,
+        "peak_rss_mb": 93.99609375
+      }
+    },
+    "order_authority": false
+  }
+}

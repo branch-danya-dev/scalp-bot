@@ -165,3 +165,7 @@ PUBLIC_CONFIG_FIELDS = PUBLIC_CONFIG_FIELDS | frozenset({
 V3_PUBLIC_CONFIG_FIELDS = PUBLIC_CONFIG_FIELDS
 PUBLIC_CONFIG_FIELDS = PUBLIC_CONFIG_FIELDS | {"e06_conditional_breakout_hold"}
 
+
+# v5 adds an explicit research-only policy; v4 captures retain their exact fields.
+V4_PUBLIC_CONFIG_FIELDS = PUBLIC_CONFIG_FIELDS
+PUBLIC_CONFIG_FIELDS = PUBLIC_CONFIG_FIELDS | {"research_rejection_response_policy"}

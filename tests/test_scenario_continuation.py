@@ -172,14 +172,16 @@ async def test_engine_releases_empty_owner_and_routes_other_object_on_next_event
         first = engine._route_scenario(session, rows)
         assert first and first.state == 'ASSIGNED'
         session.structure = MarketStructure([replace(a, lifecycle='broken'), b])
-        assert engine._route_scenario(session, rows) is None
-        assert session.market_context.scenario is None
+        independent = engine.router.scenario_for(SYMBOL, "weak_level_rejection")
         second = engine._route_scenario(session, rows)
+        assert first.state == "INVALIDATED"
+        assert second is independent  # Parallel preparation survives immediately.
+        assert session.market_context.scenario is None
         assert second and second.owner == 'weak_level_rejection'
         assert second.object_ref.key == b.generation_id
         decision = engine.strategies[second.owner].evaluate(
             rows, book, Trend.FLAT, symbol=SYMBOL, structure=session.structure,
-            market_context=session.market_context, trades=[], observed_at_ms=ctx.observed_at_ms)
+            market_context=engine.router.context_for(session.market_context,SYMBOL,second.owner), trades=[], observed_at_ms=ctx.observed_at_ms)
         assert decision.strategy == second.owner
         transitions = [e['payload'] for e in engine.events if e['event']=='scenario_transition']
         assert any(e['transitionReason']=='assigned_object_no_longer_preparable' for e in transitions)

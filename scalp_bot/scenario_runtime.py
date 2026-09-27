@@ -12,15 +12,14 @@ class ScenarioRuntime:
             self._emit("scenario_transition", symbol, payload)
 
     def _route_scenario(self, session, candles):
-        previous = self.router.scenarios.get(session.symbol)
+        previous = self.router.all_for(session.symbol)
         s = self.router.observe(session.symbol, session.market_context, candles, session.structure,
             self.strategy_enabled, self.clock.perf_counter_ns()/1e9,
             position=self.broker.positions.get(session.symbol),
             pending=self.broker.pending_entries.get(session.symbol))
-        if s is not None and s is not previous:
-            self.strategies[s.owner].reset(session.symbol)
-        if session.market_context is not None:
-            session.market_context = replace(session.market_context, scenario=s.public() if s else None)
+        for key, current in self.router.all_for(session.symbol).items():
+            if current is not previous.get(key):
+                self.strategies[key].reset(session.symbol)
         session.scenario_view = self.router.public(session.symbol)
         self._scenario_events()
         return s
@@ -28,7 +27,7 @@ class ScenarioRuntime:
     def _scenario_decision(self, session, decision):
         if decision.tradeable:
             decision.setup_id = self._resolve_setup_id(session, decision)
-        scenario = self.router.scenarios.get(session.symbol)
+        scenario = self.router.scenario_for(session.symbol, decision.strategy)
         if scenario and scenario.state not in TERMINAL | {"ORDER_PENDING", "IN_POSITION"} and decision.details.get("acceptedBreak"):
             self.router.transition(scenario, "INVALIDATED", self.clock.perf_counter_ns()/1e9,
                                    "owner observed a confirmed structural break")
@@ -39,7 +38,7 @@ class ScenarioRuntime:
         return decision
 
     def _scenario_prepare(self, session, decision):
-        s = self.router.scenarios.get(session.symbol)
+        s = self.router.scenario_for(session.symbol, decision.strategy)
         if s is None or s.state in TERMINAL or s.state in {"ORDER_PENDING","IN_POSITION"}:
             return
         # Preview uses existing RiskEngine and current unreserved budget. It is
@@ -70,7 +69,7 @@ class ScenarioRuntime:
 
     def _owned_assessment(self, session, decision):
         """Compatibility telemetry; no second context/strategy contest."""
-        s=self.router.scenarios.get(session.symbol)
+        s=self.router.scenario_for(session.symbol, decision.strategy)
         owned=bool(s and s.owner==decision.strategy and s.state not in TERMINAL
                    and s.side==decision.action.value)
         path=assess_structural_path(decision,session.market_context,
@@ -86,11 +85,16 @@ class ScenarioRuntime:
         flow=decision.details.get("flowAlignment",{}).get("classification","unknown")
         return SemanticCandidateAssessment(decision.strategy,decision.setup_id,decision.action.value,
             owned,() if owned else ("scenario_not_owned",),(),(),path,str(flow),"context_only",
-            freshness,0,0,0,scale,("strategy assigned before signal; no competing context arbitration",))
+            freshness,0,0,0,scale,("independent preparation; earliest eligible ready admission",))
 
     def _scenario_entry_valid(self, session, decision):
-        s=self.router.scenarios.get(session.symbol)
+        s=self.router.scenario_for(session.symbol, decision.strategy)
         if not s or s.owner!=decision.strategy or s.state in TERMINAL:
+            return False
+        execution = self.router.executions.get(session.symbol)
+        if execution is not None and execution is not s:
+            self.router.reject(session.symbol, "execution", "symbol_busy:"+execution.state,
+                               self.clock.perf_counter_ns()/1e9, strategy=decision.strategy)
             return False
         now=self.clock.perf_counter_ns()/1e9
         if s.state != "IN_POSITION" and now>=s.expires_mono:
@@ -112,7 +116,7 @@ class ScenarioRuntime:
         reason=self.strategies[decision.strategy].entry_invalidation(
             decision,session.orderbook)
         if reason:
-            self.router.reject(session.symbol,"strategy",reason,now)
+            self.router.reject(session.symbol,"strategy",reason,now, strategy=decision.strategy)
             if s.state != "IN_POSITION":
                 self.router.transition(s,"INVALIDATED",now,reason)
                 self._scenario_events()

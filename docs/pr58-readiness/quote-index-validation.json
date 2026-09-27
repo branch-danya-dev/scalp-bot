@@ -1,0 +1,21 @@
+{
+  "prior": {
+    "rows": 219185,
+    "example": [
+      562404.2310135,
+      12589998,
+      2673.59,
+      2673.6
+    ]
+  },
+  "sequential": {
+    "rows": 1517007,
+    "example": [
+      562404.2376751,
+      12590302,
+      2673.95,
+      2673.96
+    ]
+  },
+  "explanation": "Prior research quote index omits raw fast updates and cannot certify this check; replacement derives every L50 observation using production OrderBookState and rolling tape via prune_trades (90s). Original index unchanged."
+}

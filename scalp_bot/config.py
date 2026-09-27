@@ -1,3 +1,4 @@
+from typing import Literal
 import os
 
 from pydantic import SecretStr
@@ -92,6 +93,7 @@ class Settings(BaseSettings):
 
     trend_structure_enabled: bool = False
     price_action_hypothesis_enabled: bool = False
+    research_rejection_response_policy: Literal["legacy", "quote_tape_v1"] = "legacy"
     weak_level_rejection_enabled: bool = True
     # Stage 4: retained name for env compatibility; enables the liquidity
     # evidence provider, not standalone density entries.

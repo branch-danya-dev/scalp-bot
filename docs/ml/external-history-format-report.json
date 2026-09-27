@@ -1,0 +1,140 @@
+{
+  "purpose": "format_smoke_only",
+  "training_performed": false,
+  "sampling_policy": "NEARUSDT 2024-01-01 chosen for schema checks, not PnL",
+  "sources": [
+    {
+      "source": {
+        "provider": "bybit-public-trades",
+        "symbol": "NEARUSDT",
+        "day": "2024-01-01",
+        "purpose": "format_smoke_only",
+        "market": "linear_perpetual",
+        "schema_version": 1,
+        "url": "https://public.bybit.com/trading/NEARUSDT/NEARUSDT2024-01-01.csv.gz",
+        "adapter_schema": "bybit_csv_v1",
+        "quantity_unit": "exchange_native",
+        "contract_multiplier_verified": false,
+        "availability_verified": false,
+        "receiver_clock": null,
+        "scanner_membership_reconstructed": false,
+        "license": "provider terms must be reviewed; public access is not a redistribution grant"
+      },
+      "download": {
+        "downloaded_at": "2026-09-26T20:48:41.679017+00:00",
+        "bytes": 5849647,
+        "sha256": "d22dafcb6f54a83f5b82bace4109c828e0645916a150242aa4fbc7f22f96f1a2"
+      },
+      "status": "complete_import",
+      "counts": {
+        "events": 149891,
+        "rows": 149891,
+        "trades": 149891,
+        "unknown_aggressor": 0
+      },
+      "quality_status": "structural_checks_passed_only",
+      "raw_sha256": "d22dafcb6f54a83f5b82bace4109c828e0645916a150242aa4fbc7f22f96f1a2",
+      "normalized_sha256": "7509b4f1f63187eb28960476abc87ce80d88c27cdfadaa56a72822de1b02ea71",
+      "warnings": [
+        "exchange sequence/continuity unavailable; gaps are not certified absent",
+        "scanner membership and online feature parity not reconstructed",
+        "archive quantities assume declared linear instrument; metadata still requires review",
+        "no collector arrival clock; no exact execution latency or cross-feed ordering"
+      ],
+      "training_ready": false
+    },
+    {
+      "source": {
+        "provider": "tardis-trades",
+        "symbol": "NEARUSDT",
+        "day": "2024-01-01",
+        "purpose": "format_smoke_only",
+        "market": "linear_perpetual",
+        "schema_version": 1,
+        "url": "https://datasets.tardis.dev/v1/bybit/trades/2024/01/01/NEARUSDT.csv.gz",
+        "adapter_schema": "tardis_csv_v1",
+        "quantity_unit": "exchange_native",
+        "contract_multiplier_verified": false,
+        "availability_verified": false,
+        "receiver_clock": "tardis_collector",
+        "scanner_membership_reconstructed": false,
+        "license": "provider terms must be reviewed; public access is not a redistribution grant"
+      },
+      "download": {
+        "downloaded_at": "2026-09-26T20:48:45.870588+00:00",
+        "bytes": 4551925,
+        "sha256": "8098054023c04fb1776397e5a2992786da1a1411a347c2b2ed7675fe83e16ebd"
+      },
+      "status": "complete_import",
+      "counts": {
+        "events": 149891,
+        "rows": 149891,
+        "trades": 149891,
+        "unknown_aggressor": 0
+      },
+      "quality_status": "structural_checks_passed_only",
+      "raw_sha256": "8098054023c04fb1776397e5a2992786da1a1411a347c2b2ed7675fe83e16ebd",
+      "normalized_sha256": "c47b0fd9c6da5ef637754716a9db9cd1cc73ce80ac886f5194507eded6d9c3a3",
+      "warnings": [
+        "exchange sequence/continuity unavailable; gaps are not certified absent",
+        "scanner membership and online feature parity not reconstructed",
+        "archive quantities assume declared linear instrument; metadata still requires review",
+        "available_time_us is Tardis collector time, not bot receive time"
+      ],
+      "training_ready": false
+    },
+    {
+      "source": {
+        "provider": "tardis-l2",
+        "symbol": "NEARUSDT",
+        "day": "2024-01-01",
+        "purpose": "format_smoke_only",
+        "market": "linear_perpetual",
+        "schema_version": 1,
+        "url": "https://datasets.tardis.dev/v1/bybit/incremental_book_L2/2024/01/01/NEARUSDT.csv.gz",
+        "adapter_schema": "tardis_csv_v1",
+        "quantity_unit": "exchange_native",
+        "contract_multiplier_verified": false,
+        "availability_verified": false,
+        "receiver_clock": "tardis_collector",
+        "scanner_membership_reconstructed": false,
+        "license": "provider terms must be reviewed; public access is not a redistribution grant"
+      },
+      "download": {
+        "downloaded_at": "2026-09-26T20:48:51.414025+00:00",
+        "bytes": 46835081,
+        "sha256": "2885cf168383fdc9a10821b6dbc67a11a6f1b30ff88d057b0dac1685032c55a6"
+      },
+      "status": "complete_import",
+      "counts": {
+        "events": 1800819,
+        "exchange_timestamp_regressions": 1,
+        "rows": 6304825,
+        "rows_before_snapshot": 3,
+        "snapshots": 1,
+        "two_sided_uncrossed": 1800818,
+        "uninitialized": 1
+      },
+      "quality_status": "structural_checks_passed_only",
+      "raw_sha256": "2885cf168383fdc9a10821b6dbc67a11a6f1b30ff88d057b0dac1685032c55a6",
+      "normalized_sha256": "af929160fefab5907c71eff0d3d74fd039a9df56586ef588949697e0336746f3",
+      "warnings": [
+        "exchange sequence/continuity unavailable; gaps are not certified absent",
+        "scanner membership and online feature parity not reconstructed",
+        "archive quantities assume declared linear instrument; metadata still requires review",
+        "available_time_us is Tardis collector time, not bot receive time"
+      ],
+      "training_ready": false
+    }
+  ],
+  "validation_provenance": {
+    "repository": "branch-danya-dev/scalp-bot",
+    "code_commit": "5c8efb86647d0d3fd58da6f9d7d44bfa12b9bff4",
+    "code_tree": "cfc63a46735ceabf95f667a8f8ce873730266437",
+    "workflow_run": 36270792141,
+    "workflow_job": 108484224058,
+    "artifact_id": 10914939836,
+    "artifact_sha256": "59ecb13118c5bf431ad3840f947a9fcc76706a408abf29a47c6e8e890dc39b76",
+    "report_preserved_as_metadata_only": true
+  }
+}

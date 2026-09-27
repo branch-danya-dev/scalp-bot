@@ -1,0 +1,11 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+______ test_slow_websocket_close_drains_before_engine_shutdown_deadline _______
+tests\test_two_hour_defects.py:109: in test_slow_websocket_close_drains_before_engine_shutdown_deadline
+    await engine._shutdown_service_tasks()
+scalp_bot\engine.py:1311: in _shutdown_service_tasks
+    raise TimeoutError("service tasks did not acknowledge shutdown")
+E   TimeoutError: service tasks did not acknowledge shutdown
+=========================== short test summary info ===========================
+FAILED tests/test_two_hour_defects.py::test_slow_websocket_close_drains_before_engine_shutdown_deadline
+1 failed, 3 deselected in 6.57s

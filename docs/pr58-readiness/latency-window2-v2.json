@@ -1,0 +1,1545 @@
+{
+  "metric_schema_version": 3,
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.15",
+    "logical_cpus": 12,
+    "parent_import": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\scalp_bot\\offline_benchmark.py",
+    "worker_threads": 1
+  },
+  "model": "catboost-impulse-v2:a9bb5445db534b93",
+  "source_sha256": "2605a3a5766192f25ce0ea356ef7387dd44bd2acb974cb8332ac893ed8f5cd79",
+  "source_start_ns": 558380334214600,
+  "historical_seconds": 60,
+  "warmup_seconds": 180,
+  "repeats": 3,
+  "metric_definition": "event_loop_lateness=max(0,actual_wake-(sleep_start+1ms)); heartbeat_sleep_ms retains old duration metric",
+  "inference_pacing": "submit each real evaluation; bounded latest mailbox; no trading await",
+  "latency_outcome_scope": "data_to_adapter includes abstention/rejection; data_to_proposal only emitted proposals; dropped work has no success latency",
+  "runs": [
+    {
+      "mode": "off",
+      "speed": 1,
+      "events": 13633,
+      "forecasts": 0,
+      "minimum_forecast_count_passed": null,
+      "duration_seconds": 60.0008312,
+      "metrics": {
+        "evaluate_runtime_ms": {
+          "n": 1897,
+          "p50": 3.3728,
+          "p95": 4.9023,
+          "p99": 11.4733,
+          "max": 18.7605
+        },
+        "handler_runtime_ms": {
+          "n": 13633,
+          "p50": 0.0775,
+          "p95": 3.9557,
+          "p99": 5.5167,
+          "max": 248.5874
+        },
+        "source_to_state_ms": {
+          "n": 13633,
+          "p50": 7.4126,
+          "p95": 15.363,
+          "p99": 19.2052,
+          "max": 256.1982
+        },
+        "heartbeat_sleep_ms": {
+          "n": 5469,
+          "p50": 12.0152,
+          "p95": 15.6061,
+          "p99": 17.4073,
+          "max": 249.0947
+        },
+        "event_loop_lateness_ms": {
+          "n": 5469,
+          "p50": 11.0152,
+          "p95": 14.6061,
+          "p99": 16.4073,
+          "max": 248.0947
+        }
+      },
+      "reasons": {},
+      "worker": null,
+      "worker_resources": null,
+      "worker_failure": null,
+      "coalesced": 0,
+      "dropped": 0,
+      "parent_resources_before": {
+        "cpu_seconds": 30.6875,
+        "rss_mb": 412.90234375,
+        "peak_rss_mb": 421.26953125
+      },
+      "parent_resources_after": {
+        "cpu_seconds": 40.109375,
+        "rss_mb": 422.8046875,
+        "peak_rss_mb": 422.8046875
+      },
+      "portfolio_sha256": "efade72b47b94d8636890fac3238738f005690496c3a3406cdba6e5fb5cc7b0d",
+      "closed_trades": 0,
+      "balance": 1000.0,
+      "ordinary_decisions_sha256": "ac3462db433e0f090999a77ff8d82487bcda56f2c4f03a7641c2d55e4f450627",
+      "recorder_health": {
+        "background": true,
+        "queuedRows": 8354,
+        "writtenRows": 8354,
+        "pendingRows": 0,
+        "queueDepth": 0,
+        "queueCapacity": 8192,
+        "droppedRows": 0,
+        "droppedBulkRows": 0,
+        "droppedCriticalRows": 0,
+        "writerError": null
+      },
+      "recorder_type": "production SessionRecorder with background writer; semantic hash instrumentation included",
+      "measurements_path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\1-0-0.measurements.json",
+      "budgets": {
+        "event_loop_p99_ms": 20,
+        "event_loop_p99_added_ms": 5,
+        "data_to_proposal_p99_ms": 250
+      },
+      "absolute_event_loop_pass": true,
+      "repeat": 0
+    },
+    {
+      "mode": "shadow",
+      "speed": 1,
+      "events": 13633,
+      "forecasts": 1896,
+      "minimum_forecast_count_passed": true,
+      "duration_seconds": 60.0057262,
+      "metrics": {
+        "evaluate_runtime_ms": {
+          "n": 1897,
+          "p50": 3.7181,
+          "p95": 6.167,
+          "p99": 12.8652,
+          "max": 19.5085
+        },
+        "state_to_features_ms": {
+          "n": 1897,
+          "p50": 0.0463,
+          "p95": 0.0657,
+          "p99": 0.0715,
+          "max": 0.0915
+        },
+        "source_to_features_ms": {
+          "n": 1897,
+          "p50": 11.2347,
+          "p95": 19.5629,
+          "p99": 25.1121,
+          "max": 36.2222
+        },
+        "handler_runtime_ms": {
+          "n": 13633,
+          "p50": 0.0891,
+          "p95": 4.5132,
+          "p99": 6.5774,
+          "max": 21.82
+        },
+        "source_to_state_ms": {
+          "n": 13633,
+          "p50": 7.6229,
+          "p95": 15.5847,
+          "p99": 19.5687,
+          "max": 36.2701
+        },
+        "worker_mailbox_depth": {
+          "n": 13633,
+          "p50": 0,
+          "p95": 0,
+          "p99": 1,
+          "max": 3
+        },
+        "worker_inflight": {
+          "n": 13633,
+          "p50": 0,
+          "p95": 1,
+          "p99": 1,
+          "max": 1
+        },
+        "heartbeat_sleep_ms": {
+          "n": 5589,
+          "p50": 11.5168,
+          "p95": 15.6479,
+          "p99": 18.9496,
+          "max": 39.2901
+        },
+        "event_loop_lateness_ms": {
+          "n": 5589,
+          "p50": 10.5168,
+          "p95": 14.6479,
+          "p99": 17.9496,
+          "max": 38.2901
+        },
+        "queue_and_ipc_ms": {
+          "n": 1896,
+          "p50": 0.2745,
+          "p95": 4.7344,
+          "p99": 13.4621,
+          "max": 37.1071
+        },
+        "predict_ms": {
+          "n": 1896,
+          "p50": 0.4838,
+          "p95": 0.696,
+          "p99": 0.7619,
+          "max": 1.0426
+        },
+        "return_delivery_ms": {
+          "n": 1896,
+          "p50": 6.0338,
+          "p95": 13.2778,
+          "p99": 15.6128,
+          "max": 42.7416
+        },
+        "adapter_runtime_ms": {
+          "n": 1896,
+          "p50": 0.0133,
+          "p95": 0.0193,
+          "p99": 0.0229,
+          "max": 0.0616
+        },
+        "data_to_adapter_ms": {
+          "n": 1896,
+          "p50": 18.8843,
+          "p95": 30.0789,
+          "p99": 40.0029,
+          "max": 61.2491
+        }
+      },
+      "reasons": {
+        "probability_abstention": 1896
+      },
+      "worker": {
+        "module": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\scalp_bot\\__init__.py",
+        "pid": 28812,
+        "exchange_imported": true,
+        "resources": {
+          "cpu_seconds": 0.765625,
+          "rss_mb": 106.3359375,
+          "peak_rss_mb": 106.3359375
+        }
+      },
+      "worker_resources": {
+        "cpu_seconds": 1.875,
+        "rss_mb": 122.24609375,
+        "peak_rss_mb": 122.24609375
+      },
+      "worker_failure": null,
+      "coalesced": 1,
+      "dropped": 0,
+      "parent_resources_before": {
+        "cpu_seconds": 61.390625,
+        "rss_mb": 465.49609375,
+        "peak_rss_mb": 472.33203125
+      },
+      "parent_resources_after": {
+        "cpu_seconds": 74.03125,
+        "rss_mb": 467.88671875,
+        "peak_rss_mb": 472.33203125
+      },
+      "portfolio_sha256": "efade72b47b94d8636890fac3238738f005690496c3a3406cdba6e5fb5cc7b0d",
+      "closed_trades": 0,
+      "balance": 1000.0,
+      "ordinary_decisions_sha256": "ac3462db433e0f090999a77ff8d82487bcda56f2c4f03a7641c2d55e4f450627",
+      "recorder_health": {
+        "background": true,
+        "queuedRows": 8354,
+        "writtenRows": 8354,
+        "pendingRows": 0,
+        "queueDepth": 0,
+        "queueCapacity": 8192,
+        "droppedRows": 0,
+        "droppedBulkRows": 0,
+        "droppedCriticalRows": 0,
+        "writerError": null
+      },
+      "recorder_type": "production SessionRecorder with background writer; semantic hash instrumentation included",
+      "measurements_path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\1-0-1.measurements.json",
+      "budgets": {
+        "event_loop_p99_ms": 20,
+        "event_loop_p99_added_ms": 5,
+        "data_to_proposal_p99_ms": 250
+      },
+      "absolute_event_loop_pass": true,
+      "repeat": 0,
+      "ordinary_portfolio_identical": true,
+      "ordinary_decisions_identical": true,
+      "added_event_loop_p99_ms": 1.542300000000001,
+      "added_budget_pass": true
+    },
+    {
+      "mode": "shadow",
+      "speed": 1,
+      "events": 13633,
+      "forecasts": 1896,
+      "minimum_forecast_count_passed": true,
+      "duration_seconds": 59.9959982,
+      "metrics": {
+        "evaluate_runtime_ms": {
+          "n": 1897,
+          "p50": 3.6916,
+          "p95": 6.1605,
+          "p99": 11.9381,
+          "max": 29.5718
+        },
+        "state_to_features_ms": {
+          "n": 1897,
+          "p50": 0.045,
+          "p95": 0.0645,
+          "p99": 0.0706,
+          "max": 0.1593
+        },
+        "source_to_features_ms": {
+          "n": 1897,
+          "p50": 11.2151,
+          "p95": 19.5136,
+          "p99": 23.3735,
+          "max": 37.2397
+        },
+        "handler_runtime_ms": {
+          "n": 13633,
+          "p50": 0.086,
+          "p95": 4.461,
+          "p99": 6.6294,
+          "max": 31.085
+        },
+        "source_to_state_ms": {
+          "n": 13633,
+          "p50": 7.6074,
+          "p95": 15.4165,
+          "p99": 19.6626,
+          "max": 38.625
+        },
+        "worker_mailbox_depth": {
+          "n": 13633,
+          "p50": 0,
+          "p95": 0,
+          "p99": 1,
+          "max": 3
+        },
+        "worker_inflight": {
+          "n": 13633,
+          "p50": 0,
+          "p95": 1,
+          "p99": 1,
+          "max": 1
+        },
+        "heartbeat_sleep_ms": {
+          "n": 5585,
+          "p50": 11.5047,
+          "p95": 15.5816,
+          "p99": 19.0906,
+          "max": 36.2562
+        },
+        "event_loop_lateness_ms": {
+          "n": 5585,
+          "p50": 10.5047,
+          "p95": 14.5816,
+          "p99": 18.0906,
+          "max": 35.2562
+        },
+        "queue_and_ipc_ms": {
+          "n": 1896,
+          "p50": 0.2647,
+          "p95": 4.5471,
+          "p99": 12.6845,
+          "max": 28.1918
+        },
+        "predict_ms": {
+          "n": 1896,
+          "p50": 0.4698,
+          "p95": 0.6804,
+          "p99": 0.7511,
+          "max": 0.9662
+        },
+        "return_delivery_ms": {
+          "n": 1896,
+          "p50": 5.8815,
+          "p95": 12.4578,
+          "p99": 15.6611,
+          "max": 21.1973
+        },
+        "adapter_runtime_ms": {
+          "n": 1896,
+          "p50": 0.0123,
+          "p95": 0.0187,
+          "p99": 0.0243,
+          "max": 0.0876
+        },
+        "data_to_adapter_ms": {
+          "n": 1896,
+          "p50": 18.5746,
+          "p95": 29.8094,
+          "p99": 38.0861,
+          "max": 64.4326
+        }
+      },
+      "reasons": {
+        "probability_abstention": 1896
+      },
+      "worker": {
+        "module": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\scalp_bot\\__init__.py",
+        "pid": 26432,
+        "exchange_imported": true,
+        "resources": {
+          "cpu_seconds": 0.796875,
+          "rss_mb": 106.32421875,
+          "peak_rss_mb": 106.32421875
+        }
+      },
+      "worker_resources": {
+        "cpu_seconds": 2.296875,
+        "rss_mb": 122.75390625,
+        "peak_rss_mb": 122.75390625
+      },
+      "worker_failure": null,
+      "coalesced": 1,
+      "dropped": 0,
+      "parent_resources_before": {
+        "cpu_seconds": 96.6875,
+        "rss_mb": 464.05078125,
+        "peak_rss_mb": 472.33203125
+      },
+      "parent_resources_after": {
+        "cpu_seconds": 107.875,
+        "rss_mb": 465.6171875,
+        "peak_rss_mb": 472.33203125
+      },
+      "portfolio_sha256": "efade72b47b94d8636890fac3238738f005690496c3a3406cdba6e5fb5cc7b0d",
+      "closed_trades": 0,
+      "balance": 1000.0,
+      "ordinary_decisions_sha256": "ac3462db433e0f090999a77ff8d82487bcda56f2c4f03a7641c2d55e4f450627",
+      "recorder_health": {
+        "background": true,
+        "queuedRows": 8354,
+        "writtenRows": 8354,
+        "pendingRows": 0,
+        "queueDepth": 0,
+        "queueCapacity": 8192,
+        "droppedRows": 0,
+        "droppedBulkRows": 0,
+        "droppedCriticalRows": 0,
+        "writerError": null
+      },
+      "recorder_type": "production SessionRecorder with background writer; semantic hash instrumentation included",
+      "measurements_path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\1-1-1.measurements.json",
+      "budgets": {
+        "event_loop_p99_ms": 20,
+        "event_loop_p99_added_ms": 5,
+        "data_to_proposal_p99_ms": 250
+      },
+      "absolute_event_loop_pass": true,
+      "repeat": 1,
+      "ordinary_portfolio_identical": true,
+      "ordinary_decisions_identical": true,
+      "added_event_loop_p99_ms": 0.6559999999999988,
+      "added_budget_pass": true
+    },
+    {
+      "mode": "off",
+      "speed": 1,
+      "events": 13633,
+      "forecasts": 0,
+      "minimum_forecast_count_passed": null,
+      "duration_seconds": 60.0044302,
+      "metrics": {
+        "evaluate_runtime_ms": {
+          "n": 1897,
+          "p50": 3.5694,
+          "p95": 5.7814,
+          "p99": 12.2943,
+          "max": 23.0017
+        },
+        "handler_runtime_ms": {
+          "n": 13633,
+          "p50": 0.0809,
+          "p95": 4.2383,
+          "p99": 6.4092,
+          "max": 270.9345
+        },
+        "source_to_state_ms": {
+          "n": 13633,
+          "p50": 7.4325,
+          "p95": 16.0481,
+          "p99": 21.7393,
+          "max": 284.9858
+        },
+        "heartbeat_sleep_ms": {
+          "n": 5472,
+          "p50": 12.0315,
+          "p95": 15.6123,
+          "p99": 18.4346,
+          "max": 271.1716
+        },
+        "event_loop_lateness_ms": {
+          "n": 5472,
+          "p50": 11.0315,
+          "p95": 14.6123,
+          "p99": 17.4346,
+          "max": 270.1716
+        }
+      },
+      "reasons": {},
+      "worker": null,
+      "worker_resources": null,
+      "worker_failure": null,
+      "coalesced": 0,
+      "dropped": 0,
+      "parent_resources_before": {
+        "cpu_seconds": 130.90625,
+        "rss_mb": 463.2734375,
+        "peak_rss_mb": 472.33203125
+      },
+      "parent_resources_after": {
+        "cpu_seconds": 141.4375,
+        "rss_mb": 463.93359375,
+        "peak_rss_mb": 472.33203125
+      },
+      "portfolio_sha256": "efade72b47b94d8636890fac3238738f005690496c3a3406cdba6e5fb5cc7b0d",
+      "closed_trades": 0,
+      "balance": 1000.0,
+      "ordinary_decisions_sha256": "ac3462db433e0f090999a77ff8d82487bcda56f2c4f03a7641c2d55e4f450627",
+      "recorder_health": {
+        "background": true,
+        "queuedRows": 8354,
+        "writtenRows": 8354,
+        "pendingRows": 0,
+        "queueDepth": 0,
+        "queueCapacity": 8192,
+        "droppedRows": 0,
+        "droppedBulkRows": 0,
+        "droppedCriticalRows": 0,
+        "writerError": null
+      },
+      "recorder_type": "production SessionRecorder with background writer; semantic hash instrumentation included",
+      "measurements_path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\1-1-0.measurements.json",
+      "budgets": {
+        "event_loop_p99_ms": 20,
+        "event_loop_p99_added_ms": 5,
+        "data_to_proposal_p99_ms": 250
+      },
+      "absolute_event_loop_pass": true,
+      "repeat": 1
+    },
+    {
+      "mode": "off",
+      "speed": 1,
+      "events": 13633,
+      "forecasts": 0,
+      "minimum_forecast_count_passed": null,
+      "duration_seconds": 60.0082815,
+      "metrics": {
+        "evaluate_runtime_ms": {
+          "n": 1897,
+          "p50": 3.6206,
+          "p95": 5.4947,
+          "p99": 12.0675,
+          "max": 20.3791
+        },
+        "handler_runtime_ms": {
+          "n": 13633,
+          "p50": 0.0835,
+          "p95": 4.3039,
+          "p99": 6.2684,
+          "max": 23.7199
+        },
+        "source_to_state_ms": {
+          "n": 13633,
+          "p50": 7.4311,
+          "p95": 15.6126,
+          "p99": 19.2299,
+          "max": 32.9944
+        },
+        "heartbeat_sleep_ms": {
+          "n": 5519,
+          "p50": 11.8591,
+          "p95": 15.6134,
+          "p99": 18.8434,
+          "max": 28.3769
+        },
+        "event_loop_lateness_ms": {
+          "n": 5519,
+          "p50": 10.8591,
+          "p95": 14.6134,
+          "p99": 17.8434,
+          "max": 27.3769
+        }
+      },
+      "reasons": {},
+      "worker": null,
+      "worker_resources": null,
+      "worker_failure": null,
+      "coalesced": 0,
+      "dropped": 0,
+      "parent_resources_before": {
+        "cpu_seconds": 160.28125,
+        "rss_mb": 465.76171875,
+        "peak_rss_mb": 472.734375
+      },
+      "parent_resources_after": {
+        "cpu_seconds": 170.28125,
+        "rss_mb": 466.98046875,
+        "peak_rss_mb": 472.734375
+      },
+      "portfolio_sha256": "efade72b47b94d8636890fac3238738f005690496c3a3406cdba6e5fb5cc7b0d",
+      "closed_trades": 0,
+      "balance": 1000.0,
+      "ordinary_decisions_sha256": "ac3462db433e0f090999a77ff8d82487bcda56f2c4f03a7641c2d55e4f450627",
+      "recorder_health": {
+        "background": true,
+        "queuedRows": 8354,
+        "writtenRows": 8354,
+        "pendingRows": 0,
+        "queueDepth": 0,
+        "queueCapacity": 8192,
+        "droppedRows": 0,
+        "droppedBulkRows": 0,
+        "droppedCriticalRows": 0,
+        "writerError": null
+      },
+      "recorder_type": "production SessionRecorder with background writer; semantic hash instrumentation included",
+      "measurements_path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\1-2-0.measurements.json",
+      "budgets": {
+        "event_loop_p99_ms": 20,
+        "event_loop_p99_added_ms": 5,
+        "data_to_proposal_p99_ms": 250
+      },
+      "absolute_event_loop_pass": true,
+      "repeat": 2
+    },
+    {
+      "mode": "shadow",
+      "speed": 1,
+      "events": 13633,
+      "forecasts": 1896,
+      "minimum_forecast_count_passed": true,
+      "duration_seconds": 60.0061623,
+      "metrics": {
+        "evaluate_runtime_ms": {
+          "n": 1897,
+          "p50": 3.7873,
+          "p95": 6.3934,
+          "p99": 12.2133,
+          "max": 19.3819
+        },
+        "state_to_features_ms": {
+          "n": 1897,
+          "p50": 0.0452,
+          "p95": 0.0665,
+          "p99": 0.0779,
+          "max": 0.2799
+        },
+        "source_to_features_ms": {
+          "n": 1897,
+          "p50": 11.4071,
+          "p95": 19.7649,
+          "p99": 27.2905,
+          "max": 290.2691
+        },
+        "handler_runtime_ms": {
+          "n": 13633,
+          "p50": 0.0867,
+          "p95": 4.561,
+          "p99": 6.9063,
+          "max": 278.6493
+        },
+        "source_to_state_ms": {
+          "n": 13633,
+          "p50": 7.5472,
+          "p95": 16.199,
+          "p99": 21.4444,
+          "max": 290.3117
+        },
+        "worker_mailbox_depth": {
+          "n": 13633,
+          "p50": 0,
+          "p95": 0,
+          "p99": 1,
+          "max": 3
+        },
+        "worker_inflight": {
+          "n": 13633,
+          "p50": 0,
+          "p95": 1,
+          "p99": 1,
+          "max": 1
+        },
+        "heartbeat_sleep_ms": {
+          "n": 5564,
+          "p50": 11.4968,
+          "p95": 15.5877,
+          "p99": 18.4902,
+          "max": 280.3254
+        },
+        "event_loop_lateness_ms": {
+          "n": 5564,
+          "p50": 10.4968,
+          "p95": 14.5877,
+          "p99": 17.4902,
+          "max": 279.3254
+        },
+        "queue_and_ipc_ms": {
+          "n": 1896,
+          "p50": 0.2754,
+          "p95": 4.978,
+          "p99": 15.1026,
+          "max": 31.567
+        },
+        "predict_ms": {
+          "n": 1896,
+          "p50": 0.4846,
+          "p95": 0.6983,
+          "p99": 0.7888,
+          "max": 1.6271
+        },
+        "return_delivery_ms": {
+          "n": 1896,
+          "p50": 5.5924,
+          "p95": 12.9992,
+          "p99": 16.1143,
+          "max": 19.8127
+        },
+        "adapter_runtime_ms": {
+          "n": 1896,
+          "p50": 0.0125,
+          "p95": 0.0194,
+          "p99": 0.0294,
+          "max": 0.0681
+        },
+        "data_to_adapter_ms": {
+          "n": 1896,
+          "p50": 18.846,
+          "p95": 30.5369,
+          "p99": 44.9895,
+          "max": 292.9616
+        }
+      },
+      "reasons": {
+        "probability_abstention": 1896
+      },
+      "worker": {
+        "module": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\scalp_bot\\__init__.py",
+        "pid": 6780,
+        "exchange_imported": true,
+        "resources": {
+          "cpu_seconds": 0.796875,
+          "rss_mb": 106.19140625,
+          "peak_rss_mb": 106.19140625
+        }
+      },
+      "worker_resources": {
+        "cpu_seconds": 2.4375,
+        "rss_mb": 122.671875,
+        "peak_rss_mb": 122.671875
+      },
+      "worker_failure": null,
+      "coalesced": 1,
+      "dropped": 0,
+      "parent_resources_before": {
+        "cpu_seconds": 193.3125,
+        "rss_mb": 465.03125,
+        "peak_rss_mb": 472.734375
+      },
+      "parent_resources_after": {
+        "cpu_seconds": 205.140625,
+        "rss_mb": 466.5625,
+        "peak_rss_mb": 472.734375
+      },
+      "portfolio_sha256": "efade72b47b94d8636890fac3238738f005690496c3a3406cdba6e5fb5cc7b0d",
+      "closed_trades": 0,
+      "balance": 1000.0,
+      "ordinary_decisions_sha256": "ac3462db433e0f090999a77ff8d82487bcda56f2c4f03a7641c2d55e4f450627",
+      "recorder_health": {
+        "background": true,
+        "queuedRows": 8354,
+        "writtenRows": 8354,
+        "pendingRows": 0,
+        "queueDepth": 0,
+        "queueCapacity": 8192,
+        "droppedRows": 0,
+        "droppedBulkRows": 0,
+        "droppedCriticalRows": 0,
+        "writerError": null
+      },
+      "recorder_type": "production SessionRecorder with background writer; semantic hash instrumentation included",
+      "measurements_path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\1-2-1.measurements.json",
+      "budgets": {
+        "event_loop_p99_ms": 20,
+        "event_loop_p99_added_ms": 5,
+        "data_to_proposal_p99_ms": 250
+      },
+      "absolute_event_loop_pass": true,
+      "repeat": 2,
+      "ordinary_portfolio_identical": true,
+      "ordinary_decisions_identical": true,
+      "added_event_loop_p99_ms": -0.3531999999999975,
+      "added_budget_pass": true
+    },
+    {
+      "mode": "off",
+      "speed": 4,
+      "events": 13633,
+      "forecasts": 0,
+      "minimum_forecast_count_passed": null,
+      "duration_seconds": 15.0076538,
+      "metrics": {
+        "evaluate_runtime_ms": {
+          "n": 1897,
+          "p50": 3.3557,
+          "p95": 5.7649,
+          "p99": 11.9805,
+          "max": 19.4238
+        },
+        "handler_runtime_ms": {
+          "n": 13633,
+          "p50": 0.0598,
+          "p95": 4.0116,
+          "p99": 6.0742,
+          "max": 20.6262
+        },
+        "source_to_state_ms": {
+          "n": 13633,
+          "p50": 8.9419,
+          "p95": 19.91355,
+          "p99": 27.5169,
+          "max": 58.741825
+        },
+        "heartbeat_sleep_ms": {
+          "n": 2336,
+          "p50": 5.0504,
+          "p95": 15.503,
+          "p99": 17.3059,
+          "max": 25.9248
+        },
+        "event_loop_lateness_ms": {
+          "n": 2336,
+          "p50": 4.0504,
+          "p95": 14.503,
+          "p99": 16.3059,
+          "max": 24.9248
+        }
+      },
+      "reasons": {},
+      "worker": null,
+      "worker_resources": null,
+      "worker_failure": null,
+      "coalesced": 0,
+      "dropped": 0,
+      "parent_resources_before": {
+        "cpu_seconds": 228.1875,
+        "rss_mb": 470.6171875,
+        "peak_rss_mb": 476.0546875
+      },
+      "parent_resources_after": {
+        "cpu_seconds": 237.265625,
+        "rss_mb": 471.1328125,
+        "peak_rss_mb": 476.0546875
+      },
+      "portfolio_sha256": "efade72b47b94d8636890fac3238738f005690496c3a3406cdba6e5fb5cc7b0d",
+      "closed_trades": 0,
+      "balance": 1000.0,
+      "ordinary_decisions_sha256": "ac3462db433e0f090999a77ff8d82487bcda56f2c4f03a7641c2d55e4f450627",
+      "recorder_health": {
+        "background": true,
+        "queuedRows": 8354,
+        "writtenRows": 8354,
+        "pendingRows": 0,
+        "queueDepth": 0,
+        "queueCapacity": 8192,
+        "droppedRows": 0,
+        "droppedBulkRows": 0,
+        "droppedCriticalRows": 0,
+        "writerError": null
+      },
+      "recorder_type": "production SessionRecorder with background writer; semantic hash instrumentation included",
+      "measurements_path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\4-0-0.measurements.json",
+      "budgets": {
+        "event_loop_p99_ms": 20,
+        "event_loop_p99_added_ms": 5,
+        "data_to_proposal_p99_ms": 250
+      },
+      "absolute_event_loop_pass": true,
+      "repeat": 0
+    },
+    {
+      "mode": "shadow",
+      "speed": 4,
+      "events": 13633,
+      "forecasts": 1895,
+      "minimum_forecast_count_passed": true,
+      "duration_seconds": 15.0139618,
+      "metrics": {
+        "evaluate_runtime_ms": {
+          "n": 1897,
+          "p50": 3.6954,
+          "p95": 6.1575,
+          "p99": 11.7916,
+          "max": 27.6039
+        },
+        "state_to_features_ms": {
+          "n": 1897,
+          "p50": 0.0428,
+          "p95": 0.0625,
+          "p99": 0.0693,
+          "max": 0.0892
+        },
+        "source_to_features_ms": {
+          "n": 1897,
+          "p50": 13.2055,
+          "p95": 27.7954,
+          "p99": 42.0587,
+          "max": 75.311625
+        },
+        "handler_runtime_ms": {
+          "n": 13633,
+          "p50": 0.0732,
+          "p95": 4.3937,
+          "p99": 6.5932,
+          "max": 28.8689
+        },
+        "source_to_state_ms": {
+          "n": 13633,
+          "p50": 10.810625,
+          "p95": 26.51565,
+          "p99": 41.153175,
+          "max": 75.356225
+        },
+        "worker_mailbox_depth": {
+          "n": 13633,
+          "p50": 0,
+          "p95": 1,
+          "p99": 1,
+          "max": 3
+        },
+        "worker_inflight": {
+          "n": 13633,
+          "p50": 1,
+          "p95": 1,
+          "p99": 1,
+          "max": 1
+        },
+        "heartbeat_sleep_ms": {
+          "n": 2411,
+          "p50": 5.1539,
+          "p95": 15.382,
+          "p99": 18.8852,
+          "max": 33.9452
+        },
+        "event_loop_lateness_ms": {
+          "n": 2411,
+          "p50": 4.1539,
+          "p95": 14.382,
+          "p99": 17.8852,
+          "max": 32.9452
+        },
+        "queue_and_ipc_ms": {
+          "n": 1895,
+          "p50": 0.2978,
+          "p95": 5.0701,
+          "p99": 9.0712,
+          "max": 31.4039
+        },
+        "predict_ms": {
+          "n": 1895,
+          "p50": 0.3962,
+          "p95": 0.5827,
+          "p99": 0.7038,
+          "max": 1.0485
+        },
+        "return_delivery_ms": {
+          "n": 1895,
+          "p50": 0.9587,
+          "p95": 6.5745,
+          "p99": 12.9864,
+          "max": 30.5698
+        },
+        "adapter_runtime_ms": {
+          "n": 1895,
+          "p50": 0.0102,
+          "p95": 0.0147,
+          "p99": 0.0168,
+          "max": 0.0377
+        },
+        "data_to_adapter_ms": {
+          "n": 1895,
+          "p50": 16.816375,
+          "p95": 33.4996,
+          "p99": 47.347275,
+          "max": 76.393225
+        }
+      },
+      "reasons": {
+        "probability_abstention": 1895
+      },
+      "worker": {
+        "module": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\scalp_bot\\__init__.py",
+        "pid": 29804,
+        "exchange_imported": true,
+        "resources": {
+          "cpu_seconds": 0.796875,
+          "rss_mb": 106.52734375,
+          "peak_rss_mb": 106.52734375
+        }
+      },
+      "worker_resources": {
+        "cpu_seconds": 2.171875,
+        "rss_mb": 122.5078125,
+        "peak_rss_mb": 122.5078125
+      },
+      "worker_failure": null,
+      "coalesced": 2,
+      "dropped": 0,
+      "parent_resources_before": {
+        "cpu_seconds": 260.3125,
+        "rss_mb": 468.44921875,
+        "peak_rss_mb": 476.0546875
+      },
+      "parent_resources_after": {
+        "cpu_seconds": 271.015625,
+        "rss_mb": 469.58203125,
+        "peak_rss_mb": 476.0546875
+      },
+      "portfolio_sha256": "efade72b47b94d8636890fac3238738f005690496c3a3406cdba6e5fb5cc7b0d",
+      "closed_trades": 0,
+      "balance": 1000.0,
+      "ordinary_decisions_sha256": "ac3462db433e0f090999a77ff8d82487bcda56f2c4f03a7641c2d55e4f450627",
+      "recorder_health": {
+        "background": true,
+        "queuedRows": 8354,
+        "writtenRows": 8354,
+        "pendingRows": 0,
+        "queueDepth": 0,
+        "queueCapacity": 8192,
+        "droppedRows": 0,
+        "droppedBulkRows": 0,
+        "droppedCriticalRows": 0,
+        "writerError": null
+      },
+      "recorder_type": "production SessionRecorder with background writer; semantic hash instrumentation included",
+      "measurements_path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\4-0-1.measurements.json",
+      "budgets": {
+        "event_loop_p99_ms": 20,
+        "event_loop_p99_added_ms": 5,
+        "data_to_proposal_p99_ms": 250
+      },
+      "absolute_event_loop_pass": true,
+      "repeat": 0,
+      "ordinary_portfolio_identical": true,
+      "ordinary_decisions_identical": true,
+      "added_event_loop_p99_ms": 1.5793,
+      "added_budget_pass": true
+    },
+    {
+      "mode": "shadow",
+      "speed": 4,
+      "events": 13633,
+      "forecasts": 1895,
+      "minimum_forecast_count_passed": true,
+      "duration_seconds": 15.0095572,
+      "metrics": {
+        "evaluate_runtime_ms": {
+          "n": 1897,
+          "p50": 3.3996,
+          "p95": 5.9299,
+          "p99": 11.8614,
+          "max": 19.3935
+        },
+        "state_to_features_ms": {
+          "n": 1897,
+          "p50": 0.0408,
+          "p95": 0.0602,
+          "p99": 0.0682,
+          "max": 0.0898
+        },
+        "source_to_features_ms": {
+          "n": 1897,
+          "p50": 12.68975,
+          "p95": 78.832425,
+          "p99": 289.939425,
+          "max": 317.983225
+        },
+        "handler_runtime_ms": {
+          "n": 13633,
+          "p50": 0.069,
+          "p95": 4.152,
+          "p99": 6.3118,
+          "max": 291.5596
+        },
+        "source_to_state_ms": {
+          "n": 13633,
+          "p50": 10.25325,
+          "p95": 75.254525,
+          "p99": 289.3592,
+          "max": 318.181125
+        },
+        "worker_mailbox_depth": {
+          "n": 13633,
+          "p50": 0,
+          "p95": 1,
+          "p99": 1,
+          "max": 3
+        },
+        "worker_inflight": {
+          "n": 13633,
+          "p50": 1,
+          "p95": 1,
+          "p99": 1,
+          "max": 1
+        },
+        "heartbeat_sleep_ms": {
+          "n": 2407,
+          "p50": 4.9689,
+          "p95": 15.4079,
+          "p99": 18.088,
+          "max": 297.7447
+        },
+        "event_loop_lateness_ms": {
+          "n": 2407,
+          "p50": 3.9689,
+          "p95": 14.4079,
+          "p99": 17.088,
+          "max": 296.7447
+        },
+        "queue_and_ipc_ms": {
+          "n": 1895,
+          "p50": 0.2835,
+          "p95": 4.8217,
+          "p99": 8.797,
+          "max": 37.3796
+        },
+        "predict_ms": {
+          "n": 1895,
+          "p50": 0.352,
+          "p95": 0.5296,
+          "p99": 0.6617,
+          "max": 0.9595
+        },
+        "return_delivery_ms": {
+          "n": 1895,
+          "p50": 0.8128,
+          "p95": 6.7123,
+          "p99": 13.3014,
+          "max": 291.7025
+        },
+        "adapter_runtime_ms": {
+          "n": 1895,
+          "p50": 0.0099,
+          "p95": 0.0138,
+          "p99": 0.0176,
+          "max": 0.0347
+        },
+        "data_to_adapter_ms": {
+          "n": 1895,
+          "p50": 16.389175,
+          "p95": 81.884225,
+          "p99": 293.855925,
+          "max": 319.86895
+        }
+      },
+      "reasons": {
+        "probability_abstention": 1895
+      },
+      "worker": {
+        "module": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\scalp_bot\\__init__.py",
+        "pid": 16132,
+        "exchange_imported": true,
+        "resources": {
+          "cpu_seconds": 0.703125,
+          "rss_mb": 106.2890625,
+          "peak_rss_mb": 106.2890625
+        }
+      },
+      "worker_resources": {
+        "cpu_seconds": 2.171875,
+        "rss_mb": 122.5078125,
+        "peak_rss_mb": 122.5078125
+      },
+      "worker_failure": null,
+      "coalesced": 2,
+      "dropped": 0,
+      "parent_resources_before": {
+        "cpu_seconds": 293.609375,
+        "rss_mb": 468.29296875,
+        "peak_rss_mb": 476.0546875
+      },
+      "parent_resources_after": {
+        "cpu_seconds": 303.859375,
+        "rss_mb": 469.515625,
+        "peak_rss_mb": 476.0546875
+      },
+      "portfolio_sha256": "efade72b47b94d8636890fac3238738f005690496c3a3406cdba6e5fb5cc7b0d",
+      "closed_trades": 0,
+      "balance": 1000.0,
+      "ordinary_decisions_sha256": "ac3462db433e0f090999a77ff8d82487bcda56f2c4f03a7641c2d55e4f450627",
+      "recorder_health": {
+        "background": true,
+        "queuedRows": 8354,
+        "writtenRows": 8354,
+        "pendingRows": 0,
+        "queueDepth": 0,
+        "queueCapacity": 8192,
+        "droppedRows": 0,
+        "droppedBulkRows": 0,
+        "droppedCriticalRows": 0,
+        "writerError": null
+      },
+      "recorder_type": "production SessionRecorder with background writer; semantic hash instrumentation included",
+      "measurements_path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\4-1-1.measurements.json",
+      "budgets": {
+        "event_loop_p99_ms": 20,
+        "event_loop_p99_added_ms": 5,
+        "data_to_proposal_p99_ms": 250
+      },
+      "absolute_event_loop_pass": true,
+      "repeat": 1,
+      "ordinary_portfolio_identical": true,
+      "ordinary_decisions_identical": true,
+      "added_event_loop_p99_ms": 0.38370000000000104,
+      "added_budget_pass": true
+    },
+    {
+      "mode": "off",
+      "speed": 4,
+      "events": 13633,
+      "forecasts": 0,
+      "minimum_forecast_count_passed": null,
+      "duration_seconds": 15.0047353,
+      "metrics": {
+        "evaluate_runtime_ms": {
+          "n": 1897,
+          "p50": 3.2674,
+          "p95": 4.91,
+          "p99": 11.5801,
+          "max": 19.683
+        },
+        "handler_runtime_ms": {
+          "n": 13633,
+          "p50": 0.0591,
+          "p95": 3.7673,
+          "p99": 5.5235,
+          "max": 20.7916
+        },
+        "source_to_state_ms": {
+          "n": 13633,
+          "p50": 8.451875,
+          "p95": 19.612925,
+          "p99": 27.56515,
+          "max": 54.896225
+        },
+        "heartbeat_sleep_ms": {
+          "n": 2343,
+          "p50": 4.8426,
+          "p95": 15.5244,
+          "p99": 17.7043,
+          "max": 25.3862
+        },
+        "event_loop_lateness_ms": {
+          "n": 2343,
+          "p50": 3.8426,
+          "p95": 14.5244,
+          "p99": 16.7043,
+          "max": 24.3862
+        }
+      },
+      "reasons": {},
+      "worker": null,
+      "worker_resources": null,
+      "worker_failure": null,
+      "coalesced": 0,
+      "dropped": 0,
+      "parent_resources_before": {
+        "cpu_seconds": 324.8125,
+        "rss_mb": 470.60546875,
+        "peak_rss_mb": 476.0546875
+      },
+      "parent_resources_after": {
+        "cpu_seconds": 333.78125,
+        "rss_mb": 471.19921875,
+        "peak_rss_mb": 476.0546875
+      },
+      "portfolio_sha256": "efade72b47b94d8636890fac3238738f005690496c3a3406cdba6e5fb5cc7b0d",
+      "closed_trades": 0,
+      "balance": 1000.0,
+      "ordinary_decisions_sha256": "ac3462db433e0f090999a77ff8d82487bcda56f2c4f03a7641c2d55e4f450627",
+      "recorder_health": {
+        "background": true,
+        "queuedRows": 8354,
+        "writtenRows": 8354,
+        "pendingRows": 0,
+        "queueDepth": 0,
+        "queueCapacity": 8192,
+        "droppedRows": 0,
+        "droppedBulkRows": 0,
+        "droppedCriticalRows": 0,
+        "writerError": null
+      },
+      "recorder_type": "production SessionRecorder with background writer; semantic hash instrumentation included",
+      "measurements_path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\4-1-0.measurements.json",
+      "budgets": {
+        "event_loop_p99_ms": 20,
+        "event_loop_p99_added_ms": 5,
+        "data_to_proposal_p99_ms": 250
+      },
+      "absolute_event_loop_pass": true,
+      "repeat": 1
+    },
+    {
+      "mode": "off",
+      "speed": 4,
+      "events": 13633,
+      "forecasts": 0,
+      "minimum_forecast_count_passed": null,
+      "duration_seconds": 14.9990775,
+      "metrics": {
+        "evaluate_runtime_ms": {
+          "n": 1897,
+          "p50": 3.1014,
+          "p95": 4.4975,
+          "p99": 11.4624,
+          "max": 19.2667
+        },
+        "handler_runtime_ms": {
+          "n": 13633,
+          "p50": 0.0572,
+          "p95": 3.6283,
+          "p99": 5.2875,
+          "max": 20.2662
+        },
+        "source_to_state_ms": {
+          "n": 13633,
+          "p50": 8.157925,
+          "p95": 18.032325,
+          "p99": 26.210375,
+          "max": 59.090125
+        },
+        "heartbeat_sleep_ms": {
+          "n": 2350,
+          "p50": 4.7216,
+          "p95": 15.5182,
+          "p99": 16.7238,
+          "max": 25.4448
+        },
+        "event_loop_lateness_ms": {
+          "n": 2350,
+          "p50": 3.7216,
+          "p95": 14.5182,
+          "p99": 15.7238,
+          "max": 24.4448
+        }
+      },
+      "reasons": {},
+      "worker": null,
+      "worker_resources": null,
+      "worker_failure": null,
+      "coalesced": 0,
+      "dropped": 0,
+      "parent_resources_before": {
+        "cpu_seconds": 353.671875,
+        "rss_mb": 468.1484375,
+        "peak_rss_mb": 476.0546875
+      },
+      "parent_resources_after": {
+        "cpu_seconds": 361.875,
+        "rss_mb": 469.21484375,
+        "peak_rss_mb": 476.0546875
+      },
+      "portfolio_sha256": "efade72b47b94d8636890fac3238738f005690496c3a3406cdba6e5fb5cc7b0d",
+      "closed_trades": 0,
+      "balance": 1000.0,
+      "ordinary_decisions_sha256": "ac3462db433e0f090999a77ff8d82487bcda56f2c4f03a7641c2d55e4f450627",
+      "recorder_health": {
+        "background": true,
+        "queuedRows": 8354,
+        "writtenRows": 8354,
+        "pendingRows": 0,
+        "queueDepth": 0,
+        "queueCapacity": 8192,
+        "droppedRows": 0,
+        "droppedBulkRows": 0,
+        "droppedCriticalRows": 0,
+        "writerError": null
+      },
+      "recorder_type": "production SessionRecorder with background writer; semantic hash instrumentation included",
+      "measurements_path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\4-2-0.measurements.json",
+      "budgets": {
+        "event_loop_p99_ms": 20,
+        "event_loop_p99_added_ms": 5,
+        "data_to_proposal_p99_ms": 250
+      },
+      "absolute_event_loop_pass": true,
+      "repeat": 2
+    },
+    {
+      "mode": "shadow",
+      "speed": 4,
+      "events": 13633,
+      "forecasts": 1892,
+      "minimum_forecast_count_passed": true,
+      "duration_seconds": 15.0383731,
+      "metrics": {
+        "evaluate_runtime_ms": {
+          "n": 1897,
+          "p50": 3.2447,
+          "p95": 4.6915,
+          "p99": 11.632,
+          "max": 19.5623
+        },
+        "state_to_features_ms": {
+          "n": 1897,
+          "p50": 0.0396,
+          "p95": 0.0507,
+          "p99": 0.0607,
+          "max": 0.0855
+        },
+        "source_to_features_ms": {
+          "n": 1897,
+          "p50": 11.618975,
+          "p95": 34.864025,
+          "p99": 279.818425,
+          "max": 295.673875
+        },
+        "handler_runtime_ms": {
+          "n": 13633,
+          "p50": 0.0621,
+          "p95": 3.8119,
+          "p99": 5.4206,
+          "max": 281.2387
+        },
+        "source_to_state_ms": {
+          "n": 13633,
+          "p50": 9.184925,
+          "p95": 33.864125,
+          "p99": 276.1214,
+          "max": 295.694075
+        },
+        "worker_mailbox_depth": {
+          "n": 13633,
+          "p50": 0,
+          "p95": 1,
+          "p99": 2,
+          "max": 3
+        },
+        "worker_inflight": {
+          "n": 13633,
+          "p50": 1,
+          "p95": 1,
+          "p99": 1,
+          "max": 1
+        },
+        "heartbeat_sleep_ms": {
+          "n": 2391,
+          "p50": 4.8441,
+          "p95": 15.4408,
+          "p99": 16.9207,
+          "max": 283.0789
+        },
+        "event_loop_lateness_ms": {
+          "n": 2391,
+          "p50": 3.8441,
+          "p95": 14.4408,
+          "p99": 15.9207,
+          "max": 282.0789
+        },
+        "queue_and_ipc_ms": {
+          "n": 1892,
+          "p50": 0.2837,
+          "p95": 4.733,
+          "p99": 8.9488,
+          "max": 30.1739
+        },
+        "predict_ms": {
+          "n": 1892,
+          "p50": 0.3329,
+          "p95": 0.5153,
+          "p99": 0.6331,
+          "max": 1.1919
+        },
+        "return_delivery_ms": {
+          "n": 1892,
+          "p50": 1.9585,
+          "p95": 7.381,
+          "p99": 13.6451,
+          "max": 21.2512
+        },
+        "adapter_runtime_ms": {
+          "n": 1892,
+          "p50": 0.01,
+          "p95": 0.0134,
+          "p99": 0.0165,
+          "max": 0.0353
+        },
+        "data_to_adapter_ms": {
+          "n": 1892,
+          "p50": 15.33845,
+          "p95": 39.87435,
+          "p99": 280.619725,
+          "max": 298.67675
+        }
+      },
+      "reasons": {
+        "probability_abstention": 1892
+      },
+      "worker": {
+        "module": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\scalp_bot\\__init__.py",
+        "pid": 27784,
+        "exchange_imported": true,
+        "resources": {
+          "cpu_seconds": 0.8125,
+          "rss_mb": 106.1875,
+          "peak_rss_mb": 106.1875
+        }
+      },
+      "worker_resources": {
+        "cpu_seconds": 1.90625,
+        "rss_mb": 122.453125,
+        "peak_rss_mb": 122.453125
+      },
+      "worker_failure": null,
+      "coalesced": 5,
+      "dropped": 0,
+      "parent_resources_before": {
+        "cpu_seconds": 381.59375,
+        "rss_mb": 468.1875,
+        "peak_rss_mb": 476.0546875
+      },
+      "parent_resources_after": {
+        "cpu_seconds": 391.1875,
+        "rss_mb": 470.05859375,
+        "peak_rss_mb": 476.0546875
+      },
+      "portfolio_sha256": "efade72b47b94d8636890fac3238738f005690496c3a3406cdba6e5fb5cc7b0d",
+      "closed_trades": 0,
+      "balance": 1000.0,
+      "ordinary_decisions_sha256": "ac3462db433e0f090999a77ff8d82487bcda56f2c4f03a7641c2d55e4f450627",
+      "recorder_health": {
+        "background": true,
+        "queuedRows": 8354,
+        "writtenRows": 8354,
+        "pendingRows": 0,
+        "queueDepth": 0,
+        "queueCapacity": 8192,
+        "droppedRows": 0,
+        "droppedBulkRows": 0,
+        "droppedCriticalRows": 0,
+        "writerError": null
+      },
+      "recorder_type": "production SessionRecorder with background writer; semantic hash instrumentation included",
+      "measurements_path": "G:\\scalp-bot\\data\\pr58-completion\\latency-v2-window2\\4-2-1.measurements.json",
+      "budgets": {
+        "event_loop_p99_ms": 20,
+        "event_loop_p99_added_ms": 5,
+        "data_to_proposal_p99_ms": 250
+      },
+      "absolute_event_loop_pass": true,
+      "repeat": 2,
+      "ordinary_portfolio_identical": true,
+      "ordinary_decisions_identical": true,
+      "added_event_loop_p99_ms": 0.1968999999999994,
+      "added_budget_pass": true
+    }
+  ]
+}

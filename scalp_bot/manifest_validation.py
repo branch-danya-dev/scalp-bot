@@ -5,7 +5,7 @@ import hashlib
 import json
 import math
 import re
-from .manifest_schema import PUBLIC_CONFIG_FIELDS, SECRET_CONFIG_FIELDS, LEGACY_PUBLIC_CONFIG_FIELDS, V3_PUBLIC_CONFIG_FIELDS
+from .manifest_schema import PUBLIC_CONFIG_FIELDS, SECRET_CONFIG_FIELDS, LEGACY_PUBLIC_CONFIG_FIELDS, V3_PUBLIC_CONFIG_FIELDS, V4_PUBLIC_CONFIG_FIELDS
 
 
 def fingerprint(value: object) -> str:
@@ -31,7 +31,7 @@ def check_manifest(value: object) -> tuple[dict, list[tuple[str, str]]]:
         findings.append(("invalid_manifest_id", "error"))
     if valid_digest(value.get("manifestSha256")):
         result["manifestSha256"] = value["manifestSha256"]
-    if type(value.get("manifestVersion")) is not int or value["manifestVersion"] not in (1, 2, 3, 4):
+    if type(value.get("manifestVersion")) is not int or value["manifestVersion"] not in (1, 2, 3, 4, 5):
         findings.append(("unsupported_manifest_version", "incomplete"))
     try:
         body = {key: item for key, item in value.items() if key not in {"manifestId", "manifestSha256"}}
@@ -46,7 +46,8 @@ def check_manifest(value: object) -> tuple[dict, list[tuple[str, str]]]:
                 findings.append(("invalid_manifest_config", "error"))
             if SECRET_CONFIG_FIELDS & config.keys():
                 findings.append(("manifest_contains_secret_fields", "error"))
-            expected = (PUBLIC_CONFIG_FIELDS if value.get("manifestVersion") == 4 else
+            expected = (PUBLIC_CONFIG_FIELDS if value.get("manifestVersion") == 5 else
+                        V4_PUBLIC_CONFIG_FIELDS if value.get("manifestVersion") == 4 else
                         V3_PUBLIC_CONFIG_FIELDS if value.get("manifestVersion") == 3 else LEGACY_PUBLIC_CONFIG_FIELDS)
             if set(config) != expected:
                 findings.append(("manifest_config_fields_incomplete", "incomplete"))

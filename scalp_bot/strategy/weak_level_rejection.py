@@ -65,6 +65,9 @@ class RejectionWatchState:
     fire_at: float = 0.0
     fire_price: float = 0.0
     probe_opened: bool = False
+    confirmation_episode: str | None = None
+    reclaim_at_ms: int = 0
+    reclaim_quote: float = 0.0
 
 
 class WeakLevelRejectionStrategy(Strategy):
@@ -79,6 +82,7 @@ class WeakLevelRejectionStrategy(Strategy):
     test_pin_max_distance_pct = 0.008
     staged_entries_enabled = False
     probe_risk_fraction = 0.30
+    response_policy = "legacy"  # Explicit research switch; default unchanged.
     micro_response_min_bps = 1.5
     micro_response_min_seconds = 0.50
     micro_response_max_seconds = 6.0
@@ -247,6 +251,23 @@ class WeakLevelRejectionStrategy(Strategy):
             state.fire_at = 0.0
             state.fire_price = 0.0
             state.probe_opened = False
+            state.reclaim_at_ms = 0
+            state.reclaim_quote = 0.0
+
+        scenario = getattr(market_context, "scenario", None) or {}
+        episode = scenario.get("episodeKey")
+        if episode and scenario.get("state") not in {"ORDER_PENDING", "IN_POSITION"}:
+            if state.confirmation_episode is not None and episode != state.confirmation_episode:
+                # A fresh sweep of this object cannot inherit absorption/fire
+                # from its previous excursion. Keep the preparation anchor and
+                # lifetime: this is not a freshness/risk reset or a new hold.
+                state.absorption_at = 0.0
+                state.absorption_price = 0.0
+                state.fire_at = 0.0
+                state.fire_price = 0.0
+                state.reclaim_at_ms = 0
+                state.reclaim_quote = 0.0
+            state.confirmation_episode = episode
 
         if generation_id in state.used_generations:
             return StrategyDecision(
@@ -463,6 +484,9 @@ class WeakLevelRejectionStrategy(Strategy):
             )
 
         state.stage = RejectionStage.REJECT
+        if state.reclaim_at_ms == 0:
+            state.reclaim_at_ms = int(now * 1000)
+            state.reclaim_quote = book.executable_entry(Side(action.value)) or 0.0
         if attack_absorbed and state.absorption_at <= 0:
             state.absorption_at = now
             state.absorption_price = price
@@ -814,6 +838,17 @@ class WeakLevelRejectionStrategy(Strategy):
             staged_phase = "full"
             staged_risk_fraction = 1.0
             state.stage = RejectionStage.REJECT
+
+        if self.response_policy == "quote_tape_v1":
+            from .rejection_response import assess_reclaim_response
+            assessment = assess_reclaim_response(action.value, state.reclaim_at_ms,
+                state.reclaim_quote, book.executable_entry(Side(action.value)),
+                trades, int(now*1000), self.micro_response_min_bps)
+            if not assessment["allowed"]:
+                return StrategyDecision(self.key, Action.WAIT,
+                    ["research quote/tape response after current reclaim is not aligned"],
+                    details={"state":"reject", "researchResponse":assessment,
+                             "zone":zone.public(), "opportunityArm":opportunity_arm})
 
         if state.fire_at <= 0:
             state.fire_at = now

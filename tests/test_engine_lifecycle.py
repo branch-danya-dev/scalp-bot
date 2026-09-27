@@ -1363,8 +1363,8 @@ async def test_strategies_receive_only_confirmed_1m_candles(tmp_path) -> None:
     seen: list[Candle] = []
 
     class CaptureStrategy:
-        key = "capture"
-        label = "capture"
+        key = "trend_structure"
+        label = "trend_structure"
 
         def evaluate(
             self,
@@ -1377,7 +1377,7 @@ async def test_strategies_receive_only_confirmed_1m_candles(tmp_path) -> None:
             return StrategyDecision(
                 strategy=self.key,
                 action=Action.WAIT,
-                reasons=["capture"],
+                reasons=["trend_structure"],
             )
 
         def reset(self, symbol: str) -> None:
@@ -1386,8 +1386,8 @@ async def test_strategies_receive_only_confirmed_1m_candles(tmp_path) -> None:
         def manage_position(self, **kwargs):
             return None
 
-    engine.strategies = {"capture": CaptureStrategy()}  # type: ignore[assignment]
-    engine.strategy_enabled = {"capture": True}
+    engine.strategies = {"trend_structure": CaptureStrategy()}  # type: ignore[assignment]
+    engine.strategy_enabled = {"trend_structure": True}
     session = ActiveSymbolSession(
         symbol="AAAUSDT",
         candles=[
@@ -1409,7 +1409,7 @@ async def test_strategies_receive_only_confirmed_1m_candles(tmp_path) -> None:
     engine.sessions[session.symbol] = session
 
     try:
-        assigned(engine, session, "capture")
+        assigned(engine, session, "trend_structure")
         await engine._evaluate(session)
         assert len(seen) == 1
         assert seen[0].confirmed is True
@@ -3279,6 +3279,7 @@ async def test_deep_book_update_alone_does_not_drive_strategy_evaluation(
         market_queue_size=512,
         market_queue_put_timeout_seconds=0.05,
         market_queue_max_lag_seconds=0.50,
+        on_transport=None,
     ):
         await callback({
             "topic": f"orderbook.{deep_orderbook_depth}.{symbol}",
@@ -3340,6 +3341,7 @@ async def test_fast_book_desync_does_not_destroy_deep_context(
         market_queue_size=512,
         market_queue_put_timeout_seconds=0.05,
         market_queue_max_lag_seconds=0.50,
+        on_transport=None,
     ):
         await callback({
             "topic": f"orderbook.{deep_orderbook_depth}.{symbol}",

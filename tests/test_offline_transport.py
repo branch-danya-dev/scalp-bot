@@ -14,7 +14,7 @@ from scalp_bot.runtime_clock import ReplayRuntimeClock
 from test_offline_segment import rehash
 
 
-async def fixture(tmp_path, monkeypatch, restart=False, gap=False):
+async def fixture(tmp_path, monkeypatch, restart=False, gap=False, diagnostics=False):
     clock = ReplayRuntimeClock(wall_seconds=1000, mono_ns=10*10**9)
     live = TradingEngine(Settings(_env_file=None, session_dir=str(tmp_path),
         exchange_clock_enabled=True, event_driven_evaluation_enabled=False), clock=clock, capture_inputs=True)
@@ -29,7 +29,8 @@ async def fixture(tmp_path, monkeypatch, restart=False, gap=False):
         fast, deep = 'orderbook.50.AAA', 'orderbook.1000.AAA'
         def event(topic, phase, attempt=1):
             notify(dict(phase=phase, attempt=attempt, topics=[topic],
-                        errorType=('OrderBookSequenceError' if gap else 'ConnectionError') if phase == 'fault' else None, discarded=0))
+                        errorType=('OrderBookSequenceError' if gap else 'ConnectionError') if phase == 'fault' else None, discarded=0,
+                        **({'diagnostics': {'schemaVersion':1,'stage':'connect_handshake','stageElapsedMs':1}} if diagnostics else {})))
         async def market(topic, kind, update, seq, bid):
             await callback(MarketMessage(topic=topic, type=kind, ts=1000000,
                 receipt_mono_ns=10*10**9, data={'u': update, 'seq': seq,
@@ -44,7 +45,9 @@ async def fixture(tmp_path, monkeypatch, restart=False, gap=False):
             event(fast, 'fault')
         else:
             event(fast, 'fault')
-            await market(fast, 'delta', 2, 3, 99)  # Queued before disconnect; drained later.
+            # A queued delta after reset cannot trade an unknown book.
+            with pytest.raises(OrderBookSequenceError):
+                await market(fast, 'delta', 2, 3, 99)
         event(fast, 'drained')
         event(fast, 'connecting', 2); event(fast, 'subscription_sent', 2)
         await market(fast, 'snapshot', 1, 4, 98)
@@ -111,3 +114,16 @@ async def test_transport_only_windows_continue_same_worker_state(tmp_path, monke
         assert replay.sessions['AAA'].orderbook == live.sessions['AAA'].orderbook
     finally:
         await live.close(); await replay.close()
+
+
+async def test_diagnostics_do_not_add_runtime_clock_reads_or_change_replay_inputs(tmp_path, monkeypatch):
+    live,prefix,inputs,outputs=await fixture(tmp_path,monkeypatch,diagnostics=True)
+    replay=restore_cold_engine(prefix)
+    try:
+        assert any(r['event']=='transport_diagnostics' for r in outputs)
+        assert all('diagnostics' not in r['body'] for r in inputs if r['kind']=='transport')
+        trading_outputs=[r for r in outputs if r['event']!='transport_diagnostics']
+        report=await OfflineScheduledReplay(replay).apply(inputs,expected_events=trading_outputs)
+        assert report['outputsMatch']
+    finally:
+        await live.close();await replay.close()

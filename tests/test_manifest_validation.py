@@ -133,3 +133,13 @@ def test_offline_validator_import_never_loads_runtime_settings(tmp_path):
                              "assert 'scalp_bot.config' not in sys.modules"],
                             cwd=tmp_path, env=env, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
+
+
+def test_v4_manifest_still_accepts_original_public_schema():
+    m=example()
+    m["manifestVersion"]=4
+    m["config"].pop("research_rejection_response_policy")
+    m["configSha256"]=fingerprint(m["config"])
+    rehash(m)
+    result,issues=check_manifest(m)
+    assert result["status"]=="recorded_hashes_checked" and not issues

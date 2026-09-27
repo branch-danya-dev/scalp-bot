@@ -1,0 +1,3 @@
+Checking capture: <baseline>\data\paper-captures\current-12h-20260926-222654-704-f604f5f6
+This is an offline baseline replay. No connection to Bybit.
+Capture check failed: ValueError: capture is not sealed; stop its server cleanly first

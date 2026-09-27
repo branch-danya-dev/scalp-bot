@@ -1,0 +1,49 @@
+{
+  "decisions_and_execution_identical": true,
+  "ledger_identical": true,
+  "ordinary_event_count": 15,
+  "trades": 1,
+  "balance": 1001.451464412655,
+  "worker": {
+    "module": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\scalp_bot\\__init__.py",
+    "pid": 29960,
+    "exchange_imported": false,
+    "resources": {
+      "cpu_seconds": 0.671875,
+      "rss_mb": 93.84375,
+      "peak_rss_mb": 93.84375
+    }
+  },
+  "evaluated_data_to_proposal_ms": {
+    "p50": 38.7891,
+    "p95": 64.3295,
+    "p99": 64.3295
+  },
+  "observed_forecasts": 8,
+  "event_loop_ms": {
+    "off": {
+      "p50": 21.8731,
+      "p95": 54.2782,
+      "p99": 54.2782
+    },
+    "shadow": {
+      "p50": 18.8621,
+      "p95": 53.5689,
+      "p99": 53.5689
+    }
+  },
+  "evaluations_ms": {
+    "off": {
+      "p50": 6.4134,
+      "p95": 13.4719,
+      "p99": 13.4719
+    },
+    "shadow": {
+      "p50": 8.3963,
+      "p95": 14.047,
+      "p99": 14.047
+    }
+  },
+  "scope": "deterministic actual breakout/partial/stop synthetic engine fixture; not market PnL",
+  "event_loop_budget_passed": false
+}

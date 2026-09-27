@@ -8,7 +8,7 @@ from contextlib import nullcontext
 from itertools import count
 from time import perf_counter_ns, time, time_ns
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import httpx
 import msgspec
@@ -850,6 +850,24 @@ async def _process_market_queue(
             queue.task_done()
 
 
+async def _receive_or_processor_failure(ws, processor):
+    """A dead consumer must wake a silent socket immediately, not after 35s."""
+    receive = asyncio.create_task(ws.recv(decode=False))
+    try:
+        done, _ = await asyncio.wait((receive, processor), timeout=35,
+                                     return_when=asyncio.FIRST_COMPLETED)
+        if processor in done:
+            await processor  # Propagate the original queue/handler failure.
+            raise RuntimeError("market processor stopped unexpectedly")
+        if receive not in done:
+            raise TimeoutError("market socket receive timeout")
+        return receive.result()
+    finally:
+        if not receive.done():
+            receive.cancel()
+        await asyncio.gather(receive, return_exceptions=True)
+
+
 async def _stream_topics(
     ws_url: str,
     topics: list[str],
@@ -861,23 +879,45 @@ async def _stream_topics(
     queue_max_lag_seconds: float = 0.50,
     on_transport: Callable[[dict], None] | None = None,
     on_backpressure: Callable[[dict], None] | None = None,
+    connect_factory=None,
 ) -> None:
     attempt = 0
-    def notify(phase: str, *, error_type=None, discarded=0):
+    stage = "idle"
+    stage_started = perf_counter_ns()
+    attempt_started = stage_started
+    def notify(phase: str, *, error_type=None, discarded=0, error=None):
         if on_transport is not None:
+            chain = []
+            while error is not None and len(chain)<4:
+                code = getattr(error, "errno", None)
+                chain.append({"type": type(error).__name__, "errno": code if type(code) is int else None})
+                error = error.__cause__ or error.__context__
             on_transport({"phase": phase, "attempt": attempt, "topics": list(topics),
-                          "errorType": error_type, "discarded": discarded})
+                          "errorType": error_type, "discarded": discarded,
+                          "diagnostics": {"schemaVersion": 1, "stage": stage,
+                              "stageElapsedMs": (perf_counter_ns()-stage_started)/1e6,
+                              "attemptElapsedMs": (perf_counter_ns()-attempt_started)/1e6,
+                              "host": urlsplit(ws_url).hostname, "errorChain": chain,
+                              "connectScope": "combined DNS/TCP/TLS/HTTP upgrade; subphase unknown"}})
     while not stop_event.is_set():
         attempt += 1
+        attempt_started = stage_started = perf_counter_ns()
+        stage = "connect_handshake"
         processor: asyncio.Task | None = None
         queue: asyncio.Queue[MarketMessage] | None = None
         try:
             notify("connecting")
-            async with websockets.connect(
+            async with (connect_factory or websockets.connect)(
                 ws_url,
                 ping_interval=20,
                 ping_timeout=20,
+                # The engine allows five seconds for all workers to drain.
+                # The library default (ten seconds) can outlive that budget
+                # and leave transport attempts open when the journal seals.
+                close_timeout=2,
             ) as ws:
+                stage = "subscribe_send"
+                stage_started = perf_counter_ns()
                 await ws.send(
                     _JSON_ENCODER.encode({
                         "op": "subscribe",
@@ -889,6 +929,8 @@ async def _stream_topics(
                     maxsize=max(1, int(queue_size)),
                 )
                 notify("subscription_sent")
+                stage = "receive_or_process"
+                stage_started = perf_counter_ns()
                 processor = asyncio.create_task(
                     _process_market_queue(
                         queue,
@@ -913,10 +955,7 @@ async def _stream_topics(
                             "market processor stopped unexpectedly"
                         )
 
-                    raw = await asyncio.wait_for(
-                        ws.recv(decode=False),
-                        timeout=35,
-                    )
+                    raw = await _receive_or_processor_failure(ws, processor)
                     # Receipt is captured immediately after recv returns so
                     # socket wait time isn't counted as parser work.
                     receipt_wall_ns = time_ns()
@@ -1016,10 +1055,12 @@ async def _stream_topics(
         except Exception as exc:
             if on_backpressure is not None and isinstance(exc, MarketDataBackpressureError):
                 on_backpressure({"topics": list(topics), "errorType": type(exc).__name__, "message": str(exc)})
-            notify("fault", error_type=type(exc).__name__)
+            notify("fault", error_type=type(exc).__name__, error=exc)
             if not stop_event.is_set():
                 await asyncio.sleep(2)
         finally:
+            stage = "drain"
+            stage_started = perf_counter_ns()
             if processor is not None:
                 if not processor.done():
                     processor.cancel()
@@ -1058,6 +1099,7 @@ async def stream_symbol(
     market_queue_max_lag_seconds: float = 0.50,
     on_transport: Callable[[dict], None] | None = None,
     on_backpressure: Callable[[dict], None] | None = None,
+    connect_factory=None,
 ) -> None:
     valid_depths = {1, 50, 200, 1000}
     if orderbook_depth is not None:
@@ -1086,6 +1128,7 @@ async def stream_symbol(
             stop_event,
             on_transport=on_transport,
             on_backpressure=on_backpressure,
+            **({"connect_factory": connect_factory} if connect_factory is not None else {}),
             queue_size=market_queue_size,
             queue_put_timeout_seconds=(
                 market_queue_put_timeout_seconds
@@ -1106,6 +1149,7 @@ async def stream_symbol(
             stop_event,
             on_transport=on_transport,
             on_backpressure=on_backpressure,
+            **({"connect_factory": connect_factory} if connect_factory is not None else {}),
             queue_size=market_queue_size,
             queue_put_timeout_seconds=(
                 market_queue_put_timeout_seconds
@@ -1121,6 +1165,7 @@ async def stream_symbol(
             stop_event,
             on_transport=on_transport,
             on_backpressure=on_backpressure,
+            **({"connect_factory": connect_factory} if connect_factory is not None else {}),
             queue_size=market_queue_size,
             queue_put_timeout_seconds=(
                 market_queue_put_timeout_seconds

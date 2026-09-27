@@ -1,0 +1,51 @@
+{
+  "source_capture_sha256": "a76f4cbf1a3550ca05973bb2274a1b6b7163ea29d3c5a3fc47265062b9accc5b",
+  "samples": [
+    {
+      "sample": {
+        "server_ms": 1790519637513.0664,
+        "sent_mono": 626805.2265791,
+        "received_mono": 626805.6860942,
+        "received_wall_ms": 1790519637400.1711
+      },
+      "accepted": false,
+      "rejectionReason": "sync_rtt_exceeded",
+      "upperPaddingMs": 0.0,
+      "clock": {
+        "local_wall_ms": 1790519637400.3374,
+        "monotonic_seconds": 626805.6862383,
+        "exchange_lower_ms": null,
+        "exchange_upper_ms": null,
+        "uncertainty_ms": null,
+        "sync_age_seconds": null,
+        "valid": false,
+        "reason": "sync_rtt_exceeded",
+        "evaluationMs": null,
+        "contract": "exchange-bounds-v1"
+      }
+    },
+    {
+      "sample": {
+        "server_ms": 1790519653908.623,
+        "sent_mono": 626821.8442298,
+        "received_mono": 626822.0822669,
+        "received_wall_ms": 1790519653796.3435
+      },
+      "accepted": true,
+      "rejectionReason": null,
+      "upperPaddingMs": 0.0,
+      "clock": {
+        "local_wall_ms": 1790519653796.5117,
+        "monotonic_seconds": 626822.0824107,
+        "exchange_lower_ms": 1790519653907.7668,
+        "exchange_upper_ms": 1790519654147.804,
+        "uncertainty_ms": 120.0185546875,
+        "sync_age_seconds": 0.00014380004722625017,
+        "valid": true,
+        "reason": null,
+        "evaluationMs": 1790519654148,
+        "contract": "exchange-bounds-v1"
+      }
+    }
+  ]
+}

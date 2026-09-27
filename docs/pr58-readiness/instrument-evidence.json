@@ -1,0 +1,10 @@
+{
+  "NEARUSDT": {
+    "error": "HTTP Error 401: Unauthorized",
+    "url": "https://api.tardis.dev/v1/instruments/bybit/NEARUSDT"
+  },
+  "XRPUSDT": {
+    "error": "HTTP Error 401: Unauthorized",
+    "url": "https://api.tardis.dev/v1/instruments/bybit/XRPUSDT"
+  }
+}

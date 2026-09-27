@@ -1,0 +1,127 @@
+........................................................................ [  5%]
+........................................................................ [ 10%]
+....F................................................................... [ 15%]
+........................................................................ [ 20%]
+........................................................................ [ 25%]
+........................................................................ [ 31%]
+........................................................................ [ 36%]
+........................................................................ [ 41%]
+........................................................................ [ 46%]
+........................................................................ [ 51%]
+.............F.......................................................... [ 57%]
+........................................................................ [ 62%]
+......F................................................................. [ 67%]
+........................................................................ [ 72%]
+........................................................................ [ 77%]
+........................................................................ [ 83%]
+........................................................................ [ 88%]
+........................................................................ [ 93%]
+........................................................................ [ 98%]
+...................                                                      [100%]
+================================== FAILURES ===================================
+__________________ test_existing_runtime_does_not_import_ml ___________________
+
+    def test_existing_runtime_does_not_import_ml():
+        root = Path(__file__).resolve().parents[2] / "scalp_bot"
+        for path in root.rglob("*.py"):
+            if "ml" not in path.relative_to(root).parts:
+                text = path.read_text(encoding="utf-8")
+>               assert "scalp_bot.ml" not in text and "from .ml" not in text
+E               assert ('scalp_bot.ml' not in '"""Fixed ra...a.offset))\n'
+E                 
+E                 'scalp_bot.ml' is contained here:
+E                   a.offset)) and 'from .ml' not in '"""Fixed ra...a.offset))\n'
+E                 
+E                 'from .ml' is contained here:
+E                   nRecorder
+E                   from .ml.contracts import SnapshotRef
+E                 ? ++++++++
+E                   from .ml.features import FEATURE_SCHEMA,ContextCoverage,extract_context_features
+E                   from .ml.worker import InferenceWorker...
+E                 
+E                 ...Full output truncated (201 lines hidden), use '-vv' to show)
+
+tests\ml\test_foundation.py:120: AssertionError
+___ test_context_loop_replays_freshness_branch_batch_order_and_cancel[True] ___
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-373/test_context_loop_replays_fres1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000243B47C4FA0>
+empty = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('empty', [False, True])
+    async def test_context_loop_replays_freshness_branch_batch_order_and_cancel(tmp_path, monkeypatch, empty):
+        live, prefix, rows, calls = await fixture(tmp_path, empty)
+>       replay = restore_cold_engine(prefix)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_offline_context.py:70: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+prefix = [{'body': {'coverage': 'experimental_partial', 'missingCoverage': ['offline_replay_parity', 'capture_load_validation']...', 'kind': 'policy_snapshot', 'previousHash': 'eca5d38d06319a99b8e31ce45306c8d59b679370eba97e3a24a8fcca72ae67d7', ...}]
+
+    def restore_cold_engine(prefix):
+        """Consume exactly header/capture-manifest/policy rows; fail closed.
+    
+        Source comparison describes files on disk, not loaded bytecode attestation.
+        No paths or executable content from the journal are opened or evaluated.
+        """
+        rows = deepcopy(list(prefix))
+        if len(rows) != 3:
+            raise SegmentMismatch('expected complete three-row capture prefix')
+        previous = None
+        for sequence, (row, kind) in enumerate(zip(rows, ('header', 'manifest', 'policy_snapshot')), 1):
+            if (row.get('schema') != SCHEMA or row.get('kind') != kind
+                    or row.get('sequence') != sequence or row.get('previousHash') != previous
+                    or not valid_body(kind, row.get('symbol'), row.get('body'))
+                    or row.get('hash') != fingerprint({k: v for k, v in row.items() if k != 'hash'})):
+                raise SegmentMismatch('invalid capture prefix')
+            previous = row['hash']
+        if rows[1]['body']['phase'] != 'capture':
+            raise SegmentMismatch('run manifest cannot replace capture manifest')
+        manifest = rows[1]['body']['manifest']
+        if manifest.get('manifestVersion') not in (3, 4, 5) or check_manifest(manifest)[1]:
+            raise SegmentMismatch('incomplete or invalid capture manifest')
+        if (manifest['recordSchemaVersion'] != 'jsonl-clock-v2'
+                or manifest['executionModelVersion'] != 'paper-v2-fast-head'):
+            raise SegmentMismatch('unsupported execution model')
+        current_code = code_provenance(Path(__file__).resolve().parents[1])
+        if manifest['code']['sourceSha256'] != current_code['sourceSha256']:
+>           raise SegmentMismatch('source code differs from recorded capture')
+E           scalp_bot.offline_segment.SegmentMismatch: source code differs from recorded capture
+
+scalp_bot\offline_bootstrap.py:90: SegmentMismatch
+____ test_backpressure_detail_is_opt_in_without_changing_transport_schema _____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000243FFD67AF0>
+
+    @pytest.mark.asyncio
+    async def test_backpressure_detail_is_opt_in_without_changing_transport_schema(monkeypatch):
+        stop = asyncio.Event()
+        events, details = [], []
+        class Socket:
+            async def send(self, *args, **kwargs): pass
+            async def recv(self, **kwargs):
+                stop.set()
+                raise MarketDataBackpressureError('market processor lag exceeded 0.500s (lag=0.510s, queue=7)')
+        class Connect:
+            async def __aenter__(self): return Socket()
+            async def __aexit__(self, *args): return False
+        monkeypatch.setattr('scalp_bot.bybit.websockets.connect', lambda *a, **k: Connect())
+        async def callback(message): pass
+        await _stream_topics('wss://example.invalid', ['orderbook.50.AAA'], callback, stop,
+                             on_transport=events.append, on_backpressure=details.append)
+        fault = next(e for e in events if e['phase'] == 'fault')
+>       assert set(fault) == {'phase', 'attempt', 'topics', 'errorType', 'discarded'}
+E       AssertionError: assert {'attempt', '...se', 'topics'} == {'attempt', '...se', 'topics'}
+E         
+E         Extra items in the left set:
+E         'diagnostics'
+E         Use -v to get more diff
+
+tests\test_orderbook.py:423: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/ml/test_foundation.py::test_existing_runtime_does_not_import_ml
+FAILED tests/test_offline_context.py::test_context_loop_replays_freshness_branch_batch_order_and_cancel[True]
+FAILED tests/test_orderbook.py::test_backpressure_detail_is_opt_in_without_changing_transport_schema
+3 failed, 1384 passed in 281.91s (0:04:41)

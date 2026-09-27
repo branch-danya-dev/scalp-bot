@@ -1,0 +1,21 @@
+Obtaining file:///C:/Users/workingspace/.codex/worktrees/parallel-scenarios-ml/scalp-bot
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: scalp-bot
+  Building editable for scalp-bot (pyproject.toml): started
+  Building editable for scalp-bot (pyproject.toml): finished with status 'done'
+  Created wheel for scalp-bot: filename=scalp_bot-0.2.0-0.editable-py3-none-any.whl size=3009 sha256=b3260f14da63147ce9cf0090ca6dda19eb223c9d7d4532a8c58dc123b09f08cf
+  Stored in directory: C:\Users\workingspace\AppData\Local\Temp\pip-ephem-wheel-cache-f7sv7clc\wheels\d2\be\b7\0ef32ad741d844950666d83b02c6f1ae12306add2e98f6a62e
+Successfully built scalp-bot
+Installing collected packages: scalp-bot
+  Attempting uninstall: scalp-bot
+    Found existing installation: scalp-bot 0.2.0
+    Uninstalling scalp-bot-0.2.0:
+      Successfully uninstalled scalp-bot-0.2.0
+Successfully installed scalp-bot-0.2.0

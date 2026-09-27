@@ -1,0 +1,8 @@
+{
+  "dependencies_unchanged": true,
+  "source_sha256": "dba090e1a5e5245c2ebe731a866126a2235a994421d583efe7200315e2e0ffdd",
+  "source_equal_to_full_test_tree": true,
+  "baseline_head": "3403b03011a5e89f6f0c4ecb03c6f76df4b7f1e1",
+  "baseline_worktree_clean": true,
+  "original_gzip_sha256_rechecked": "caf9cf7c293faab93d3832a96b52298beb12da4316ed55c2f414e346dd337a6d"
+}

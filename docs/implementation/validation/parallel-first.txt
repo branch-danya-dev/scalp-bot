@@ -1,0 +1,137 @@
+...............................FF....................................... [ 59%]
+..................................FF..............                       [100%]
+================================== FAILURES ===================================
+_________ test_actual_breakout_router_opens_both_sides_on_response[1] _________
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-349/test_actual_breakout_router_op0')
+direction = 1
+
+    @pytest.mark.parametrize('direction',[1,-1])
+    async def test_actual_breakout_router_opens_both_sides_on_response(tmp_path,direction):
+        from test_breakout_hourly_context import native_inputs, hourly_context
+        from breakout_fixtures import breakout_executions
+        action=Action.LONG if direction>0 else Action.SHORT
+        rows,structure,ticks=native_inputs(action)
+        engine=TradingEngine(Settings(_env_file=None,session_dir=str(tmp_path),exchange_clock_enabled=False,
+            min_net_profit_usd=0,min_net_profit_equity_fraction=0))
+        try:
+            mid=100.165 if direction>0 else 99.835
+            session=ActiveSymbolSession('TESTUSDT',candles=rows,structure=structure,
+                orderbook=OrderBook([(mid-.005,10000)],[(mid+.005,10000)]),last_price=mid,
+                last_market_at=time(),last_book_at=time(),book_synced=True)
+            engine.sessions[session.symbol]=session
+            for now,extra in [(30_004_600,[]),(30_010_000,breakout_executions(30_010_000,short=direction<0))]:
+                session.market_context=replace(hourly_context(action),observed_at_ms=now,last_price=mid)
+                selected=engine._route_scenario(session,rows)
+                assert selected and selected.owner=='level_breakout'
+                d=engine.strategies[selected.owner].evaluate(rows,session.orderbook,Trend.FLAT,
+                    symbol=session.symbol,trades=ticks+extra,structure=structure,
+                    market_context=session.market_context,observed_at_ms=now)
+                d=engine._scenario_decision(session,d)
+                session.decisions[d.strategy]=d
+>           assert d.action==action,d.reasons
+E           AssertionError: ['BREAK наблюдается; ждём retest+hold+price response либо устойчивое acceptance с направленным response перед FIRE']
+E           assert <Action.WAIT: 'wait'> == <Action.LONG: 'long'>
+E             
+E             - long
+E             + wait
+
+tests\test_scenario_execution.py:160: AssertionError
+________ test_actual_breakout_router_opens_both_sides_on_response[-1] _________
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-349/test_actual_breakout_router_op1')
+direction = -1
+
+    @pytest.mark.parametrize('direction',[1,-1])
+    async def test_actual_breakout_router_opens_both_sides_on_response(tmp_path,direction):
+        from test_breakout_hourly_context import native_inputs, hourly_context
+        from breakout_fixtures import breakout_executions
+        action=Action.LONG if direction>0 else Action.SHORT
+        rows,structure,ticks=native_inputs(action)
+        engine=TradingEngine(Settings(_env_file=None,session_dir=str(tmp_path),exchange_clock_enabled=False,
+            min_net_profit_usd=0,min_net_profit_equity_fraction=0))
+        try:
+            mid=100.165 if direction>0 else 99.835
+            session=ActiveSymbolSession('TESTUSDT',candles=rows,structure=structure,
+                orderbook=OrderBook([(mid-.005,10000)],[(mid+.005,10000)]),last_price=mid,
+                last_market_at=time(),last_book_at=time(),book_synced=True)
+            engine.sessions[session.symbol]=session
+            for now,extra in [(30_004_600,[]),(30_010_000,breakout_executions(30_010_000,short=direction<0))]:
+                session.market_context=replace(hourly_context(action),observed_at_ms=now,last_price=mid)
+                selected=engine._route_scenario(session,rows)
+                assert selected and selected.owner=='level_breakout'
+                d=engine.strategies[selected.owner].evaluate(rows,session.orderbook,Trend.FLAT,
+                    symbol=session.symbol,trades=ticks+extra,structure=structure,
+                    market_context=session.market_context,observed_at_ms=now)
+                d=engine._scenario_decision(session,d)
+                session.decisions[d.strategy]=d
+>           assert d.action==action,d.reasons
+E           AssertionError: ['BREAK наблюдается; ждём retest+hold+price response либо устойчивое acceptance с направленным response перед FIRE']
+E           assert <Action.WAIT: 'wait'> == <Action.SHORT: 'short'>
+E             
+E             - short
+E             + wait
+
+tests\test_scenario_execution.py:160: AssertionError
+__ test_engine_releases_empty_owner_and_routes_other_object_on_next_event[1] __
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-349/test_engine_releases_empty_own0')
+direction = 1
+
+    @pytest.mark.parametrize('direction', [1, -1])
+    async def test_engine_releases_empty_owner_and_routes_other_object_on_next_event(tmp_path, direction):
+        from scalp_bot.config import Settings
+        from scalp_bot.engine import ActiveSymbolSession, TradingEngine
+        from scalp_bot.domain import Trend
+        router, s, a, b, rows, book, ctx = assigned(direction)
+        engine = TradingEngine(Settings(_env_file=None, session_dir=str(tmp_path),
+                                       exchange_clock_enabled=False))
+        try:
+            # Use the engine's monotonic clock rather than comparing it with the
+            # explicit logical seconds used in isolated router tests above.
+            session = ActiveSymbolSession(SYMBOL, candles=rows, orderbook=book,
+                                          market_context=ctx, structure=MarketStructure([a, b]))
+            engine.sessions[SYMBOL] = session
+            first = engine._route_scenario(session, rows)
+            assert first and first.state == 'ASSIGNED'
+            session.structure = MarketStructure([replace(a, lifecycle='broken'), b])
+>           assert engine._route_scenario(session, rows) is None
+E           assert Scenario(symbol='REVIEWUSDT', scenario_id='REVIEWUSDT:scenario:1', owner='weak_level_rejection', side='long', signatur...), object_ref=MarketObjectRef(kind='structural_level', key='B:g1'), episode_key='["structural_level","B:g1"]:approach') is None
+E            +  where Scenario(symbol='REVIEWUSDT', scenario_id='REVIEWUSDT:scenario:1', owner='weak_level_rejection', side='long', signatur...), object_ref=MarketObjectRef(kind='structural_level', key='B:g1'), episode_key='["structural_level","B:g1"]:approach') = _route_scenario(ActiveSymbolSession(symbol='REVIEWUSDT', candles=[Candle(start_ms=1800000, open=100, high=100.5, low=99.5, close=100, ...scenario selected before signal'}}, 'execution': None, 'busyReason': None, 'activationEpoch': 0, 'readyProposals': []}), [Candle(start_ms=1800000, open=100, high=100.5, low=99.5, close=100, volume=100, turnover=10000, confirmed=True), Cand..., Candle(start_ms=2100000, open=100, high=100.5, low=99.5, close=100, volume=100, turnover=10000, confirmed=True), ...])
+E            +    where _route_scenario = <scalp_bot.engine.TradingEngine object at 0x0000016B3C1F3C50>._route_scenario
+
+tests\test_scenario_continuation.py:175: AssertionError
+_ test_engine_releases_empty_owner_and_routes_other_object_on_next_event[-1] __
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-349/test_engine_releases_empty_own1')
+direction = -1
+
+    @pytest.mark.parametrize('direction', [1, -1])
+    async def test_engine_releases_empty_owner_and_routes_other_object_on_next_event(tmp_path, direction):
+        from scalp_bot.config import Settings
+        from scalp_bot.engine import ActiveSymbolSession, TradingEngine
+        from scalp_bot.domain import Trend
+        router, s, a, b, rows, book, ctx = assigned(direction)
+        engine = TradingEngine(Settings(_env_file=None, session_dir=str(tmp_path),
+                                       exchange_clock_enabled=False))
+        try:
+            # Use the engine's monotonic clock rather than comparing it with the
+            # explicit logical seconds used in isolated router tests above.
+            session = ActiveSymbolSession(SYMBOL, candles=rows, orderbook=book,
+                                          market_context=ctx, structure=MarketStructure([a, b]))
+            engine.sessions[SYMBOL] = session
+            first = engine._route_scenario(session, rows)
+            assert first and first.state == 'ASSIGNED'
+            session.structure = MarketStructure([replace(a, lifecycle='broken'), b])
+>           assert engine._route_scenario(session, rows) is None
+E           assert Scenario(symbol='REVIEWUSDT', scenario_id='REVIEWUSDT:scenario:1', owner='weak_level_rejection', side='short', signatu...), object_ref=MarketObjectRef(kind='structural_level', key='B:g1'), episode_key='["structural_level","B:g1"]:approach') is None
+E            +  where Scenario(symbol='REVIEWUSDT', scenario_id='REVIEWUSDT:scenario:1', owner='weak_level_rejection', side='short', signatu...), object_ref=MarketObjectRef(kind='structural_level', key='B:g1'), episode_key='["structural_level","B:g1"]:approach') = _route_scenario(ActiveSymbolSession(symbol='REVIEWUSDT', candles=[Candle(start_ms=1800000, open=100, high=100.5, low=99.5, close=100, ...scenario selected before signal'}}, 'execution': None, 'busyReason': None, 'activationEpoch': 0, 'readyProposals': []}), [Candle(start_ms=1800000, open=100, high=100.5, low=99.5, close=100, volume=100, turnover=10000, confirmed=True), Cand..., Candle(start_ms=2100000, open=100, high=100.5, low=99.5, close=100, volume=100, turnover=10000, confirmed=True), ...])
+E            +    where _route_scenario = <scalp_bot.engine.TradingEngine object at 0x0000016B3C1F0CD0>._route_scenario
+
+tests\test_scenario_continuation.py:175: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_scenario_execution.py::test_actual_breakout_router_opens_both_sides_on_response[1]
+FAILED tests/test_scenario_execution.py::test_actual_breakout_router_opens_both_sides_on_response[-1]
+FAILED tests/test_scenario_continuation.py::test_engine_releases_empty_owner_and_routes_other_object_on_next_event[1]
+FAILED tests/test_scenario_continuation.py::test_engine_releases_empty_owner_and_routes_other_object_on_next_event[-1]
+4 failed, 118 passed in 7.00s

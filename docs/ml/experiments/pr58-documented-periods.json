@@ -1,0 +1,34 @@
+{
+  "version": "v2-documented-capture-fallback",
+  "frozen_before_label_build": true,
+  "reason": "2024 mandatory execution fields unverified; dated bootstrap specs actually found in two other archived captures",
+  "sources": [
+    {
+      "name": "1h-20260926-123243-230-fcf4035f",
+      "source": "G:\\scalp-bot\\data\\paper-captures\\1h-20260926-123243-230-fcf4035f\\session-20260926T093515Z.inputs.jsonl.gz"
+    },
+    {
+      "name": "24h-20260926-151653-835-9dde484e",
+      "source": "G:\\scalp-bot\\data\\paper-captures\\24h-20260926-151653-835-9dde484e\\session-20260926T121926Z.inputs.jsonl.gz"
+    }
+  ],
+  "split_rule": {
+    "first_capture": "train entire eligible prefix",
+    "second_capture": "calibration first 40%; validation next 30%; test final 30%; boundaries frozen by eligible chronological source range, not outcomes"
+  },
+  "purge_seconds": 60,
+  "hyperparameters": "unchanged impulse-plan-v1",
+  "policy": "unchanged fixed 0.55; no alternate action tuning",
+  "test_status": "new label holdout for this experiment; capture previously reviewed as a bot run, not a pristine research-unseen market date",
+  "two_hour_capture_role": "feature parity and development diagnostic only; excluded from v2 training/evaluation due prior label inspection",
+  "order_authority": false,
+  "noon_source_period_ns": [
+    532337778476300,
+    538228111292200
+  ],
+  "noon_boundaries_ns": [
+    534693911602660,
+    536461011447430
+  ],
+  "boundary_evidence": "raw manifest-to-run_end interval, frozen before reading generated label files"
+}

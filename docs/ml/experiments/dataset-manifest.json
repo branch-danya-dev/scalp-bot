@@ -1,0 +1,346 @@
+{
+  "schema_version": 1,
+  "status": "built",
+  "training_ready": true,
+  "evidence_scope": "technical within-session candidate; no untouched or independent period holdout",
+  "capture_id": "790eebd906ac4a41baf69eccb5b69ae3",
+  "source": "G:\\scalp-bot\\data\\audit-two-hour-20260927\\inputs.sqlite",
+  "source_subset_sha256": "16b5dab430ad2cdc5e2cf99382c91a65e0ebd4cfc34c1b3a92fd2db7799b33f8",
+  "dataset_sha256": "d41d66da5dd8746c779cad43798ab7f95b3e39f4c8de19ac153ceb84cec6f4b1",
+  "feature_schema": "market-context-v1:dd86ef9b9197904ed2516bbcadbb173331155b49ade52d3394701685ae70601c",
+  "feature_names": [
+    "book_ready",
+    "candle_fresh",
+    "book_age_seconds",
+    "spread_bps",
+    "top5_depth_usd",
+    "top5_depth_imbalance",
+    "trade_covered_5s",
+    "trade_count_5s",
+    "trade_notional_usd_5s",
+    "cvd_usd_5s",
+    "trade_imbalance_5s",
+    "ofi_covered_5s",
+    "ofi_event_count_5s",
+    "normalized_ofi_5s",
+    "trade_covered_15s",
+    "trade_count_15s",
+    "trade_notional_usd_15s",
+    "cvd_usd_15s",
+    "trade_imbalance_15s",
+    "ofi_covered_15s",
+    "ofi_event_count_15s",
+    "normalized_ofi_15s",
+    "trade_covered_60s",
+    "trade_count_60s",
+    "trade_notional_usd_60s",
+    "cvd_usd_60s",
+    "trade_imbalance_60s",
+    "ofi_covered_60s",
+    "ofi_event_count_60s",
+    "normalized_ofi_60s",
+    "forming_known",
+    "body_bps",
+    "range_bps",
+    "close_position",
+    "volume_pace_ratio",
+    "range_expansion_ratio",
+    "velocity_bps_per_second",
+    "micro_move_5s_bps",
+    "micro_move_15s_bps",
+    "liquidity_known",
+    "wall_present",
+    "wall_distance_bps",
+    "remaining_ratio",
+    "attack_ratio",
+    "depletion_per_second",
+    "replenishment_ratio",
+    "structure_known",
+    "support_distance_bps",
+    "resistance_distance_bps"
+  ],
+  "plan_policy": {
+    "version": "ImpulsePlanPolicyV1.1",
+    "frozen_before_training": true,
+    "universe": "all seven symbols actually activated in stopped current-12h capture, not winners",
+    "source": "original raw input journal via existing read-only audit index",
+    "sample_seconds": 10,
+    "warmup_seconds": 60,
+    "horizon_seconds": 30,
+    "latency_ms": 100,
+    "nominal_usdt": 100,
+    "stop_bps": 15,
+    "target_bps": 30,
+    "taker_fee_rate": 0.00055,
+    "slippage_bps_each_fill": 1,
+    "partial": false,
+    "entry": "next available executable depth at/after latency; historical qty_step round down",
+    "exit": "first executable-side crossing; taker depth plus slippage; timeout has mark-to-market net payoff",
+    "ambiguous_or_incomplete": "excluded, never profitable or ordinary timeout",
+    "max_book_age_ms": 1500,
+    "splits": [
+      0.5,
+      0.65,
+      0.8
+    ],
+    "purge": "full 30-second label horizon plus shared 60-second episode buckets globally across symbols",
+    "catboost": {
+      "iterations": 100,
+      "depth": 4,
+      "learning_rate": 0.05,
+      "thread_count": 1,
+      "random_seed": 1729
+    },
+    "calibration": "temperature scalar fitted on calibration split only",
+    "selection": "fixed probability >= 0.55; no test tuning",
+    "limits": {
+      "max_sources": 3,
+      "max_events": 5000000,
+      "max_seconds_training": 300,
+      "network_download_bytes": 0
+    },
+    "scope": "technical first model; all original capture dates previously audited, temporal development test is not untouched holdout"
+  },
+  "policy_sha256": "2d6a03991ebef67d12b1b00e3de683abf64bf8311dded372c716a5cf8cc8d3f5",
+  "inventory": {
+    "ETHUSDT": {
+      "bootstrap_sequence": 22,
+      "instrument": {
+        "symbol": "ETHUSDT",
+        "status": "Trading",
+        "tick_size": 0.01,
+        "qty_step": 0.01,
+        "min_order_qty": 0.01,
+        "min_notional_value": 5.0,
+        "max_order_qty": 10000.0,
+        "max_market_order_qty": 2000.0,
+        "funding_interval_minutes": 480,
+        "max_leverage": 150.0
+      },
+      "units": "base asset quantity, linear USDT quote",
+      "contract_multiplier": 1,
+      "specification_time": "captured contemporaneous bootstrap, not current REST"
+    },
+    "SOLUSDT": {
+      "bootstrap_sequence": 198,
+      "instrument": {
+        "symbol": "SOLUSDT",
+        "status": "Trading",
+        "tick_size": 0.01,
+        "qty_step": 0.1,
+        "min_order_qty": 0.1,
+        "min_notional_value": 5.0,
+        "max_order_qty": 96000.0,
+        "max_market_order_qty": 12000.0,
+        "funding_interval_minutes": 480,
+        "max_leverage": 100.0
+      },
+      "units": "base asset quantity, linear USDT quote",
+      "contract_multiplier": 1,
+      "specification_time": "captured contemporaneous bootstrap, not current REST"
+    },
+    "XRPUSDT": {
+      "bootstrap_sequence": 662,
+      "instrument": {
+        "symbol": "XRPUSDT",
+        "status": "Trading",
+        "tick_size": 0.0001,
+        "qty_step": 0.1,
+        "min_order_qty": 0.1,
+        "min_notional_value": 5.0,
+        "max_order_qty": 7500000.0,
+        "max_market_order_qty": 1500000.0,
+        "funding_interval_minutes": 480,
+        "max_leverage": 100.0
+      },
+      "units": "base asset quantity, linear USDT quote",
+      "contract_multiplier": 1,
+      "specification_time": "captured contemporaneous bootstrap, not current REST"
+    },
+    "ENAUSDT": {
+      "bootstrap_sequence": 1293,
+      "instrument": {
+        "symbol": "ENAUSDT",
+        "status": "Trading",
+        "tick_size": 1e-05,
+        "qty_step": 1.0,
+        "min_order_qty": 1.0,
+        "min_notional_value": 5.0,
+        "max_order_qty": 3500000.0,
+        "max_market_order_qty": 700000.0,
+        "funding_interval_minutes": 240,
+        "max_leverage": 50.0
+      },
+      "units": "base asset quantity, linear USDT quote",
+      "contract_multiplier": 1,
+      "specification_time": "captured contemporaneous bootstrap, not current REST"
+    },
+    "BTCUSDT": {
+      "bootstrap_sequence": 2776,
+      "instrument": {
+        "symbol": "BTCUSDT",
+        "status": "Trading",
+        "tick_size": 0.1,
+        "qty_step": 0.001,
+        "min_order_qty": 0.001,
+        "min_notional_value": 5.0,
+        "max_order_qty": 1500.0,
+        "max_market_order_qty": 150.0,
+        "funding_interval_minutes": 480,
+        "max_leverage": 150.0
+      },
+      "units": "base asset quantity, linear USDT quote",
+      "contract_multiplier": 1,
+      "specification_time": "captured contemporaneous bootstrap, not current REST"
+    },
+    "ZECUSDT": {
+      "bootstrap_sequence": 4518,
+      "instrument": {
+        "symbol": "ZECUSDT",
+        "status": "Trading",
+        "tick_size": 0.01,
+        "qty_step": 0.01,
+        "min_order_qty": 0.01,
+        "min_notional_value": 5.0,
+        "max_order_qty": 5500.0,
+        "max_market_order_qty": 1100.0,
+        "funding_interval_minutes": 480,
+        "max_leverage": 75.0
+      },
+      "units": "base asset quantity, linear USDT quote",
+      "contract_multiplier": 1,
+      "specification_time": "captured contemporaneous bootstrap, not current REST"
+    },
+    "NEARUSDT": {
+      "bootstrap_sequence": 173556,
+      "instrument": {
+        "symbol": "NEARUSDT",
+        "status": "Trading",
+        "tick_size": 0.001,
+        "qty_step": 0.1,
+        "min_order_qty": 0.1,
+        "min_notional_value": 5.0,
+        "max_order_qty": 469060.0,
+        "max_market_order_qty": 66470.0,
+        "funding_interval_minutes": 480,
+        "max_leverage": 75.0
+      },
+      "units": "base asset quantity, linear USDT quote",
+      "contract_multiplier": 1,
+      "specification_time": "captured contemporaneous bootstrap, not current REST"
+    }
+  },
+  "events": {
+    "bootstrap": 7,
+    "symbol_lifecycle": 7,
+    "transport": 320,
+    "market_message": 1939822,
+    "run_end": 1
+  },
+  "period_ns": [
+    558264733020700,
+    565890123390000
+  ],
+  "observed_hours": 2.118163991472222,
+  "labels": {
+    "timeout": 9403,
+    "stop_first": 726,
+    "target_first": 96
+  },
+  "splits": {
+    "train": 5212,
+    "purged": 308,
+    "calibration": 1448,
+    "validation": 1450,
+    "test": 1807
+  },
+  "split_boundaries_ns": [
+    562077428205350,
+    563221236760745,
+    564365045316140
+  ],
+  "excluded": {
+    "book_gap": 102,
+    "right_censored": 41
+  },
+  "coverage": {
+    "book_ready": 1.0,
+    "candle_fresh": 1.0,
+    "book_age_seconds": 1.0,
+    "spread_bps": 1.0,
+    "top5_depth_usd": 1.0,
+    "top5_depth_imbalance": 1.0,
+    "trade_covered_5s": 1.0,
+    "trade_count_5s": 1.0,
+    "trade_notional_usd_5s": 1.0,
+    "cvd_usd_5s": 1.0,
+    "trade_imbalance_5s": 0.90239608801956,
+    "ofi_covered_5s": 1.0,
+    "ofi_event_count_5s": 1.0,
+    "normalized_ofi_5s": 1.0,
+    "trade_covered_15s": 1.0,
+    "trade_count_15s": 1.0,
+    "trade_notional_usd_15s": 1.0,
+    "cvd_usd_15s": 1.0,
+    "trade_imbalance_15s": 0.9945232273838631,
+    "ofi_covered_15s": 1.0,
+    "ofi_event_count_15s": 1.0,
+    "normalized_ofi_15s": 1.0,
+    "trade_covered_60s": 1.0,
+    "trade_count_60s": 1.0,
+    "trade_notional_usd_60s": 1.0,
+    "cvd_usd_60s": 1.0,
+    "trade_imbalance_60s": 1.0,
+    "ofi_covered_60s": 1.0,
+    "ofi_event_count_60s": 1.0,
+    "normalized_ofi_60s": 1.0,
+    "forming_known": 1.0,
+    "body_bps": 1.0,
+    "range_bps": 1.0,
+    "close_position": 1.0,
+    "volume_pace_ratio": 1.0,
+    "range_expansion_ratio": 1.0,
+    "velocity_bps_per_second": 1.0,
+    "micro_move_5s_bps": 0.7985330073349634,
+    "micro_move_15s_bps": 0.9239119804400978,
+    "liquidity_known": 1.0,
+    "wall_present": 0.0,
+    "wall_distance_bps": 0.0,
+    "remaining_ratio": 0.0,
+    "attack_ratio": 0.0,
+    "depletion_per_second": 0.0,
+    "replenishment_ratio": 0.0,
+    "structure_known": 1.0,
+    "support_distance_bps": 0.0,
+    "resistance_distance_bps": 0.0
+  },
+  "split_classes": {
+    "train": {
+      "timeout": 5017,
+      "stop_first": 183,
+      "target_first": 12
+    },
+    "calibration": {
+      "timeout": 1210,
+      "stop_first": 206,
+      "target_first": 32
+    },
+    "validation": {
+      "timeout": 1349,
+      "stop_first": 97,
+      "target_first": 4
+    },
+    "test": {
+      "timeout": 1528,
+      "stop_first": 231,
+      "target_first": 48
+    }
+  },
+  "unknown_groups": [
+    "liquidity evidence",
+    "structure features"
+  ],
+  "retention": "local until owner deletes; no automatic expiry or provider redistribution",
+  "artifact_path": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\data\\ml\\impulse-v1-final",
+  "portfolio_result": null
+}

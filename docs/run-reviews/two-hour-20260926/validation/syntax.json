@@ -1,0 +1,7 @@
+{
+  "python_files": 205,
+  "python": "AST parse, utf-8-sig; no source compilation/import required",
+  "javascript_files": 5,
+  "javascript": "node --check",
+  "passed": true
+}

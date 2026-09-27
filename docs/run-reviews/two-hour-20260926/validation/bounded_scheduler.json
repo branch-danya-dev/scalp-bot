@@ -1,0 +1,9 @@
+{
+  "status": "bounded_diagnostic_failure",
+  "error": "SegmentMismatch('unclosed root handler')",
+  "outputsMatched": 1334,
+  "closedTradesMatched": 0,
+  "windowInputs": 100000,
+  "fullReplay": false,
+  "limitation": "Artificial 100000-input cutoff inside a root scope; not source corruption, not full replay, no closed trades matched."
+}

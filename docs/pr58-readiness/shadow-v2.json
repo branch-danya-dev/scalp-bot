@@ -1,0 +1,49 @@
+{
+  "schema_version": 2,
+  "model_version": "catboost-impulse-v2:a9bb5445db534b93",
+  "rows": 1200,
+  "forecasts": 1200,
+  "reasons": {
+    "probability_abstention": 1200
+  },
+  "data_to_adapter_ms": {
+    "p50": 3.0617,
+    "p95": 3.0867,
+    "p99": 3.1225
+  },
+  "data_to_proposal_ms": {
+    "p50": null,
+    "p95": null,
+    "p99": null
+  },
+  "latency_scope": "all delivered forecasts through adapter vs emitted proposals separately; dropped work has no success latency",
+  "submit_ms": {
+    "p50": 0.0429,
+    "p95": 0.0599,
+    "p99": 0.068
+  },
+  "coalesced": 0,
+  "dropped": 0,
+  "worker_failure": null,
+  "worker": {
+    "module": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\scalp_bot\\__init__.py",
+    "pid": 21472,
+    "exchange_imported": false,
+    "resources": {
+      "cpu_seconds": 0.6875,
+      "rss_mb": 93.9609375,
+      "peak_rss_mb": 93.9609375
+    }
+  },
+  "resources": {
+    "cpu_seconds": 1.40625,
+    "rss_mb": 104.9375,
+    "peak_rss_mb": 104.9375
+  },
+  "platform": "Windows-11-10.0.26200-SP0",
+  "shutdown_complete": true,
+  "source_mapping": "original refs retained; availability translated to local replay delivery domain",
+  "order_authority": false,
+  "portfolio_touched": false,
+  "latency_budget_passed": true
+}

@@ -1,0 +1,10 @@
+{
+  "head": "1e28d4253746b2b524e22cab785ed20329ba4911",
+  "run_id": 36282268800,
+  "url": "https://github.com/branch-danya-dev/scalp-bot/actions/runs/36282268800",
+  "jobs": {
+    "test": "success,1369passed/2skipped",
+    "ml-windows": "success,223passed"
+  },
+  "source_hash_unchanged_in_followup_documentation": true
+}

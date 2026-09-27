@@ -44,7 +44,7 @@ from .research_policy import (
     ResearchPolicyRuntime,
 )
 from .risk import RiskEngine
-from .scenario import ScenarioRouter
+from .parallel_scenarios import ParallelScenarioRouter
 from .execution_book import coherent_execution_book
 from .scenario_runtime import ScenarioRuntime
 from .strategy.flow import best_level_ofi_usd, prune_trades
@@ -890,7 +890,7 @@ class TradingEngine(ScenarioRuntime):
         self.rest = rest_client if rest_client is not None else BybitRestClient(config)
         self.risk = RiskEngine(config)
         self.broker = PaperBroker(config, clock=self.clock)
-        self.router = ScenarioRouter(preparation_seconds=config.active_symbol_idle_timeout_seconds)
+        self.router = ParallelScenarioRouter(preparation_seconds=config.active_symbol_idle_timeout_seconds)
         self.recorder = recorder if recorder is not None else SessionRecorder(
             config.session_dir,
             clock=self.clock,
@@ -1014,6 +1014,7 @@ class TradingEngine(ScenarioRuntime):
             "weak_level_rejection"
         )
         if rejection_strategy is not None:
+            rejection_strategy.response_policy = config.research_rejection_response_policy
             setattr(
                 rejection_strategy,
                 "micro_response_min_bps",
@@ -2811,6 +2812,9 @@ class TradingEngine(ScenarioRuntime):
 
         return on_message, fast_book_state, deep_book_state
 
+    def _market_stream_options(self):
+        return {}
+
     async def _symbol_worker(
         self,
         symbol: str,
@@ -2823,16 +2827,24 @@ class TradingEngine(ScenarioRuntime):
         deep_depth = self.config.deep_orderbook_depth
 
         def capture_transport(event):
+            event = dict(event)
+            diagnostics = event.pop("diagnostics", None)
+            if diagnostics is not None:
+                self.recorder.record("transport_diagnostics", symbol, {**diagnostics,
+                    "phase": event["phase"], "errorType": event["errorType"],
+                    "attempt": event["attempt"], "workerId": worker_id, "topics": event["topics"]})
             self._record_input("transport", symbol, {**event, "workerId": worker_id,
                 "fastState": self._transport_book_state(fast_book_state),
                 "deepState": self._transport_book_state(deep_book_state)})
+            self._invalidate_transport(symbol, event, fast_book_state, deep_book_state)
 
         await stream_symbol(
             self.config.bybit_public_ws_url,
             symbol,
             on_message,
             stop_event,
-            **({"on_transport": capture_transport} if self.input_journal is not None else {}),
+            on_transport=capture_transport,
+            **self._market_stream_options(),
             fast_orderbook_depth=fast_depth,
             deep_orderbook_depth=deep_depth,
             market_queue_size=self.config.market_queue_size,
@@ -2843,6 +2855,54 @@ class TradingEngine(ScenarioRuntime):
                 self.config.market_queue_max_lag_seconds
             ),
         )
+
+    @input_scope("transport_invalidate", symbol_arg=True)
+    def _invalidate_transport(self, symbol, event, fast_state, deep_state):
+        if event.get("phase") not in {"connecting", "fault", "cancelled"}:
+            return
+        session = self.sessions.get(symbol)
+        if session is None:
+            return
+        topics = event.get("topics", [])
+        fast = f"orderbook.{self.config.fast_orderbook_depth}.{symbol}" in topics
+        deep = f"orderbook.{self.config.deep_orderbook_depth}.{symbol}" in topics
+        if fast:
+            fast_state._clear()
+            session.book_synced = False
+            session.last_book_at = 0
+            session.fast_receipt_mono = None
+            session.orderbook = OrderBook()
+        if deep:
+            deep_state._clear()
+            session.deep_book_synced = False
+            session.last_deep_book_at = 0
+            session.deep_receipt_mono = None
+            session.deep_orderbook = OrderBook()
+        if fast or deep:
+            session.decisions.clear()
+            cancelled = self.broker.cancel_pending(symbol, "transport_epoch_changed")
+            if cancelled is not None:
+                self._emit("entry_cancelled", symbol, cancelled)
+            if fast:
+                session.trades.clear()
+                session.book_flow.clear()
+                session.flow_context = None
+                session.forming_candle_context = None
+                session.last_trade_stream_at = 0
+                session.trade_receipt_mono = None
+            # Keep protective/execution ownership; discard only preparations.
+            invalidate = getattr(self.router, "invalidate_preparations", None)
+            if invalidate is not None:
+                invalidate(symbol, self.clock.perf_counter_ns()/1e9, "transport_epoch_changed")
+            else:
+                scenario = self.router.scenarios.get(symbol)
+                if scenario and scenario.state not in {"ORDER_PENDING", "IN_POSITION"}:
+                    self.router.transition(scenario, "INVALIDATED", self.clock.perf_counter_ns()/1e9,
+                                           "transport_epoch_changed")
+            for key, strategy in self.strategies.items():
+                if symbol not in self.broker.positions and symbol not in self.broker.pending_entries:
+                    strategy.reset(symbol)
+            self._scenario_events()
 
     @staticmethod
     def _transport_book_state(state):
@@ -3396,14 +3456,15 @@ class TradingEngine(ScenarioRuntime):
                 density_decision,
             )
 
-        scenario = self._route_scenario(session, closed_1m)
+        self._route_scenario(session, closed_1m)
         for key, strategy in self.strategies.items():
+            scenario = self.router.scenario_for(session.symbol, key)
             if key == "orderbook_density":
                 continue
-            if scenario is None or key != scenario.owner:
+            if scenario is None or scenario.state in {"COMPLETED", "INVALIDATED", "EXPIRED", "RELEASED"}:
                 enabled = self.strategy_enabled.get(key, False)
                 decision = StrategyDecision(key, Action.WAIT,
-                    ["strategy disabled" if not enabled else "not assigned to current scenario"],
+                    ["strategy disabled" if not enabled else "no applicable scenario for this strategy"],
                     details={"state":"disabled" if not enabled else "not_assigned",
                              "assignedOwner":scenario.owner if scenario else None})
                 session.decisions[key] = decision
@@ -3425,7 +3486,7 @@ class TradingEngine(ScenarioRuntime):
                         symbol=session.symbol,
                         trades=list(session.trades),
                         structure=session.structure,
-                        market_context=session.market_context,
+                        market_context=self.router.context_for(session.market_context, session.symbol, key),
                         observed_at_ms=now_ms,
                         trade_flow=dict(trade_flow),
                     )
@@ -3493,7 +3554,11 @@ class TradingEngine(ScenarioRuntime):
                 )
 
             session.decisions[key] = decision
-            self._scenario_prepare(session, decision)
+            try:
+                self._scenario_prepare(session, decision)
+            except Exception as exc:
+                self._emit("strategy_error", session.symbol,
+                           {"strategy":key,"phase":"prepare","error":f"{type(exc).__name__}: {exc}"})
             self._record_decision_if_changed(session, decision)
 
         self._validate_pending_entry(session)
@@ -4473,6 +4538,10 @@ class TradingEngine(ScenarioRuntime):
             ),
         )
 
+    def _submit_research_opportunity(self, opportunity) -> bool:
+        """Explicit opt-in execution boundary; ordinary paper behavior is unchanged."""
+        return False
+
     def _latency_for_selected_opportunity(
         self,
         opportunity: Opportunity,
@@ -5015,10 +5084,16 @@ class TradingEngine(ScenarioRuntime):
         if not opportunities:
             return
 
-        best = max(
-            opportunities,
-            key=lambda item: item.priority.key(),
-        )
+        winners = {}
+        for item in sorted(opportunities, key=lambda item: self.router.ready_key(
+                item.session.symbol, item.decision.strategy)):
+            symbol = item.session.symbol
+            if symbol not in winners:
+                winners[symbol] = item
+            else:
+                self.router.reject(symbol, "dispatcher", "earlier_eligible_ready_proposal",
+                    self.clock.perf_counter_ns()/1e9, strategy=item.decision.strategy)
+        best = max(winners.values(), key=lambda item: item.priority.key())
         if self._clock_entry_block(best.session):
             return
         if best.position_action == "add":
@@ -5049,6 +5124,9 @@ class TradingEngine(ScenarioRuntime):
             )
             return
 
+        if self._submit_research_opportunity(best):
+            return
+
         best.session.last_risk_fingerprint = None
         best.session.last_blocked_fingerprint = None
         latency_message = (
@@ -5071,7 +5149,7 @@ class TradingEngine(ScenarioRuntime):
             ),
         }
 
-        self.router.submitted(best.session.symbol, self.clock.perf_counter_ns()/1e9)
+        self.router.submitted(best.session.symbol, self.clock.perf_counter_ns()/1e9, strategy=best.decision.strategy)
         best.plan.strategy_details["scenario"] = self.router.scenarios[best.session.symbol].public()
         self._scenario_events()
         if best.plan.entry_mode == "maker_limit":
@@ -5783,6 +5861,18 @@ class TradingEngine(ScenarioRuntime):
                     event,
                     snapshot=True,
                 )
+        position = self.broker.positions.get(session.symbol)
+        if (
+            position is not None
+            and session.trade_receipt_mono is not None
+            and session.trade_receipt_mono <= position.opened_mono
+        ):
+            # A queued batch received before entry cannot execute a resting
+            # exit created by that entry. Keep all ticks in market state and
+            # keep protective book marks; only its maker-fill evidence is old.
+            resolved_trade_price = None
+            trade_notional_usd = None
+            trade_side = None
         self._mark_position_from_book(
             session,
             trade_price=resolved_trade_price,
@@ -6060,7 +6150,8 @@ class TradingEngine(ScenarioRuntime):
         diagnostics: dict | None = None,
     ) -> None:
         self.router.reject(session.symbol, (diagnostics or {}).get("rejectionOwner", "risk"),
-                           reason, self.clock.perf_counter_ns()/1e9)
+                           reason, self.clock.perf_counter_ns()/1e9,
+                           strategy=decision.strategy if decision else None)
         fingerprint = (
             decision.strategy if decision else "portfolio",
             decision.setup_id if decision else None,

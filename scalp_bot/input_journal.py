@@ -41,7 +41,7 @@ COVERAGE = {LEGACY_SCHEMA: LEGACY_MISSING_COVERAGE, V2_SCHEMA: V2_MISSING_COVERA
             V3_SCHEMA: V3_MISSING_COVERAGE, SCHEMA: MISSING_COVERAGE}
 SCOPE_NAMES = {"evaluate", "arbiter", "event_evaluation", "market_message", "bootstrap_apply",
                "rest_context_apply", "scan", "clock_sync", "start_request", "stop", "toggle_strategy"}
-V4_SCOPE_NAMES = SCOPE_NAMES | {"clock_loop", "scanner_loop", "context_loop", "arbiter_loop",
+V4_SCOPE_NAMES = SCOPE_NAMES | {"transport_invalidate", "clock_loop", "scanner_loop", "context_loop", "arbiter_loop",
                                "paper_timer", "public_state", "market_health"}
 
 

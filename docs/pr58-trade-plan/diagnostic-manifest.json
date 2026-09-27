@@ -1,0 +1,15 @@
+{
+  "base_head": "1d7d9ab",
+  "dataset_path": "G:\\scalp-bot\\data\\pr58-completion\\dataset-v2-verified",
+  "dataset_sha256": "4d16ae2daa47df4f97f7d854f1d81004025695cca795dc9a26dfd5da188b30d8",
+  "model_path": "G:\\scalp-bot\\data\\pr58-completion\\model-v2",
+  "model_sha256": "a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2",
+  "policy_sha256": "2d6a03991ebef67d12b1b00e3de683abf64bf8311dded372c716a5cf8cc8d3f5",
+  "excluded": {
+    "purged": 278,
+    "test": 2847
+  },
+  "protocol": "docs/pr58-trade-plan/DIAGNOSTIC_PROTOCOL.md",
+  "scope": "dependent window payouts, not portfolio PnL; no training or threshold change",
+  "rows": 13665
+}

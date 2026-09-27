@@ -1,0 +1,4342 @@
+[
+  {
+    "sequence": 31,
+    "symbol": "ETHUSDT",
+    "wall": 1790451034.010925,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 1,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 32,
+    "symbol": "ETHUSDT",
+    "wall": 1790451034.015326,
+    "topics": [
+      "orderbook.1000.ETHUSDT"
+    ],
+    "attempt": 1,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 33,
+    "symbol": "ETHUSDT",
+    "wall": 1790451034.7465603,
+    "topics": [
+      "orderbook.1000.ETHUSDT"
+    ],
+    "attempt": 1,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 34,
+    "symbol": "ETHUSDT",
+    "wall": 1790451034.8096354,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 1,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 207,
+    "symbol": "SOLUSDT",
+    "wall": 1790451035.324894,
+    "topics": [
+      "orderbook.50.SOLUSDT",
+      "kline.1.SOLUSDT",
+      "publicTrade.SOLUSDT"
+    ],
+    "attempt": 1,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 208,
+    "symbol": "SOLUSDT",
+    "wall": 1790451035.3252172,
+    "topics": [
+      "orderbook.1000.SOLUSDT"
+    ],
+    "attempt": 1,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 385,
+    "symbol": "SOLUSDT",
+    "wall": 1790451036.0675845,
+    "topics": [
+      "orderbook.50.SOLUSDT",
+      "kline.1.SOLUSDT",
+      "publicTrade.SOLUSDT"
+    ],
+    "attempt": 1,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 410,
+    "symbol": "SOLUSDT",
+    "wall": 1790451036.1553867,
+    "topics": [
+      "orderbook.1000.SOLUSDT"
+    ],
+    "attempt": 1,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 671,
+    "symbol": "XRPUSDT",
+    "wall": 1790451036.60721,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 1,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 672,
+    "symbol": "XRPUSDT",
+    "wall": 1790451036.6075222,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 1,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 891,
+    "symbol": "XRPUSDT",
+    "wall": 1790451037.3448663,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 1,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 892,
+    "symbol": "XRPUSDT",
+    "wall": 1790451037.3629923,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 1,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 1302,
+    "symbol": "ENAUSDT",
+    "wall": 1790451037.8913512,
+    "topics": [
+      "orderbook.50.ENAUSDT",
+      "kline.1.ENAUSDT",
+      "publicTrade.ENAUSDT"
+    ],
+    "attempt": 1,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 1303,
+    "symbol": "ENAUSDT",
+    "wall": 1790451037.891663,
+    "topics": [
+      "orderbook.1000.ENAUSDT"
+    ],
+    "attempt": 1,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 1971,
+    "symbol": "ENAUSDT",
+    "wall": 1790451038.6323578,
+    "topics": [
+      "orderbook.50.ENAUSDT",
+      "kline.1.ENAUSDT",
+      "publicTrade.ENAUSDT"
+    ],
+    "attempt": 1,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 1980,
+    "symbol": "ENAUSDT",
+    "wall": 1790451038.6555924,
+    "topics": [
+      "orderbook.1000.ENAUSDT"
+    ],
+    "attempt": 1,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 2793,
+    "symbol": "BTCUSDT",
+    "wall": 1790451039.175861,
+    "topics": [
+      "orderbook.50.BTCUSDT",
+      "kline.1.BTCUSDT",
+      "publicTrade.BTCUSDT"
+    ],
+    "attempt": 1,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 2794,
+    "symbol": "BTCUSDT",
+    "wall": 1790451039.176191,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 1,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 3805,
+    "symbol": "BTCUSDT",
+    "wall": 1790451039.9669414,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 1,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 3811,
+    "symbol": "BTCUSDT",
+    "wall": 1790451040.0079727,
+    "topics": [
+      "orderbook.50.BTCUSDT",
+      "kline.1.BTCUSDT",
+      "publicTrade.BTCUSDT"
+    ],
+    "attempt": 1,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 4538,
+    "symbol": "ZECUSDT",
+    "wall": 1790451040.4509287,
+    "topics": [
+      "orderbook.50.ZECUSDT",
+      "kline.1.ZECUSDT",
+      "publicTrade.ZECUSDT"
+    ],
+    "attempt": 1,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 4539,
+    "symbol": "ZECUSDT",
+    "wall": 1790451040.4513457,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 1,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 5971,
+    "symbol": "ZECUSDT",
+    "wall": 1790451041.1777618,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 1,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 6032,
+    "symbol": "ZECUSDT",
+    "wall": 1790451041.2016616,
+    "topics": [
+      "orderbook.50.ZECUSDT",
+      "kline.1.ZECUSDT",
+      "publicTrade.ZECUSDT"
+    ],
+    "attempt": 1,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 173575,
+    "symbol": "NEARUSDT",
+    "wall": 1790451109.334878,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 1,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 173576,
+    "symbol": "NEARUSDT",
+    "wall": 1790451109.335243,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 1,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 175045,
+    "symbol": "NEARUSDT",
+    "wall": 1790451110.0998924,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 1,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 175206,
+    "symbol": "NEARUSDT",
+    "wall": 1790451110.1696587,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 1,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14843679,
+    "symbol": "ZECUSDT",
+    "wall": 1790455674.155581,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 1,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 14843680,
+    "symbol": "NEARUSDT",
+    "wall": 1790455674.159701,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 1,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 14852525,
+    "symbol": "ZECUSDT",
+    "wall": 1790455676.2380748,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 1,
+    "phase": "drained",
+    "error": null,
+    "discarded": 1
+  },
+  {
+    "sequence": 14852526,
+    "symbol": "ZECUSDT",
+    "wall": 1790455676.2427917,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 2,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14852527,
+    "symbol": "NEARUSDT",
+    "wall": 1790455676.2476113,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 1,
+    "phase": "drained",
+    "error": null,
+    "discarded": 1
+  },
+  {
+    "sequence": 14852528,
+    "symbol": "NEARUSDT",
+    "wall": 1790455676.2541537,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 2,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14890434,
+    "symbol": "NEARUSDT",
+    "wall": 1790455683.8215425,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 1,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 14890435,
+    "symbol": "XRPUSDT",
+    "wall": 1790455683.8255684,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 1,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 14898603,
+    "symbol": "NEARUSDT",
+    "wall": 1790455685.8373523,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 1,
+    "phase": "drained",
+    "error": null,
+    "discarded": 6
+  },
+  {
+    "sequence": 14898604,
+    "symbol": "NEARUSDT",
+    "wall": 1790455685.8415265,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 2,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14898605,
+    "symbol": "XRPUSDT",
+    "wall": 1790455685.846198,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 1,
+    "phase": "drained",
+    "error": null,
+    "discarded": 9
+  },
+  {
+    "sequence": 14898606,
+    "symbol": "XRPUSDT",
+    "wall": 1790455685.8520646,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 2,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14899715,
+    "symbol": "ZECUSDT",
+    "wall": 1790455686.2613459,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 2,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 14899724,
+    "symbol": "NEARUSDT",
+    "wall": 1790455686.2667024,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 2,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 14905851,
+    "symbol": "ZECUSDT",
+    "wall": 1790455688.2808387,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 2,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14905852,
+    "symbol": "ZECUSDT",
+    "wall": 1790455688.2852197,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 3,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14905854,
+    "symbol": "NEARUSDT",
+    "wall": 1790455688.2905254,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 2,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14905855,
+    "symbol": "NEARUSDT",
+    "wall": 1790455688.294245,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 3,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14933585,
+    "symbol": "NEARUSDT",
+    "wall": 1790455695.9431381,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 2,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 14933618,
+    "symbol": "XRPUSDT",
+    "wall": 1790455695.9608068,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 2,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 14941405,
+    "symbol": "NEARUSDT",
+    "wall": 1790455697.9544168,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 2,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14941406,
+    "symbol": "NEARUSDT",
+    "wall": 1790455697.9582384,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 3,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14941508,
+    "symbol": "XRPUSDT",
+    "wall": 1790455698.0297246,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 2,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14941509,
+    "symbol": "XRPUSDT",
+    "wall": 1790455698.0340254,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 3,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14942428,
+    "symbol": "ZECUSDT",
+    "wall": 1790455698.3243747,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 3,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 14942472,
+    "symbol": "NEARUSDT",
+    "wall": 1790455698.338552,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 3,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 14949551,
+    "symbol": "ZECUSDT",
+    "wall": 1790455700.33315,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 3,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14949552,
+    "symbol": "ZECUSDT",
+    "wall": 1790455700.3370833,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 4,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14949593,
+    "symbol": "NEARUSDT",
+    "wall": 1790455700.3532724,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 3,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14949594,
+    "symbol": "NEARUSDT",
+    "wall": 1790455700.360373,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 4,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14976147,
+    "symbol": "NEARUSDT",
+    "wall": 1790455708.0103655,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 3,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 14977077,
+    "symbol": "XRPUSDT",
+    "wall": 1790455708.1884077,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 3,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 14982855,
+    "symbol": "NEARUSDT",
+    "wall": 1790455710.0793004,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 3,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14982856,
+    "symbol": "NEARUSDT",
+    "wall": 1790455710.0836987,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 4,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14983265,
+    "symbol": "XRPUSDT",
+    "wall": 1790455710.230001,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 3,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14983266,
+    "symbol": "XRPUSDT",
+    "wall": 1790455710.2340195,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 4,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14983899,
+    "symbol": "ZECUSDT",
+    "wall": 1790455710.4211955,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 4,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 14983900,
+    "symbol": "NEARUSDT",
+    "wall": 1790455710.4303536,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 4,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 14989881,
+    "symbol": "ZECUSDT",
+    "wall": 1790455712.4659467,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 4,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14989882,
+    "symbol": "ZECUSDT",
+    "wall": 1790455712.4711747,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 5,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14989883,
+    "symbol": "NEARUSDT",
+    "wall": 1790455712.4786038,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 4,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 14989884,
+    "symbol": "NEARUSDT",
+    "wall": 1790455712.4831793,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 5,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15015242,
+    "symbol": "NEARUSDT",
+    "wall": 1790455720.095215,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 4,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15015686,
+    "symbol": "XRPUSDT",
+    "wall": 1790455720.2605288,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 4,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15021672,
+    "symbol": "NEARUSDT",
+    "wall": 1790455722.2048683,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 4,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15021673,
+    "symbol": "NEARUSDT",
+    "wall": 1790455722.2096887,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 5,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15022041,
+    "symbol": "XRPUSDT",
+    "wall": 1790455722.3123367,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 4,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15022042,
+    "symbol": "XRPUSDT",
+    "wall": 1790455722.316633,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 5,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15022589,
+    "symbol": "ZECUSDT",
+    "wall": 1790455722.532849,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 5,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15022590,
+    "symbol": "NEARUSDT",
+    "wall": 1790455722.5371845,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 5,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15028015,
+    "symbol": "ZECUSDT",
+    "wall": 1790455724.5548172,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 5,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15028016,
+    "symbol": "ZECUSDT",
+    "wall": 1790455724.559616,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 6,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15028017,
+    "symbol": "NEARUSDT",
+    "wall": 1790455724.564885,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 5,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15028018,
+    "symbol": "NEARUSDT",
+    "wall": 1790455724.5704882,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 6,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15035116,
+    "symbol": "BTCUSDT",
+    "wall": 1790455726.1610634,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 1,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15035202,
+    "symbol": "XRPUSDT",
+    "wall": 1790455726.1758108,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 1,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15040408,
+    "symbol": "BTCUSDT",
+    "wall": 1790455728.1782959,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 1,
+    "phase": "drained",
+    "error": null,
+    "discarded": 1
+  },
+  {
+    "sequence": 15040409,
+    "symbol": "BTCUSDT",
+    "wall": 1790455728.1828625,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 2,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15040411,
+    "symbol": "XRPUSDT",
+    "wall": 1790455728.188334,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 1,
+    "phase": "drained",
+    "error": null,
+    "discarded": 1
+  },
+  {
+    "sequence": 15040412,
+    "symbol": "XRPUSDT",
+    "wall": 1790455728.1945212,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 2,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15051911,
+    "symbol": "NEARUSDT",
+    "wall": 1790455732.2189133,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 5,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15052223,
+    "symbol": "XRPUSDT",
+    "wall": 1790455732.326906,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 5,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15056948,
+    "symbol": "NEARUSDT",
+    "wall": 1790455734.237337,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 5,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15056949,
+    "symbol": "NEARUSDT",
+    "wall": 1790455734.241611,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 6,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15057189,
+    "symbol": "XRPUSDT",
+    "wall": 1790455734.3408313,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 5,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15057190,
+    "symbol": "XRPUSDT",
+    "wall": 1790455734.346338,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 6,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15058106,
+    "symbol": "ZECUSDT",
+    "wall": 1790455734.5688074,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 6,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15058186,
+    "symbol": "NEARUSDT",
+    "wall": 1790455734.5859838,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 6,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15061226,
+    "symbol": "ETHUSDT",
+    "wall": 1790455735.9187584,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 1,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15063230,
+    "symbol": "ZECUSDT",
+    "wall": 1790455736.5785334,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 6,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15063231,
+    "symbol": "ZECUSDT",
+    "wall": 1790455736.5836046,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 7,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15063298,
+    "symbol": "NEARUSDT",
+    "wall": 1790455736.6038508,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 6,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15063299,
+    "symbol": "NEARUSDT",
+    "wall": 1790455736.6084635,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 7,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15067079,
+    "symbol": "ETHUSDT",
+    "wall": 1790455737.9326496,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 1,
+    "phase": "drained",
+    "error": null,
+    "discarded": 6
+  },
+  {
+    "sequence": 15067080,
+    "symbol": "ETHUSDT",
+    "wall": 1790455737.9374354,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 2,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15067697,
+    "symbol": "BTCUSDT",
+    "wall": 1790455738.1939418,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 2,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15067728,
+    "symbol": "XRPUSDT",
+    "wall": 1790455738.2033267,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 2,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15075250,
+    "symbol": "BTCUSDT",
+    "wall": 1790455740.206044,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 2,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15075251,
+    "symbol": "BTCUSDT",
+    "wall": 1790455740.2102969,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 3,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15075252,
+    "symbol": "XRPUSDT",
+    "wall": 1790455740.2164981,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 2,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15075253,
+    "symbol": "XRPUSDT",
+    "wall": 1790455740.2203135,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 3,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15084865,
+    "symbol": "NEARUSDT",
+    "wall": 1790455744.2594075,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 6,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15085106,
+    "symbol": "XRPUSDT",
+    "wall": 1790455744.3558211,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 6,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15089837,
+    "symbol": "NEARUSDT",
+    "wall": 1790455746.270121,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 6,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15089838,
+    "symbol": "NEARUSDT",
+    "wall": 1790455746.2744527,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 7,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15090439,
+    "symbol": "XRPUSDT",
+    "wall": 1790455746.420832,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 6,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15090440,
+    "symbol": "XRPUSDT",
+    "wall": 1790455746.4259803,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 7,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15091500,
+    "symbol": "ZECUSDT",
+    "wall": 1790455746.596239,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 7,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15091568,
+    "symbol": "NEARUSDT",
+    "wall": 1790455746.614722,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 7,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15094650,
+    "symbol": "ETHUSDT",
+    "wall": 1790455747.9464376,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 2,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15096296,
+    "symbol": "ZECUSDT",
+    "wall": 1790455748.60554,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 7,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15096297,
+    "symbol": "ZECUSDT",
+    "wall": 1790455748.612295,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 8,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15096324,
+    "symbol": "NEARUSDT",
+    "wall": 1790455748.6263232,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 7,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15096325,
+    "symbol": "NEARUSDT",
+    "wall": 1790455748.6303325,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 8,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15099579,
+    "symbol": "ETHUSDT",
+    "wall": 1790455749.9668403,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 2,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15099580,
+    "symbol": "ETHUSDT",
+    "wall": 1790455749.973976,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 3,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15100288,
+    "symbol": "BTCUSDT",
+    "wall": 1790455750.2194161,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 3,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15100322,
+    "symbol": "XRPUSDT",
+    "wall": 1790455750.230709,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 3,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15103423,
+    "symbol": "BTCUSDT",
+    "wall": 1790455752.234373,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 3,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15103424,
+    "symbol": "BTCUSDT",
+    "wall": 1790455752.2387598,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 4,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15103451,
+    "symbol": "XRPUSDT",
+    "wall": 1790455752.2537053,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 3,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15103452,
+    "symbol": "XRPUSDT",
+    "wall": 1790455752.2588716,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 4,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15117888,
+    "symbol": "NEARUSDT",
+    "wall": 1790455756.302262,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 7,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15118222,
+    "symbol": "XRPUSDT",
+    "wall": 1790455756.4379883,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 7,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15122224,
+    "symbol": "NEARUSDT",
+    "wall": 1790455758.31954,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 7,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15122225,
+    "symbol": "NEARUSDT",
+    "wall": 1790455758.323942,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 8,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15122568,
+    "symbol": "XRPUSDT",
+    "wall": 1790455758.4460447,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 7,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15122569,
+    "symbol": "XRPUSDT",
+    "wall": 1790455758.4503658,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 8,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15122955,
+    "symbol": "ZECUSDT",
+    "wall": 1790455758.6211133,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 8,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15123001,
+    "symbol": "NEARUSDT",
+    "wall": 1790455758.645167,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 8,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15126068,
+    "symbol": "ETHUSDT",
+    "wall": 1790455759.9828272,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 3,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15127727,
+    "symbol": "ZECUSDT",
+    "wall": 1790455760.6389775,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 8,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15127728,
+    "symbol": "ZECUSDT",
+    "wall": 1790455760.6439292,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 9,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15127832,
+    "symbol": "NEARUSDT",
+    "wall": 1790455760.668424,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 8,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15127833,
+    "symbol": "NEARUSDT",
+    "wall": 1790455760.6725132,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 9,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15131015,
+    "symbol": "ETHUSDT",
+    "wall": 1790455761.9934587,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 3,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15131016,
+    "symbol": "ETHUSDT",
+    "wall": 1790455761.997519,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 4,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15131537,
+    "symbol": "BTCUSDT",
+    "wall": 1790455762.2473414,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 4,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15131575,
+    "symbol": "XRPUSDT",
+    "wall": 1790455762.2641065,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 4,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15136330,
+    "symbol": "BTCUSDT",
+    "wall": 1790455764.255916,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 4,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15136331,
+    "symbol": "BTCUSDT",
+    "wall": 1790455764.2602832,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 5,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15136369,
+    "symbol": "XRPUSDT",
+    "wall": 1790455764.2698348,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 4,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15136370,
+    "symbol": "XRPUSDT",
+    "wall": 1790455764.2736597,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 5,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15146803,
+    "symbol": "NEARUSDT",
+    "wall": 1790455768.3332882,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 8,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15147248,
+    "symbol": "XRPUSDT",
+    "wall": 1790455768.5178883,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 8,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15152497,
+    "symbol": "NEARUSDT",
+    "wall": 1790455770.3449836,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 8,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15152498,
+    "symbol": "NEARUSDT",
+    "wall": 1790455770.3497577,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 9,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15153168,
+    "symbol": "XRPUSDT",
+    "wall": 1790455770.5342195,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 8,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15153169,
+    "symbol": "XRPUSDT",
+    "wall": 1790455770.5386462,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 9,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15153760,
+    "symbol": "ZECUSDT",
+    "wall": 1790455770.6974528,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 9,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15153860,
+    "symbol": "NEARUSDT",
+    "wall": 1790455770.708905,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 9,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15159187,
+    "symbol": "ETHUSDT",
+    "wall": 1790455772.007607,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 4,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15161709,
+    "symbol": "ZECUSDT",
+    "wall": 1790455772.7115304,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 9,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15161710,
+    "symbol": "ZECUSDT",
+    "wall": 1790455772.7171128,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 10,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15161744,
+    "symbol": "NEARUSDT",
+    "wall": 1790455772.7360754,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 9,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15161745,
+    "symbol": "NEARUSDT",
+    "wall": 1790455772.7410262,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 10,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15164807,
+    "symbol": "ETHUSDT",
+    "wall": 1790455774.0266802,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 4,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15164808,
+    "symbol": "ETHUSDT",
+    "wall": 1790455774.0312924,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 5,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15165594,
+    "symbol": "BTCUSDT",
+    "wall": 1790455774.2747462,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 5,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15165595,
+    "symbol": "XRPUSDT",
+    "wall": 1790455774.2808218,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 5,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15169972,
+    "symbol": "BTCUSDT",
+    "wall": 1790455776.2895243,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 5,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15169973,
+    "symbol": "BTCUSDT",
+    "wall": 1790455776.294073,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 6,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15169987,
+    "symbol": "XRPUSDT",
+    "wall": 1790455776.301242,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 5,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15169988,
+    "symbol": "XRPUSDT",
+    "wall": 1790455776.3052218,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 6,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15181297,
+    "symbol": "NEARUSDT",
+    "wall": 1790455780.358302,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 9,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15181670,
+    "symbol": "XRPUSDT",
+    "wall": 1790455780.5631196,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 9,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15185371,
+    "symbol": "NEARUSDT",
+    "wall": 1790455782.366877,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 9,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15185372,
+    "symbol": "NEARUSDT",
+    "wall": 1790455782.372692,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 10,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15185694,
+    "symbol": "XRPUSDT",
+    "wall": 1790455782.9940264,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 9,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15185695,
+    "symbol": "XRPUSDT",
+    "wall": 1790455783.00004,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 10,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15185696,
+    "symbol": "ZECUSDT",
+    "wall": 1790455783.009168,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 10,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15185697,
+    "symbol": "NEARUSDT",
+    "wall": 1790455783.0140069,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 10,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15188426,
+    "symbol": "ETHUSDT",
+    "wall": 1790455784.0391185,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 5,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15190345,
+    "symbol": "ZECUSDT",
+    "wall": 1790455785.019418,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 10,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15190346,
+    "symbol": "ZECUSDT",
+    "wall": 1790455785.0239387,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 11,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15190355,
+    "symbol": "NEARUSDT",
+    "wall": 1790455785.0302281,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 10,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15190356,
+    "symbol": "NEARUSDT",
+    "wall": 1790455785.035438,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 11,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15193963,
+    "symbol": "ETHUSDT",
+    "wall": 1790455786.058208,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 5,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15193964,
+    "symbol": "ETHUSDT",
+    "wall": 1790455786.0632205,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 6,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15194604,
+    "symbol": "BTCUSDT",
+    "wall": 1790455786.305322,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 6,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15194618,
+    "symbol": "XRPUSDT",
+    "wall": 1790455786.3105075,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 6,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15200343,
+    "symbol": "BTCUSDT",
+    "wall": 1790455788.3171115,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 6,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15200344,
+    "symbol": "BTCUSDT",
+    "wall": 1790455788.323321,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 7,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15200345,
+    "symbol": "XRPUSDT",
+    "wall": 1790455788.3290472,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 6,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15200346,
+    "symbol": "XRPUSDT",
+    "wall": 1790455788.3337264,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 7,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15210443,
+    "symbol": "NEARUSDT",
+    "wall": 1790455792.3878624,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 10,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15211367,
+    "symbol": "XRPUSDT",
+    "wall": 1790455793.0131474,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 10,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15215610,
+    "symbol": "NEARUSDT",
+    "wall": 1790455794.3991284,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 10,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15215611,
+    "symbol": "NEARUSDT",
+    "wall": 1790455794.4045086,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 11,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15217425,
+    "symbol": "XRPUSDT",
+    "wall": 1790455795.0261903,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 10,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15217426,
+    "symbol": "XRPUSDT",
+    "wall": 1790455795.0315945,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 11,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15217427,
+    "symbol": "ZECUSDT",
+    "wall": 1790455795.0385544,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 11,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15217541,
+    "symbol": "NEARUSDT",
+    "wall": 1790455795.0623055,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 11,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15221153,
+    "symbol": "ETHUSDT",
+    "wall": 1790455796.0780933,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 6,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15223688,
+    "symbol": "ZECUSDT",
+    "wall": 1790455797.0589523,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 11,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15223689,
+    "symbol": "ZECUSDT",
+    "wall": 1790455797.0660012,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 12,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15223698,
+    "symbol": "NEARUSDT",
+    "wall": 1790455797.071885,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 11,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15223699,
+    "symbol": "NEARUSDT",
+    "wall": 1790455797.0756602,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 12,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15226092,
+    "symbol": "ETHUSDT",
+    "wall": 1790455798.0880327,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 6,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15226093,
+    "symbol": "ETHUSDT",
+    "wall": 1790455798.0926447,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 7,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15226845,
+    "symbol": "BTCUSDT",
+    "wall": 1790455798.335168,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 7,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15226893,
+    "symbol": "XRPUSDT",
+    "wall": 1790455798.346863,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 7,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15234706,
+    "symbol": "BTCUSDT",
+    "wall": 1790455800.384127,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 7,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15234707,
+    "symbol": "BTCUSDT",
+    "wall": 1790455800.3902283,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 8,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15234807,
+    "symbol": "XRPUSDT",
+    "wall": 1790455800.4237678,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 7,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15234808,
+    "symbol": "XRPUSDT",
+    "wall": 1790455800.429073,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 8,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15249649,
+    "symbol": "NEARUSDT",
+    "wall": 1790455804.419473,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 11,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15251322,
+    "symbol": "XRPUSDT",
+    "wall": 1790455805.0422997,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 11,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15255820,
+    "symbol": "NEARUSDT",
+    "wall": 1790455806.4319205,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 11,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15255821,
+    "symbol": "NEARUSDT",
+    "wall": 1790455806.435796,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 12,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15257911,
+    "symbol": "XRPUSDT",
+    "wall": 1790455807.0538762,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 11,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15257912,
+    "symbol": "XRPUSDT",
+    "wall": 1790455807.057667,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 12,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15258010,
+    "symbol": "ZECUSDT",
+    "wall": 1790455807.0811195,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 12,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15258012,
+    "symbol": "NEARUSDT",
+    "wall": 1790455807.0872517,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 12,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15260438,
+    "symbol": "ETHUSDT",
+    "wall": 1790455808.1026425,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 7,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15263254,
+    "symbol": "ZECUSDT",
+    "wall": 1790455809.0986006,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 12,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15263255,
+    "symbol": "ZECUSDT",
+    "wall": 1790455809.1027176,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 13,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15263256,
+    "symbol": "NEARUSDT",
+    "wall": 1790455809.107326,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 12,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15263257,
+    "symbol": "NEARUSDT",
+    "wall": 1790455809.1110563,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 13,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15265883,
+    "symbol": "NEARUSDT",
+    "wall": 1790455809.8664615,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 13,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15265913,
+    "symbol": "ZECUSDT",
+    "wall": 1790455809.8807242,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 13,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15266357,
+    "symbol": "ETHUSDT",
+    "wall": 1790455810.1165416,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 7,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15266358,
+    "symbol": "ETHUSDT",
+    "wall": 1790455810.1211362,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 8,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15267089,
+    "symbol": "BTCUSDT",
+    "wall": 1790455810.3993177,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 8,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15267209,
+    "symbol": "XRPUSDT",
+    "wall": 1790455810.4362557,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 8,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15267981,
+    "symbol": "ETHUSDT",
+    "wall": 1790455810.9441516,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 8,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15273084,
+    "symbol": "BTCUSDT",
+    "wall": 1790455812.4108224,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 8,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15273085,
+    "symbol": "BTCUSDT",
+    "wall": 1790455812.4152162,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 9,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15273213,
+    "symbol": "XRPUSDT",
+    "wall": 1790455812.4434683,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 8,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15273214,
+    "symbol": "XRPUSDT",
+    "wall": 1790455812.4494052,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 9,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15275857,
+    "symbol": "XRPUSDT",
+    "wall": 1790455813.2112172,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 9,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15275874,
+    "symbol": "BTCUSDT",
+    "wall": 1790455813.2207005,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 9,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15286426,
+    "symbol": "NEARUSDT",
+    "wall": 1790455816.4576824,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 12,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15289385,
+    "symbol": "XRPUSDT",
+    "wall": 1790455817.0725415,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 12,
+    "phase": "fault",
+    "error": "TimeoutError",
+    "discarded": 0
+  },
+  {
+    "sequence": 15295869,
+    "symbol": "NEARUSDT",
+    "wall": 1790455818.4696288,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 12,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15295870,
+    "symbol": "NEARUSDT",
+    "wall": 1790455818.4736404,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 13,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15297750,
+    "symbol": "XRPUSDT",
+    "wall": 1790455819.0904615,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 12,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15297751,
+    "symbol": "XRPUSDT",
+    "wall": 1790455819.0940802,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 13,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15298360,
+    "symbol": "NEARUSDT",
+    "wall": 1790455819.2703407,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 13,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 15300502,
+    "symbol": "XRPUSDT",
+    "wall": 1790455819.8599753,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 13,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 18557663,
+    "symbol": "NEARUSDT",
+    "wall": 1790456714.443421,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 13,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 18563069,
+    "symbol": "NEARUSDT",
+    "wall": 1790456716.4575477,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 13,
+    "phase": "drained",
+    "error": null,
+    "discarded": 1
+  },
+  {
+    "sequence": 18563070,
+    "symbol": "NEARUSDT",
+    "wall": 1790456716.4617476,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 14,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 18565283,
+    "symbol": "NEARUSDT",
+    "wall": 1790456717.311338,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 14,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 18585434,
+    "symbol": "ETHUSDT",
+    "wall": 1790456724.2128694,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 8,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 18591217,
+    "symbol": "ETHUSDT",
+    "wall": 1790456726.2283018,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 8,
+    "phase": "drained",
+    "error": null,
+    "discarded": 1
+  },
+  {
+    "sequence": 18591218,
+    "symbol": "ETHUSDT",
+    "wall": 1790456726.2369497,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 9,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 18593495,
+    "symbol": "ETHUSDT",
+    "wall": 1790456727.025736,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 9,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 20110093,
+    "symbol": "NEARUSDT",
+    "wall": 1790457179.2513826,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 13,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 20118031,
+    "symbol": "NEARUSDT",
+    "wall": 1790457181.2859046,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 13,
+    "phase": "drained",
+    "error": null,
+    "discarded": 1
+  },
+  {
+    "sequence": 20118032,
+    "symbol": "NEARUSDT",
+    "wall": 1790457181.2901895,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 14,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 20120660,
+    "symbol": "NEARUSDT",
+    "wall": 1790457182.085264,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 14,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 22505458,
+    "symbol": "ETHUSDT",
+    "wall": 1790457823.4392352,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 9,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 22510025,
+    "symbol": "ETHUSDT",
+    "wall": 1790457825.4565136,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 9,
+    "phase": "drained",
+    "error": null,
+    "discarded": 2
+  },
+  {
+    "sequence": 22510026,
+    "symbol": "ETHUSDT",
+    "wall": 1790457825.461355,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 10,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 22512149,
+    "symbol": "ETHUSDT",
+    "wall": 1790457826.3112066,
+    "topics": [
+      "orderbook.50.ETHUSDT",
+      "kline.1.ETHUSDT",
+      "publicTrade.ETHUSDT"
+    ],
+    "attempt": 10,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 22528171,
+    "symbol": "ZECUSDT",
+    "wall": 1790457833.2045634,
+    "topics": [
+      "orderbook.50.ZECUSDT",
+      "kline.1.ZECUSDT",
+      "publicTrade.ZECUSDT"
+    ],
+    "attempt": 1,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 22528301,
+    "symbol": "NEARUSDT",
+    "wall": 1790457833.227396,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 14,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 22533689,
+    "symbol": "ZECUSDT",
+    "wall": 1790457835.2298014,
+    "topics": [
+      "orderbook.50.ZECUSDT",
+      "kline.1.ZECUSDT",
+      "publicTrade.ZECUSDT"
+    ],
+    "attempt": 1,
+    "phase": "drained",
+    "error": null,
+    "discarded": 2
+  },
+  {
+    "sequence": 22533690,
+    "symbol": "ZECUSDT",
+    "wall": 1790457835.2354977,
+    "topics": [
+      "orderbook.50.ZECUSDT",
+      "kline.1.ZECUSDT",
+      "publicTrade.ZECUSDT"
+    ],
+    "attempt": 2,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 22533768,
+    "symbol": "NEARUSDT",
+    "wall": 1790457835.2602236,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 14,
+    "phase": "drained",
+    "error": null,
+    "discarded": 2
+  },
+  {
+    "sequence": 22533769,
+    "symbol": "NEARUSDT",
+    "wall": 1790457835.2649167,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 15,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 22535916,
+    "symbol": "ZECUSDT",
+    "wall": 1790457836.0020382,
+    "topics": [
+      "orderbook.50.ZECUSDT",
+      "kline.1.ZECUSDT",
+      "publicTrade.ZECUSDT"
+    ],
+    "attempt": 2,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 22536165,
+    "symbol": "NEARUSDT",
+    "wall": 1790457836.1088862,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 15,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 22728187,
+    "symbol": "ETHUSDT",
+    "wall": 1790457876.5745716,
+    "topics": [
+      "orderbook.1000.ETHUSDT"
+    ],
+    "attempt": 1,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 22741165,
+    "symbol": "ETHUSDT",
+    "wall": 1790457878.651112,
+    "topics": [
+      "orderbook.1000.ETHUSDT"
+    ],
+    "attempt": 1,
+    "phase": "drained",
+    "error": null,
+    "discarded": 1
+  },
+  {
+    "sequence": 22741166,
+    "symbol": "ETHUSDT",
+    "wall": 1790457878.658901,
+    "topics": [
+      "orderbook.1000.ETHUSDT"
+    ],
+    "attempt": 2,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 22748246,
+    "symbol": "ETHUSDT",
+    "wall": 1790457879.7501063,
+    "topics": [
+      "orderbook.1000.ETHUSDT"
+    ],
+    "attempt": 2,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 23008618,
+    "symbol": "XRPUSDT",
+    "wall": 1790457932.0744922,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 13,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 23016674,
+    "symbol": "XRPUSDT",
+    "wall": 1790457934.0954177,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 13,
+    "phase": "drained",
+    "error": null,
+    "discarded": 1
+  },
+  {
+    "sequence": 23016675,
+    "symbol": "XRPUSDT",
+    "wall": 1790457934.0995946,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 14,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 23020330,
+    "symbol": "XRPUSDT",
+    "wall": 1790457935.16552,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 14,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 23406885,
+    "symbol": "SOLUSDT",
+    "wall": 1790458022.9393215,
+    "topics": [
+      "orderbook.50.SOLUSDT",
+      "kline.1.SOLUSDT",
+      "publicTrade.SOLUSDT"
+    ],
+    "attempt": 1,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 23412864,
+    "symbol": "SOLUSDT",
+    "wall": 1790458024.9505894,
+    "topics": [
+      "orderbook.50.SOLUSDT",
+      "kline.1.SOLUSDT",
+      "publicTrade.SOLUSDT"
+    ],
+    "attempt": 1,
+    "phase": "drained",
+    "error": null,
+    "discarded": 1
+  },
+  {
+    "sequence": 23412865,
+    "symbol": "SOLUSDT",
+    "wall": 1790458024.9544642,
+    "topics": [
+      "orderbook.50.SOLUSDT",
+      "kline.1.SOLUSDT",
+      "publicTrade.SOLUSDT"
+    ],
+    "attempt": 2,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 23414855,
+    "symbol": "SOLUSDT",
+    "wall": 1790458025.7220056,
+    "topics": [
+      "orderbook.50.SOLUSDT",
+      "kline.1.SOLUSDT",
+      "publicTrade.SOLUSDT"
+    ],
+    "attempt": 2,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 23436098,
+    "symbol": "NEARUSDT",
+    "wall": 1790458032.7233648,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 15,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 23449127,
+    "symbol": "NEARUSDT",
+    "wall": 1790458034.7425373,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 15,
+    "phase": "drained",
+    "error": null,
+    "discarded": 1
+  },
+  {
+    "sequence": 23449128,
+    "symbol": "NEARUSDT",
+    "wall": 1790458034.747196,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 16,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 23452315,
+    "symbol": "NEARUSDT",
+    "wall": 1790458035.5869703,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 16,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 24250044,
+    "symbol": "NEARUSDT",
+    "wall": 1790458197.843977,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 14,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 24250172,
+    "symbol": "ZECUSDT",
+    "wall": 1790458197.8925726,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 13,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 24257076,
+    "symbol": "NEARUSDT",
+    "wall": 1790458199.858728,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 14,
+    "phase": "drained",
+    "error": null,
+    "discarded": 1
+  },
+  {
+    "sequence": 24257077,
+    "symbol": "NEARUSDT",
+    "wall": 1790458199.862594,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 15,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 24257230,
+    "symbol": "ZECUSDT",
+    "wall": 1790458199.9011753,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 13,
+    "phase": "drained",
+    "error": null,
+    "discarded": 1
+  },
+  {
+    "sequence": 24257231,
+    "symbol": "ZECUSDT",
+    "wall": 1790458199.9064422,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 14,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 24259767,
+    "symbol": "NEARUSDT",
+    "wall": 1790458200.645338,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 15,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 24261799,
+    "symbol": "ZECUSDT",
+    "wall": 1790458200.7560775,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 14,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 24292830,
+    "symbol": "ZECUSDT",
+    "wall": 1790458207.560656,
+    "topics": [
+      "orderbook.50.ZECUSDT",
+      "kline.1.ZECUSDT",
+      "publicTrade.ZECUSDT"
+    ],
+    "attempt": 2,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 24293011,
+    "symbol": "XRPUSDT",
+    "wall": 1790458207.6134229,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 14,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 24293012,
+    "symbol": "SOLUSDT",
+    "wall": 1790458207.6184635,
+    "topics": [
+      "orderbook.50.SOLUSDT",
+      "kline.1.SOLUSDT",
+      "publicTrade.SOLUSDT"
+    ],
+    "attempt": 2,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 24298169,
+    "symbol": "ZECUSDT",
+    "wall": 1790458209.5747242,
+    "topics": [
+      "orderbook.50.ZECUSDT",
+      "kline.1.ZECUSDT",
+      "publicTrade.ZECUSDT"
+    ],
+    "attempt": 2,
+    "phase": "drained",
+    "error": null,
+    "discarded": 155
+  },
+  {
+    "sequence": 24298170,
+    "symbol": "ZECUSDT",
+    "wall": 1790458209.579067,
+    "topics": [
+      "orderbook.50.ZECUSDT",
+      "kline.1.ZECUSDT",
+      "publicTrade.ZECUSDT"
+    ],
+    "attempt": 3,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 24298330,
+    "symbol": "XRPUSDT",
+    "wall": 1790458209.633846,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 14,
+    "phase": "drained",
+    "error": null,
+    "discarded": 18
+  },
+  {
+    "sequence": 24298331,
+    "symbol": "XRPUSDT",
+    "wall": 1790458209.6430054,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 15,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 24298332,
+    "symbol": "SOLUSDT",
+    "wall": 1790458209.6480167,
+    "topics": [
+      "orderbook.50.SOLUSDT",
+      "kline.1.SOLUSDT",
+      "publicTrade.SOLUSDT"
+    ],
+    "attempt": 2,
+    "phase": "drained",
+    "error": null,
+    "discarded": 12
+  },
+  {
+    "sequence": 24298333,
+    "symbol": "SOLUSDT",
+    "wall": 1790458209.656445,
+    "topics": [
+      "orderbook.50.SOLUSDT",
+      "kline.1.SOLUSDT",
+      "publicTrade.SOLUSDT"
+    ],
+    "attempt": 3,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 24300626,
+    "symbol": "SOLUSDT",
+    "wall": 1790458210.4377065,
+    "topics": [
+      "orderbook.50.SOLUSDT",
+      "kline.1.SOLUSDT",
+      "publicTrade.SOLUSDT"
+    ],
+    "attempt": 3,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 24300684,
+    "symbol": "ZECUSDT",
+    "wall": 1790458210.452091,
+    "topics": [
+      "orderbook.50.ZECUSDT",
+      "kline.1.ZECUSDT",
+      "publicTrade.ZECUSDT"
+    ],
+    "attempt": 3,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 24300710,
+    "symbol": "XRPUSDT",
+    "wall": 1790458210.4659684,
+    "topics": [
+      "orderbook.50.XRPUSDT",
+      "kline.1.XRPUSDT",
+      "publicTrade.XRPUSDT"
+    ],
+    "attempt": 15,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 24875552,
+    "symbol": "ZECUSDT",
+    "wall": 1790458329.0218525,
+    "topics": [
+      "orderbook.50.ZECUSDT",
+      "kline.1.ZECUSDT",
+      "publicTrade.ZECUSDT"
+    ],
+    "attempt": 3,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 24875553,
+    "symbol": "NEARUSDT",
+    "wall": 1790458329.0264478,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 16,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 24875587,
+    "symbol": "SOLUSDT",
+    "wall": 1790458329.0383463,
+    "topics": [
+      "orderbook.50.SOLUSDT",
+      "kline.1.SOLUSDT",
+      "publicTrade.SOLUSDT"
+    ],
+    "attempt": 3,
+    "phase": "fault",
+    "error": "MarketDataBackpressureError",
+    "discarded": 0
+  },
+  {
+    "sequence": 24880332,
+    "symbol": "ZECUSDT",
+    "wall": 1790458331.0351539,
+    "topics": [
+      "orderbook.50.ZECUSDT",
+      "kline.1.ZECUSDT",
+      "publicTrade.ZECUSDT"
+    ],
+    "attempt": 3,
+    "phase": "drained",
+    "error": null,
+    "discarded": 1
+  },
+  {
+    "sequence": 24880333,
+    "symbol": "ZECUSDT",
+    "wall": 1790458331.0390012,
+    "topics": [
+      "orderbook.50.ZECUSDT",
+      "kline.1.ZECUSDT",
+      "publicTrade.ZECUSDT"
+    ],
+    "attempt": 4,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 24880368,
+    "symbol": "NEARUSDT",
+    "wall": 1790458331.0508988,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 16,
+    "phase": "drained",
+    "error": null,
+    "discarded": 2
+  },
+  {
+    "sequence": 24880369,
+    "symbol": "NEARUSDT",
+    "wall": 1790458331.0545306,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 17,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 24880396,
+    "symbol": "SOLUSDT",
+    "wall": 1790458331.070877,
+    "topics": [
+      "orderbook.50.SOLUSDT",
+      "kline.1.SOLUSDT",
+      "publicTrade.SOLUSDT"
+    ],
+    "attempt": 3,
+    "phase": "drained",
+    "error": null,
+    "discarded": 1
+  },
+  {
+    "sequence": 24880397,
+    "symbol": "SOLUSDT",
+    "wall": 1790458331.074625,
+    "topics": [
+      "orderbook.50.SOLUSDT",
+      "kline.1.SOLUSDT",
+      "publicTrade.SOLUSDT"
+    ],
+    "attempt": 4,
+    "phase": "connecting",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 24882324,
+    "symbol": "NEARUSDT",
+    "wall": 1790458331.8505528,
+    "topics": [
+      "orderbook.50.NEARUSDT",
+      "kline.1.NEARUSDT",
+      "publicTrade.NEARUSDT"
+    ],
+    "attempt": 17,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 24882479,
+    "symbol": "SOLUSDT",
+    "wall": 1790458331.9356372,
+    "topics": [
+      "orderbook.50.SOLUSDT",
+      "kline.1.SOLUSDT",
+      "publicTrade.SOLUSDT"
+    ],
+    "attempt": 4,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 24882509,
+    "symbol": "ZECUSDT",
+    "wall": 1790458331.9429457,
+    "topics": [
+      "orderbook.50.ZECUSDT",
+      "kline.1.ZECUSDT",
+      "publicTrade.ZECUSDT"
+    ],
+    "attempt": 4,
+    "phase": "subscription_sent",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 26566337,
+    "symbol": "XRPUSDT",
+    "wall": 1790458723.5771868,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 9,
+    "phase": "cancelled",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 26566338,
+    "symbol": "XRPUSDT",
+    "wall": 1790458723.5839841,
+    "topics": [
+      "orderbook.1000.XRPUSDT"
+    ],
+    "attempt": 9,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 26566339,
+    "symbol": "NEARUSDT",
+    "wall": 1790458723.5898561,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 15,
+    "phase": "cancelled",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 26566340,
+    "symbol": "BTCUSDT",
+    "wall": 1790458723.5965316,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 9,
+    "phase": "cancelled",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 26566341,
+    "symbol": "ENAUSDT",
+    "wall": 1790458723.602992,
+    "topics": [
+      "orderbook.1000.ENAUSDT"
+    ],
+    "attempt": 1,
+    "phase": "cancelled",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 26566342,
+    "symbol": "NEARUSDT",
+    "wall": 1790458723.6091871,
+    "topics": [
+      "orderbook.1000.NEARUSDT"
+    ],
+    "attempt": 15,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 26566343,
+    "symbol": "BTCUSDT",
+    "wall": 1790458723.6146748,
+    "topics": [
+      "orderbook.1000.BTCUSDT"
+    ],
+    "attempt": 9,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 26566344,
+    "symbol": "ENAUSDT",
+    "wall": 1790458723.619579,
+    "topics": [
+      "orderbook.1000.ENAUSDT"
+    ],
+    "attempt": 1,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 26566345,
+    "symbol": "ZECUSDT",
+    "wall": 1790458723.6255188,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 14,
+    "phase": "cancelled",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 26566346,
+    "symbol": "SOLUSDT",
+    "wall": 1790458723.629586,
+    "topics": [
+      "orderbook.1000.SOLUSDT"
+    ],
+    "attempt": 1,
+    "phase": "cancelled",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 26566347,
+    "symbol": "ETHUSDT",
+    "wall": 1790458723.6340005,
+    "topics": [
+      "orderbook.1000.ETHUSDT"
+    ],
+    "attempt": 2,
+    "phase": "cancelled",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 26566348,
+    "symbol": "ZECUSDT",
+    "wall": 1790458723.638926,
+    "topics": [
+      "orderbook.1000.ZECUSDT"
+    ],
+    "attempt": 14,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 26566349,
+    "symbol": "SOLUSDT",
+    "wall": 1790458723.6434064,
+    "topics": [
+      "orderbook.1000.SOLUSDT"
+    ],
+    "attempt": 1,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  },
+  {
+    "sequence": 26566350,
+    "symbol": "ETHUSDT",
+    "wall": 1790458723.647988,
+    "topics": [
+      "orderbook.1000.ETHUSDT"
+    ],
+    "attempt": 2,
+    "phase": "drained",
+    "error": null,
+    "discarded": 0
+  }
+]

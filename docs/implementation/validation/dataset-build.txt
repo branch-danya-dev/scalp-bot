@@ -1,0 +1,1 @@
+{"labels": {"timeout": 9403, "stop_first": 726, "target_first": 96}, "splits": {"train": 5212, "purged": 308, "calibration": 1448, "validation": 1450, "test": 1807}, "excluded": {"book_gap": 102, "right_censored": 41}, "observed_hours": 2.118163991472222}

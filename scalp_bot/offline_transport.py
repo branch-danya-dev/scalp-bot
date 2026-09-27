@@ -54,6 +54,14 @@ class ReplayTransport:
                 or engine._transport_book_state(worker['deep']) != body['deepState']):
             raise SegmentMismatch('reconstructed transport book state differs from capture')
         cursor.append('transport', symbol, body)
+        following = cursor.peek()
+        if following['kind'] != 'scope' or following['body'].get('name') != 'transport_invalidate':
+            raise SegmentMismatch('missing transport invalidation scope')
+        token = cursor.scopes.current.set(following['body']['parentId'])
+        try:
+            engine._invalidate_transport(symbol, body, worker['fast'], worker['deep'])
+        finally:
+            cursor.scopes.current.reset(token)
         worker['channels'][topics] = (attempt, phase)
 
     def admit_message(self, symbol, message):

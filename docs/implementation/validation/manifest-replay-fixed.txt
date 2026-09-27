@@ -1,0 +1,439 @@
+.......FFF...................FFF.........                                [100%]
+================================== FAILURES ===================================
+____ test_compressed_capture_replays_actual_breakout[False-False-shutdown] ____
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-356/test_compressed_capture_replay0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001DDB96C75F0>
+event_driven = False, beta = False, exit_kind = 'shutdown'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('event_driven,beta,exit_kind', [
+        (False, False, 'shutdown'), (True, True, 'shutdown'), (True, True, 'duration_elapsed')])
+    async def test_compressed_capture_replays_actual_breakout(tmp_path, monkeypatch, event_driven, beta, exit_kind):
+        live, _, _ = await fixture(tmp_path, monkeypatch, production=True, exit_kind=exit_kind,
+            file_capture=True, event_driven=event_driven, beta=beta)
+        assert live.recorder.inputs.error is None
+        assert live.recorder.inputs.closed
+        assert live.recorder.inputs.written == live.recorder.inputs.accepted
+        assert live.recorder.inputs.pending_bytes == 0
+        assert not live.recorder.health()['droppedRows']
+        assert live.broker.total_closed_trades == 1
+        manifest = live.recorder.inputs.manifest
+        metadata = dict(status='sealed', profile='fixture', inputs=live.recorder.inputs.path.name,
+            session=live.recorder.path.name, sourceSha256=manifest['code']['sourceSha256'])
+        (tmp_path / 'capture.json').write_text(json.dumps(metadata))
+        with zipfile.ZipFile(tmp_path / 'source-at-capture.zip', 'w') as archive:
+            archive.writestr('fixture.txt', 'Only the archive hash is checked by baseline replay.')
+>       report = await verify_capture(tmp_path)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_paper_capture.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scalp_bot\capture_replay.py:200: in verify_capture
+    raise exc
+scalp_bot\capture_replay.py:174: in verify_capture
+    result = await OfflineScheduledReplay(engine).apply(rows[3:], event_sink=outputs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\offline_scheduler.py:291: in apply
+    self.transport.apply(row, cursor)
+scalp_bot\offline_transport.py:57: in apply
+    engine._invalidate_transport(symbol, body, worker['fast'], worker['deep'])
+scalp_bot\input_scope.py:57: in wrapped
+    with self.input_scopes.enter(name, symbol(args, kwargs)):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+scalp_bot\input_scope.py:19: in enter
+    self.journal.append("scope", symbol, {"phase": "begin", "id": identity,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.offline_segment._Cursor object at 0x000001DDB9726B50>
+kind = 'scope', symbol = 'AAA'
+body = {'id': 4, 'name': 'transport_invalidate', 'parentId': None, 'phase': 'begin'}
+
+    def append(self, kind, symbol, body):
+        row = self.peek()
+        if (kind, symbol, body) != (row['kind'], row['symbol'], row['body']):
+>           raise SegmentMismatch(f"input mismatch at sequence {row['sequence']}: {kind}")
+E           scalp_bot.offline_segment.SegmentMismatch: input mismatch at sequence 32: scope
+
+scalp_bot\offline_segment.py:78: SegmentMismatch
+---------------------------- Captured stdout call -----------------------------
+Input chain checked; indexing the capture on disk...
+Replaying the recorded engine and checking every output...
+_____ test_compressed_capture_replays_actual_breakout[True-True-shutdown] _____
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-356/test_compressed_capture_replay1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001DDB974CF50>
+event_driven = True, beta = True, exit_kind = 'shutdown'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('event_driven,beta,exit_kind', [
+        (False, False, 'shutdown'), (True, True, 'shutdown'), (True, True, 'duration_elapsed')])
+    async def test_compressed_capture_replays_actual_breakout(tmp_path, monkeypatch, event_driven, beta, exit_kind):
+        live, _, _ = await fixture(tmp_path, monkeypatch, production=True, exit_kind=exit_kind,
+            file_capture=True, event_driven=event_driven, beta=beta)
+        assert live.recorder.inputs.error is None
+        assert live.recorder.inputs.closed
+        assert live.recorder.inputs.written == live.recorder.inputs.accepted
+        assert live.recorder.inputs.pending_bytes == 0
+        assert not live.recorder.health()['droppedRows']
+        assert live.broker.total_closed_trades == 1
+        manifest = live.recorder.inputs.manifest
+        metadata = dict(status='sealed', profile='fixture', inputs=live.recorder.inputs.path.name,
+            session=live.recorder.path.name, sourceSha256=manifest['code']['sourceSha256'])
+        (tmp_path / 'capture.json').write_text(json.dumps(metadata))
+        with zipfile.ZipFile(tmp_path / 'source-at-capture.zip', 'w') as archive:
+            archive.writestr('fixture.txt', 'Only the archive hash is checked by baseline replay.')
+>       report = await verify_capture(tmp_path)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_paper_capture.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scalp_bot\capture_replay.py:200: in verify_capture
+    raise exc
+scalp_bot\capture_replay.py:174: in verify_capture
+    result = await OfflineScheduledReplay(engine).apply(rows[3:], event_sink=outputs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\offline_scheduler.py:291: in apply
+    self.transport.apply(row, cursor)
+scalp_bot\offline_transport.py:57: in apply
+    engine._invalidate_transport(symbol, body, worker['fast'], worker['deep'])
+scalp_bot\input_scope.py:57: in wrapped
+    with self.input_scopes.enter(name, symbol(args, kwargs)):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+scalp_bot\input_scope.py:19: in enter
+    self.journal.append("scope", symbol, {"phase": "begin", "id": identity,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.offline_segment._Cursor object at 0x000001DDB962F4D0>
+kind = 'scope', symbol = 'AAA'
+body = {'id': 5, 'name': 'transport_invalidate', 'parentId': None, 'phase': 'begin'}
+
+    def append(self, kind, symbol, body):
+        row = self.peek()
+        if (kind, symbol, body) != (row['kind'], row['symbol'], row['body']):
+>           raise SegmentMismatch(f"input mismatch at sequence {row['sequence']}: {kind}")
+E           scalp_bot.offline_segment.SegmentMismatch: input mismatch at sequence 36: scope
+
+scalp_bot\offline_segment.py:78: SegmentMismatch
+---------------------------- Captured stdout call -----------------------------
+Input chain checked; indexing the capture on disk...
+Replaying the recorded engine and checking every output...
+_ test_compressed_capture_replays_actual_breakout[True-True-duration_elapsed] _
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-356/test_compressed_capture_replay2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001DDB973B890>
+event_driven = True, beta = True, exit_kind = 'duration_elapsed'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('event_driven,beta,exit_kind', [
+        (False, False, 'shutdown'), (True, True, 'shutdown'), (True, True, 'duration_elapsed')])
+    async def test_compressed_capture_replays_actual_breakout(tmp_path, monkeypatch, event_driven, beta, exit_kind):
+        live, _, _ = await fixture(tmp_path, monkeypatch, production=True, exit_kind=exit_kind,
+            file_capture=True, event_driven=event_driven, beta=beta)
+        assert live.recorder.inputs.error is None
+        assert live.recorder.inputs.closed
+        assert live.recorder.inputs.written == live.recorder.inputs.accepted
+        assert live.recorder.inputs.pending_bytes == 0
+        assert not live.recorder.health()['droppedRows']
+        assert live.broker.total_closed_trades == 1
+        manifest = live.recorder.inputs.manifest
+        metadata = dict(status='sealed', profile='fixture', inputs=live.recorder.inputs.path.name,
+            session=live.recorder.path.name, sourceSha256=manifest['code']['sourceSha256'])
+        (tmp_path / 'capture.json').write_text(json.dumps(metadata))
+        with zipfile.ZipFile(tmp_path / 'source-at-capture.zip', 'w') as archive:
+            archive.writestr('fixture.txt', 'Only the archive hash is checked by baseline replay.')
+>       report = await verify_capture(tmp_path)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_paper_capture.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scalp_bot\capture_replay.py:200: in verify_capture
+    raise exc
+scalp_bot\capture_replay.py:174: in verify_capture
+    result = await OfflineScheduledReplay(engine).apply(rows[3:], event_sink=outputs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\offline_scheduler.py:291: in apply
+    self.transport.apply(row, cursor)
+scalp_bot\offline_transport.py:57: in apply
+    engine._invalidate_transport(symbol, body, worker['fast'], worker['deep'])
+scalp_bot\input_scope.py:57: in wrapped
+    with self.input_scopes.enter(name, symbol(args, kwargs)):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+scalp_bot\input_scope.py:19: in enter
+    self.journal.append("scope", symbol, {"phase": "begin", "id": identity,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.offline_segment._Cursor object at 0x000001DDB9C46300>
+kind = 'scope', symbol = 'AAA'
+body = {'id': 5, 'name': 'transport_invalidate', 'parentId': None, 'phase': 'begin'}
+
+    def append(self, kind, symbol, body):
+        row = self.peek()
+        if (kind, symbol, body) != (row['kind'], row['symbol'], row['body']):
+>           raise SegmentMismatch(f"input mismatch at sequence {row['sequence']}: {kind}")
+E           scalp_bot.offline_segment.SegmentMismatch: input mismatch at sequence 36: scope
+
+scalp_bot\offline_segment.py:78: SegmentMismatch
+---------------------------- Captured stdout call -----------------------------
+Input chain checked; indexing the capture on disk...
+Replaying the recorded engine and checking every output...
+_ test_stop_seals_real_capture_and_ui_reads_do_not_append_after_footer[duration_elapsed] _
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-356/test_stop_seals_real_capture_a0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001DDB9B4D630>
+exit_kind = 'duration_elapsed'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('exit_kind', ['duration_elapsed', 'bot_stop', 'shutdown'])
+    async def test_stop_seals_real_capture_and_ui_reads_do_not_append_after_footer(tmp_path, monkeypatch, exit_kind):
+        import scalp_bot.app as api
+        from scalp_bot.engine import TradingEngine
+        holder = []
+        # Use the short, deterministic market fixture with the real capture owner,
+        # monitor, timer, writers and source archive. Production profiles keep 1h/12h.
+        monkeypatch.setattr('scalp_bot.capture.validate_profile', lambda *_: dict(freeGiB=0, beta=False))
+        def factory(config, clock):
+            capture = PaperCapture(config, 'fixture', engine_factory=lambda cfg, **kwargs:
+                TradingEngine(cfg, clock=clock, **kwargs))
+            holder.append(capture)
+            return capture
+        live, _, _ = await fixture(tmp_path, monkeypatch, production=True,
+            exit_kind=exit_kind, file_capture=True, event_driven=True, capture_factory=factory)
+        capture = holder[0]
+        monkeypatch.setattr(api, 'capture', capture)
+        monkeypatch.setattr(api, 'engine', live)
+        assert capture.public()['status'] == 'sealed'
+        assert not capture.public()['startAllowed']
+        assert json.loads((tmp_path / 'capture.json').read_text())['status'] == 'sealed'
+        size = live.recorder.inputs.path.stat().st_size
+        sequence = live.input_journal.sequence
+        first = await api.state('AAA')
+        assert first['market']['symbol'] == 'AAA'
+        assert not first['positions'] and not first['botRunning']
+        assert len(first['closedTrades']) == 1
+        assert first['run']['lastSummary']['reason'] == exit_kind
+        first['market']['symbol'] = 'mutated response'
+        assert (await api.state('AAA'))['market']['symbol'] == 'AAA'
+        assert (await api.state('missing'))['market']['symbol'] == 'AAA'
+        await api.stop_bot()
+        await asyncio.gather(capture.close(), capture.close())  # later ASGI shutdown
+        assert live.input_journal.sequence == sequence
+        assert live.recorder.inputs.path.stat().st_size == size
+        assert live.recorder.inputs.error is None
+>       report = await verify_capture(tmp_path)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_paper_capture.py:280: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scalp_bot\capture_replay.py:200: in verify_capture
+    raise exc
+scalp_bot\capture_replay.py:174: in verify_capture
+    result = await OfflineScheduledReplay(engine).apply(rows[3:], event_sink=outputs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\offline_scheduler.py:291: in apply
+    self.transport.apply(row, cursor)
+scalp_bot\offline_transport.py:57: in apply
+    engine._invalidate_transport(symbol, body, worker['fast'], worker['deep'])
+scalp_bot\input_scope.py:57: in wrapped
+    with self.input_scopes.enter(name, symbol(args, kwargs)):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+scalp_bot\input_scope.py:19: in enter
+    self.journal.append("scope", symbol, {"phase": "begin", "id": identity,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.offline_segment._Cursor object at 0x000001DDB9E8F310>
+kind = 'scope', symbol = 'AAA'
+body = {'id': 4, 'name': 'transport_invalidate', 'parentId': None, 'phase': 'begin'}
+
+    def append(self, kind, symbol, body):
+        row = self.peek()
+        if (kind, symbol, body) != (row['kind'], row['symbol'], row['body']):
+>           raise SegmentMismatch(f"input mismatch at sequence {row['sequence']}: {kind}")
+E           scalp_bot.offline_segment.SegmentMismatch: input mismatch at sequence 32: scope
+
+scalp_bot\offline_segment.py:78: SegmentMismatch
+---------------------------- Captured stdout call -----------------------------
+Input chain checked; indexing the capture on disk...
+Replaying the recorded engine and checking every output...
+_ test_stop_seals_real_capture_and_ui_reads_do_not_append_after_footer[bot_stop] _
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-356/test_stop_seals_real_capture_a1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001DDB97F56A0>
+exit_kind = 'bot_stop'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('exit_kind', ['duration_elapsed', 'bot_stop', 'shutdown'])
+    async def test_stop_seals_real_capture_and_ui_reads_do_not_append_after_footer(tmp_path, monkeypatch, exit_kind):
+        import scalp_bot.app as api
+        from scalp_bot.engine import TradingEngine
+        holder = []
+        # Use the short, deterministic market fixture with the real capture owner,
+        # monitor, timer, writers and source archive. Production profiles keep 1h/12h.
+        monkeypatch.setattr('scalp_bot.capture.validate_profile', lambda *_: dict(freeGiB=0, beta=False))
+        def factory(config, clock):
+            capture = PaperCapture(config, 'fixture', engine_factory=lambda cfg, **kwargs:
+                TradingEngine(cfg, clock=clock, **kwargs))
+            holder.append(capture)
+            return capture
+        live, _, _ = await fixture(tmp_path, monkeypatch, production=True,
+            exit_kind=exit_kind, file_capture=True, event_driven=True, capture_factory=factory)
+        capture = holder[0]
+        monkeypatch.setattr(api, 'capture', capture)
+        monkeypatch.setattr(api, 'engine', live)
+        assert capture.public()['status'] == 'sealed'
+        assert not capture.public()['startAllowed']
+        assert json.loads((tmp_path / 'capture.json').read_text())['status'] == 'sealed'
+        size = live.recorder.inputs.path.stat().st_size
+        sequence = live.input_journal.sequence
+        first = await api.state('AAA')
+        assert first['market']['symbol'] == 'AAA'
+        assert not first['positions'] and not first['botRunning']
+        assert len(first['closedTrades']) == 1
+        assert first['run']['lastSummary']['reason'] == exit_kind
+        first['market']['symbol'] = 'mutated response'
+        assert (await api.state('AAA'))['market']['symbol'] == 'AAA'
+        assert (await api.state('missing'))['market']['symbol'] == 'AAA'
+        await api.stop_bot()
+        await asyncio.gather(capture.close(), capture.close())  # later ASGI shutdown
+        assert live.input_journal.sequence == sequence
+        assert live.recorder.inputs.path.stat().st_size == size
+        assert live.recorder.inputs.error is None
+>       report = await verify_capture(tmp_path)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_paper_capture.py:280: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scalp_bot\capture_replay.py:200: in verify_capture
+    raise exc
+scalp_bot\capture_replay.py:174: in verify_capture
+    result = await OfflineScheduledReplay(engine).apply(rows[3:], event_sink=outputs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\offline_scheduler.py:291: in apply
+    self.transport.apply(row, cursor)
+scalp_bot\offline_transport.py:57: in apply
+    engine._invalidate_transport(symbol, body, worker['fast'], worker['deep'])
+scalp_bot\input_scope.py:57: in wrapped
+    with self.input_scopes.enter(name, symbol(args, kwargs)):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+scalp_bot\input_scope.py:19: in enter
+    self.journal.append("scope", symbol, {"phase": "begin", "id": identity,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.offline_segment._Cursor object at 0x000001DDB956F070>
+kind = 'scope', symbol = 'AAA'
+body = {'id': 4, 'name': 'transport_invalidate', 'parentId': None, 'phase': 'begin'}
+
+    def append(self, kind, symbol, body):
+        row = self.peek()
+        if (kind, symbol, body) != (row['kind'], row['symbol'], row['body']):
+>           raise SegmentMismatch(f"input mismatch at sequence {row['sequence']}: {kind}")
+E           scalp_bot.offline_segment.SegmentMismatch: input mismatch at sequence 32: scope
+
+scalp_bot\offline_segment.py:78: SegmentMismatch
+---------------------------- Captured stdout call -----------------------------
+Input chain checked; indexing the capture on disk...
+Replaying the recorded engine and checking every output...
+_ test_stop_seals_real_capture_and_ui_reads_do_not_append_after_footer[shutdown] _
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-356/test_stop_seals_real_capture_a2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001DDB97F5C50>
+exit_kind = 'shutdown'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('exit_kind', ['duration_elapsed', 'bot_stop', 'shutdown'])
+    async def test_stop_seals_real_capture_and_ui_reads_do_not_append_after_footer(tmp_path, monkeypatch, exit_kind):
+        import scalp_bot.app as api
+        from scalp_bot.engine import TradingEngine
+        holder = []
+        # Use the short, deterministic market fixture with the real capture owner,
+        # monitor, timer, writers and source archive. Production profiles keep 1h/12h.
+        monkeypatch.setattr('scalp_bot.capture.validate_profile', lambda *_: dict(freeGiB=0, beta=False))
+        def factory(config, clock):
+            capture = PaperCapture(config, 'fixture', engine_factory=lambda cfg, **kwargs:
+                TradingEngine(cfg, clock=clock, **kwargs))
+            holder.append(capture)
+            return capture
+        live, _, _ = await fixture(tmp_path, monkeypatch, production=True,
+            exit_kind=exit_kind, file_capture=True, event_driven=True, capture_factory=factory)
+        capture = holder[0]
+        monkeypatch.setattr(api, 'capture', capture)
+        monkeypatch.setattr(api, 'engine', live)
+        assert capture.public()['status'] == 'sealed'
+        assert not capture.public()['startAllowed']
+        assert json.loads((tmp_path / 'capture.json').read_text())['status'] == 'sealed'
+        size = live.recorder.inputs.path.stat().st_size
+        sequence = live.input_journal.sequence
+        first = await api.state('AAA')
+        assert first['market']['symbol'] == 'AAA'
+        assert not first['positions'] and not first['botRunning']
+        assert len(first['closedTrades']) == 1
+        assert first['run']['lastSummary']['reason'] == exit_kind
+        first['market']['symbol'] = 'mutated response'
+        assert (await api.state('AAA'))['market']['symbol'] == 'AAA'
+        assert (await api.state('missing'))['market']['symbol'] == 'AAA'
+        await api.stop_bot()
+        await asyncio.gather(capture.close(), capture.close())  # later ASGI shutdown
+        assert live.input_journal.sequence == sequence
+        assert live.recorder.inputs.path.stat().st_size == size
+        assert live.recorder.inputs.error is None
+>       report = await verify_capture(tmp_path)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_paper_capture.py:280: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scalp_bot\capture_replay.py:200: in verify_capture
+    raise exc
+scalp_bot\capture_replay.py:174: in verify_capture
+    result = await OfflineScheduledReplay(engine).apply(rows[3:], event_sink=outputs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\offline_scheduler.py:291: in apply
+    self.transport.apply(row, cursor)
+scalp_bot\offline_transport.py:57: in apply
+    engine._invalidate_transport(symbol, body, worker['fast'], worker['deep'])
+scalp_bot\input_scope.py:57: in wrapped
+    with self.input_scopes.enter(name, symbol(args, kwargs)):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+scalp_bot\input_scope.py:19: in enter
+    self.journal.append("scope", symbol, {"phase": "begin", "id": identity,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.offline_segment._Cursor object at 0x000001DDBB4BBC70>
+kind = 'scope', symbol = 'AAA'
+body = {'id': 4, 'name': 'transport_invalidate', 'parentId': None, 'phase': 'begin'}
+
+    def append(self, kind, symbol, body):
+        row = self.peek()
+        if (kind, symbol, body) != (row['kind'], row['symbol'], row['body']):
+>           raise SegmentMismatch(f"input mismatch at sequence {row['sequence']}: {kind}")
+E           scalp_bot.offline_segment.SegmentMismatch: input mismatch at sequence 32: scope
+
+scalp_bot\offline_segment.py:78: SegmentMismatch
+---------------------------- Captured stdout call -----------------------------
+Input chain checked; indexing the capture on disk...
+Replaying the recorded engine and checking every output...
+=========================== short test summary info ===========================
+FAILED tests/test_paper_capture.py::test_compressed_capture_replays_actual_breakout[False-False-shutdown]
+FAILED tests/test_paper_capture.py::test_compressed_capture_replays_actual_breakout[True-True-shutdown]
+FAILED tests/test_paper_capture.py::test_compressed_capture_replays_actual_breakout[True-True-duration_elapsed]
+FAILED tests/test_paper_capture.py::test_stop_seals_real_capture_and_ui_reads_do_not_append_after_footer[duration_elapsed]
+FAILED tests/test_paper_capture.py::test_stop_seals_real_capture_and_ui_reads_do_not_append_after_footer[bot_stop]
+FAILED tests/test_paper_capture.py::test_stop_seals_real_capture_and_ui_reads_do_not_append_after_footer[shutdown]
+6 failed, 35 passed in 25.59s

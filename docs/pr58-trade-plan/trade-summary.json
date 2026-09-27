@@ -1,0 +1,22 @@
+{
+  "expected_delta": -8.83928534373215,
+  "arithmetic_residual": 0.0,
+  "effects": {
+    "new": -19.37130905025924,
+    "disappeared": 10.165085331358451,
+    "retained": 0.3669383751686368
+  },
+  "economic_mapping_uncertainty": "unmatched identities not assumed independent economic opportunities",
+  "ledger_observations": 21,
+  "unique_execution_paths": 11,
+  "unique_episode_keys": 9,
+  "causes": {
+    "positive_control": 1,
+    "unconfirmed_direction_reversal": 4,
+    "unreliable_data": 1,
+    "insufficient_scale_relative_to_costs": 1,
+    "confirmed_technical_defect": 1
+  },
+  "ledger_base_commit": "1d7d9ab",
+  "post_fix_portfolio_result": null
+}

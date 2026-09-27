@@ -1,0 +1,20 @@
+{
+  "model_version": "catboost-impulse-v1:d901a0d0e55b33cc",
+  "source": {
+    "capture_id": "790eebd906ac4a41baf69eccb5b69ae3",
+    "symbol": "ETHUSDT",
+    "selection_epoch": 17,
+    "source_sequence": 21848082,
+    "market_time_ms": 1790457661367,
+    "available_mono_ns": 564830012989500,
+    "clock_domain": "capture:790eebd906ac4a41baf69eccb5b69ae3",
+    "feature_schema": "market-context-v1:dd86ef9b9197904ed2516bbcadbb173331155b49ade52d3394701685ae70601c"
+  },
+  "side": "long",
+  "probabilities": {
+    "target_first": 0.022105413860772145,
+    "stop_first": 0.08411785698791627,
+    "timeout": 0.8937767291513116
+  },
+  "order_authority": false
+}

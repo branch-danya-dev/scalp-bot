@@ -1,0 +1,41 @@
+...................F                                                     [100%]
+================================== FAILURES ===================================
+_____ test_actual_evaluation_isolates_each_context_and_strategy_exception _____
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-358/test_actual_evaluation_isolate0')
+
+    async def test_actual_evaluation_isolates_each_context_and_strategy_exception(tmp_path):
+        from copy import deepcopy
+        from scalp_bot.runtime_clock import ReplayRuntimeClock
+        a,b=level(),level("support","B",mature=False,center=100)
+        rows,book,context,structure=market([a,b])
+        engine=TradingEngine(Settings(_env_file=None,session_dir=str(tmp_path),exchange_clock_enabled=False,
+            trend_structure_enabled=True,price_action_hypothesis_enabled=True,density_enabled=False),
+            clock=ReplayRuntimeClock(wall_seconds=context.observed_at_ms/1000,mono_ns=10**10))
+        session=ActiveSymbolSession(SYMBOL,candles=rows,orderbook=book,structure=structure,
+            last_price=book.mid,last_book_at=context.observed_at_ms/1000,book_synced=True,clock=engine.clock)
+        engine.sessions[SYMBOL]=session
+        seen=[]
+        def assess(context,candles,structure,enabled,**kwargs):
+            return {"status":"OBSERVING","rangeAbs":1},[dict(owner=owner,side="long",anchor=100,
+                signature=owner+":g",priority=1,distance=0,object_ref=None,episode_key=owner+":episode",reasons=[])
+                for owner in PRIORITY]
+        engine.router.assess=assess
+        for owner in PRIORITY:
+            def evaluate(*args,_owner=owner,**kwargs):
+                seen.append((_owner,deepcopy(kwargs["market_context"].scenario)))
+                if _owner=="level_breakout":raise ValueError("isolated strategy error")
+                return StrategyDecision(_owner,Action.WAIT,["waiting independently"])
+            engine.strategies[owner].evaluate=evaluate
+        try:
+            await engine._evaluate(session)
+>           assert [owner for owner,_ in seen]==list(PRIORITY)
+E           AssertionError: assert ['trend_struc...n_hypothesis'] == ['level_break...n_hypothesis']
+E             
+E             At index 0 diff: 'trend_structure' != 'level_breakout'
+E             Use -v to get more diff
+
+tests\test_parallel_scenarios.py:132: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_parallel_scenarios.py::test_actual_evaluation_isolates_each_context_and_strategy_exception
+1 failed, 19 passed in 4.41s

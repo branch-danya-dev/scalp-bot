@@ -1,0 +1,41 @@
+{
+  "protocol": "demo-paper-execution-1h-v1",
+  "status": "LOCAL_PREFLIGHT_ONLY",
+  "passport_sha256": "c1fffddfa76ab234bb0eda6d54225a04ecda2a3f1d10da5a0d34108c585beab3",
+  "source_sha256": "868cdc6fc56fbec88f0dbad0efa8db87ac435a502db4d3774819d1c808f3c9be",
+  "config_sha256": "926ccc3b0d8a1d030ea71044ba2081f820dd2e3263f16cf8612f190cac63fa87",
+  "model_sha256": "a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2",
+  "model_manifest_sha256": "15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3",
+  "private_rest": "https://api-demo.bybit.com",
+  "private_ws": "wss://stream-demo.bybit.com/v5/private",
+  "public_rest": "https://api.bybit.com",
+  "public_ws": "wss://stream.bybit.com/v5/public/linear",
+  "strategy_roles": {
+    "rule": "unchanged parallel legacy, shared risk",
+    "ml": "research adapter; V2 .55; separate process"
+  },
+  "sizing": "1000 USDT per arm; one shared rule+ML reservation per intent; requested quantities identical",
+  "risk": {
+    "risk_fraction": 0.005,
+    "max_trade_all_in_loss_fraction": 0.0125,
+    "max_total_risk_fraction": 0.02,
+    "max_leverage": 10.0,
+    "max_position_leverage": 5.0,
+    "max_open_positions": 4
+  },
+  "bounds": {
+    "session_loss_usdt_each_arm": 30,
+    "reconciliation_seconds": 90,
+    "private_snapshot_max_age_seconds": 30,
+    "execution_queue_capacity": 32,
+    "rest_timeout_seconds": 5,
+    "source_to_adapter_p99_ms": 250,
+    "event_loop_p99_ms": 20,
+    "shadow_added_p99_ms": 5
+  },
+  "trigger_semantics": "local-executable-bid-ask-with-resting-maker-limits-v1",
+  "output": "G:\\scalp-bot\\data\\audit-demo-paper-1h-pinned-local-check",
+  "connected": false,
+  "orders_sent": 0,
+  "launch_authorized": false
+}

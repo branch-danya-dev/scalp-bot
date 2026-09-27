@@ -1,0 +1,31 @@
+{
+  "protocol": "demo-paper-execution-1h-v1",
+  "duration_seconds": 3600,
+  "research_equity_usdt_each_arm": 1000,
+  "trigger_semantics": "local-executable-bid-ask-with-resting-maker-limits-v1",
+  "private_rest": "https://api-demo.bybit.com",
+  "private_ws": "wss://stream-demo.bybit.com/v5/private",
+  "threshold": 0.55,
+  "sample_seconds": 10,
+  "horizon_seconds": 30,
+  "target_bps": 30,
+  "stop_bps": 15,
+  "config_sha256": "926ccc3b0d8a1d030ea71044ba2081f820dd2e3263f16cf8612f190cac63fa87",
+  "bounds": {
+    "session_loss_usdt_each_arm": 30,
+    "reconciliation_seconds": 90,
+    "private_snapshot_max_age_seconds": 30,
+    "execution_queue_capacity": 32,
+    "rest_timeout_seconds": 5,
+    "source_to_adapter_p99_ms": 250,
+    "event_loop_p99_ms": 20,
+    "shadow_added_p99_ms": 5
+  },
+  "launch_authorized": false,
+  "secret_profile": ".env.demo-paper.local",
+  "source_profile": "docs/pr58-readiness/run-provenance.json:B",
+  "default_enabled": false,
+  "research_only": true,
+  "ml_trading_outcome_if_no_fills": "ML_TRADING_NOT_TESTED",
+  "note": "Bounds frozen before observation; owner confirms this complete passport locally at Start. PR59 unchanged."
+}
