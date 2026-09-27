@@ -12,6 +12,8 @@ from .contracts import SafetyError
 
 REST = "https://api-demo.bybit.com"
 PRIVATE_WS = "wss://stream-demo.bybit.com/v5/private"
+# Every account scope is read-only inspected; only linear USDT is writable.
+ACCOUNT_SCOPES = (("linear","USDT"),("linear","USDC"),("inverse",None),("option",None),("spot",None))
 READS = frozenset({"/v5/user/query-api", "/v5/account/info", "/v5/account/wallet-balance",
     "/v5/account/transaction-log", "/v5/position/list", "/v5/order/realtime", "/v5/order/history",
     "/v5/execution/list"})

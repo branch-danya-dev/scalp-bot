@@ -38,6 +38,7 @@ class Exchange:
         if path=="/v5/order/cancel":self.commands[key].update(orderStatus="Cancelled",updatedTime=now);return {}
         raise AssertionError((method,path))
     async def pages(self,path,params):
+        if params.get("category","linear")!="linear" or params.get("settleCoin","USDT")!="USDT":return []
         if path=="/v5/account/transaction-log":return []
         if path=="/v5/position/list":return [dict(symbol="BTCUSDT",side="Buy" if self.position>=0 else "Sell",size=str(abs(self.position)),positionIdx=0)]
         key=params.get("orderLinkId")

@@ -7,7 +7,7 @@ import time
 import httpx
 from pydantic import SecretStr
 from .contracts import PROTOCOL, SafetyError, dec, digest
-from .transport import Credentials, REST, PRIVATE_WS
+from .transport import Credentials, REST, PRIVATE_WS, ACCOUNT_SCOPES
 from ..bybit import BybitRestClient
 from ..config import Settings
 from ..instrument import InstrumentSpec
@@ -117,9 +117,9 @@ async def connected_preflight(rest,public,credentials):
     account=await rest.request("GET","/v5/account/info")
     if account.get("unifiedMarginStatus") not in (3,4,5,6):raise SafetyError("supported unified Demo account required")
     wallet=await rest.request("GET","/v5/account/wallet-balance",dict(accountType="UNIFIED"))
-    for category in ("linear","inverse","option","spot"):
+    for category,settle_coin in ACCOUNT_SCOPES:
         params=dict(category=category)
-        if category=="linear":params["settleCoin"]="USDT"
+        if settle_coin:params["settleCoin"]=settle_coin
         orders=await rest.pages("/v5/order/realtime",params)
         if orders:raise SafetyError("dedicated account has pre-existing orders")
         if category!="spot":

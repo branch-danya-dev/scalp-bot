@@ -4,7 +4,7 @@ from dataclasses import asdict, replace
 from decimal import Decimal
 import time
 from .contracts import Order, SafetyError, FeeMetadataError, TERMINAL, dec
-from .transport import DemoReject
+from .transport import DemoReject, ACCOUNT_SCOPES
 from ..domain import Side
 
 class Venue:
@@ -129,13 +129,24 @@ class DemoVenue(Venue):
     async def reconcile(self,*,force=False):
         for order in list(self.orders.values()):
             if force or not order.terminal or not order.confirmed: await self.reconcile_order(order)
-        # Detect foreign outstanding orders as well as positions; never cancel-all.
-        opened=await self.rest.pages("/v5/order/realtime",dict(category="linear",settleCoin="USDT",openOnly=0))
-        if any(r.get("orderLinkId") not in self.orders for r in opened):
-            raise SafetyError("foreign open order detected")
-        rows=await self.rest.pages("/v5/position/list",dict(category="linear",settleCoin="USDT"))
-        self.position_rows={r["symbol"]:r for r in rows if dec(r["size"])!=0}
-        if any(int(r["positionIdx"])!=0 for r in rows): raise SafetyError("hedge mode forbidden")
+        # A private gap can hide activity anywhere on the dedicated account.
+        # Inspect every supported scope; never cancel or close foreign work.
+        own_rows=[]
+        for category,settle_coin in ACCOUNT_SCOPES:
+            params=dict(category=category)
+            if settle_coin:params["settleCoin"]=settle_coin
+            own_scope=category=="linear" and settle_coin=="USDT"
+            opened=await self.rest.pages("/v5/order/realtime",dict(params,openOnly=0))
+            if any(not own_scope or r.get("orderLinkId") not in self.orders for r in opened):
+                raise SafetyError("foreign open order detected")
+            if category=="spot":continue
+            rows=await self.rest.pages("/v5/position/list",params)
+            if not own_scope and any(dec(r["size"])!=0 for r in rows):
+                raise SafetyError("foreign position detected")
+            if own_scope:
+                if any(int(r["positionIdx"])!=0 for r in rows):raise SafetyError("hedge mode forbidden")
+                own_rows=rows
+        self.position_rows={r["symbol"]:r for r in own_rows if dec(r["size"])!=0}
         self.last_reconcile_ns=time.perf_counter_ns()
         return self.position_rows
 
@@ -149,6 +160,9 @@ class DemoVenue(Venue):
                 if row.get("execType")=="Trade": self.execution(row)
                 else: self.emit("nontrade_execution",row)  # Funding comes from the transaction ledger once.
             else:
+                if dec(row["size"])!=0 and not any(o.command.symbol==row["symbol"] for o in self.orders.values()):
+                    raise SafetyError("foreign position observation")
+                if int(row["positionIdx"])!=0:raise SafetyError("hedge mode forbidden")
                 self.position_rows[row["symbol"]]=row
                 self.emit("position_observation",{k:row.get(k) for k in ("symbol","side","size","positionIdx","seq")})
 

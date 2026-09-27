@@ -91,6 +91,7 @@ class MockRest:
         if self.timeout:raise SafetyError("outcome unknown")
         return {"orderId":"oid"}
     async def pages(self,path,params):
+        if params.get("category","linear")!="linear" or params.get("settleCoin","USDT")!="USDT":return []
         if path=="/v5/execution/list":return self.fills
         if path=="/v5/position/list":return self.positions
         return self.rows

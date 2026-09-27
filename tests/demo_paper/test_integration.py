@@ -169,3 +169,37 @@ def test_existing_ready_rule_priority_is_preserved():
         orderbook=OrderBook(bids=[(99.99,100)],asks=[(100,100)]))
     ok,reasons=ResearchMLAdapter(m,portfolio,portfolio.emit).accept(f,source,session,now+2,100,rule_ready=True)
     assert not ok and "ordinary_ready_priority" in reasons and not portfolio.reservations
+
+
+@pytest.mark.parametrize("scope,path",[
+    (("linear","USDC"),"/v5/order/realtime"),
+    (("linear","USDC"),"/v5/position/list"),
+    (("inverse",None),"/v5/position/list"),
+    (("option",None),"/v5/position/list"),
+    (("spot",None),"/v5/order/realtime"),
+])
+@pytest.mark.parametrize("phase",["preflight","gap_reconciliation"])
+async def test_foreign_account_scopes_are_never_overlooked(scope,path,phase):
+    class ForeignAccount:
+        write_enabled=False
+        def __init__(self):self.writes=[]
+        async def request(self,method,endpoint,params=None):
+            assert method=="GET"
+            if endpoint.endswith("query-api"):
+                return dict(userID="123",readOnly=0,permissions={"ContractTrade":["Order","Position"]})
+            if endpoint.endswith("info"):return dict(unifiedMarginStatus=6)
+            return {"list":[]}
+        async def pages(self,endpoint,params):
+            if (params.get("category"),params.get("settleCoin"))==scope and endpoint==path:
+                return [dict(orderLinkId="FOREIGN",symbol="FOREIGN",size="1",positionIdx=0)]
+            return []
+    client=ForeignAccount()
+    with pytest.raises(SafetyError,match="foreign|pre-existing"):
+        if phase=="preflight":await connected_preflight(client,None,Credentials("fake","secret","123"))
+        else:await DemoVenue(client,lambda *a:None,lambda *a:None).reconcile()
+
+
+async def test_private_foreign_linear_position_is_rejected_immediately():
+    venue=DemoVenue(MockRest(),lambda *a:None,lambda *a:None)
+    with pytest.raises(SafetyError,match="foreign"):
+        await venue.message(dict(topic="position",data=[dict(category="linear",symbol="BTCPERP",size="1",positionIdx=0)]))
