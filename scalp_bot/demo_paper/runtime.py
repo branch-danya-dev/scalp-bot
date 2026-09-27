@@ -57,7 +57,7 @@ class Session:
         self.engine=PairedEngine(config,self.portfolio,self.worker,self.adapter,rest_client=self.public,
             recorder=self.recorder,capture_inputs=True,configure_observability=False)
         self.rest.before_write=self.before_write
-        self._entry_readiness_key=None
+        self._entry_readiness_key=None;self.account_task=None
 
     def before_write(self,path,params):
         if path!="/v5/order/create":return
@@ -218,7 +218,8 @@ class Session:
             self.rest.write_enabled=True
             self.tasks.extend(asyncio.create_task(self.portfolio.dispatch(n)) for n in self.arms)
             self.tasks.extend(asyncio.create_task(self.manage(n)) for n in self.arms)
-            self.tasks.append(asyncio.create_task(self.account_loop()))
+            self.account_task=asyncio.create_task(self.account_loop())
+            self.tasks.append(self.account_task)
             await asyncio.wait_for(self.engine.start(),30)
             self.engine.running=True;self.refresh_admission()
             while not self.stop.is_set() and not self.portfolio.stop_reason and time.perf_counter_ns()-self.start_ns<3_600_000_000_000:
@@ -245,6 +246,11 @@ class Session:
             # Signal stops admission, not protection/reconciliation. The WS stop
             # event may be set, so REST remains the authoritative shutdown path.
             deadline=time.monotonic()+90
+            # Do not queue two full account scans on the serialized REST client.
+            # Execution/protection and private facts remain active.
+            if self.account_task is not None:
+                self.account_task.cancel()
+                await asyncio.gather(self.account_task,return_exceptions=True)
             stable_flat=0
             while self.start_ns and time.monotonic()<deadline:
                 try:

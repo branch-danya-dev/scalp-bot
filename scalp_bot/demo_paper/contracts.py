@@ -110,6 +110,7 @@ class Order:
     revision_ns: int = 0
     confirmed: bool = False
     fees_known: bool = True
+    create_rejected: bool = False
 
     @property
     def terminal(self):

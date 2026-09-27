@@ -59,7 +59,7 @@ class Venue:
 class DemoVenue(Venue):
     def __init__(self, rest, emit, on_fill):
         super().__init__(emit,on_fill);self.rest=rest;self.position_rows={}
-        self.last_reconcile_ns=0
+        self.last_reconcile_ns=0;self.final_verified={}
 
     async def submit(self, command):
         order=self.register(command);order.status="Submitting"
@@ -72,7 +72,7 @@ class DemoVenue(Venue):
             # Codes for duplicate/client request cannot establish absence.
             if exc.code in (10000,10014,10016,10019,110072): order.unknown=True
             else:
-                order.status="Rejected";order.rejection=str(exc);order.confirmed=True
+                order.status="Rejected";order.rejection=str(exc);order.confirmed=True;order.create_rejected=True
                 self.emit("rejected",dict(link_id=command.link_id,code=exc.code))
                 return order
         except SafetyError:
@@ -81,6 +81,9 @@ class DemoVenue(Venue):
         return order
 
     async def reconcile_order(self,order):
+        # An explicit create rejection has no exchange order to look up.
+        # Transport/duplicate/uncertain failures never set this flag.
+        if order.create_rejected and order.terminal and order.confirmed:return True
         params=dict(category="linear",symbol=order.command.symbol,orderLinkId=order.command.link_id)
         rows=await self.rest.pages("/v5/order/realtime",params)
         if not rows: rows=await self.rest.pages("/v5/order/history",params)
@@ -128,7 +131,15 @@ class DemoVenue(Venue):
 
     async def reconcile(self,*,force=False):
         for order in list(self.orders.values()):
-            if force or not order.terminal or not order.confirmed: await self.reconcile_order(order)
+            key=order.command.link_id
+            fingerprint=(order.status,order.filled,order.reported_filled,order.updated_ms,len(order.executions))
+            needs_final=force and self.final_verified.get(key)!=fingerprint
+            if needs_final or not order.terminal or not order.confirmed:
+                await self.reconcile_order(order)
+                if force and order.terminal and order.confirmed:
+                    self.final_verified[key]=(order.status,order.filled,order.reported_filled,order.updated_ms,len(order.executions))
+        # Completed per-order checks survive the bounded final-pass timeout.
+        # Every pass still queries all account scopes for open orders/positions.
         # A private gap can hide activity anywhere on the dedicated account.
         # Inspect every supported scope; never cancel or close foreign work.
         own_rows=[]

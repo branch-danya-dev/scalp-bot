@@ -98,6 +98,11 @@ async def test_full_mock_start_partial_cancel_stop_reconcile_report(tmp_path,mon
             session.stop.set()
         session.tasks.append(asyncio.create_task(submit_then_stop()))
     session.engine.start=bootstrap
+    original_reconcile=session.reconcile
+    async def checked_reconcile(*,final=False):
+        if final:assert session.account_task is None or session.account_task.done()
+        return await original_reconcile(final=final)
+    session.reconcile=checked_reconcile
     result=await asyncio.wait_for(session.run_session(),10)
     assert result["positions_reconciled"] and exchange.position==0
     assert result["status"]=="INCOMPLETE" and result["reason"]=="operator_stop"

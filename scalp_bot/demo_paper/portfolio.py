@@ -15,12 +15,17 @@ class Arm:
         self.broker=PaperBroker(config,clock=clock);self.venue=None
         self.intents={};self.orders_by_pair=defaultdict(list);self.revisions=defaultdict(int)
         self.partial_done=set();self.funding_ids=set();self.bookings=[];self.specs={}
+        self.quantities={}  # Exact physical remainder from deduplicated venue fills.
 
     def fill(self,order,row,now_ns):
         command=order.command;plan=self.intents[command.pair_id].plan()
         qty,price,fee=map(lambda k:float(dec(row[k])),("execQty","execPrice","execFee"))
         pos=self.broker.positions.get(command.symbol)
         first=pos is None
+        physical_qty=dec(row["execQty"])
+        before=self.remaining(command.symbol)
+        after=before-physical_qty if command.reduce_only else before+physical_qty
+        if after<0:raise SafetyError("close exceeds owned remainder")
         if not command.reduce_only:
             if pos is None:
                 self.broker._position_from_fill(plan,price,fee,quantity=qty)
@@ -49,7 +54,7 @@ class Arm:
             preview=self.broker._preview_realize
             self.broker._preview_realize=lambda *args,**kwargs:leg
             try:
-                if abs(qty-pos.quantity)<=1e-9:
+                if after==0:
                     event=self.broker.close(command.symbol,OrderBook(),command.reason)
                     self.emit("position_closed",dict(arm=self.name,pair_id=command.pair_id,trade=event))
                 else:
@@ -57,6 +62,9 @@ class Arm:
             finally: self.broker._preview_realize=preview
             if command.reason=="partial_take" and command.pair_id not in self.partial_done and order.filled==dec(command.qty):
                 self.finish_partial(command.pair_id)
+        self.quantities[command.symbol]=after
+        pos=self.broker.positions.get(command.symbol)
+        if pos is not None:pos.quantity=float(after)
         self.bookings.append(dict(pair_id=command.pair_id,link_id=command.link_id,**row))
 
     def finish_partial(self,pair):
@@ -68,13 +76,17 @@ class Arm:
 
     def remaining(self,symbol):
         pos=self.broker.positions.get(symbol)
-        return dec(pos.quantity) if pos else Decimal(0)
+        return self.quantities.get(symbol,dec(pos.quantity)) if pos else Decimal(0)
 
     def active_orders(self,pair):
         return [self.venue.orders[k] for k in self.orders_by_pair[pair] if k in self.venue.orders and not self.venue.orders[k].terminal]
 
     def command(self,run,intent,*,qty,mode,price=None,reduce=False,reason="entry"):
-        plan=intent.plan();self.revisions[(intent.pair_id,reason)]+=1
+        plan=intent.plan();qty=dec(qty)
+        spec=self.specs.get(intent.pair_id)
+        if spec is not None and (dec(spec.qty_step)<=0 or qty%dec(spec.qty_step)):
+            raise SafetyError("command quantity is not on instrument step")
+        self.revisions[(intent.pair_id,reason)]+=1
         side="Buy" if plan.side==Side.LONG else "Sell"
         if reduce: side="Sell" if side=="Buy" else "Buy"
         c=Command.make(run,intent.pair_id,plan.symbol,side,qty,mode,price,reduce,reason,
@@ -90,9 +102,10 @@ class Arm:
         """
         plan=intent.plan();pos=self.broker.positions.get(plan.symbol)
         if pos is None: return []
+        remaining=self.remaining(plan.symbol)
         executable=book.executable_exit(pos.side) if book else None
         if executable is None:
-            return [("health_stop",pos.quantity,"Market",None)] if stop_reason else []
+            return [("health_stop",remaining,"Market",None)] if stop_reason else []
         direction=1 if pos.side==Side.LONG else -1
         gross=direction*(executable-pos.entry)*pos.original_quantity
         pos.last_price=executable
@@ -102,17 +115,17 @@ class Arm:
         pos.mfe_usd=max(pos.mfe_usd,gross);pos.mae_usd=max(pos.mae_usd,-gross)
         pos.max_favorable_move_pct=max(pos.max_favorable_move_pct,direction*(executable-pos.entry)/pos.entry)
         pos.max_adverse_move_pct=max(pos.max_adverse_move_pct,-direction*(executable-pos.entry)/pos.entry)
-        if stop_reason: return [(stop_reason,pos.quantity,"Market",None)]
+        if stop_reason: return [(stop_reason,remaining,"Market",None)]
         if (pos.side==Side.LONG and executable<=pos.stop) or (pos.side==Side.SHORT and executable>=pos.stop):
-            return [("stop",pos.quantity,"Market",None)]
+            return [("stop",remaining,"Market",None)]
         if plan.strategy=="trend_impulse_ml":
-            if now_ns-intent.observed_ns>=30_000_000_000: return [("timeout",pos.quantity,"Market",None)]
-            if direction*(executable-pos.target)>=0: return [("target",pos.quantity,"Market",None)]
+            if now_ns-intent.observed_ns>=30_000_000_000: return [("timeout",remaining,"Market",None)]
+            if direction*(executable-pos.target)>=0: return [("target",remaining,"Market",None)]
             return []
         if self.broker._should_cut_no_follow_through(pos,gross):
-            return [("no_follow_through",pos.quantity,"Market",None)]
+            return [("no_follow_through",remaining,"Market",None)]
         profile=execution_profile(plan.strategy)
-        partial=0.0;result=[];economics=pos.strategy_details.get("economics",{})
+        partial=Decimal(0);result=[];economics=pos.strategy_details.get("economics",{})
         if self.config.partial_take_enabled and pos.strategy_details.get("allowRunner",True) and economics.get("partialPlanned",True) and not pos.partial_taken:
             q=self.broker._partial_close_quantity(pos)
             spec=self.specs.get(intent.pair_id)
@@ -121,12 +134,12 @@ class Arm:
             if q<=0 or (spec and q<spec.min_order_qty):q=0.0
             preview=self.broker._preview_realize(pos,q,book,reason="partial_take")
             if q>0 and profile.partial_exit=="maker_limit" and preview["net"]>=self.broker._partial_required_net_usd(pos):
-                partial=q;result.append(("partial_take",q,"PostOnly",self.broker._partial_limit_price(pos)))
+                partial=dec(q);result.append(("partial_take",q,"PostOnly",self.broker._partial_limit_price(pos)))
             elif q>0 and profile.partial_exit!="maker_limit" and self.broker._partial_triggered(pos,executable,profile.partial_exit,trade_price=None,trade_notional_usd=None,trade_side=None) and preview["net"]>=self.broker._partial_required_net_usd(pos):
                 return [("partial_take",q,"Market",None)]
-        if pos.quantity-partial>1e-12:
-            if profile.target_exit=="maker_limit":result.append(("runner_target" if pos.partial_taken else "target",pos.quantity-partial,"PostOnly",pos.target))
-            elif direction*(executable-pos.target)>=0:result.append(("target",pos.quantity-partial,"Market",None))
+        if remaining-partial>0:
+            if profile.target_exit=="maker_limit":result.append(("runner_target" if pos.partial_taken else "target",remaining-partial,"PostOnly",pos.target))
+            elif direction*(executable-pos.target)>=0:result.append(("target",remaining-partial,"Market",None))
         return result
 
 
@@ -233,6 +246,10 @@ class PairedPortfolio:
 
     async def synchronize(self,arm,intent,desired):
         existing=[o for o in arm.active_orders(intent.pair_id) if o.command.reduce_only]
+        spec=arm.specs.get(intent.pair_id)
+        desired=[(reason,dec(qty),mode,spec.target_price(price,intent.plan().side)
+                  if spec is not None and price is not None else price)
+                 for reason,qty,mode,price in desired]
         wanted={reason:(qty,mode,price) for reason,qty,mode,price in desired}
         for order in existing:
             c=order.command;new=wanted.get(c.reason)
@@ -243,14 +260,11 @@ class PairedPortfolio:
                 # Fill may have changed remainder/geometry. Recompute next cycle.
                 return
         for reason,qty,mode,price in desired:
-            spec=arm.specs.get(intent.pair_id)
-            if spec is not None and price is not None:
-                price=spec.target_price(price,intent.plan().side)
             if any(o.command.reason==reason for o in arm.active_orders(intent.pair_id)):continue
             if qty<=0:continue
             # A failed protective command halts entries. It is never silently
             # replaced by an order with different semantics to improve fills.
-            c=arm.command(self.run,intent,qty=min(qty,float(arm.remaining(intent.plan().symbol))),
+            c=arm.command(self.run,intent,qty=min(qty,arm.remaining(intent.plan().symbol)),
                           mode=mode,price=price,reduce=True,reason=reason)
             order=await arm.venue.submit(c)
             if order.status=="Rejected" or order.unknown:
