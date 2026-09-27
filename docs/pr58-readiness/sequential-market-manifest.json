@@ -1,0 +1,736 @@
+{
+  "source": "G:\\scalp-bot\\data\\audit-two-hour-20260927\\inputs.sqlite",
+  "counts": {
+    "quotes": 1516910,
+    "trades": 494574
+  },
+  "method": "actual OrderBookState and prune_trades; transport clears book/tape; checkpoint after source sequence",
+  "ready_responses": [
+    {
+      "variant": "A",
+      "key": [
+        "ENAUSDT",
+        "weak_level_rejection",
+        "S:support:-2178:g1",
+        "[\"structural_level\",\"S:support:-2178:g1\"]:failed:quote:1790453314414:1",
+        "long"
+      ],
+      "source_sequence": 6384839,
+      "quote": 0.27108,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790453317990,
+        "observedAtMs": 1790453319083,
+        "quoteResponseBps": 8.861320336728786,
+        "tapeResponseBps": 4.797933198005664,
+        "tradeCount": 19,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "B",
+      "key": [
+        "ENAUSDT",
+        "weak_level_rejection",
+        "S:support:-2178:g1",
+        "[\"structural_level\",\"S:support:-2178:g1\"]:failed:quote:1790453314414:1",
+        "long"
+      ],
+      "source_sequence": 6384839,
+      "quote": 0.27108,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790453317990,
+        "observedAtMs": 1790453319083,
+        "quoteResponseBps": 8.861320336728786,
+        "tapeResponseBps": 4.797933198005664,
+        "tradeCount": 19,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "C",
+      "key": [
+        "ENAUSDT",
+        "weak_level_rejection",
+        "S:support:-2178:g1",
+        "[\"structural_level\",\"S:support:-2178:g1\"]:failed:quote:1790453314414:1",
+        "long"
+      ],
+      "source_sequence": 6384839,
+      "quote": 0.27108,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790453317990,
+        "observedAtMs": 1790453319083,
+        "quoteResponseBps": 8.861320336728786,
+        "tapeResponseBps": 4.797933198005664,
+        "tradeCount": 19,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "A",
+      "key": [
+        "ETHUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455204480:2",
+        "long"
+      ],
+      "source_sequence": 12396874,
+      "quote": 2674.11,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455205264,
+        "observedAtMs": 1790455209349,
+        "quoteResponseBps": 2.3564791956555093,
+        "tapeResponseBps": 3.3667388645115457,
+        "tradeCount": 346,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "B",
+      "key": [
+        "ETHUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455204480:2",
+        "long"
+      ],
+      "source_sequence": 12396874,
+      "quote": 2674.11,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455205264,
+        "observedAtMs": 1790455209349,
+        "quoteResponseBps": 2.3564791956555093,
+        "tapeResponseBps": 3.3667388645115457,
+        "tradeCount": 346,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "C",
+      "key": [
+        "ETHUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455204480:2",
+        "long"
+      ],
+      "source_sequence": 12396874,
+      "quote": 2674.11,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455205264,
+        "observedAtMs": 1790455209349,
+        "quoteResponseBps": 2.3564791956555093,
+        "tapeResponseBps": 3.3667388645115457,
+        "tradeCount": 346,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "A",
+      "key": [
+        "XRPUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455206110:7",
+        "long"
+      ],
+      "source_sequence": 12402724,
+      "quote": 1.5137,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455207480,
+        "observedAtMs": 1790455209916,
+        "quoteResponseBps": 6.6106961063007335,
+        "tapeResponseBps": 9.258034651501573,
+        "tradeCount": 110,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "B",
+      "key": [
+        "XRPUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455206110:7",
+        "long"
+      ],
+      "source_sequence": 12402724,
+      "quote": 1.5137,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455207480,
+        "observedAtMs": 1790455209916,
+        "quoteResponseBps": 6.6106961063007335,
+        "tapeResponseBps": 9.258034651501573,
+        "tradeCount": 110,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "C",
+      "key": [
+        "XRPUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455206110:7",
+        "long"
+      ],
+      "source_sequence": 12402724,
+      "quote": 1.5137,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455207480,
+        "observedAtMs": 1790455209916,
+        "quoteResponseBps": 6.6106961063007335,
+        "tapeResponseBps": 9.258034651501573,
+        "tradeCount": 110,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "A",
+      "key": [
+        "ENAUSDT",
+        "weak_level_rejection",
+        "S:support:-2198:g1",
+        "[\"structural_level\",\"S:support:-2198:g1\"]:failed:quote:1790455207728:5",
+        "long"
+      ],
+      "source_sequence": 12420367,
+      "quote": 0.26793,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455209367,
+        "observedAtMs": 1790455213364,
+        "quoteResponseBps": 8.965594530988009,
+        "tapeResponseBps": 5.975500448162291,
+        "tradeCount": 85,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "B",
+      "key": [
+        "ENAUSDT",
+        "weak_level_rejection",
+        "S:support:-2198:g1",
+        "[\"structural_level\",\"S:support:-2198:g1\"]:failed:quote:1790455207728:5",
+        "long"
+      ],
+      "source_sequence": 12420367,
+      "quote": 0.26793,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455209367,
+        "observedAtMs": 1790455213364,
+        "quoteResponseBps": 8.965594530988009,
+        "tapeResponseBps": 5.975500448162291,
+        "tradeCount": 85,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "C",
+      "key": [
+        "ENAUSDT",
+        "weak_level_rejection",
+        "S:support:-2198:g1",
+        "[\"structural_level\",\"S:support:-2198:g1\"]:failed:quote:1790455207728:5",
+        "long"
+      ],
+      "source_sequence": 12420367,
+      "quote": 0.26793,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455209367,
+        "observedAtMs": 1790455213364,
+        "quoteResponseBps": 8.965594530988009,
+        "tapeResponseBps": 5.975500448162291,
+        "tradeCount": 85,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "A",
+      "key": [
+        "ETHUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455233739:4",
+        "long"
+      ],
+      "source_sequence": 12590728,
+      "quote": 2673.96,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455235205,
+        "observedAtMs": 1790455236010,
+        "quoteResponseBps": 2.843034565315795,
+        "tapeResponseBps": 2.206952273722476,
+        "tradeCount": 97,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "B",
+      "key": [
+        "ETHUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455233739:4",
+        "long"
+      ],
+      "source_sequence": 12590728,
+      "quote": 2673.96,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455235205,
+        "observedAtMs": 1790455236010,
+        "quoteResponseBps": 2.843034565315795,
+        "tapeResponseBps": 2.206952273722476,
+        "tradeCount": 97,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "C",
+      "key": [
+        "ETHUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455233739:4",
+        "long"
+      ],
+      "source_sequence": 12590728,
+      "quote": 2673.96,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455235205,
+        "observedAtMs": 1790455236010,
+        "quoteResponseBps": 2.843034565315795,
+        "tapeResponseBps": 2.206952273722476,
+        "tradeCount": 97,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "B",
+      "key": [
+        "XRPUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455223450:8",
+        "long"
+      ],
+      "source_sequence": 12596134,
+      "quote": 1.5124,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455236138,
+        "observedAtMs": 1790455236639,
+        "quoteResponseBps": 1.9839957674754776,
+        "tapeResponseBps": null,
+        "tradeCount": 0,
+        "allowed": false
+      }
+    },
+    {
+      "variant": "A",
+      "key": [
+        "XRPUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455238117:11",
+        "long"
+      ],
+      "source_sequence": 12612153,
+      "quote": 1.5123,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455238255,
+        "observedAtMs": 1790455239017,
+        "quoteResponseBps": 2.6456776241812023,
+        "tapeResponseBps": 1.9842582181359014,
+        "tradeCount": 27,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "B",
+      "key": [
+        "XRPUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455238117:11",
+        "long"
+      ],
+      "source_sequence": 12612153,
+      "quote": 1.5123,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455238255,
+        "observedAtMs": 1790455239017,
+        "quoteResponseBps": 2.6456776241812023,
+        "tapeResponseBps": 1.9842582181359014,
+        "tradeCount": 27,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "C",
+      "key": [
+        "XRPUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455238117:11",
+        "long"
+      ],
+      "source_sequence": 12612153,
+      "quote": 1.5123,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455238255,
+        "observedAtMs": 1790455239017,
+        "quoteResponseBps": 2.6456776241812023,
+        "tapeResponseBps": 1.9842582181359014,
+        "tradeCount": 27,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "B",
+      "key": [
+        "ETHUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455274457:7",
+        "long"
+      ],
+      "source_sequence": 12959241,
+      "quote": 2669.57,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455287391,
+        "observedAtMs": 1790455289485,
+        "quoteResponseBps": 1.6484772191689971,
+        "tapeResponseBps": 1.5360810451340117,
+        "tradeCount": 146,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "C",
+      "key": [
+        "ETHUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455274457:7",
+        "long"
+      ],
+      "source_sequence": 12959241,
+      "quote": 2669.57,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455287391,
+        "observedAtMs": 1790455289485,
+        "quoteResponseBps": 1.6484772191689971,
+        "tapeResponseBps": 1.5360810451340117,
+        "tradeCount": 146,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "A",
+      "key": [
+        "ETHUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455274457:7",
+        "long"
+      ],
+      "source_sequence": 12962354,
+      "quote": 2669.76,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455288199,
+        "observedAtMs": 1790455289932,
+        "quoteResponseBps": 2.098006893452721,
+        "tapeResponseBps": 2.060542484640274,
+        "tradeCount": 122,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "A",
+      "key": [
+        "XRPUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455366360:18",
+        "long"
+      ],
+      "source_sequence": 13406384,
+      "quote": 1.5073,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455376316,
+        "observedAtMs": 1790455377187,
+        "quoteResponseBps": 2.6544561682937027,
+        "tapeResponseBps": 1.9907100199083545,
+        "tradeCount": 26,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "B",
+      "key": [
+        "XRPUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455366360:18",
+        "long"
+      ],
+      "source_sequence": 13406384,
+      "quote": 1.5073,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455375566,
+        "observedAtMs": 1790455377187,
+        "quoteResponseBps": 2.6544561682937027,
+        "tapeResponseBps": 2.6544561682937027,
+        "tradeCount": 44,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "C",
+      "key": [
+        "XRPUSDT",
+        "weak_level_rejection",
+        "S:day_low:2026-09-26:g1",
+        "[\"structural_level\",\"S:day_low:2026-09-26:g1\"]:failed:quote:1790455366360:18",
+        "long"
+      ],
+      "source_sequence": 13406384,
+      "quote": 1.5073,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790455375566,
+        "observedAtMs": 1790455377187,
+        "quoteResponseBps": 2.6544561682937027,
+        "tapeResponseBps": 2.6544561682937027,
+        "tradeCount": 44,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "A",
+      "key": [
+        "ENAUSDT",
+        "weak_level_rejection",
+        "S:support:-2194:g1",
+        "[\"structural_level\",\"S:support:-2194:g1\"]:failed:quote:1790456409595:1",
+        "long"
+      ],
+      "source_sequence": 17871335,
+      "quote": 0.2685,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790456410777,
+        "observedAtMs": 1790456526288,
+        "quoteResponseBps": 5.589714924540301,
+        "tapeResponseBps": 6.335482428353276,
+        "tradeCount": 560,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "B",
+      "key": [
+        "ENAUSDT",
+        "weak_level_rejection",
+        "S:support:-2194:g1",
+        "[\"structural_level\",\"S:support:-2194:g1\"]:failed:quote:1790456409595:1",
+        "long"
+      ],
+      "source_sequence": 17871335,
+      "quote": 0.2685,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790456410777,
+        "observedAtMs": 1790456526288,
+        "quoteResponseBps": 5.589714924540301,
+        "tapeResponseBps": 6.335482428353276,
+        "tradeCount": 560,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "C",
+      "key": [
+        "ENAUSDT",
+        "weak_level_rejection",
+        "S:support:-2194:g1",
+        "[\"structural_level\",\"S:support:-2194:g1\"]:failed:quote:1790456409595:1",
+        "long"
+      ],
+      "source_sequence": 17871335,
+      "quote": 0.2685,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790456410777,
+        "observedAtMs": 1790456526288,
+        "quoteResponseBps": 5.589714924540301,
+        "tapeResponseBps": 6.335482428353276,
+        "tradeCount": 560,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "B",
+      "key": [
+        "ZECUSDT",
+        "weak_level_rejection",
+        "R:day_high:2026-09-26:g1",
+        "[\"structural_level\",\"R:day_high:2026-09-26:g1\"]:failed:quote:1790456944082:3",
+        "short"
+      ],
+      "source_sequence": 19305465,
+      "quote": 1587.0,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790456944282,
+        "observedAtMs": 1790456944815,
+        "quoteResponseBps": 5.3531504865063395,
+        "tapeResponseBps": 1.4489740633643806,
+        "tradeCount": 6,
+        "allowed": false
+      }
+    },
+    {
+      "variant": "A",
+      "key": [
+        "ZECUSDT",
+        "weak_level_rejection",
+        "R:resistance:12287:g1",
+        "[\"structural_level\",\"R:resistance:12287:g1\"]:failed:quote:1790456939576:2",
+        "short"
+      ],
+      "source_sequence": 19305694,
+      "quote": 1587.0,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790456944332,
+        "observedAtMs": 1790456944878,
+        "quoteResponseBps": 4.53480462550089,
+        "tapeResponseBps": -0.0,
+        "tradeCount": 4,
+        "allowed": false
+      }
+    },
+    {
+      "variant": "C",
+      "key": [
+        "ZECUSDT",
+        "weak_level_rejection",
+        "R:day_high:2026-09-26:g1",
+        "[\"structural_level\",\"R:day_high:2026-09-26:g1\"]:failed:quote:1790456944082:3",
+        "short"
+      ],
+      "source_sequence": 19306956,
+      "quote": 1587.0,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790456944282,
+        "observedAtMs": 1790456945211,
+        "quoteResponseBps": 5.3531504865063395,
+        "tapeResponseBps": 2.015963914245534,
+        "tradeCount": 8,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "B",
+      "key": [
+        "ZECUSDT",
+        "weak_level_rejection",
+        "R:day_high:2026-09-26:g1",
+        "[\"structural_level\",\"R:day_high:2026-09-26:g1\"]:failed:quote:1790457899850:23",
+        "short"
+      ],
+      "source_sequence": 23043398,
+      "quote": 1640.02,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790457900734,
+        "observedAtMs": 1790457942333,
+        "quoteResponseBps": 18.502063223497398,
+        "tapeResponseBps": 23.905981970145284,
+        "tradeCount": 3515,
+        "allowed": true
+      }
+    },
+    {
+      "variant": "C",
+      "key": [
+        "ZECUSDT",
+        "weak_level_rejection",
+        "R:day_high:2026-09-26:g1",
+        "[\"structural_level\",\"R:day_high:2026-09-26:g1\"]:failed:quote:1790457899850:23",
+        "short"
+      ],
+      "source_sequence": 23043398,
+      "quote": 1640.02,
+      "tape_buffer_seconds": 90,
+      "assessment": {
+        "policy": "quote_tape_v1",
+        "reclaimMs": 1790457900734,
+        "observedAtMs": 1790457942333,
+        "quoteResponseBps": 18.502063223497398,
+        "tapeResponseBps": 23.905981970145284,
+        "tradeCount": 3515,
+        "allowed": true
+      }
+    }
+  ]
+}
