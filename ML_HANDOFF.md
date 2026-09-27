@@ -1,21 +1,11 @@
-# ML handoff — 27 сентября 2026
+# ML handoff — trained v2, no admission
 
-PR #54 M1b1 интегрирован с #57 в codex/parallel-scenarios-ml-v1. Current-12h
-остановлен и проверен аудитом; baseline G:/scalp-bot не изменён. Модель реально
-обучена: CatBoost 100 depth4 + logistic/rule/prior controls, 10 225 causal labels,
-глобальные train/calibration/validation/test с purge. Данные и веса — локальные
-*-final артефакты, точные пути/hash в [model card](docs/ml/MODEL_CARD.md).
+V1 сохранена и диагностирована: порядок классов/признаков/preprocessing/reload корректен; target_first редок, p_target<0.55 до и после calibration во всех split. Калибровка не создала нулевой выбор. [Диагностика v1](docs/pr58-readiness/abstention_diagnostics.json).
 
-[Выполненные команды](docs/ml/experiments/COMMANDS.md) включают build, train,
-evaluate, predict и shadow. На test CatBoost logloss .419513 против logistic .500817
-и rule .730969, но при frozen threshold он воздержался от всех входов. Это первый
-технический кандидат на одном просмотренном периоде, не доказанная модель торговли.
+V2 обучена на двух дополнительных dated captures:16790 labels, train6482/cal4160/val3023/test2847/purged278. Actual engine MarketContext восстановил структуру и65.08% известных liquidity observations. Четыре instrument limits подтверждены в собственном contemporaneous bootstrap. 2024 NEAR/XRP исключены: mandatory historical fields неизвестны, September specs назад не переносятся.
 
-Worker Windows spawn не импортирует биржевой клиент, очередь ограничена, основной
-бот не ждёт ответов. Исторический shadow200 и synthetic off/shadow сохранили
-ordinary ledger; ни капитала, ни полномочий ML нет. Event-loop бюджет20мс не пройден.
-M2 generalization/M3 performance остаются открыты; M4/M5 не выполнялись.
+CatBoost сохраняет0 selections; logistic2 test labels имеют средний net -0.109132USDT, rule197 — -0.134273. No-trade остаётся контролем. Новые held-out labels были отделены заранее, но даты ранее изучены как bot captures; это не untouched independent regime. Порог0.55/цель30/стоп15/horizon30s не менялись. Веса сохранены до test, exact reload проходит. [Model card](docs/pr58-readiness/MODEL_CARD_V2.md), [команды](docs/pr58-readiness/COMMANDS.md), [dataset/model manifests](docs/pr58-readiness/artifact-manifest.json).
 
-Дальше нужны подтверждённые metadata/coverage внешних независимых периодов и
-достаточная нагрузочная проверка. Новых рыночных прогонов/ордеров/main merge нет.
-[Архитектура](docs/ml/ARCHITECTURE.md), [обзор реализации](IMPLEMENTATION_REVIEW.md).
+Worker/shadow1200 forecasts выполнен, все abstain, no exchange import/no capital/no orders. Три синтетических exit paths сохраняют обычные решения/ledger. Historical benchmarks отдельно измеряют source/state/features/queue/predict/return/adapter; abstention не называется proposal. Обычный launcher ML не импортирует и прогноза не ждёт.
+
+M2 technical artifact есть; generalization/portfolio utility не доказаны. M3 burst latency admission открыт. Следующий разрешённый шаг — только offline работа по конкретным ограничениям из PR58_READINESS_REVIEW.md. M4/M5, live worker trading, новые market runs и main merge не разрешены.

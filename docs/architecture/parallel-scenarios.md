@@ -65,3 +65,7 @@ Latency gate: 62 packets at archived cadence and scenario bookkeeping are measur
 in ../implementation/transport-load.json. A synchronous CPU-hung strategy remains
 unpreemptible; no separate strategy processes were introduced. Portfolio PnL of
 parallel preparation has not been computed by deleting or replacing old trades.
+
+## Offline verification after af988946
+
+`offline_study` uses actual engine/risk/execution classes with a deterministic per-variant scheduler. A wraps the original ScenarioRouter as the single preparation primitive; B/C keep independent preparation. This harness never starts exchange workers. Its fixed captured membership and source availability are explicit counterfactual conditions, not original-scheduler certification. See [completed readiness study](../../PR58_READINESS_REVIEW.md). Production ownership/risk/defaults did not change.

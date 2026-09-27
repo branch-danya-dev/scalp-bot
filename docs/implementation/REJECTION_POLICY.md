@@ -53,3 +53,7 @@ stop cost share 2.0662. ETH T04: 5.1170 bps, partialPlanned=false, net partial
 нет основания отключить его по проигравшим примерам. Risk/UI/broker проверки
 условных выплат (R01 и экономика partial) сохраняются. Leverage, target, stop,
 partial и включённые стратегии не менялись. Новая политика по умолчанию legacy.
+
+## Completed sequential comparison
+
+The earlier incomplete comparison above describes af988946. It is now executed with actual first-reclaim state and all raw fast-book events; no research_frame anchor is substituted. All11 C-ready witnesses pass quote+tape. B/C keep8 trades, C removes one unfilled XRP-ready and delays ZEC396.021ms. Conditional portfolio net changes -43.206377→-43.530032USDT; no benefit established. [Full population/tables/limits](../../PR58_READINESS_REVIEW.md). Default remains legacy; exit economics and six accepted-position controls remain separate.

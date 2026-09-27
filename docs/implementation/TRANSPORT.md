@@ -43,3 +43,7 @@ ETH gap: I15031782→I15268623, 85.8466354 с; подробные попытки
 Семь failed handshakes не объяснены close_timeout. Нет DNS/TLS/сетевой трассы,
 позволяющей разделить недоступность сети и сервера. Версия о VPN не доказана.
 Исходный incomplete capture не исправлялся; полный replay не сертифицирован.
+
+## PR58 completion evidence
+
+The new phase/error diagnostics record connect_handshake, subscribe_send, receive_or_process and drain; handshake subphases remain unknown. Only error class/errno and host are retained, never exception text or credentials. Diagnostics are recorded separately from canonical replay transport input to preserve clock-read parity. Mock phase failures and offline parity regressions pass. Full repeated historical measurements use the production recorder: [readiness](../../PR58_READINESS_REVIEW.md). Old measurements above are retained, not overwritten.

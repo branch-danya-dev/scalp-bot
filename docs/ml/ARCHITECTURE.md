@@ -48,3 +48,7 @@ ml/arbitration.py сохраняет эту спецификацию, но не 
 получение пакета/парсинг сети этим не доказано. Бюджеты заданы до замера в
 experiments/worker-budgets.json, среда в hardware.json. Основной event loop превысил
 20 мс и с выключенным ML, и с shadow; полный M3 performance gate остаётся открытым.
+
+## Causal additional-period path
+
+Raw hash-verified semantic records → StudyEngine B shared MarketContext → EngineDatasetCollector → immutable feature snapshot → later executable-book label. Reconnect/sequence gap resets label epoch and warmup. combine_periods joins predeclared captures with per-capture specifications and global time purge; it rejects unknown mandatory limits. Real v2 weights use the existing isolated InferenceWorker and ShadowAdapter. Training/calibration/test boundaries and model admission remain separate. See [v2 card](../pr58-readiness/MODEL_CARD_V2.md).

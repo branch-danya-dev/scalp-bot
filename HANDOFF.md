@@ -1,32 +1,11 @@
-# Handoff — параллельные сценарии и ML
+# Handoff — PR58 offline completion
 
-27 сентября 2026. Ветка `codex/parallel-scenarios-ml-v1`, worktree
-`C:/Users/workingspace/.codex/worktrees/parallel-scenarios-ml/scalp-bot`.
-[Draft PR #58](https://github.com/branch-danya-dev/scalp-bot/pull/58).
-Интегрированы проверенные heads #57 f0364a5 и #54 c45c7b4, без переписывания веток.
-Baseline G:/scalp-bot на 3403b03 чистый; исходный capture hash неизменен.
+Ветка codex/parallel-scenarios-ml-v1, [draft PR58](https://github.com/branch-danya-dev/scalp-bot/pull/58). Актуальный [readiness review](PR58_READINESS_REVIEW.md) заменяет прежний список незавершённых проверок. Worktree/venv: C:/Users/workingspace/.codex/worktrees/parallel-scenarios-ml/scalp-bot.
 
-Обычные стратегии независимо готовятся на символе. Earliest eligible ready получает
-общий резерв; время равенства разрешает стабильный tie-break. Один владелец
-исполнения/позиции, WAIT/ошибка/отказ другой стратегии не блокируют подготовку.
-Сохранены frozen-plan, object/episode и защиты. UI показывает каждый сценарий.
+A/B/C последовательно выполнены на полном пригодном префиксе двухчасовой записи с настоящими классами. Условный net -34.367091/-43.206377/-43.530032; technical routing работает, выгода не подтверждена. quote_tape_v1: все11 ready проходят контракт, один неисполненный ready исчез, ZEC задержан396ms. Default legacy. Raw fast-book индекс пересоздан полностью; старый research индекс был редким и для этого сравнения непригоден. Исходные raw/index не изменены.
 
-Transport consumer failure обнаруживается при немом recv, reconnect сбрасывает
-книгу и подтверждения с требованием snapshot; close timeout #57 сохранён.
-Новая rejection quote+tape политика существует отдельно и по умолчанию выключена.
-Историческое полное сравнение её альтернативных входов не завершено.
+Профильные исправления: ранний поиск последней пригодной свечи и прямой generation_id без полной сериализации. Сетевые diagnostics отделяют handshake/subscribe/receive/drain; DNS/TLS причины семи старых failures неизвестны. Recovery/epoch/freshness сохранены. Полный burst performance допуск не заявлен.
 
-ML: обучены CatBoost и logistic, rule/prior controls, сохранены dataset/weights и
-manifests; worker/shadow реально выполнены. Подробности [ML_HANDOFF](ML_HANDOFF.md).
-1371 локальный тест прошёл; Linux и Windows ML CI прошли; [IMPLEMENTATION_REVIEW](IMPLEMENTATION_REVIEW.md).
-Синтетический off/shadow сохранил ordinary ledger, но event-loop budget20мс не пройден.
+Реальные новые dataset/weights: G:/scalp-bot/data/pr58-completion. Каталоги неизменяемых результатов перечислены в artifact-manifest.json, срок хранения — до удаления владельцем. Новые файлы являются отдельным untracked каталогом baseline checkout; tracked main3403b03 и его окружение не менялись. V1 сохранена. [ML handoff](ML_HANDOFF.md).
 
-Не доказаны: причина всех failed handshakes, независимая модельная полезность,
-portfolio PnL маршрутизации/новой политики. Capture остановлен, incomplete seal,
-полный baseline replay не сертифицирован; исходник/footer не править.
-Новый рынок, реальные заявки, ML trading и main merge требуют отдельного решения.
-
-[Новый контракт](docs/architecture/parallel-scenarios.md),
-[транспорт](docs/implementation/TRANSPORT.md),
-[исследование политики/выходов](docs/implementation/REJECTION_POLICY.md),
-[предыдущий handoff](docs/handoff-before-parallel-20260927.md).
+Не доказаны независимый внешний holdout, live counterfactual portfolio utility, причины всех сетевых сбоев и устойчивое соблюдение20ms под burst. ETH85.8466s gap и incomplete teardown остаются; footer не исправлять. Новые market/paper/live прогоны, заявки, ML trading и main merge запрещены без отдельного согласования. Issue55 не закрывать.
