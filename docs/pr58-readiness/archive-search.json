@@ -1,0 +1,12 @@
+[
+  {
+    "url": "https://web.archive.org/cdx/search/cdx?url=api.bybit.com%2Fv5%2Fmarket%2Finstruments-info%3Fcategory%3Dlinear%26symbol%3DNEARUSDT&output=json&filter=statuscode%3A200&from=2024&to=2024&limit=10",
+    "status": 403,
+    "body": ""
+  },
+  {
+    "url": "https://web.archive.org/cdx/search/cdx?url=api.bybit.com%2Fv5%2Fmarket%2Finstruments-info%3Fcategory%3Dlinear%26symbol%3DXRPUSDT&output=json&filter=statuscode%3A200&from=2024&to=2024&limit=10",
+    "status": 403,
+    "body": ""
+  }
+]

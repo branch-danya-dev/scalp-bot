@@ -213,7 +213,7 @@ async def study(source, output, *, variants=('A','B','C'), max_events=None, capt
                             mono_ns=event['processingMonoNs'],phase=body['phase'],topics=body['topics'],
                             position_open=symbol in engine.broker.positions))
                     engine._invalidate_transport(symbol,body,fast,deep)
-                    if engine.dataset_collector and body['phase'] in {'fault','connecting','cancelled'} and f'orderbook.50.{symbol}' in body['topics']:
+                    if engine.dataset_collector and body['phase'] in {'fault','connecting','cancelled'} and any(t in {f'orderbook.50.{symbol}',f'publicTrade.{symbol}'} for t in body['topics']):
                         engine.dataset_collector.invalidate(symbol,event['processingMonoNs'])
                 elif kind=='market_message' and symbol in handlers[variant]:
                     try:
@@ -221,6 +221,8 @@ async def study(source, output, *, variants=('A','B','C'), max_events=None, capt
                         if engine.dataset_collector and body['topic'].startswith('orderbook.50.'):
                             engine.dataset_collector.quote(engine,symbol)
                     except OrderBookSequenceError as exc:
+                        if engine.dataset_collector:
+                            engine.dataset_collector.invalidate(symbol,event['processingMonoNs'])
                         gaps.append(dict(variant=variant,sequence=event['sequence'],symbol=symbol,
                             mono_ns=event['processingMonoNs'],phase='sequence_gap',error=str(exc),
                             position_open=symbol in engine.broker.positions))

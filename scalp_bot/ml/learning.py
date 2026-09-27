@@ -73,6 +73,8 @@ def metrics(rows, probabilities):
     payoff=np.asarray([r["net_usdt"] for r in rows])
     return dict(samples=len(rows),log_loss=float(log_loss(labels,probabilities,labels=[0,1,2])),
         brier=float(np.mean(np.sum((probabilities-onehot)**2,axis=1))),ece_10_bins=ece,
+        episodes=len({r["episode"] for r in rows}) if all("episode" in r for r in rows) else None,
+        selected_episodes=len({r["episode"] for r,keep in zip(rows,selected) if keep}) if all("episode" in r for r in rows) else None,
         selected=int(selected.sum()),coverage=float(selected.mean()),abstention=float(1-selected.mean()),
         selected_mean_net_usdt=float(payoff[selected].mean()) if selected.any() else None,
         payoff_scope="independent fixed nominal labels; overlapping capital not a portfolio")
@@ -123,9 +125,10 @@ def train(dataset_dir, output):
         model_sha256=sha256_file(output/"model.cbm"),logistic_sha256=sha256_file(output/"logistic.npz"),
         python=platform.python_version(),platform=platform.platform(),versions=dict(catboost=catboost.__version__,
         sklearn=sklearn.__version__,numpy=np.__version__),order_authority=False,
-        trained=True,admitted=False,scope="technical first candidate, one audited session, no independent holdout",
+        trained=True,admitted=False,untouched_external_test=manifest.get("untouched_external_test",False),
+        decision_policy={"p_target_min":.55,"tuned_on_test":False,"frozen_before_test":True},scope=manifest.get("evidence_scope","technical first candidate, one audited session, no independent holdout"),
         retention="local until owner deletes; no automatic expiration",artifact_path=str(output.resolve()))
-    metadata["model_version"]="catboost-impulse-v1:"+metadata["model_sha256"][:16]
+    metadata["model_version"]="catboost-"+manifest.get("candidate_version","impulse-v1")+":"+metadata["model_sha256"][:16]
     (output/"manifest.json").write_text(json.dumps(metadata,indent=2)+"\n")
     reloaded=Predictor(output)
     original=temperature(model.predict_proba(matrix["test"][:1]),temperatures["catboost"])
@@ -187,6 +190,7 @@ def evaluate(dataset_dir, model_dir):
         cp=predictor.predict_rows(subset);rp=rule_probabilities(subset)
         report["splits"][split]={"catboost":metrics(subset,cp),"logistic":metrics(subset,lp),"fixed_rule":metrics(subset,rp),
             "train_prior":metrics(subset,np.tile(priors,(len(subset),1)))}
+        report["splits"][split]["no_trade"]={"selected":0,"coverage":0.0,"net_usdt":0.0,"classification_metrics":None}
         report["splits"][split]["catboost"]["estimated_mean_net_from_train_payouts"]=float((cp@payouts).mean())
         if split=="test":
             for symbol in sorted({r["ref"]["symbol"] for r in subset}):

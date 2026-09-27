@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "frozen_before_download": true,
+  "symbols": [
+    "NEARUSDT",
+    "XRPUSDT"
+  ],
+  "days": {
+    "2024-02-01": "train",
+    "2024-03-01": "calibration",
+    "2024-04-01": "validation",
+    "2024-05-01": "test"
+  },
+  "provider": "tardis free first UTC day of month",
+  "types": [
+    "trades",
+    "incremental_book_L2"
+  ],
+  "max_compressed_bytes_per_file": 134217728,
+  "max_total_compressed_bytes": 805306368,
+  "sampling_seconds": 10,
+  "policy": "impulse-plan-v1 unchanged 30s/15bps stop/30bps target",
+  "test_access": "once after weights/calibration frozen; no action tuning",
+  "instrument_admission": "historical multiplier/tick/lot evidence required for executable labels; otherwise exclude and report exact blocker",
+  "selection": "control target probability >=0.55 only; do not force actions",
+  "leakage": "four different calendar months; purged sample future windows"
+}

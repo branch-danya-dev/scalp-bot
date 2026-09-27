@@ -60,7 +60,7 @@ def run_shadow(dataset_dir,model_dir,output,limit=200):
             resources.append(item[3])
             f=item[1];now=time.perf_counter_ns()
             decision,why=adapter.accept(f,current[f.source.symbol],now,quote=quotes[(f.source.symbol,f.side)],
-                instrument=InstrumentSpec(**manifest["inventory"][f.source.symbol]["instrument"]))
+                instrument=InstrumentSpec(**manifest.get("inventory_by_capture",{}).get(f.source.capture_id,manifest["inventory"])[f.source.symbol]["instrument"]))
             reasons.update(why)
             times.append((now-f.source.available_mono_ns)/1e6)
             predictions.append(dict(forecast=asdict(f),original_source=originals[(f.source.symbol,f.source.source_sequence)],

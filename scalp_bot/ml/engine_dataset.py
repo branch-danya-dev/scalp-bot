@@ -81,7 +81,7 @@ class EngineDatasetCollector:
         path=self.output/'dataset.jsonl'
         with path.open('x') as f:
             for r in rows:f.write(json.dumps(r,separators=(',',':'))+'\n')
-        report=dict(schema_version=2,training_ready=True,feature_schema=FEATURE_SCHEMA,feature_names=FEATURE_NAMES,
+        report=dict(schema_version=2,training_ready=False,feature_schema=FEATURE_SCHEMA,feature_names=FEATURE_NAMES,
             dataset_sha256=sha256_file(path),policy_sha256=sha256_file(POLICY_PATH),plan_policy=self.policy,
             source='actual StudyEngine B contexts after sequential raw event processing',capture_id=self.capture_id,
             evidence_scope='within previously studied session; test is NOT untouched external holdout',
@@ -90,5 +90,6 @@ class EngineDatasetCollector:
             coverage={name:sum(r['features'][i] is not None for r in rows)/len(rows) for i,name in enumerate(FEATURE_NAMES)},
             mask_mean={name:sum(r['features'][i] or 0 for r in rows)/len(rows) for i,name in enumerate(FEATURE_NAMES) if name.endswith('_known')},
             split_classes={s:dict(Counter(r['label'] for r in rows if r['split']==s)) for s in ('train','calibration','validation','test')})
+        report['training_ready']=all(report['splits'].get(s,0)>=30 for s in ('train','calibration','validation','test')) and len(report['split_classes']['train'])==3
         (self.output/'manifest.json').write_text(json.dumps(report,indent=2)+'\n')
         return report

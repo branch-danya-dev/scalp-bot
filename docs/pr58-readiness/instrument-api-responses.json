@@ -1,0 +1,16 @@
+{
+  "NEARUSDT": {
+    "url": "https://api.tardis.dev/v1/instruments/bybit/NEARUSDT",
+    "status": 401,
+    "body": "{\n  \"code\": 10,\n  \"message\": \"Instruments metadata API is available only for active \\\"pro\\\" and \\\"business\\\" subscriptions.\"\n}",
+    "observed_utc": "2026-09-27T01:08:32.204999+00:00",
+    "authorization_sent": false
+  },
+  "XRPUSDT": {
+    "url": "https://api.tardis.dev/v1/instruments/bybit/XRPUSDT",
+    "status": 401,
+    "body": "{\n  \"code\": 10,\n  \"message\": \"Instruments metadata API is available only for active \\\"pro\\\" and \\\"business\\\" subscriptions.\"\n}",
+    "observed_utc": "2026-09-27T01:08:37.748214+00:00",
+    "authorization_sent": false
+  }
+}
