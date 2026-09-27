@@ -2,6 +2,7 @@
 
 27 сентября 2026. Ветка `codex/parallel-scenarios-ml-v1`, worktree
 `C:/Users/workingspace/.codex/worktrees/parallel-scenarios-ml/scalp-bot`.
+[Draft PR #58](https://github.com/branch-danya-dev/scalp-bot/pull/58).
 Интегрированы проверенные heads #57 f0364a5 и #54 c45c7b4, без переписывания веток.
 Baseline G:/scalp-bot на 3403b03 чистый; исходный capture hash неизменен.
 
@@ -17,7 +18,7 @@ Transport consumer failure обнаруживается при немом recv, 
 
 ML: обучены CatBoost и logistic, rule/prior controls, сохранены dataset/weights и
 manifests; worker/shadow реально выполнены. Подробности [ML_HANDOFF](ML_HANDOFF.md).
-1371 локальный тест прошёл; CI будет указан в [IMPLEMENTATION_REVIEW](IMPLEMENTATION_REVIEW.md).
+1371 локальный тест прошёл; Linux и Windows ML CI прошли; [IMPLEMENTATION_REVIEW](IMPLEMENTATION_REVIEW.md).
 Синтетический off/shadow сохранил ordinary ledger, но event-loop budget20мс не пройден.
 
 Не доказаны: причина всех failed handshakes, независимая модельная полезность,

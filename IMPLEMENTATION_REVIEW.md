@@ -2,6 +2,7 @@
 
 Реализованы параллельная подготовка стратегий, единый допуск исполнения, дополнительные
 transport recovery исправления и реально обученный локальный ML-кандидат с worker/shadow.
+[Draft PR #58](https://github.com/branch-danya-dev/scalp-bot/pull/58).
 Это draft: ограничения политики, данных и задержки ниже остаются открытыми.
 
 ## Версии и неизменность источника
@@ -63,7 +64,7 @@ Consumer error теперь обнаруживается без следующе
 | Worker faults | Реальный Windows spawn hung/crashed, bounded mailbox, metadata/NaN/TTL/duplicate tests |
 | Исторический shadow | 200 forecasts, 200 abstain, чистое завершение, Bybit не импортирован |
 | Обычный движок off/shadow | 15 decision/execution events и ledger идентичны; 1 synthetic partial+stop |
-| GitHub CI | Ожидается после публикации draft PR; не считается пройденным до результата |
+| GitHub CI | Linux **1369 passed, 2 skipped**, Windows ML **223 passed**; [полные CI logs](https://github.com/branch-danya-dev/scalp-bot/actions/runs/36282268800), validation/ci-*-excerpt.txt |
 
 Пути validation в таблице относительны docs/implementation/. Первые неуспешные
 логи сохранены: manifest config classification, затем scope parent и пять старых

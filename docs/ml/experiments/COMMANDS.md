@@ -6,7 +6,7 @@ Python `.venv/Scripts/python.exe`, Windows3.13.15. Родитель и spawned c
 проверены на импорт именно этого worktree (validation/imports.txt и shadow-report).
 
 ```powershell
-python -m pip install -e ".[dev,ml]"
+python -m pip install --no-deps -e ".[dev,ml]"
 python -m scalp_bot.ml build-dataset --source G:/scalp-bot/data/audit-two-hour-20260927/inputs.sqlite --output data/ml/impulse-v1-final --capture-id 790eebd906ac4a41baf69eccb5b69ae3
 python -m scalp_bot.ml train --dataset data/ml/impulse-v1-final --output models/ml/impulse-v1-final
 python -m scalp_bot.ml evaluate --dataset data/ml/impulse-v1-final --model models/ml/impulse-v1-final
@@ -18,7 +18,8 @@ python scripts/test_preflight.py
 python -m pip list --format=freeze --exclude-editable
 ```
 
-Команды использовали явный путь к Python выше. Повторная сборка/train/shadow требует
+Команды использовали явный путь к Python выше. До финального editable install
+зависимости были установлены через dev extra и отдельные pinned ML-пакеты. Повторная сборка/train/shadow требует
 НОВОГО output-каталога; имеющиеся артефакты не перезаписываются. Для установки в
 новой среде: `python -m pip install -r docs/ml/experiments/environment-windows-py313.txt`,
 затем editable install проекта. Этот файл — exact version snapshot фактической
@@ -41,3 +42,6 @@ exact reload parity проверяется для опубликованного
 models/ml и data/ml. Полные manifests с абсолютными путями/hash, параметры и метрики
 в Git; срок хранения локальный до удаления владельцем. Vendor raw не распространяется.
 Логи команд — docs/implementation/validation/*-final.*, полная оценка — evaluation.json.
+
+Финальный editable install с build isolation выполнен успешно. Попытка без
+build isolation отдельно сохранена как неуспешная: отсутствовал setuptools.build_meta.
