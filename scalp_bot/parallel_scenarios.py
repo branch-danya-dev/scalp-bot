@@ -5,6 +5,8 @@ Shared applicability/episodes are evaluated once per market observation.
 """
 from copy import deepcopy
 from dataclasses import replace
+from math import isfinite
+from .domain import StrategyDecision, Action
 
 from .scenario import ScenarioRouter, TERMINAL, ROLES
 
@@ -78,6 +80,14 @@ class ParallelScenarioRouter(ScenarioRouter):
         s = self.scenario_for(symbol, decision.strategy)
         if s is not None:
             child.scenarios[symbol] = s
+        if decision.tradeable:
+            prices=(decision.entry,decision.stop,decision.target)
+            sign=1 if decision.action==Action.LONG else -1
+            if (any(not isinstance(x,(int,float)) or not isfinite(x) or x<=0 for x in prices)
+                    or sign*(decision.entry-decision.stop)<=0 or sign*(decision.target-decision.entry)<=0):
+                self.reject(symbol,"geometry","incomplete_or_invalid_geometry",now,strategy=decision.strategy)
+                return StrategyDecision(decision.strategy,Action.WAIT,["incomplete_or_invalid_geometry"],
+                                        details={"state":"invalid_geometry"})
         result = child.accept_decision(symbol, decision, now, book)
         if result.tradeable and s and s.frozen and s.object_ref:
             # Source renaming and moving a target cannot rejuvenate the same

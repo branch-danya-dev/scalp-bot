@@ -83,7 +83,7 @@ async def test_e06_capture_audit_replay_and_archive(tmp_path,monkeypatch):
     result=await runner.run()
     assert result['experiment']=='E06'
     a,b=(result['portfolios'][n]['manifest'] for n in ('baseline','candidate'))
-    assert a['manifestVersion']==b['manifestVersion']==4
+    assert a['manifestVersion']==b['manifestVersion']==5
     assert {k for k in a['config'] if a['config'][k]!=b['config'][k]}=={'e06_conditional_breakout_hold'}
     assert not a['config']['e01_breakout_obstacle_veto'] and not b['config']['e01_breakout_obstacle_veto']
     assert not runner.pair.engines['baseline'].strategies['level_breakout'].conditional_hold_enabled

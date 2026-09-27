@@ -44,7 +44,9 @@ async def fixture(tmp_path, monkeypatch, restart=False, gap=False):
             event(fast, 'fault')
         else:
             event(fast, 'fault')
-            await market(fast, 'delta', 2, 3, 99)  # Queued before disconnect; drained later.
+            # A queued delta after reset cannot trade an unknown book.
+            with pytest.raises(OrderBookSequenceError):
+                await market(fast, 'delta', 2, 3, 99)
         event(fast, 'drained')
         event(fast, 'connecting', 2); event(fast, 'subscription_sent', 2)
         await market(fast, 'snapshot', 1, 4, 98)

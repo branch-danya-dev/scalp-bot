@@ -2824,10 +2824,10 @@ class TradingEngine(ScenarioRuntime):
         deep_depth = self.config.deep_orderbook_depth
 
         def capture_transport(event):
-            self._invalidate_transport(symbol, event, fast_book_state, deep_book_state)
             self._record_input("transport", symbol, {**event, "workerId": worker_id,
                 "fastState": self._transport_book_state(fast_book_state),
                 "deepState": self._transport_book_state(deep_book_state)})
+            self._invalidate_transport(symbol, event, fast_book_state, deep_book_state)
 
         await stream_symbol(
             self.config.bybit_public_ws_url,
@@ -2846,6 +2846,7 @@ class TradingEngine(ScenarioRuntime):
             ),
         )
 
+    @input_scope("transport_invalidate", symbol_arg=True)
     def _invalidate_transport(self, symbol, event, fast_state, deep_state):
         if event.get("phase") not in {"connecting", "fault", "cancelled"}:
             return
@@ -3543,7 +3544,11 @@ class TradingEngine(ScenarioRuntime):
                 )
 
             session.decisions[key] = decision
-            self._scenario_prepare(session, decision)
+            try:
+                self._scenario_prepare(session, decision)
+            except Exception as exc:
+                self._emit("strategy_error", session.symbol,
+                           {"strategy":key,"phase":"prepare","error":f"{type(exc).__name__}: {exc}"})
             self._record_decision_if_changed(session, decision)
 
         self._validate_pending_entry(session)

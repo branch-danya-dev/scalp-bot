@@ -102,3 +102,36 @@ def test_shared_assessment_and_context_isolation_and_local_cancellation():
     router.transition(first,"INVALIDATED",11,"object invalid")
     assert second.state=="ASSIGNED"
     assert router.public(SYMBOL)["schemaVersion"]==3
+
+
+async def test_actual_evaluation_isolates_each_context_and_strategy_exception(tmp_path):
+    from copy import deepcopy
+    from scalp_bot.runtime_clock import ReplayRuntimeClock
+    a,b=level(),level("support","B",mature=False,center=100)
+    rows,book,context,structure=market([a,b])
+    engine=TradingEngine(Settings(_env_file=None,session_dir=str(tmp_path),exchange_clock_enabled=False,
+        trend_structure_enabled=True,price_action_hypothesis_enabled=True,density_enabled=False),
+        clock=ReplayRuntimeClock(wall_seconds=context.observed_at_ms/1000,mono_ns=10**10))
+    session=ActiveSymbolSession(SYMBOL,candles=rows,orderbook=book,structure=structure,
+        last_price=book.mid,last_book_at=context.observed_at_ms/1000,book_synced=True,clock=engine.clock)
+    engine.sessions[SYMBOL]=session
+    seen=[]
+    def assess(context,candles,structure,enabled,**kwargs):
+        return {"status":"OBSERVING","rangeAbs":1},[dict(owner=owner,side="long",anchor=100,
+            signature=owner+":g",priority=1,distance=0,object_ref=None,episode_key=owner+":episode",reasons=[])
+            for owner in PRIORITY]
+    engine.router.assess=assess
+    for owner in PRIORITY:
+        def evaluate(*args,_owner=owner,**kwargs):
+            seen.append((_owner,deepcopy(kwargs["market_context"].scenario)))
+            if _owner=="level_breakout":raise ValueError("isolated strategy error")
+            return StrategyDecision(_owner,Action.WAIT,["waiting independently"])
+        engine.strategies[owner].evaluate=evaluate
+    try:
+        await engine._evaluate(session)
+        assert len(seen)==len(PRIORITY) and {owner for owner,_ in seen}==set(PRIORITY)
+        assert all(owner==scenario["owner"] for owner,scenario in seen)
+        assert session.market_context.scenario is None
+        assert session.decisions["level_breakout"].details["state"]=="error"
+        assert all(owner in session.decisions for owner in PRIORITY)
+    finally:await engine.close()
