@@ -543,7 +543,10 @@ class AdmissionEngine:
             else:
                 self.router.reject(symbol, "dispatcher", "earlier_eligible_ready_proposal",
                     self.clock.perf_counter_ns()/1e9, strategy=item.decision.strategy)
-        for best in sorted(winners.values(), key=lambda item: item.priority.key(), reverse=True):
+        ordered = sorted(winners.values(), key=lambda item: item.priority.key(), reverse=True)
+        if self.prepared_ranker is not None:
+            ordered = self.prepared_ranker.rank(ordered, self.clock.perf_counter_ns())
+        for best in ordered:
             # The preceding submission has already reserved budget, including
             # pending makers and paired execution. Never execute a preview size.
             if not self._scenario_entry_valid(best.session, best.decision):
@@ -597,6 +600,10 @@ class AdmissionEngine:
             )
             return
 
+        if self.prepared_ranker is not None:
+            intent = PreparedIntent(**best.decision.details["admission"]["intent"])
+            if not self.prepared_ranker.assess(intent, self.clock.perf_counter_ns())[0]:
+                return
         if self._submit_research_opportunity(best):
             return
 

@@ -99,7 +99,24 @@ class ShadowProbe:
                 self.counts['queue_expired'] += 1
 
 
-async def main(output, seconds, shadow_model):
+def assess_smoke(result):
+    health = result.get('writerHealth', {})
+    invalid = bool(result.get('error') or health.get('writerError') or health.get('inputWriterError')
+        or health.get('droppedCriticalRows') or health.get('droppedRows')
+        or health.get('inputAccepted') != health.get('inputWritten')
+        or result.get('wave2', {}).get('failure')
+        or result.get('wave2', {}).get('writer', {}).get('error'))
+    latencies = result.get('latencyMs', {})
+    stages = {k: ('NOT_TESTED' if latencies.get(k, {}).get('p99') is None else
+        'MET' if latencies[k]['p99'] <= limit else 'NOT_MET') for k, limit in
+        (('event_loop_lateness', 20), ('data_to_adapter', 250))}
+    fills = 'MET' if result.get('naturalFills', 0) > 0 else 'INCONCLUSIVE_NO_FILLS'
+    return dict(integrity='INVALID' if invalid else 'REQUIRES_HASH_CHAIN_CHECK', naturalFill=fills,
+        latency=stages, status='INVALID' if invalid else 'NOT_MET' if 'NOT_MET' in stages.values()
+        else 'INCONCLUSIVE' if fills != 'MET' or 'NOT_TESTED' in stages.values() else 'REQUIRES_PATH_AND_CHAIN_REVIEW')
+
+
+async def main(output, seconds, shadow_model, wave2=False):
     # Spawn re-imports this script in the child. Trading dependencies belong
     # exclusively to the parent, never to the inference worker.
     from scalp_bot.demo_paper.preflight import settings, PublicRest
@@ -118,6 +135,18 @@ async def main(output, seconds, shadow_model):
     bot = TradingEngine(cfg, recorder=recorder, rest_client=PublicRest(cfg),
                         capture_inputs=True, configure_observability=False, prepared_collector=prepared)
     assert type(bot.broker) is PaperBroker
+    research = None
+    if wave2:
+        from scalp_bot.ml.wave2 import Wave2Observer
+        from scalp_bot.demo_paper.preflight import source_hashes
+        from scalp_bot.manifest_validation import fingerprint
+        from scalp_bot.manifest_schema import PUBLIC_CONFIG_FIELDS
+        manifest = dict(sourceHashes=source_hashes(), config={k: getattr(cfg, k) for k in PUBLIC_CONFIG_FIELDS},
+            registryMode='shadow', makerMode='shadow', externalVenues='telemetry_only',
+            labelPolicy=dict(entryLatencyMs=250, horizonMs=180000), startedWallMs=int(time.time()*1000))
+        manifest['sha256'] = fingerprint(manifest)
+        research = Wave2Observer(output/'wave2-research.jsonl.gz', recorder.path.name, cfg, manifest)
+        bot.research_observer = research
     stages = defaultdict(list); counts=Counter(); errors=[]
     capture_market = bot.input_journal.market_message
     def captured(symbol, message):
@@ -148,9 +177,13 @@ async def main(output, seconds, shadow_model):
             stages['event_loop_lateness'].append(max(0,(time.perf_counter_ns()-before-5_000_000)/1e6))
             if probe:
                 probe.poll()
+            if research:
+                research.watch(tuple(bot.sessions))
     monitor=asyncio.create_task(heartbeat())
     failure=None
     try:
+        if research:
+            await research.start()
         if probe:
             probe.worker.start()
             deadline = time.monotonic()+30
@@ -181,6 +214,8 @@ async def main(output, seconds, shadow_model):
         except Exception as exc:
             failure = (failure+'; ' if failure else '')+f'shutdown {type(exc).__name__}: {exc}'
         prepared.close()
+        if research:
+            await research.close(time.perf_counter_ns())
         health=recorder.health()
         health.update(inputWriterError=recorder.inputs.error,inputAccepted=recorder.inputs.accepted,inputWritten=recorder.inputs.written)
         result=dict(sourceManifest=recorder.inputs.manifest,startedWall=started,launchedWall=launched,
@@ -193,7 +228,9 @@ async def main(output, seconds, shadow_model):
             counts=dict(probe.counts), workerFailure=probe.worker.failed,
             worker=probe.worker.info,
             modelSha256=__import__('hashlib').sha256((Path(shadow_model)/'model.cbm').read_bytes()).hexdigest()) if probe else None
-        result['acceptance']='inconclusive' if result['naturalFills']==0 else 'requires_latency_and_error_review'
+        result['wave2'] = research.health() if research else {}
+        result['acceptance'] = assess_smoke(result)['status']
+        result['gates'] = assess_smoke(result)
         (output/'result.json').write_text(json.dumps(result,indent=2,default=str)+'\n')
         print(json.dumps({k:result[k] for k in ('error','naturalFills','acceptance','writerHealth')}),flush=True)
 
@@ -201,4 +238,8 @@ async def main(output, seconds, shadow_model):
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('output');parser.add_argument('--seconds',type=int,default=300)
     parser.add_argument('--shadow-model')
-    args=parser.parse_args();asyncio.run(main(args.output,args.seconds,args.shadow_model))
+    parser.add_argument('--wave2', action='store_true', help='Unified segment/cross-venue/maker/V3 research capture')
+    args=parser.parse_args()
+    if not 1 <= args.seconds <= 900:
+        parser.error('technical smoke is bounded to 1..900 seconds')
+    asyncio.run(main(args.output,args.seconds,args.shadow_model,args.wave2))

@@ -77,6 +77,9 @@ class MarketRuntime:
                 trade_side=tick.side,
             )
 
+            if self.research_observer is not None:
+                self.research_observer.trade(self, session, message, tick)
+
             # If the resting order survived this tick, only now may the
             # strategy use this tick to decide whether the order is still
             # valid before the next exchange trade is processed.

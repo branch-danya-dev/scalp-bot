@@ -876,11 +876,15 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
     def __init__(self, config: Settings, *, clock: RuntimeClock | None = None,
                  capture_inputs: bool = False, rest_client=None, recorder=None,
                  research_policy=None, configure_observability: bool = True,
-                 prepared_collector=None) -> None:
+                 prepared_collector=None, research_observer=None, prepared_ranker=None) -> None:
         self.clock = clock if clock is not None else SystemRuntimeClock()
         self.config = config
         # Offline/research-only observer receives immutable public features.
         self.prepared_collector = prepared_collector
+        self.research_observer = research_observer
+        self.prepared_ranker = prepared_ranker
+        if prepared_ranker is not None and prepared_collector is None:
+            raise ValueError("V3 ranker requires causal prepared sources")
         if configure_observability:
             configure_telemetry(config)
         self.rest = rest_client if rest_client is not None else BybitRestClient(config)
@@ -2606,6 +2610,9 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
                         market_message=message,
                     )
 
+            if self.research_observer is not None and (is_fast_book or is_deep_book):
+                self.research_observer.book(self, session, message, fast=is_fast_book)
+
             # Periodic evaluation remains a fallback, but deep-book-only
             # context updates never drive the latency-sensitive strategy loop.
             if not deep_only:
@@ -2765,6 +2772,8 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
             session.deep_receipt_mono = None
             session.deep_orderbook = OrderBook()
         if fast or deep:
+            if self.research_observer is not None:
+                self.research_observer.gap(self, symbol, "transport_"+event["phase"])
             session.decisions.clear()
             cancelled = self.broker.cancel_pending(symbol, "transport_epoch_changed")
             if cancelled is not None:
@@ -4966,6 +4975,8 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
         self,
         session: ActiveSymbolSession,
     ) -> None:
+        if self.research_observer is not None:
+            self.research_observer.context(self, session)
         pos = self.broker.positions.get(session.symbol)
         if pos is None:
             return
@@ -5229,6 +5240,8 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
                     ),
                 )
                 self.segment_expectancy.record(closed_observation(event, session.symbol))
+                if self.research_observer is not None:
+                    self.research_observer.closed_position(self, session, event)
                 self._consume_setup(
                     session,
                     str(event.get("strategy") or ""),

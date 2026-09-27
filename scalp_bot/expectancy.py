@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections import deque
+import math
 from .setup_segments import segment_key, finite
 
 
@@ -122,6 +124,7 @@ class SegmentExpectancyBook:
     def __init__(self):
         self.stats = {}
         self.seen = set()
+        self.evidence = {}
 
     def record(self, observation):
         risk, net = observation.get("initialRiskUsd"), observation.get("netPnl")
@@ -130,6 +133,24 @@ class SegmentExpectancyBook:
         self.seen.add(observation["identity"])
         key = segment_key(observation["segment"])
         self.stats.setdefault(key, StrategyExpectancy()).record(net, risk)
+        self._record_evidence(observation, "closed_positions")
+
+    def _record_evidence(self, observation, population):
+        evidence = self.evidence.setdefault((population, segment_key(observation["segment"])), SegmentEvidence())
+        evidence.record(observation)
+
+    def record_shadow(self, observation):
+        """Same store/key, distinct population. Censored/overlapping labels do not fit."""
+        if observation.get("censor_reason") or not observation.get("executable", False):
+            return False
+        risk, net = observation.get("initialRiskUsd"), observation.get("netPnl")
+        if not finite(risk) or risk <= 0 or not finite(net):
+            return False
+        evidence = self.evidence.setdefault(("shadow", segment_key(observation["segment"])), SegmentEvidence())
+        return evidence.record(observation, require_interval=True)
+
+    def lifecycle_evidence(self, segment, *, population="shadow"):
+        return self.evidence.get((population, segment_key(segment)), SegmentEvidence()).public()
 
     def assess(self, segment, *, mode, min_samples, minimum_expectancy_r):
         if mode not in {"off", "shadow", "enforce"}:
@@ -142,3 +163,57 @@ class SegmentExpectancyBook:
         return dict(**stats, segment=segment, mode=mode, evidenceReady=ready,
             wouldVeto=would_veto, blocked=mode == "enforce" and would_veto,
             source="prior_unique_closed_positions", payoutMeaning="empirical_net_expectancy")
+
+
+class SegmentEvidence:
+    """Bounded recent sample + Welford long-term moments; no portfolio PnL claim."""
+    def __init__(self):
+        self.n = 0
+        self.mean = self.m2 = self.cumulative_r = self.peak_r = 0.0
+        self.recent = deque(maxlen=200)
+        self.seen = set()
+        self.captures = set()
+        self.last_end = {}
+
+    def record(self, row, *, require_interval=False):
+        capture = row.get("capture_id")
+        identity = (capture, row["identity"])
+        if identity in self.seen:
+            return False
+        if require_interval:
+            start, end = row.get("available_wall_ms"), row.get("label_end_wall_ms")
+            symbol = row.get("symbol")
+            if not capture or not symbol or not finite(start) or not finite(end) or end < start:
+                return False
+            # One causal nonoverlapping outcome per symbol/segment, globally in wall time.
+            if start <= self.last_end.get(symbol, -1):
+                return False
+            self.last_end[symbol] = end
+        value = row["netPnl"] / row["initialRiskUsd"]
+        if not finite(value):
+            return False
+        self.seen.add(identity)
+        if capture:
+            self.captures.add(capture)
+        self.n += 1
+        delta = value-self.mean
+        self.mean += delta/self.n
+        self.m2 += delta*(value-self.mean)
+        self.recent.append(value)
+        self.cumulative_r += value
+        self.peak_r = max(self.peak_r, self.cumulative_r)
+        return True
+
+    def public(self):
+        def bounds(n, mean, m2):
+            if n < 2:
+                return dict(samples=n, meanR=None, lowerR=None, upperR=None)
+            # Descriptive normal interval; independent-period promotion remains a separate gate.
+            half = 1.96*math.sqrt(max(0.0, m2)/(n-1)/n)
+            return dict(samples=n, meanR=mean, lowerR=mean-half, upperR=mean+half)
+        recent_mean = sum(self.recent)/len(self.recent) if self.recent else 0
+        return dict(longTerm=bounds(self.n, self.mean, self.m2),
+            recent=bounds(len(self.recent), recent_mean, sum((v-recent_mean)**2 for v in self.recent)),
+            drawdownR=self.peak_r-self.cumulative_r, captures=len(self.captures),
+            uncertainty="descriptive_normal_95_nonoverlapping_samples",
+            scope="segment_diagnostic_not_portfolio_pnl")

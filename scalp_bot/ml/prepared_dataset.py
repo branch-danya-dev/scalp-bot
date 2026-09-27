@@ -28,14 +28,14 @@ class PreparedDatasetCollector:
         self.count = 0
 
     def observe_prepared(self, intent, context, *, capture_id, epoch, sequence,
-                         available_ns, trade_seconds, deep_fresh, units_verified):
+                         available_ns, trade_seconds, deep_fresh, units_verified, available_wall_ms=None):
         source = SnapshotRef(capture_id, intent.symbol, epoch, sequence,
             context.observed_at_ms, available_ns, "capture:"+capture_id, FEATURE_SCHEMA)
         coverage = ContextCoverage(tuple(n for n in (5, 15, 60) if trade_seconds >= n), (),
             context.forming_candle is not None, deep_fresh, context.structure is not None, units_verified)
-        return self.observe(intent, context, source, coverage)
+        return self.observe(intent, context, source, coverage, available_wall_ms=available_wall_ms)
 
-    def observe(self, intent, context, source, coverage):
+    def observe(self, intent, context, source, coverage, *, available_wall_ms=None):
         key = intent_key(intent)
         if key in self.seen:
             return None
@@ -46,6 +46,8 @@ class PreparedDatasetCollector:
             source=asdict(source), features=list(snapshot.values), coverage=asdict(coverage),
             economics="pending", outcome=None, population="causal_prepared_intents",
             trainingReady=False)
+        row["available_wall_ms"] = available_wall_ms
+        row["wall_time_provenance"] = "local_utc_at_preparation" if available_wall_ms is not None else None
         self.stream.write(json.dumps(row, separators=(",", ":"), allow_nan=False)+"\n")
         self.stream.flush()
         self.seen.add(key)
