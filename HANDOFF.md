@@ -1,3 +1,20 @@
+# Wave 2 handoff — 28.09.2026
+
+База: draft PR60 `1a2d0f67da0331df7d2d134bffde6f64141c7898`. Работа изолирована в `codex/wave2-shadow`; main и PR60 не изменены. План по файлам зафиксирован до реализации коммитом `5062439`.
+
+Реализованы SHADOW lifecycle существующих сегментов; публичные Binance/OKX context с отдельными clocks/epochs/units и проверяемым supplemental capture; maker shadow с queue/publicTrade/partial semantics; frozen structural V3 labels через отдельный PaperBroker; offline study/training/calibration/LOSO/test pipeline и rank/veto contract. Обычный runtime не импортирует ML; observer включается только явно. Внешний A/B controller имеет fixed 30 USDT loss/DD каждого arm, additional B DD=0, hash gates и bounded finalization. Конкретная live paired интеграция и обученная V3 пока отсутствуют.
+
+**W2.0 НЕ ПРОЙДЕН.** Exact PR60 baseline, 300s: 0 fills; input writer переполнил прежний 32MiB лимит; journal без footer. Loop p99 64.0391ms, data→adapter 894.1426ms. Не увеличивать лимиты и не объявлять этот capture полным. Ошибка причины переполнения под этой нагрузкой ещё не локализована.
+
+Один интеграционный W2 capture, 60s на `56c2583`: обе hash-chain прошли проверку, 0 drops/errors, loop p99 12.9586ms и data→adapter 224.7352ms. 0 prepared setups и 0 ordinary fills — **INCONCLUSIVE**. Это иной период/нагрузка, не контролируемое сравнение скорости. Maker shadow: 377 кандидатов, 64 частично/полностью заполненных виртуально; средние markouts после costs отрицательны. Это не реальные paper trades и не доказанный maker edge.
+
+W2.6 maker execution, W2.7 maker ML и W2.8 реальный riskScale не реализованы до независимого evidence. W2.5 не объявляется завершённой ML-системой: нужны проверенный primary capture + executable label replay, независимые периоды, обучение/калибровка/untouched test и economic promotion. 30–60m paired запуск и 8h не проводились. Все реальные исполнения остаются paper; Demo/mainnet не запускались; V2 и .55 не менялись.
+
+Полный локальный Windows/Python 3.13 preflight: **1553 passed** (224.54s); JS syntax checks пройдены. Red/green receipts и исходный failing full run сохранены в `docs/wave2-evidence/validation/`. GitHub Linux/Windows CI проверяется отдельно на draft PR.
+
+[Roadmap, gates и следующие действия](docs/wave2-roadmap.md), [фиксированный research protocol](docs/wave2-research-protocol.md), [evidence и hashes](docs/wave2-evidence/summary.json). Raw, failed baseline и red/green receipts сохранены в `G:/codex/2026-09-28/referenced-chatgpt-conversation-this-is-an-2/work`. Не удалять и не заменять результаты. Сначала закрыть baseline load/natural-fill gate; затем независимые labels/studies; после model/adapter gates завершить paired integration. Нулевые fills не являются успехом.
+
+---
 # Trading model handoff — 28.09.2026
 
 Ветка `codex/trading-model-admission`, [draft PR #60](https://github.com/branch-danya-dev/scalp-bot/pull/60). База `dfcc5949f2b5cb6f902e304dfbe5bd1f4a7b3132`; проверенный implementation commit `e0a291f111c97d133d634adb6ab303b63885ecc0`. Main не изменён. Реальных mainnet/Demo заявок и 8h/12h прогонов не было.

@@ -1,0 +1,149 @@
+......FFFF                                                               [100%]
+================================== FAILURES ===================================
+__________ test_queue_depletion_partial_fills_and_executable_markout __________
+
+    def test_queue_depletion_partial_fills_and_executable_markout():
+        engine, c, rows, book = setup()
+        trade(engine)
+        assert c.filled == .5 and c.queue_remaining == 0
+        trade(engine, tick_sequence=2, quantity=.5, now_ns=20_000_000)
+        assert c.filled == 1 and not engine.active
+        for ms in (120, 520, 1020):
+>           engine.book("AAA", epoch=1, now_ns=ms*1_000_000, book=book, depth_fresh=True)
+
+tests\test_maker_shadow.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scalp_bot\maker_shadow.py:168: in book
+    self._finish_if_ready(candidate, now_ns)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.maker_shadow.MakerShadowEngine object at 0x00000201655D08D0>
+candidate = MakerCandidate(identity='maker:AAA:1:1', symbol='AAA', side='long', epoch=1, posted_ns=1, source_sequence=1, exchange_...one, 'quoteBasis': 'exit_depth_vwap', 'queueEstimateError': None}}, 'mfeBps': 0.0, 'maeBps': 0.0}], cancel_reason=None)
+now_ns = 1020000000
+
+    def _finish_if_ready(self, candidate, now_ns):
+        if ((candidate.symbol, candidate.side) not in self.active
+                and all(len(lot["markouts"]) == len(self.WINDOWS_MS) for lot in candidate.lots)):
+            if self.observing.pop(candidate.identity, None) is not None:
+>               self.emit("maker_outcome", dict(**asdict(candidate), completedNs=now_ns,
+                    filled=candidate.filled > 0, timeToFillMs=(candidate.first_fill_ns-candidate.posted_ns)/1e6
+                    if candidate.first_fill_ns is not None else None, portfolioPnl=None))
+E               TypeError: dict() got multiple values for keyword argument 'filled'
+
+scalp_bot\maker_shadow.py:174: TypeError
+_________ test_cancel_before_fill_reconnect_and_missing_depth[cancel] _________
+
+reason = 'cancel'
+
+    @pytest.mark.parametrize("reason", ["cancel", "reconnect", "depth"])
+    def test_cancel_before_fill_reconnect_and_missing_depth(reason):
+        engine, c, rows, book = setup()
+        if reason == "cancel":
+>           engine.cancel(c, "requote", 2)
+
+tests\test_maker_shadow.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scalp_bot\maker_shadow.py:72: in cancel
+    self._finish_if_ready(candidate, now_ns)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.maker_shadow.MakerShadowEngine object at 0x00000201655D05A0>
+candidate = MakerCandidate(identity='maker:AAA:1:1', symbol='AAA', side='long', epoch=1, posted_ns=1, source_sequence=1, exchange_...remaining=1, queue_remaining=2, filled=0, last_trade_sequence=-1, first_fill_ns=None, lots=[], cancel_reason='requote')
+now_ns = 2
+
+    def _finish_if_ready(self, candidate, now_ns):
+        if ((candidate.symbol, candidate.side) not in self.active
+                and all(len(lot["markouts"]) == len(self.WINDOWS_MS) for lot in candidate.lots)):
+            if self.observing.pop(candidate.identity, None) is not None:
+>               self.emit("maker_outcome", dict(**asdict(candidate), completedNs=now_ns,
+                    filled=candidate.filled > 0, timeToFillMs=(candidate.first_fill_ns-candidate.posted_ns)/1e6
+                    if candidate.first_fill_ns is not None else None, portfolioPnl=None))
+E               TypeError: dict() got multiple values for keyword argument 'filled'
+
+scalp_bot\maker_shadow.py:174: TypeError
+_______ test_cancel_before_fill_reconnect_and_missing_depth[reconnect] ________
+
+reason = 'reconnect'
+
+    @pytest.mark.parametrize("reason", ["cancel", "reconnect", "depth"])
+    def test_cancel_before_fill_reconnect_and_missing_depth(reason):
+        engine, c, rows, book = setup()
+        if reason == "cancel":
+            engine.cancel(c, "requote", 2)
+            trade(engine)
+        elif reason == "reconnect":
+>           trade(engine, epoch=2)
+
+tests\test_maker_shadow.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_maker_shadow.py:20: in trade
+    engine.trade("AAA", **values)
+scalp_bot\maker_shadow.py:93: in trade
+    self.invalidate(symbol, "reconnect_epoch", now_ns)
+scalp_bot\maker_shadow.py:81: in invalidate
+    self.cancel(candidate, reason, now_ns)
+scalp_bot\maker_shadow.py:72: in cancel
+    self._finish_if_ready(candidate, now_ns)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.maker_shadow.MakerShadowEngine object at 0x00000201655ACD50>
+candidate = MakerCandidate(identity='maker:AAA:1:1', symbol='AAA', side='long', epoch=1, posted_ns=1, source_sequence=1, exchange_...g=1, queue_remaining=2, filled=0, last_trade_sequence=-1, first_fill_ns=None, lots=[], cancel_reason='reconnect_epoch')
+now_ns = 10000000
+
+    def _finish_if_ready(self, candidate, now_ns):
+        if ((candidate.symbol, candidate.side) not in self.active
+                and all(len(lot["markouts"]) == len(self.WINDOWS_MS) for lot in candidate.lots)):
+            if self.observing.pop(candidate.identity, None) is not None:
+>               self.emit("maker_outcome", dict(**asdict(candidate), completedNs=now_ns,
+                    filled=candidate.filled > 0, timeToFillMs=(candidate.first_fill_ns-candidate.posted_ns)/1e6
+                    if candidate.first_fill_ns is not None else None, portfolioPnl=None))
+E               TypeError: dict() got multiple values for keyword argument 'filled'
+
+scalp_bot\maker_shadow.py:174: TypeError
+_________ test_cancel_before_fill_reconnect_and_missing_depth[depth] __________
+
+reason = 'depth'
+
+    @pytest.mark.parametrize("reason", ["cancel", "reconnect", "depth"])
+    def test_cancel_before_fill_reconnect_and_missing_depth(reason):
+        engine, c, rows, book = setup()
+        if reason == "cancel":
+            engine.cancel(c, "requote", 2)
+            trade(engine)
+        elif reason == "reconnect":
+            trade(engine, epoch=2)
+        else:
+>           trade(engine, depth_fresh=False)
+
+tests\test_maker_shadow.py:54: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_maker_shadow.py:20: in trade
+    engine.trade("AAA", **values)
+scalp_bot\maker_shadow.py:86: in trade
+    self.invalidate(symbol, "missing_depth", now_ns)
+scalp_bot\maker_shadow.py:81: in invalidate
+    self.cancel(candidate, reason, now_ns)
+scalp_bot\maker_shadow.py:72: in cancel
+    self._finish_if_ready(candidate, now_ns)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.maker_shadow.MakerShadowEngine object at 0x00000201655AD350>
+candidate = MakerCandidate(identity='maker:AAA:1:1', symbol='AAA', side='long', epoch=1, posted_ns=1, source_sequence=1, exchange_...ing=1, queue_remaining=2, filled=0, last_trade_sequence=-1, first_fill_ns=None, lots=[], cancel_reason='missing_depth')
+now_ns = 10000000
+
+    def _finish_if_ready(self, candidate, now_ns):
+        if ((candidate.symbol, candidate.side) not in self.active
+                and all(len(lot["markouts"]) == len(self.WINDOWS_MS) for lot in candidate.lots)):
+            if self.observing.pop(candidate.identity, None) is not None:
+>               self.emit("maker_outcome", dict(**asdict(candidate), completedNs=now_ns,
+                    filled=candidate.filled > 0, timeToFillMs=(candidate.first_fill_ns-candidate.posted_ns)/1e6
+                    if candidate.first_fill_ns is not None else None, portfolioPnl=None))
+E               TypeError: dict() got multiple values for keyword argument 'filled'
+
+scalp_bot\maker_shadow.py:174: TypeError
+=========================== short test summary info ===========================
+FAILED tests/test_maker_shadow.py::test_queue_depletion_partial_fills_and_executable_markout
+FAILED tests/test_maker_shadow.py::test_cancel_before_fill_reconnect_and_missing_depth[cancel]
+FAILED tests/test_maker_shadow.py::test_cancel_before_fill_reconnect_and_missing_depth[reconnect]
+FAILED tests/test_maker_shadow.py::test_cancel_before_fill_reconnect_and_missing_depth[depth]
+4 failed, 6 passed in 0.31s

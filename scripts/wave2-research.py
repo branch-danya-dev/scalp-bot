@@ -11,6 +11,7 @@ def main():
     parser.add_argument("output", type=Path)
     parser.add_argument("--protocol", type=Path)
     parser.add_argument("--kind", choices=("logistic", "catboost"))
+    parser.add_argument("--evidence", type=Path, help="Verified dataset manifest with primary-chain and label replay receipts")
     args = parser.parse_args()
     if args.command == "replay":
         from scalp_bot.ml.wave2_replay import replay
@@ -18,9 +19,10 @@ def main():
     else:
         rows = [json.loads(line) for line in args.source.read_text(encoding="utf-8").splitlines()]
         protocol = json.loads(args.protocol.read_text()) if args.protocol else None
+        evidence = json.loads(args.evidence.read_text()) if args.evidence else None
         if args.command == "test":
             from scalp_bot.ml.prepared_learning import evaluate_test
-            result = evaluate_test(rows, args.output)
+            result = evaluate_test(rows, args.output, evidence=evidence)
         else:
             if protocol is None:
                 parser.error("a preregistered protocol is required")
@@ -28,10 +30,10 @@ def main():
                 if args.kind is None:
                     parser.error("explicit previously selected baseline is required")
                 from scalp_bot.ml.prepared_learning import train_frozen
-                result = train_frozen(rows, protocol, args.output, kind=args.kind)
+                result = train_frozen(rows, protocol, args.output, kind=args.kind, evidence=evidence)
             elif args.command == "evaluate":
                 from scalp_bot.ml.prepared_learning import evaluate
-                result = evaluate(rows, protocol)
+                result = evaluate(rows, protocol, evidence=evidence)
             else:
                 from scalp_bot.ml.cross_venue_study import study
                 result = study(rows, protocol["windows"], embargo_ms=protocol["embargo_ms"])

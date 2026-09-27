@@ -18,6 +18,19 @@ def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
 
 
+def verify_dataset_evidence(rows, evidence):
+    if not evidence or evidence.get("datasetHash") != digest(rows) or evidence.get("trainingReady") is not True:
+        raise ValueError("verified dataset evidence required before fitting/testing")
+    for capture in {r["capture_id"] for r in rows}:
+        proof = evidence.get("captures", {}).get(capture, {})
+        if proof.get("primaryIntegrity") != "MET" or proof.get("labelReplay") != "MET":
+            raise ValueError("dataset evidence missing primary integrity or executable replay")
+        for key in ("sourceHash", "configHash", "runtimeHash"):
+            value = proof.get(key)
+            if not isinstance(value, str) or len(value) != 64 or any(c not in "0123456789abcdef" for c in value):
+                raise ValueError("dataset evidence missing exact capture hashes")
+
+
 def eligible(rows):
     result, seen = [], set()
     for row in rows:
@@ -128,8 +141,9 @@ def report(rows, probabilities, scores):
         curves[str(fraction)] = dict(samples=len(selected), meanNetR=float(net[selected].mean()),
             coverage=len(selected)/len(rows), abstention=1-len(selected)/len(rows))
     calibration = []
-    for left in np.arange(0, 1, .1):
-        ix = (probabilities >= left) & (probabilities < left+.1000000001)
+    for index in range(10):
+        left = index/10
+        ix = (probabilities >= left) & ((probabilities < (index+1)/10) if index < 9 else (probabilities <= 1))
         calibration.append(dict(lower=float(left), samples=int(ix.sum()),
             probability=float(np.mean(probabilities[ix])) if ix.any() else None,
             frequency=float(np.mean(y[ix])) if ix.any() else None))
@@ -143,12 +157,14 @@ def report(rows, probabilities, scores):
         concentration=concentration, portfolioPnl=None, scope="identical_prepared_membership_independent_labels")
 
 
-def evaluate(rows, protocol):
+def evaluate(rows, protocol, evidence=None):
     """Development folds only. Test capture payloads are explicitly prohibited."""
+    raw_rows = rows
     rows = eligible(rows)
     test_ids = set(protocol["untouched_test_captures"])
     if not test_ids or any(r["capture_id"] in test_ids for r in rows):
         raise ValueError("untouched test must be reserved outside development data")
+    verify_dataset_evidence(raw_rows, evidence)
     if len({r["capture_id"] for r in rows}) < 3:
         raise ValueError("at least three development captures required")
     embargo = protocol["embargo_ms"]
@@ -178,10 +194,13 @@ def evaluate(rows, protocol):
         requiredGates=["independent_economic_stability", "portfolio_replay", "untouched_test", "runtime_latency"])
 
 
-def train_frozen(rows, protocol, output, *, kind):
+def train_frozen(rows, protocol, output, *, kind, evidence=None):
     """Explicit selected baseline; save artifacts before any untouched-test access."""
+    verify_dataset_evidence(rows, evidence)
     import numpy as np
     rows = eligible(rows)
+    if protocol["embargo_ms"] < 60_000 or len({r["capture_id"] for r in rows}) < 3 or len({r["symbol"] for r in rows}) < 2:
+        raise ValueError("insufficient independent development evidence or embargo")
     if any(r["capture_id"] in set(protocol["untouched_test_captures"]) for r in rows):
         raise ValueError("test capture present in fitting data")
     split = splits(rows, protocol["final_window"], protocol["embargo_ms"])
@@ -195,7 +214,7 @@ def train_frozen(rows, protocol, output, *, kind):
         np.savez(output/"linear.npz", classifier_coef=model["classifier"].coef_,
             classifier_intercept=model["classifier"].intercept_, ranker_coef=model["ranker"].coef_,
             ranker_intercept=model["ranker"].intercept_)
-    metadata = dict(kind=kind, datasetHash=digest(rows), protocolHash=digest(protocol), splitHash=digest(split),
+    metadata = dict(kind=kind, datasetHash=digest(rows), datasetEvidenceHash=digest(evidence), protocolHash=digest(protocol), splitHash=digest(split),
         preprocessing=model["preprocessing"], calibration=dict(coef=model["calibrator"].coef_.tolist(),
             intercept=model["calibrator"].intercept_.tolist()),
         files={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in output.iterdir()},
@@ -207,8 +226,9 @@ def train_frozen(rows, protocol, output, *, kind):
     return metadata
 
 
-def evaluate_test(rows, model_dir):
+def evaluate_test(rows, model_dir, evidence=None):
     """One immutable test receipt, with safe numeric/CatBoost model deserialization."""
+    verify_dataset_evidence(rows, evidence)
     import numpy as np
     directory = Path(model_dir)
     metadata = json.loads((directory/"manifest.json").read_text())

@@ -1,0 +1,67 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_______ test_training_rejects_unverified_primary_capture_before_fitting _______
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-461/test_training_rejects_unverifi0')
+
+    def test_training_rejects_unverified_primary_capture_before_fitting(tmp_path):
+        with pytest.raises(ValueError, match="dataset evidence"):
+>           train_frozen([], dict(untouched_test_captures=["test"], final_window=[0,100,200,300],
+                embargo_ms=60_000), tmp_path/"model", kind="logistic")
+
+tests\ml\test_prepared_dataset_gates.py:7: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scalp_bot\ml\prepared_learning.py:187: in train_frozen
+    split = splits(rows, protocol["final_window"], protocol["embargo_ms"])
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\ml\prepared_learning.py:61: in splits
+    fitting = purged_walk_forward(rows, [(left, calibration, validation-embargo_ms)],
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rows = [], windows = [(0, 100, -59800)]
+
+    def purged_walk_forward(rows, windows, *, embargo_ms=60_000, held_out_symbols=()):
+        """Global wall-time folds; purge whole future intervals and shared episodes.
+    
+        Each window is (train_start_ms, validation_start_ms, validation_end_ms).
+        held_out_symbols never enter fitting; validation on those symbols is kept.
+        Call again with each symbol held out for leave-symbol-out sensitivity.
+        """
+        if embargo_ms < 0:
+            raise ValueError("negative embargo")
+        folds = []
+        for left, split, right in windows:
+            if not left < split < right:
+>               raise ValueError("invalid chronological fold")
+E               ValueError: invalid chronological fold
+
+scalp_bot\ml\prepared_dataset.py:73: ValueError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-461/test_training_rejects_unverifi0')
+
+    def test_training_rejects_unverified_primary_capture_before_fitting(tmp_path):
+>       with pytest.raises(ValueError, match="dataset evidence"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E        Regex: 'dataset evidence'
+E        Input: 'invalid chronological fold'
+
+tests\ml\test_prepared_dataset_gates.py:6: AssertionError
+____________ test_calibration_bins_count_boundary_probability_once ____________
+
+    def test_calibration_bins_count_boundary_probability_once():
+        np = pytest.importorskip("numpy")
+        from scalp_bot.ml.prepared_learning import report
+        rows = [dict(realized_net_r=1, target_before_stop=True, symbol="A", capture_id="c", segment={})]
+        result = report(rows, np.array([.1]), np.array([1.]))
+>       assert sum(b["samples"] for b in result["calibration"]) == 1
+E       assert 2 == 1
+E        +  where 2 = sum(<generator object test_calibration_bins_count_boundary_probability_once.<locals>.<genexpr> at 0x00000206FEDBE8E0>)
+
+tests\ml\test_prepared_dataset_gates.py:16: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/ml/test_prepared_dataset_gates.py::test_training_rejects_unverified_primary_capture_before_fitting
+FAILED tests/ml/test_prepared_dataset_gates.py::test_calibration_bins_count_boundary_probability_once
+2 failed in 0.36s

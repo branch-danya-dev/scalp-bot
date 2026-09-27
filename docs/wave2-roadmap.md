@@ -72,7 +72,66 @@ V3 rows. External venues are telemetry only. Missing external data invalidates
 research coverage, never Bybit safety. Research resource failure is recorded and
 disables research collection; it cannot silently claim complete evidence.
 
-## Evidence status
+## Evidence status — 28 September 2026
 
-Implementation and new market evidence pending. No profitability claim, trained
-V3 model, maker strategy, adaptive risk, or 8h authorization exists at this stage.
+The audited implementation is on `codex/wave2-shadow`; the detailed observation
+contract is [wave2-research-protocol.md](wave2-research-protocol.md). Exact source,
+configuration, runtime and raw file hashes are in
+[wave2-evidence/summary.json](wave2-evidence/summary.json).
+
+| Stage | Implemented / observed | Remaining gate |
+|---|---|---|
+| W2.0 | Exact PR60 300s paper capture preserved | **NOT MET**: 0 fills; input writer 32MiB bound exceeded, no footer; loop p99 64.0391ms and data→adapter 894.1426ms |
+| W2.1 | Existing evidence store extended; five-state SHADOW lifecycle; replay/dormant recovery tests | No independent complete shadow labels to fit real transitions; no applied risk change |
+| W2.2 | Public Binance/OKX adapters, explicit clocks/units/epochs, supplemental hash-chain and normalized replay | No live trading influence; sustained data/clock validation still needed |
+| W2.3 | Offline purged strategy/alignment/symbol/regime study command | **INCONCLUSIVE**: W2 market capture had no prepared intents |
+| W2.4 | Virtual queue/partial fill/cancel/markout engine; one capture produced 377 candidates, 64 with any fill, 133 fill fragments | Short development markouts negative on average; independent positive evidence absent |
+| W2.5 | Frozen structural label engine using PaperBroker, global wall provenance, Logistic/Ridge + CatBoost, calibration/LOSO, one-time test receipts, identity-bound adapter | No trained V3, verified native label replay dataset, economic promotion or untouched test; fitting rejects unverified dataset manifests |
+| W2.6–8 | Intentionally not enabled/implemented before required evidence | Maker playbook → maker ML → applied registry risk remain gated |
+| W2.9 | Tested external paper controller: common input contract, independent ledgers, fixed loss/DD/hash/timeout/finalization guards | Concrete live paired arm/feed/inference integration and 30–60m paired run not completed; 8h forbidden |
+
+Unified integration capture at source `56c2583c6eef6a4d872f3eb21a6299c9ee511ae4`:
+60 seconds, 6 Bybit symbols; 327573 primary input rows and 34849 supplemental rows,
+both hash chains complete, no recording drops/errors. Loop p99 **12.9586ms**,
+data→adapter **224.7352ms**, capture detach **0.2735ms**. No first-prepared setup or
+ordinary fill occurred. These values do not close natural-fill or ML-incremental
+latency gates and do not demonstrate a performance improvement against the much
+busier baseline capture. No runtime retry or parameter relaxation was used.
+
+Public-only connectivity probe: 716 normalized Binance/OKX events for BTC/ETH,
+both venues available; no credentials/private calls. It is a transport check,
+not another trading sample. Cross-venue normalized-event replay passed, but the
+zero-setup capture cannot test a real prepared-context join; synthetic integration
+fixtures cover that join.
+
+Maker virtual markouts (per fill fragment; **not portfolio returns**): mean net
+100/500/1000ms = -0.053827/-0.061764/-0.057101 USDT. The 1000ms event stream has 131
+complete observations and one window-gap censor; another lot was censored during
+shutdown in its final candidate outcome. Do not select only complete winners or
+sum these horizons. Detailed counts are in [maker-summary.json](wave2-evidence/maker-summary.json).
+
+Confirmed regressions have red/green receipts: smoke acceptance ignored fatal
+input-writer loss; same-batch maker exit leakage in new labels; double-counted
+calibration boundary; incomplete dataset evidence gate; one failing arm stop
+callback skipped disabling the other. The ordinary-runtime ML import boundary
+also failed the full suite and was repaired without weakening its test.
+
+## Next work, in order
+
+1. Diagnose and bound the PR60 capture writer/loop failure under comparable load;
+   do not raise queue budgets. Preserve the incomplete baseline and all receipts.
+2. Obtain one bounded causal prepared→economic→FIRE→natural fill→exit observation
+   when the market offers it, under unchanged economics. No automatic repeat loop.
+3. Validate executable label replay against primary raw, add exact per-capture
+   integrity/replay/source/config/runtime evidence, then accumulate independent
+   symbol/regime/capture periods. Current observations cannot train or promote V3.
+4. Run cross-venue/maker studies on those complete populations. Keep maker execution
+   disabled unless independent net after costs is positive.
+5. Complete the concrete shared-feed paired adapter with the admitted frozen V3
+   inference artifact. Only then a 30–60m technical run; 8h requires all gates.
+
+Raw and failed attempts remain under this chat's `work/`: `baseline-300s`,
+`wave2-integration-60s`, `public-cross-venue-probe`, `wave2-replay-60s` and red/green
+test logs. The 60s capture source remains frozen separately from subsequent
+offline/control fixes. No mainnet/Demo order, 8h run, merge, fee/risk relaxation,
+V2 weight or .55 threshold change occurred.

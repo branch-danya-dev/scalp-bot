@@ -65,3 +65,15 @@ def test_eight_hours_require_paired_gate():
     c, a, b, p, hashes, clock = fixture()
     p["durationSeconds"] = 28800
     with pytest.raises(ValueError, match="gates"): c.start(p, hashes)
+
+
+def test_fault_in_one_disable_callback_cannot_leave_other_arm_accepting():
+    c, a, b, p, hashes, clock = fixture()
+    c.start(p, hashes)
+    def fails(): raise RuntimeError("fault")
+    a.disable_entries = fails
+    try:
+        c.stop("data_gap")
+    except RuntimeError:
+        pass
+    assert b.disabled

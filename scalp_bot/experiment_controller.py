@@ -60,6 +60,7 @@ class ExperimentController:
         self.last_mono = None
         self.passport = None
         self.start_ns = None
+        self.disable_errors = []
 
     def start(self, passport, actual_hashes):
         if self.state != "CREATED":
@@ -84,9 +85,12 @@ class ExperimentController:
             return
         self.state = "STOPPING"
         self.reason = self.reason or reason
-        for arm in self.arms:
-            arm.disable_entries()
-        self.emit("experiment_stop", dict(reason=self.reason))
+        for index, arm in enumerate(self.arms):
+            try:
+                arm.disable_entries()
+            except Exception as exc:
+                self.disable_errors.append(dict(arm="AB"[index], errorType=type(exc).__name__))
+        self.emit("experiment_stop", dict(reason=self.reason, disableErrors=list(self.disable_errors)))
 
     def check(self):
         if self.state != "RUNNING":
@@ -174,7 +178,7 @@ class ExperimentController:
         try:
             await asyncio.wait_for(asyncio.gather(*(arm.finalize() for arm in self.arms)), timeout=90)
             snapshots = [arm.snapshot() for arm in self.arms]
-            complete = all(s.reconciled and s.healthy and s.pending == 0 and s.positions == 0
+            complete = not self.disable_errors and all(s.reconciled and s.healthy and s.pending == 0 and s.positions == 0
                 and math.isfinite(s.balance) and math.isfinite(s.equity) and abs(s.balance-s.equity) < 1e-6 for s in snapshots)
         except Exception:
             complete, snapshots = False, []

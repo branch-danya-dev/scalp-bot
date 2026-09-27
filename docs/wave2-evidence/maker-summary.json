@@ -1,0 +1,51 @@
+{
+  "candidates": 377,
+  "candidatesWithAnyFill": 64,
+  "fullyFilled": 59,
+  "fillFragments": 133,
+  "symbols": {
+    "QNTUSDT": 64,
+    "NEARUSDT": 65,
+    "ZECUSDT": 63,
+    "SOLUSDT": 63,
+    "BTCUSDT": 62,
+    "XRPUSDT": 60
+  },
+  "cancelReasons": {
+    "ttl": 305,
+    "null": 58,
+    "missing_depth": 2,
+    "transport_cancelled": 12
+  },
+  "markouts": {
+    "100": {
+      "observations": 133,
+      "complete": 133,
+      "censored": {},
+      "meanNetUsd": -0.053827372243083545,
+      "meanMarkoutBps": -3.533692886178174,
+      "adverseFraction": 0.7969924812030075
+    },
+    "500": {
+      "observations": 133,
+      "complete": 133,
+      "censored": {},
+      "meanNetUsd": -0.06176446894673849,
+      "meanMarkoutBps": -6.672614002086665,
+      "adverseFraction": 0.7969924812030075
+    },
+    "1000": {
+      "observations": 132,
+      "complete": 131,
+      "censored": {
+        "markout_window_gap": 1
+      },
+      "meanNetUsd": -0.057100721921140817,
+      "meanMarkoutBps": -5.152690525966549,
+      "adverseFraction": 0.732824427480916
+    }
+  },
+  "portfolioPnl": null,
+  "promotionAuthorized": false,
+  "scope": "single 60s development capture; virtual queue model, not independent positive edge"
+}
