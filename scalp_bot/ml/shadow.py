@@ -53,7 +53,7 @@ def run_shadow(dataset_dir,model_dir,output,limit=200):
         worker.poll();time.sleep(.005)
     if not worker.ready:
         worker.close();raise RuntimeError("worker startup failed: "+str(worker.failed))
-    predictions=[];times=[];submissions=[];resources=[];reasons=Counter();current={};quotes={};originals={}
+    predictions=[];times=[];proposal_times=[];submissions=[];resources=[];reasons=Counter();current={};quotes={};originals={}
     def consume(items):
         for item in items:
             if item[0]!="forecast":reasons[item[1]]+=1;continue
@@ -63,6 +63,7 @@ def run_shadow(dataset_dir,model_dir,output,limit=200):
                 instrument=InstrumentSpec(**manifest.get("inventory_by_capture",{}).get(f.source.capture_id,manifest["inventory"])[f.source.symbol]["instrument"]))
             reasons.update(why)
             times.append((now-f.source.available_mono_ns)/1e6)
+            if decision is not None:proposal_times.append(times[-1])
             predictions.append(dict(forecast=asdict(f),original_source=originals[(f.source.symbol,f.source.source_sequence)],
                 proposal=decision.public() if decision else None,reasons=why,inference_ms=item[2]/1e6))
     try:
@@ -87,8 +88,9 @@ def run_shadow(dataset_dir,model_dir,output,limit=200):
         values=sorted(values)
         return {name:values[min(len(values)-1,int((len(values)-1)*q))] if values else None
                 for name,q in (("p50",.5),("p95",.95),("p99",.99))}
-    report=dict(schema_version=1,model_version=metadata["model_version"],rows=len(rows),forecasts=len(predictions),
-        reasons=dict(reasons),data_to_proposal_ms=quantiles(times),submit_ms=quantiles(submissions),
+    report=dict(schema_version=2,model_version=metadata["model_version"],rows=len(rows),forecasts=len(predictions),
+        reasons=dict(reasons),data_to_adapter_ms=quantiles(times),data_to_proposal_ms=quantiles(proposal_times),
+        latency_scope="all delivered forecasts through adapter vs emitted proposals separately; dropped work has no success latency",submit_ms=quantiles(submissions),
         coalesced=worker.coalesced,dropped=worker.dropped,worker_failure=worker.failed,
         worker=worker.info,resources=resources[-1] if resources else None,
         platform=platform.platform(),shutdown_complete=not worker.process.is_alive(),

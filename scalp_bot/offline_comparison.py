@@ -41,16 +41,17 @@ def episodes(path):
     return result,manifest
 
 
-def markout(db,symbol,side,now,horizon=60):
-    initial=db.execute('SELECT mono,seq,bid,ask FROM quotes WHERE symbol=? AND mono<=? ORDER BY mono DESC LIMIT 1',(symbol,now)).fetchone()
+def markout(db,symbol,side,now,horizon=60,source_sequence=None):
+    initial=db.execute('SELECT mono,seq,bid,ask FROM quotes WHERE symbol=? AND mono<=? ORDER BY mono DESC LIMIT 1',(symbol,now)).fetchone() if source_sequence is None else db.execute('SELECT mono,seq,bid,ask FROM quotes WHERE symbol=? AND mono<=? AND seq<=? ORDER BY mono DESC LIMIT 1',(symbol,now,source_sequence)).fetchone()
     if not initial or now-initial[0]>1.5:return dict(status='initial_quote_unavailable')
+    if initial[2] is None or initial[3] is None:return dict(status='initial_quote_unavailable')
     entry=initial[3] if side=='long' else initial[2];sign=1 if side=='long' else -1
     rows=db.execute('SELECT mono,bid,ask FROM quotes WHERE symbol=? AND mono>? AND mono<=? ORDER BY mono',(symbol,now,now+horizon)).fetchall()
     if not rows or now+horizon-rows[-1][0]>1.5:return dict(status='right_censored')
     previous=initial[0]
     values=[]
     for mono,bid,ask in rows:
-        if mono-previous>1.5:return dict(status='quote_gap')
+        if bid is None or ask is None or mono-previous>1.5:return dict(status='quote_gap')
         previous=mono;quote=bid if side=='long' else ask
         values.append(sign*(quote-entry)/entry*10000)
     return dict(status='covered_top_of_book',entry=entry,entry_sequence=initial[1],horizon_seconds=horizon,
@@ -78,7 +79,15 @@ def compare(root,quotes,baseline,output,inputs=None):
         expected={} if variant=='B' else {'research_rejection_response_policy':('legacy','quote_tape_v1')}
         assert differences==expected,differences
     db=sqlite3.connect(f'file:{Path(quotes).resolve().as_posix()}?mode=ro',uri=True)
-    raw=sqlite3.connect(f'file:{Path(inputs).resolve().as_posix()}?mode=ro',uri=True) if inputs else None
+    market_manifest=Path(quotes).parent/'manifest.json'
+    response_rows=json.loads(market_manifest.read_text()).get('ready_responses',[]) if market_manifest.exists() else []
+    responses={(x['variant'],tuple(x['key'])):x for x in response_rows}
+    ledgers={}
+    for variant in 'ABC':
+        ledgers[variant]={}
+        for trade in portfolios[variant]['variants'][variant]['ledger']:
+            scenario=trade['strategyDetails'].get('scenario')
+            if scenario:ledgers[variant].setdefault(scenario_key(trade['symbol'],scenario),[]).append(trade)
     keys=sorted(set().union(*(set(v) for v in all_rows.values())))
     rows=[];effects={}
     for key in keys:
@@ -89,31 +98,31 @@ def compare(root,quotes,baseline,output,inputs=None):
             if not r:continue
             row.update({variant+'_'+k:r[k] for k in ('ready_ns','ready_sequence','admitted','filled')})
             row[variant+'_risk_reasons']=' | '.join(sorted(r['risk_reasons']))
+            trades_for_episode=ledgers[variant].get(key,[])
+            row[variant+'_closed_trades']=len(trades_for_episode)
+            row[variant+'_portfolio_net']=sum(t['netPnl'] for t in trades_for_episode) if trades_for_episode else None
+            row[variant+'_first_fill_wall']=min(t['openedAt'] for t in trades_for_episode) if trades_for_episode else None
             reclaim=r['reclaim']
             row[variant+'_reclaim_sequence']=reclaim['sequence'] if reclaim else None
             row[variant+'_reclaim_ms']=reclaim['payload']['state']['reclaim_at_ms'] if reclaim else None
             row[variant+'_reclaim_quote']=reclaim['payload']['state']['reclaim_quote'] if reclaim else None
             if r['ready_ns']:
-                observation=markout(db,key[0],key[4],r['ready_ns']/1e9)
+                observation=markout(db,key[0],key[4],r['ready_ns']/1e9,source_sequence=r['ready_sequence'])
                 row.update({variant+'_'+k:v for k,v in observation.items() if k!='cost_scope'})
                 row[variant+'_reclaim_to_ready_ms']=(r['ready_ns']-reclaim['mono_ns'])/1e6 if reclaim else None
-                if raw and reclaim and r['ready_market_ms']:
-                    trades=[]
-                    query="SELECT payload FROM inputs WHERE symbol=? AND wall>=? AND wall<=? AND idx<=? AND kind='market_message' ORDER BY idx"
-                    for (payload,) in raw.execute(query,(key[0],reclaim['wall']-1,r['ready_wall'],r['ready_sequence'])):
-                        message=json.loads(zlib.decompress(payload))['body']
-                        if message['topic'].startswith('publicTrade.'):
-                            trades.extend(TradeTick(int(t['T']),float(t['p']),float(t['v']),t['S']) for t in message['data'])
-                    state=reclaim['payload']['state']
-                    quote=db.execute('SELECT bid,ask FROM quotes WHERE symbol=? AND mono<=? ORDER BY mono DESC LIMIT 1',(key[0],r['ready_ns']/1e9)).fetchone()
-                    response=assess_reclaim_response(key[4],state['reclaim_at_ms'],state['reclaim_quote'],
-                        quote[1] if key[4]=='long' else quote[0],trades,r['ready_market_ms'],
-                        manifests[variant]['config']['weak_level_rejection_micro_response_min_bps'])
+                if (variant,key) in responses:
+                    witness=responses[(variant,key)]
+                    response=witness['assessment']
+                    if variant=='C' and not response['allowed']:raise ValueError('candidate ready contradicts sequential quote/tape witness')
+                    row[variant+'_ready_quote']=witness['quote']
                     row.update({variant+'_'+k:v for k,v in response.items() if k in ('quoteResponseBps','tapeResponseBps','tradeCount','allowed')})
         for left,right in (('A','B'),('B','C')):
             a,b=row.get(left+'_ready_ns'),row.get(right+'_ready_ns')
             row[left+right+'_ready_effect']='retained' if a and b else 'new' if b else 'disappeared' if a else 'neither'
             row[left+right+'_delay_ms']=(b-a)/1e6 if a and b else None
+            fa,fb=row.get(left+'_closed_trades',0),row.get(right+'_closed_trades',0)
+            row[left+right+'_entry_effect']='retained' if fa and fb else 'new' if fb else 'disappeared' if fa else 'neither'
+            row[left+right+'_remaining_mfe_difference_bps']=(row[right+'_mfe_bps']-row[left+'_mfe_bps']) if row.get(right+'_mfe_bps') is not None and row.get(left+'_mfe_bps') is not None else None
         rows.append(row)
     write_csv(output/'routing_policy_comparison.csv',rows)
     write_csv(output/'rejection_episode_comparison.csv',[r for r in rows if r['owner']=='weak_level_rejection'])
@@ -136,7 +145,10 @@ def compare(root,quotes,baseline,output,inputs=None):
         label=left+right
         counts=Counter(r[label+'_ready_effect'] for r in rows)
         diagnostic_lost=[r for r in rows if r[label+'_ready_effect']=='disappeared' and r.get(left+'_diagnostic_net_bps',-1)>0]
-        effects[label]=dict(exact_identity_ready_effects=dict(counts),disappeared_positive_60s_diagnostics=len(diagnostic_lost),
+        effects[label]=dict(exact_identity_ready_effects=dict(counts),
+            exact_identity_entry_effects=dict(Counter(r[label+'_entry_effect'] for r in rows)),
+            disappeared_winning_ledger_entries=sum(r[label+'_entry_effect']=='disappeared' and (r.get(left+'_portfolio_net') or 0)>0 for r in rows),
+            new_losing_ledger_entries=sum(r[label+'_entry_effect']=='new' and (r.get(right+'_portfolio_net') or 0)<0 for r in rows),disappeared_positive_60s_diagnostics=len(diagnostic_lost),
             interpretation='identity-level diagnostic; different quote-clock excursion ids are not automatically different economic opportunities')
     portfolio=dict(schema_version=2,complete=True,scope='independent actual PaperBroker/RiskEngine paths conditional on captured membership and availability',
         original_scheduler_parity=False,original_capture_unchanged=True,common_config_verified=True,
@@ -148,9 +160,12 @@ def compare(root,quotes,baseline,output,inputs=None):
         r=portfolios[v]['variants'][v];ledger=r['ledger']
         exposed=[g for g in portfolios[v]['gaps'] if g.get('position_open') and any(t.startswith('orderbook.50.') for t in g.get('topics',[]))]
         portfolio['variants'][v]=dict(balance=r['balance'],conditional_realized_net=sum(t['netPnl'] for t in ledger),
-            trades=len(ledger),wins=sum(t['netPnl']>0 for t in ledger),ledger=ledger,
+            trades=len(ledger),wins=sum(t['netPnl']>0 for t in ledger),
+            ledger=[{k:t.get(k) for k in ('symbol','strategy','side','setupId','entry','exit','originalNotional','originalQuantity','grossPnl','fees','fundingPnlUsd','netPnl','partialTaken','partialTakenAt','reason','openedAt','closedAt','maxFavorableMoveBps','maxAdverseMoveBps')} | {'scenario_key':scenario_key(t['symbol'],t['strategyDetails']['scenario'])} for t in ledger],
+            full_ledger_path=str((root/v/'portfolio_comparison.json').resolve()),
             open_positions=r['open_positions'],reclaims=r['reclaims'],fast_gap_position_events=exposed,
-            full_path_certified_net=None if exposed or r['open_positions'] else sum(t['netPnl'] for t in ledger),
+            full_path_certified_net=None,
+            certification_limit='conditional logical scheduler; captured gaps and original teardown prevent full live counterfactual certification',
             unique_episodes=len(all_rows[v]),ready_episodes=sum(x['ready_ns'] is not None for x in all_rows[v].values()))
     for left,right in (('A','B'),('B','C')):
         portfolio['effects'][left+right]['conditional_net_difference']=portfolio['variants'][right]['conditional_realized_net']-portfolio['variants'][left]['conditional_realized_net']

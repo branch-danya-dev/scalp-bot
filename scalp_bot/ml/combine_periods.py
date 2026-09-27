@@ -1,5 +1,6 @@
 """Combine predeclared dated captures; reject spec conflicts and overlapping splits."""
 from collections import Counter
+from math import isfinite
 import json
 from pathlib import Path
 from .dataset import temporal_split
@@ -18,6 +19,11 @@ def combine(morning,noon,plan,output):
     for i,p in enumerate((morning,noon)):
         manifest=manifests[i]
         if sha256_file(p/'dataset.jsonl')!=manifest['dataset_sha256']:raise ValueError('source dataset changed')
+        for symbol,item in manifest['inventory'].items():
+            for field in ('tick_size','qty_step','min_order_qty','min_notional_value'):
+                value=item['instrument'].get(field)
+                if not isinstance(value,(float,int)) or not isfinite(value) or value<=0:
+                    raise ValueError(f'unverified mandatory specification: {symbol} {field}')
         subset=load_rows(p/'dataset.jsonl')
         for r in subset:
             inventories[r['ref']['capture_id']]=manifest['inventory']
@@ -38,6 +44,8 @@ def combine(morning,noon,plan,output):
     m=dict(manifests[0]);m.update(schema_version=2,candidate_version='impulse-v2',
         dataset_sha256=sha256_file(output/'dataset.jsonl'),source_datasets=[dict(path=str(p.resolve()),sha256=v['dataset_sha256']) for p,v in zip((morning,noon),manifests)],
         frozen_protocol=frozen,inventory_by_capture=inventories,
+        sampling_universe={capture:sorted(inventory) for capture,inventory in inventories.items()},
+        universe_note='all eligible activated symbols in the predeclared additional captures; legacy plan_policy universe text describes v1 only; numeric payoff policy unchanged',
         evidence_scope='different archived same-day periods; held-out labels frozen before training; market dates previously manually reviewed',
         untouched_external_test=False,external_2024_admitted=False,
         labels=dict(Counter(r['label'] for r in rows)),splits=dict(Counter(r['split'] for r in rows)),

@@ -115,6 +115,12 @@ def test_status_does_not_train_or_connect():
 def test_existing_runtime_does_not_import_ml():
     root = Path(__file__).resolve().parents[2] / "scalp_bot"
     for path in root.rglob("*.py"):
-        if "ml" not in path.relative_to(root).parts:
+        if "ml" not in path.relative_to(root).parts and path.name not in {"offline_study.py", "offline_benchmark.py"}:
             text = path.read_text(encoding="utf-8")
             assert "scalp_bot.ml" not in text and "from .ml" not in text
+
+
+def test_ordinary_engine_import_graph_excludes_offline_learning_entrypoints():
+    output=subprocess.check_output([sys.executable,'-c',
+        "import sys; import scalp_bot.engine; assert not any(n == 'scalp_bot.ml' or n.startswith('scalp_bot.ml.') for n in sys.modules); assert 'scalp_bot.offline_study' not in sys.modules; assert 'scalp_bot.offline_benchmark' not in sys.modules; print('ordinary engine isolated')"],text=True)
+    assert output.strip()=='ordinary engine isolated'

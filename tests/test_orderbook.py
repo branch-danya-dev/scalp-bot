@@ -420,5 +420,7 @@ async def test_backpressure_detail_is_opt_in_without_changing_transport_schema(m
     await _stream_topics('wss://example.invalid', ['orderbook.50.AAA'], callback, stop,
                          on_transport=events.append, on_backpressure=details.append)
     fault = next(e for e in events if e['phase'] == 'fault')
-    assert set(fault) == {'phase', 'attempt', 'topics', 'errorType', 'discarded'}
+    assert set(fault) == {'phase', 'attempt', 'topics', 'errorType', 'discarded', 'diagnostics'}
+    assert fault['diagnostics']['stage'] == 'receive_or_process'
+    assert fault['diagnostics']['schemaVersion'] == 1
     assert details[0]['message'].endswith('(lag=0.510s, queue=7)')

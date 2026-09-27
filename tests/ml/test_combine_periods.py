@@ -17,7 +17,7 @@ def source(path,capture,market_base):
                 episode=f'{capture}:{t//60}',split='old'))
     (path/'dataset.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in rows))
     (path/'manifest.json').write_text(json.dumps(dict(feature_schema=FEATURE_SCHEMA,policy_sha256='fixed',
-        dataset_sha256=sha256_file(path/'dataset.jsonl'),inventory={s:dict(instrument=dict(symbol=s,tick_size=.01 if capture=='morning' else .02)) for s in ('AAA','BBB')})))
+        dataset_sha256=sha256_file(path/'dataset.jsonl'),inventory={s:dict(instrument=dict(symbol=s,tick_size=.01 if capture=='morning' else .02,qty_step=.1,min_order_qty=.1,min_notional_value=5)) for s in ('AAA','BBB')})))
 
 
 def test_global_purge_and_dated_inventories_are_preserved(tmp_path):
@@ -45,3 +45,11 @@ def test_changed_source_rejected_before_output(tmp_path):
     plan=tmp_path/'plan';plan.write_text(json.dumps(dict(noon_boundaries_ns=[240*10**9,420*10**9])))
     with pytest.raises(ValueError,match='source dataset changed'):combine(a,b,plan,tmp_path/'out')
     assert not (tmp_path/'out').exists()
+
+
+def test_unknown_minimum_notional_is_not_zero_or_absent_constraint(tmp_path):
+    a,b=tmp_path/'a',tmp_path/'b';source(a,'morning',1_000_000);source(b,'noon',10_000_000)
+    m=json.loads((a/'manifest.json').read_text());m['inventory']['AAA']['instrument']['min_notional_value']=0
+    (a/'manifest.json').write_text(json.dumps(m))
+    plan=tmp_path/'plan';plan.write_text(json.dumps(dict(noon_boundaries_ns=[240*10**9,420*10**9])))
+    with pytest.raises(ValueError,match='unverified mandatory specification'):combine(a,b,plan,tmp_path/'out')

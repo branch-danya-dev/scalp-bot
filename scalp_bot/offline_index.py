@@ -4,7 +4,12 @@ from collections import Counter
 import gzip,hashlib,json,sqlite3,time,zlib
 from pathlib import Path
 import msgspec
-from .ml.history.importer import sha256_file
+from hashlib import file_digest
+
+def sha256_file(path):
+    with Path(path).open("rb") as stream:
+        return file_digest(stream,"sha256").hexdigest()
+
 from .manifest_validation import fingerprint
 
 KINDS={'manifest','bootstrap','rest_context','scanner_result','clock_sample','clock_error','market_message','transport','control','symbol_lifecycle','run_end'}

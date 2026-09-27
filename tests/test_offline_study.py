@@ -43,3 +43,23 @@ async def test_logical_scheduler_does_not_inspect_next_market_observation():
     assert not seen  # Input at the same timestamp is available first by declared tie policy.
     await advance(e,10_200_000_000,100.2,arbiter)
     assert seen==[(10_100_000_000,'AAA')]
+
+
+def test_quote_index_keeps_each_raw_fast_update_and_transport_unknowns(tmp_path,monkeypatch):
+    from scalp_bot import offline_market_index as module
+    import sqlite3
+    rows=[]
+    def event(kind,body):
+        n=len(rows)+1;rows.append(dict(kind=kind,symbol='AAA',sequence=n,body=body,processingMonoNs=n*10**9,processingWallSeconds=100+n))
+    event('bootstrap',{})
+    for u in (1,2,3):
+        event('market_message',dict(topic='orderbook.50.AAA',type='snapshot' if u==1 else 'delta',ts=u*1000,data={'u':u,'seq':u,'b':[['100',str(u)]],'a':[['101','2']]}))
+    event('transport',dict(phase='fault',topics=['orderbook.50.AAA']))
+    event('run_end',{})
+    monkeypatch.setattr(module,'source_events',lambda source:iter(rows))
+    monkeypatch.setattr(module,'episodes',lambda path:({},{}))
+    report=module.build('source','runs',tmp_path/'index')
+    assert report['counts']['quotes']==3
+    with sqlite3.connect(tmp_path/'index'/'quotes.sqlite') as db:
+        actual=db.execute('SELECT seq,bid,ask FROM quotes ORDER BY seq').fetchall()
+    assert actual==[(2,100.,101.),(3,100.,101.),(4,100.,101.),(5,None,None)]
