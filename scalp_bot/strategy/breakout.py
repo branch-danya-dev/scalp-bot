@@ -35,6 +35,7 @@ from .playbook_context import (
     assess_entry_context,
     breakout_direction_plan,
     position_context_supported,
+    sustained_position_context_loss,
 )
 
 
@@ -399,7 +400,13 @@ class LevelBreakoutStrategy(Strategy):
                     return "breakout_failed_back_inside"
             else:
                 strategy_details.pop(key, None)
-        if unrealized_pnl >= 0 or strategy_details.get("scenario"):
+        if unrealized_pnl >= 0:
+            strategy_details.pop("_contextLossSinceMs", None)
+            return None
+        if strategy_details.get("scenario"):
+            if sustained_position_context_loss(PlaybookKind.LEVEL_BREAKOUT, side,
+                    market_context, trend, strategy_details, observed_at_ms):
+                return "breakout_context_lost"
             return None
         if not position_context_supported(
             PlaybookKind.LEVEL_BREAKOUT,

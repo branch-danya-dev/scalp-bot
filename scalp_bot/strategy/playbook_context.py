@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import Any
 
@@ -461,6 +461,10 @@ def assess_entry_context(
     *,
     breakout_confirmed: bool = False,
 ) -> EntryContextAssessment:
+    # Ownership narrows the candidate identity, never the market policy.
+    assignment = context.scenario if context is not None else None
+    if assignment is not None:
+        context = replace(context, scenario=None)
     if playbook == PlaybookKind.TREND_CONTINUATION:
         plan = continuation_direction_plan(context, fallback_trend)
     elif playbook == PlaybookKind.LEVEL_BREAKOUT:
@@ -468,13 +472,15 @@ def assess_entry_context(
     else:
         plan = rejection_direction_plan(context, fallback_trend)
 
-    if context is not None and context.scenario is not None:
-        allowed = direction_for_action(action) in plan.allowed_directions
-        return EntryContextAssessment(playbook, action, allowed, plan, None, None,
-            () if allowed else ("scenario_direction_mismatch",),
-            ("applicability checked by scenario router; entry event belongs to owner",))
-
     blockers: list[str] = []
+    if assignment is not None:
+        owner = {PlaybookKind.TREND_CONTINUATION: "trend_structure",
+                 PlaybookKind.LEVEL_BREAKOUT: "level_breakout",
+                 PlaybookKind.LEVEL_REJECTION: "weak_level_rejection"}[playbook]
+        if assignment.get("owner") != owner:
+            blockers.append("scenario_owner_mismatch")
+        if assignment.get("side") != action.value:
+            blockers.append("scenario_direction_mismatch")
     reasons = list(plan.reasons)
     direction = direction_for_action(action)
     if direction not in plan.allowed_directions:
@@ -619,6 +625,13 @@ def position_context_supported(
         if side == Side.LONG
         else Action.SHORT
     )
+    if context is not None:
+        context = replace(context, scenario=None)
+    if playbook != PlaybookKind.TREND_CONTINUATION:
+        assessment = assess_entry_context(playbook, action, context, fallback_trend,
+                                          breakout_confirmed=True)
+        # Feed availability is not proof that a filled hypothesis has failed.
+        return not any(b != "execution_context_not_ready" for b in assessment.blockers)
     if playbook == PlaybookKind.TREND_CONTINUATION:
         plan = continuation_direction_plan(context, fallback_trend)
     elif playbook == PlaybookKind.LEVEL_BREAKOUT:
@@ -626,3 +639,23 @@ def position_context_supported(
     else:
         plan = rejection_direction_plan(context, fallback_trend)
     return direction_for_action(action) in plan.allowed_directions
+
+
+def sustained_position_context_loss(playbook, side, context, fallback_trend,
+                                    details, observed_at_ms, *, hold_ms=3000):
+    """Debounce real policy loss; do not use repeated or stale context as evidence."""
+    key = "_contextLossSinceMs"
+    if context is None or not context.execution.ready or observed_at_ms is None:
+        details.pop(key, None)
+        return False
+    if context.observed_at_ms != observed_at_ms:
+        details.pop(key, None)
+        return False
+    if position_context_supported(playbook, side, context, fallback_trend):
+        details.pop(key, None)
+        return False
+    since = details.setdefault(key, observed_at_ms)
+    if observed_at_ms < since:
+        details[key] = observed_at_ms
+        return False
+    return observed_at_ms - since >= hold_ms

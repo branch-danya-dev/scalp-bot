@@ -36,6 +36,7 @@ from .playbook_context import (
     PlaybookKind,
     assess_entry_context,
     position_context_supported,
+    sustained_position_context_loss,
     rejection_direction_plan,
 )
 
@@ -1104,7 +1105,13 @@ class WeakLevelRejectionStrategy(Strategy):
                     return "weak_level_invalidated"
             else:
                 strategy_details.pop(key, None)
-        if unrealized_pnl >= 0 or strategy_details.get("scenario"):
+        if unrealized_pnl >= 0:
+            strategy_details.pop("_contextLossSinceMs", None)
+            return None
+        if strategy_details.get("scenario"):
+            if sustained_position_context_loss(PlaybookKind.LEVEL_REJECTION, side,
+                    market_context, trend, strategy_details, observed_at_ms):
+                return "weak_level_context_lost"
             return None
         mode = str(strategy_details.get("tradeMode") or "")
         if (

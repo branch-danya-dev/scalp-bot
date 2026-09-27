@@ -4,6 +4,7 @@ from dataclasses import replace
 from .domain import Action, StrategyDecision
 from .scenario import TERMINAL
 from .strategy.semantic_arbiter import SemanticCandidateAssessment, assess_structural_path
+from .strategy.playbook_context import PlaybookKind, assess_entry_context
 
 
 class ScenarioRuntime:
@@ -91,6 +92,21 @@ class ScenarioRuntime:
         s=self.router.scenario_for(session.symbol, decision.strategy)
         if not s or s.owner!=decision.strategy or s.state in TERMINAL:
             return False
+        if session.market_context is not None:
+            playbook = {"level_breakout": PlaybookKind.LEVEL_BREAKOUT,
+                        "weak_level_rejection": PlaybookKind.LEVEL_REJECTION,
+                        "trend_structure": PlaybookKind.TREND_CONTINUATION}.get(decision.strategy)
+            if playbook is not None:
+                assessment = assess_entry_context(playbook, decision.action,
+                    self.router.context_for(session.market_context, session.symbol, decision.strategy),
+                    session.trend, breakout_confirmed=bool(
+                        decision.details.get("stagedEntry", {}).get("confirmationReady")))
+                decision.details["finalEntryContextAssessment"] = assessment.public()
+                if not assessment.allowed:
+                    self._risk_reject_if_changed(session, decision,
+                        "entry context: " + ", ".join(assessment.blockers),
+                        diagnostics={"rejectionOwner": "market_context", "entryContext": assessment.public()})
+                    return False
         execution = self.router.executions.get(session.symbol)
         if execution is not None and execution is not s:
             self.router.reject(session.symbol, "execution", "symbol_busy:"+execution.state,
