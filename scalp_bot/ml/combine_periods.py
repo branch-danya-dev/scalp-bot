@@ -48,6 +48,8 @@ def combine(morning,noon,plan,output):
         universe_note='all eligible activated symbols in the predeclared additional captures; legacy plan_policy universe text describes v1 only; numeric payoff policy unchanged',
         evidence_scope='different archived same-day periods; held-out labels frozen before training; market dates previously manually reviewed',
         untouched_external_test=False,external_2024_admitted=False,
+        excluded=dict(sum((Counter(v.get('excluded',{})) for v in manifests),Counter())),
+        source_exclusions={str(p.resolve()):v.get('excluded',{}) for p,v in zip((morning,noon),manifests)},
         labels=dict(Counter(r['label'] for r in rows)),splits=dict(Counter(r['split'] for r in rows)),
         coverage={name:sum(r['features'][i] is not None for r in rows)/len(rows) for i,name in enumerate(FEATURE_NAMES)},
         mask_mean={name:sum(r['features'][i] or 0 for r in rows)/len(rows) for i,name in enumerate(FEATURE_NAMES) if name.endswith('_known')},
