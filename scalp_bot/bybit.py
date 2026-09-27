@@ -8,7 +8,7 @@ from contextlib import nullcontext
 from itertools import count
 from time import perf_counter_ns, time, time_ns
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import httpx
 import msgspec
@@ -881,12 +881,22 @@ async def _stream_topics(
     on_backpressure: Callable[[dict], None] | None = None,
 ) -> None:
     attempt = 0
+    stage = "idle"
+    stage_started = perf_counter_ns()
+    attempt_started = stage_started
     def notify(phase: str, *, error_type=None, discarded=0):
         if on_transport is not None:
             on_transport({"phase": phase, "attempt": attempt, "topics": list(topics),
-                          "errorType": error_type, "discarded": discarded})
+                          "errorType": error_type, "discarded": discarded,
+                          "diagnostics": {"schemaVersion": 1, "stage": stage,
+                              "stageElapsedMs": (perf_counter_ns()-stage_started)/1e6,
+                              "attemptElapsedMs": (perf_counter_ns()-attempt_started)/1e6,
+                              "host": urlsplit(ws_url).hostname,
+                              "connectScope": "combined DNS/TCP/TLS/HTTP upgrade; subphase unknown"}})
     while not stop_event.is_set():
         attempt += 1
+        attempt_started = stage_started = perf_counter_ns()
+        stage = "connect_handshake"
         processor: asyncio.Task | None = None
         queue: asyncio.Queue[MarketMessage] | None = None
         try:
@@ -900,6 +910,8 @@ async def _stream_topics(
                 # and leave transport attempts open when the journal seals.
                 close_timeout=2,
             ) as ws:
+                stage = "subscribe_send"
+                stage_started = perf_counter_ns()
                 await ws.send(
                     _JSON_ENCODER.encode({
                         "op": "subscribe",
@@ -911,6 +923,8 @@ async def _stream_topics(
                     maxsize=max(1, int(queue_size)),
                 )
                 notify("subscription_sent")
+                stage = "receive_or_process"
+                stage_started = perf_counter_ns()
                 processor = asyncio.create_task(
                     _process_market_queue(
                         queue,
@@ -1039,6 +1053,8 @@ async def _stream_topics(
             if not stop_event.is_set():
                 await asyncio.sleep(2)
         finally:
+            stage = "drain"
+            stage_started = perf_counter_ns()
             if processor is not None:
                 if not processor.done():
                     processor.cancel()

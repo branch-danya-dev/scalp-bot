@@ -14,7 +14,7 @@ from scalp_bot.runtime_clock import ReplayRuntimeClock
 from test_offline_segment import rehash
 
 
-async def fixture(tmp_path, monkeypatch, restart=False, gap=False):
+async def fixture(tmp_path, monkeypatch, restart=False, gap=False, diagnostics=False):
     clock = ReplayRuntimeClock(wall_seconds=1000, mono_ns=10*10**9)
     live = TradingEngine(Settings(_env_file=None, session_dir=str(tmp_path),
         exchange_clock_enabled=True, event_driven_evaluation_enabled=False), clock=clock, capture_inputs=True)
@@ -29,7 +29,8 @@ async def fixture(tmp_path, monkeypatch, restart=False, gap=False):
         fast, deep = 'orderbook.50.AAA', 'orderbook.1000.AAA'
         def event(topic, phase, attempt=1):
             notify(dict(phase=phase, attempt=attempt, topics=[topic],
-                        errorType=('OrderBookSequenceError' if gap else 'ConnectionError') if phase == 'fault' else None, discarded=0))
+                        errorType=('OrderBookSequenceError' if gap else 'ConnectionError') if phase == 'fault' else None, discarded=0,
+                        **({'diagnostics': {'schemaVersion':1,'stage':'connect_handshake','stageElapsedMs':1}} if diagnostics else {})))
         async def market(topic, kind, update, seq, bid):
             await callback(MarketMessage(topic=topic, type=kind, ts=1000000,
                 receipt_mono_ns=10*10**9, data={'u': update, 'seq': seq,

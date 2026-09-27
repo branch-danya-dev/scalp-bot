@@ -2824,6 +2824,12 @@ class TradingEngine(ScenarioRuntime):
         deep_depth = self.config.deep_orderbook_depth
 
         def capture_transport(event):
+            event = dict(event)
+            diagnostics = event.pop("diagnostics", None)
+            if diagnostics is not None:
+                self.recorder.record("transport_diagnostics", symbol, {**diagnostics,
+                    "phase": event["phase"], "errorType": event["errorType"],
+                    "attempt": event["attempt"], "workerId": worker_id, "topics": event["topics"]})
             self._record_input("transport", symbol, {**event, "workerId": worker_id,
                 "fastState": self._transport_book_state(fast_book_state),
                 "deepState": self._transport_book_state(deep_book_state)})
