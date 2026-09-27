@@ -191,20 +191,26 @@ class PairedEngine(TradingEngine):
         for item in self.worker.poll():
             if item[0]!="forecast":
                 self.recorder.record("ml_worker_error",None,dict(reason=item[1]));continue
-            forecast=item[1];session=self.sessions.get(forecast.source.symbol)
-            if session is None:continue
-            received=time.perf_counter_ns();current=self.ml_current.get(session.symbol)
-            self.portfolio.emit("ml_predict",dict(symbol=session.symbol,source_sequence=forecast.source.source_sequence,
+            forecast=item[1];received=time.perf_counter_ns()
+            self.portfolio.emit("ml_predict",dict(symbol=forecast.source.symbol,source_sequence=forecast.source.source_sequence,
                 side=forecast.side,predict_end_ns=forecast.produced_mono_ns,predict_ns=item[2],received_ns=received))
-            if current is not None and not self._clock_entry_block(session):
-                rule_ready=False
-                if forecast.p_target_first>=.55:
-                    for decision in session.decisions.values():
-                        if decision.tradeable and self._build_risk_plan_for_opportunity(session,decision,
-                                decision.setup_id or self._resolve_setup_id(session,decision),"open",None).allowed:
-                            rule_ready=True;break
-                self.adapter.accept(forecast,current,session,received,self.ml_quotes.pop(
-                    (session.symbol,forecast.source.source_sequence,forecast.side),None),rule_ready=rule_ready)
+            session=self.sessions.get(forecast.source.symbol)
+            source_quote=self.ml_quotes.pop((forecast.source.symbol,forecast.source.source_sequence,forecast.side),None)
+            if session is None:
+                from dataclasses import asdict
+                self.portfolio.emit("ml_decision",dict(forecast=asdict(forecast),reasons=["symbol_inactive"],received_ns=received))
+                continue
+            current=self.ml_current.get(session.symbol);blocked=[]
+            if current is None:blocked.append("source_context_missing")
+            if self._clock_entry_block(session):blocked.append("market_clock_invalid")
+            rule_ready=False
+            if forecast.p_target_first>=.55 and not blocked:
+                for decision in session.decisions.values():
+                    if decision.tradeable and self._build_risk_plan_for_opportunity(session,decision,
+                            decision.setup_id or self._resolve_setup_id(session,decision),"open",None).allowed:
+                        rule_ready=True;break
+            self.adapter.accept(forecast,current or forecast.source,session,received,source_quote,
+                                rule_ready=rule_ready,blocked_reasons=blocked)
         if self.worker.failed:
             self.ml_pending.clear()  # Protection and ordinary strategies continue in parent.
             return

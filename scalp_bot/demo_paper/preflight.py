@@ -15,6 +15,7 @@ from ..ml.features import FEATURE_SCHEMA
 
 ROOT=Path(__file__).resolve().parents[2]
 MODEL_SHA="a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2"
+MODEL_MANIFEST_SHA="15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3"
 PUBLIC_REST="https://api.bybit.com"
 PUBLIC_WS="wss://stream.bybit.com/v5/public/linear"
 
@@ -87,7 +88,10 @@ def local_preflight(passport_path,model_dir,output):
                "execution_queue_capacity":32,"rest_timeout_seconds":5,"source_to_adapter_p99_ms":250,
                "event_loop_p99_ms":20,"shadow_added_p99_ms":5}:
         raise SafetyError("predeclared numeric bounds mismatch")
-    metadata=json.loads((Path(model_dir)/"manifest.json").read_text())
+    manifest_bytes=(Path(model_dir)/"manifest.json").read_bytes()
+    manifest_sha=hashlib.sha256(manifest_bytes).hexdigest()
+    if manifest_sha!=MODEL_MANIFEST_SHA:raise SafetyError("V2 calibration manifest identity mismatch")
+    metadata=json.loads(manifest_bytes)
     sha=hashlib.sha256((Path(model_dir)/"model.cbm").read_bytes()).hexdigest()
     if sha!=MODEL_SHA or metadata["model_sha256"]!=sha or metadata["feature_schema"]!=FEATURE_SCHEMA:
         raise SafetyError("V2 artifact/schema mismatch")
@@ -97,7 +101,7 @@ def local_preflight(passport_path,model_dir,output):
     if passport["config_sha256"]!=config_hash:raise SafetyError("frozen profile mismatch")
     return dict(protocol=PROTOCOL,status="LOCAL_PREFLIGHT_ONLY",passport_sha256=digest(passport),
         source_sha256=digest(source_hashes()),config_sha256=config_hash,model_sha256=sha,
-        model_manifest_sha256=hashlib.sha256((Path(model_dir)/"manifest.json").read_bytes()).hexdigest(),
+        model_manifest_sha256=manifest_sha,
         private_rest=REST,private_ws=PRIVATE_WS,public_rest=PUBLIC_REST,public_ws=PUBLIC_WS,
         strategy_roles={"rule":"unchanged parallel legacy, shared risk","ml":"research adapter; V2 .55; separate process"},
         sizing="1000 USDT per arm; one shared rule+ML reservation per intent; requested quantities identical",
