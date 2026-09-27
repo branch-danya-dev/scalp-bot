@@ -16,6 +16,9 @@ def test_causal_available_time_is_not_reset_by_next_input_or_queue():
 def test_runtime_cycles_remain_collectible_after_archive_freeze():
     code='''import gc,weakref
 from scalp_bot.offline_benchmark_trace import frozen_archive
+# A runner or Python startup may already have a permanent generation.
+# This disposable child deliberately establishes the helper precondition.
+gc.unfreeze()
 class Node: pass
 archive=Node();archive.self=archive
 with frozen_archive() as info:
@@ -37,3 +40,22 @@ def test_coalesced_work_is_explicit_and_not_given_success_latency():
     t.submitted(worker,new,{'available_ns':10})
     assert t.predictions[1]['terminal']=='coalesced'
     assert 'terminal_ns' not in t.predictions[1]
+
+
+def test_archive_freeze_rejects_existing_frozen_population_without_changing_it():
+    code = """import gc
+from scalp_bot.offline_benchmark_trace import frozen_archive
+gc.unfreeze()
+class Node: pass
+archive=Node();archive.self=archive
+gc.freeze();before=gc.get_freeze_count()
+try:
+    with frozen_archive():
+        raise AssertionError('preexisting frozen population must be rejected')
+except RuntimeError as exc:
+    assert 'unfrozen process' in str(exc)
+assert gc.get_freeze_count()==before and archive.self is archive
+gc.unfreeze()
+"""
+    result=subprocess.run([sys.executable,'-c',code],capture_output=True,text=True)
+    assert result.returncode==0,result.stderr

@@ -92,3 +92,9 @@ with (root / 'development-paths-reproduced.jsonl').open('x') as stream:
 ```
 
 Artifact hashes and unchanged protected inputs are in artifact-manifest.json/final-preservation.json. These commands require a new output directory when rerun; existing guards intentionally reject overwriting evidence. Publication uses a normal push to the existing draft branch, no force or main merge. Exact final-head Linux/Windows CI receipt is saved separately after publication.
+
+### CI portability repair (test only)
+
+First published head9918e19: run36317521819, Windows236 passed; Linux1395 passed/3 skipped/1 failed. The new GC lifecycle test entered its helper with an already frozen object population in the subprocess after imports. The helper correctly rejected that precondition. The disposable test child now explicitly establishes an unfrozen starting state; a second test verifies that the helper still refuses preexisting frozen objects and leaves them unchanged. Runtime/harness code, measured hashes, policy and datasets are unchanged; no benchmark rerun is implied by a test setup repair.
+
+Command executed: `./.venv/Scripts/python.exe -m pytest tests/test_benchmark_trace.py -q` →4 passed in1.80s. Original full CI logs and receipt are preserved as ci-first-108614938617.log, ci-first-108614938461.log and ci-first-receipt.json in the local artifact root; repair output is ci-repair-targeted.txt. A final exact-head CI run follows this separate test-only commit. CI artifacts created after the initial publication are covered by the final supplemental checksum receipt, not retroactively added to the old artifact-manifest.json.
