@@ -1,0 +1,47 @@
+{
+  "source": "first 3000 historical input events, B, ML off",
+  "profiler": "cProfile",
+  "total_seconds": 25.227817599999995,
+  "hotspots": [
+    {
+      "file": "C:/Users/workingspace/.codex/worktrees/parallel-scenarios-ml/scalp-bot/scalp_bot/offline_study.py",
+      "line": 98,
+      "function": "_evaluate",
+      "calls": 397,
+      "self_seconds": 0.0023275,
+      "cumulative_seconds": 3.7984117000000004
+    },
+    {
+      "file": "C:/Users/workingspace/AppData/Local/Programs/Python/Python313/Lib/typing.py",
+      "line": 1043,
+      "function": "_evaluate",
+      "calls": 44,
+      "self_seconds": 7.6e-05,
+      "cumulative_seconds": 0.0006065
+    },
+    {
+      "file": "C:/Users/workingspace/.codex/worktrees/parallel-scenarios-ml/scalp-bot/scalp_bot/scenario_episodes.py",
+      "line": 13,
+      "function": "breach_witness",
+      "calls": 20558,
+      "self_seconds": 0.0371186,
+      "cumulative_seconds": 0.0576313
+    },
+    {
+      "file": "C:/Users/workingspace/.codex/worktrees/parallel-scenarios-ml/scalp-bot/scalp_bot/engine.py",
+      "line": 3128,
+      "function": "_evaluate",
+      "calls": 397,
+      "self_seconds": 0.08154130000000001,
+      "cumulative_seconds": 3.7879774000000004
+    },
+    {
+      "file": "C:/Users/workingspace/.codex/worktrees/parallel-scenarios-ml/scalp-bot/scalp_bot/scenario_identity.py",
+      "line": 34,
+      "function": "level_ref",
+      "calls": 35582,
+      "self_seconds": 0.028493800000000003,
+      "cumulative_seconds": 0.056486400000000006
+    }
+  ]
+}

@@ -15,7 +15,7 @@ from scalp_bot.ml.worker import InferenceWorker
 from scalp_bot.ml.shadow import ShadowAdapter
 
 
-async def run(model,shadow):
+async def run(model,shadow,*,exit_kind="partial_then_stop"):
     import pytest
     from scalp_bot.engine import TradingEngine
     from test_offline_portfolio import fixture
@@ -60,7 +60,7 @@ async def run(model,shadow):
     heartbeat_task=asyncio.create_task(heartbeat())
     try:
         with tempfile.TemporaryDirectory() as temporary:
-            engine,prefix,rows=await fixture(Path(temporary),monkeypatch,production=True,exit_kind="partial_then_stop")
+            engine,prefix,rows=await fixture(Path(temporary),monkeypatch,production=True,exit_kind=exit_kind)
             selected=[r for r in rows if r["event"] in {"decision","trade_opened","partial_take","trade_closed"}]
             if worker:
                 deadline=time.perf_counter()+2

@@ -1,0 +1,32 @@
+{
+  "scope": "synthetic actual engine regression, not latency or profitability",
+  "episodes": [
+    {
+      "episode": "partial_then_stop",
+      "ordinary_events": 15,
+      "trades": 1,
+      "ledger_identical": true,
+      "decisions_identical": true,
+      "balance": 1001.451464412655,
+      "forecasts": 9
+    },
+    {
+      "episode": "stalled_giveback",
+      "ordinary_events": 13,
+      "trades": 1,
+      "ledger_identical": true,
+      "decisions_identical": true,
+      "balance": 999.4213990249838,
+      "forecasts": 8
+    },
+    {
+      "episode": "duration_elapsed",
+      "ordinary_events": 12,
+      "trades": 1,
+      "ledger_identical": true,
+      "decisions_identical": true,
+      "balance": 998.6005733336201,
+      "forecasts": 8
+    }
+  ]
+}
