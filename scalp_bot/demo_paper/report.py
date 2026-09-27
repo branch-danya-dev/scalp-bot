@@ -35,9 +35,14 @@ def write_report(session,reconciled,reason):
                 for b in arm.bookings if b["pair_id"]==pair),dec(0))
             funding=sum((dec(e["payload"].get("amount",e["payload"].get("row",{}).get("fundingPnlUsd",0)))
                 for e in session.events if e["event"]=="funding" and e["payload"].get("arm")==name and e["payload"].get("pair_id")==pair),dec(0))
+            funding_known=name=="paper" or all(
+                any(p==pair and s==symbol and abs(stamp-due)<=2000 for p,s,stamp in session.observed_funding)
+                for expected_pair,symbol,due in session.expected_funding if expected_pair==pair)
             known=pair in session.portfolio.completed and session.funding_complete() and all(o.terminal and o.confirmed and o.fees_known for o in selected)
             row.update({name+"_filled_quantity":str(total),name+"_entry_vwap":str(value/total) if total else None,
-                name+"_fees":str(fees) if all(o.fees_known for o in selected) else None,name+"_funding":str(funding),name+"_net":str(cash-fees+funding) if known else None,
+                name+"_fees":str(fees) if all(o.fees_known for o in selected) else None,name+"_funding":str(funding) if funding_known else None,
+                name+"_observed_funding":str(funding),name+"_funding_known":funding_known,
+                name+"_funding_basis":"paper_estimate" if name=="paper" else "private_settlements",name+"_net":str(cash-fees+funding) if known else None,
                 name+"_normalized_net":str(cash-normalized+funding) if known else None,name+"_reconciled":known,
                 name+"_fill_rate":float(total/dec(plan.quantity)),name+"_partial_fill":0<float(total)<plan.quantity,
                 name+"_partial_execution_observed":any(len(o.executions)>1 or 0<o.filled<dec(o.command.qty) for o in entries),

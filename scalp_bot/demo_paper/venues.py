@@ -62,7 +62,7 @@ class DemoVenue(Venue):
         self.last_reconcile_ns=0
 
     async def submit(self, command):
-        order=self.register(command);order.sent_ns=time.perf_counter_ns();order.status="Submitting"
+        order=self.register(command);order.status="Submitting"
         try:
             result=await self.rest.request("POST","/v5/order/create",command.payload())
             order.order_id=result["orderId"];order.ack_ns=time.perf_counter_ns()

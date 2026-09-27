@@ -62,17 +62,21 @@ class Session:
         if path!="/v5/order/create":return
         order=self.arms["demo"].venue.orders.get(params.get("orderLinkId"))
         if order is None:raise SafetyError("unregistered private order")
-        if order.command.reduce_only:return
-        intent=self.arms["demo"].intents[order.command.pair_id]
-        session=self.engine.sessions.get(order.command.symbol)
-        if not self.portfolio.accepting or not self.private_ready.is_set():raise SafetyError("admission stopped before send")
-        if session is None or not session.book_is_fresh() or self.engine._clock_entry_block(session):
-            raise SafetyError("entry source invalid before send")
-        max_age=1_000_000_000 if intent.author=="ml" else int(self.config.market_stale_seconds*1e9)
-        if time.perf_counter_ns()-intent.observed_ns>=max_age:raise SafetyError("entry expired in execution queue")
-        source=intent.plan().setup_entry;quote=session.orderbook.executable_entry(intent.plan().side)
-        if quote is None or abs(quote/source-1)*10000>self.config.max_entry_drift_bps:
-            raise SafetyError("entry drift before send")
+        if not order.command.reduce_only:
+            intent=self.arms["demo"].intents[order.command.pair_id]
+            session=self.engine.sessions.get(order.command.symbol)
+            if not self.portfolio.accepting or not self.private_ready.is_set():raise SafetyError("admission stopped before send")
+            if session is None or not session.book_is_fresh() or self.engine._clock_entry_block(session):
+                raise SafetyError("entry source invalid before send")
+            max_age=1_000_000_000 if intent.author=="ml" else int(self.config.market_stale_seconds*1e9)
+            if time.perf_counter_ns()-intent.observed_ns>=max_age:raise SafetyError("entry expired in execution queue")
+            source=intent.plan().setup_entry;quote=session.orderbook.executable_entry(intent.plan().side)
+            if quote is None or abs(quote/source-1)*10000>self.config.max_entry_drift_bps:
+                raise SafetyError("entry drift before send")
+        # DemoRest invokes this after its serialized queue/pacing wait.
+        # This is application HTTP-send start, not exchange execution time.
+        order.sent_ns=time.perf_counter_ns()
+        self.emit("send",dict(link_id=order.command.link_id,pair_id=order.command.pair_id,ns=order.sent_ns))
 
     def emit(self,event,payload):
         if event=="funding_due":
