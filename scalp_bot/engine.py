@@ -5850,6 +5850,18 @@ class TradingEngine(ScenarioRuntime):
                     event,
                     snapshot=True,
                 )
+        position = self.broker.positions.get(session.symbol)
+        if (
+            position is not None
+            and session.trade_receipt_mono is not None
+            and session.trade_receipt_mono <= position.opened_mono
+        ):
+            # A queued batch received before entry cannot execute a resting
+            # exit created by that entry. Keep all ticks in market state and
+            # keep protective book marks; only its maker-fill evidence is old.
+            resolved_trade_price = None
+            trade_notional_usd = None
+            trade_side = None
         self._mark_position_from_book(
             session,
             trade_price=resolved_trade_price,
