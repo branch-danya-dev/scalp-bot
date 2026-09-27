@@ -209,7 +209,7 @@ class Session:
             while not self.worker.ready and not self.worker.failed and time.monotonic()<until:
                 self.worker.poll();await asyncio.sleep(.01)
             if not self.worker.ready:raise SafetyError("model worker did not become ready")
-            self.tasks.append(asyncio.create_task(private_stream(self.credentials,self.private_message,self.gap,self.stop)))
+            self.tasks.append(asyncio.create_task(private_stream(self.credentials,self.private_message,self.gap,self.stop,diagnostics=self.emit)))
             await asyncio.wait_for(self.private_ready.wait(),30)
             # One monotonic Start; bootstrap, pauses and worker failures consume it.
             self.start_ns=time.perf_counter_ns();self.start_ms=int(time.time()*1000)

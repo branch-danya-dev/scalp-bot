@@ -63,7 +63,7 @@ async def test_full_mock_start_partial_cancel_stop_reconcile_report(tmp_path,mon
     exchange=Exchange();await session.rest.close();session.rest=exchange
     session.arms["demo"].venue.rest=exchange;session.worker=Worker();session.engine.worker=session.worker
     async def preflight(*args):return {"status":"SYNTHETIC_NO_NETWORK"}
-    async def private(credentials,on_message,on_gap,stop):
+    async def private(credentials,on_message,on_gap,stop,**kwargs):
         await on_gap("reconnected");await stop.wait()
     monkeypatch.setattr(runtime,"connected_preflight",preflight)
     monkeypatch.setattr(runtime,"private_stream",private)
