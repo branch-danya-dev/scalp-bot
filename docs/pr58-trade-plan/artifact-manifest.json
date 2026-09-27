@@ -1,0 +1,1203 @@
+{
+  "schema": 1,
+  "artifact_root": "G:\\scalp-bot\\data\\audit-pr58-trade-plan",
+  "retention": "retain until explicitly removed by owner; large local raw files are not committed",
+  "measurement_build": "6cc28d8",
+  "ledger_build": "1d7d9ab",
+  "working_head_at_manifest": "6cc28d8a612bd1ea48b7752085ae3f6295ebadfa",
+  "files": [
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-0-0\\session-20260927T112221Z.jsonl",
+      "bytes": 51944572,
+      "sha256": "0e981f96407746bb671d7f0ae0f7157d3b794310a6980d430e77e5a2e6265ed6"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-0-0.measurements.json",
+      "bytes": 1114407,
+      "sha256": "8272389aff3a294ff441a15502113a10d56a3380c1d9518fb33188e3559a46c8"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-0-0.stages.json",
+      "bytes": 6172515,
+      "sha256": "45bb1c1b137813b76f899ee49a36f464bbad25c8b528ba6ae2c6951e2381ca9e"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-0-1\\session-20260927T112334Z.jsonl",
+      "bytes": 51944572,
+      "sha256": "8129931187f0f33905fa04f74d98d2e88820b6562310b2ad5736adceb96f65a9"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-0-1.measurements.json",
+      "bytes": 1329287,
+      "sha256": "6d676e9775b0ddc094a09b25fbd2371352d71cc936ec563541f9d333f3259c99"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-0-1.stages.json",
+      "bytes": 7788918,
+      "sha256": "ea5bfdec7bbefb4a89d5d376f33eb367331efacbbfef571992ef99897a713ee4"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-1-0\\session-20260927T112601Z.jsonl",
+      "bytes": 51944571,
+      "sha256": "83e1cc45b92bb0608d0e451e3b93d5de018332d34e353ec21395b8e6784c1acd"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-1-0.measurements.json",
+      "bytes": 1116847,
+      "sha256": "d9070a9d78a3f49d2f5fc4594b28fd451be3fed8c57569ba453c80ac31689027"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-1-0.stages.json",
+      "bytes": 6172503,
+      "sha256": "64d11fdc73a29b8f9a2de90b170b9bbf234d421498972779b51bf767254ecaa2"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-1-1\\session-20260927T112447Z.jsonl",
+      "bytes": 51944572,
+      "sha256": "3e2e5071b6e6ab96b13a6932ef6aa8dc17acd349dada2a25ba79803d3e4084f8"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-1-1.measurements.json",
+      "bytes": 1514836,
+      "sha256": "ba8cf41a514fe392ade452a80f8398f45f22ba7ac9679151ecbb539464ff9244"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-1-1.stages.json",
+      "bytes": 7788975,
+      "sha256": "864848e4c2fa9c6d5eb48ec1f0a38523372e0003ba9c5db2aedec38af876cb66"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-2-0\\session-20260927T112717Z.jsonl",
+      "bytes": 51944571,
+      "sha256": "83516aaf7daa8a3cea14d11c3cfb48c50eea2ac6679f06b2b7154241782145f0"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-2-0.measurements.json",
+      "bytes": 1116358,
+      "sha256": "38e2ff5f5c2e5c1b8c4760bbf158525073f7edc67a4553107ffc8d887b6568aa"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-2-0.stages.json",
+      "bytes": 6172508,
+      "sha256": "b73b4e55ae96c753b506846bfb6e3e8ce710efefbbab660d875d3cf81d3ca487"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-2-1\\session-20260927T112832Z.jsonl",
+      "bytes": 51944571,
+      "sha256": "61ff701fca52cf0160351578fc73ff43373e947d56e28dbe12899238e1e4a948"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-2-1.measurements.json",
+      "bytes": 1331601,
+      "sha256": "a92f4419ddd9a0d4137a1063c5458251f3884ed5380c63fd6c3805f26d144d1d"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\1-2-1.stages.json",
+      "bytes": 7789029,
+      "sha256": "aff34b0c0a5a382d07a8fab7f654a794dfc639e62e762d444a4dd69479a33e0c"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-0-0\\session-20260927T112949Z.jsonl",
+      "bytes": 51944571,
+      "sha256": "2d8c15adf85b519b9329d2209555017d460e0b551e2c0d0074754bef30ddbb91"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-0-0.measurements.json",
+      "bytes": 1132548,
+      "sha256": "ece290d604a25b56d46680ca646329abf3d7bbdab11fa5512911ee595a75076d"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-0-0.stages.json",
+      "bytes": 6178883,
+      "sha256": "964e7c94632ac3718f349066d37185f9c818b5d8f982691b34d1e891d8edf704"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-0-1\\session-20260927T113020Z.jsonl",
+      "bytes": 51944571,
+      "sha256": "0202de601a8187b14c2f1b3db32dcb0744f4e6fa9c17512847776c1950d20bf8"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-0-1.measurements.json",
+      "bytes": 1359523,
+      "sha256": "fa620d1394fc1ba2b435d71c73b5bf2850f02d5b6b27b439d6494ba7e621aefd"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-0-1.stages.json",
+      "bytes": 7794864,
+      "sha256": "da0b11667b5a7a71ff5a2b9176dbcd68e42eba946a8bdb187448c69cebd6cc9a"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-1-0\\session-20260927T113122Z.jsonl",
+      "bytes": 51944571,
+      "sha256": "4492191cb9b4e2efb92fbb16ff3cd1f3e13460230e77795e15177e0e02788a78"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-1-0.measurements.json",
+      "bytes": 1133628,
+      "sha256": "fbbc7d9da00325b4b780ae2b17ddc96d146feb4852f81a82e00cad1f2ee8b9ff"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-1-0.stages.json",
+      "bytes": 6178971,
+      "sha256": "a94c4a8c2336160101b1e885e5f4ae33ae1a28a328292f7e6127720a5fa2379c"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-1-1\\session-20260927T113051Z.jsonl",
+      "bytes": 51944571,
+      "sha256": "3820fc9008700673fc686fbd0e74fb8da0fd46070243f5f0e0248ccde11731a2"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-1-1.measurements.json",
+      "bytes": 1369030,
+      "sha256": "d01676baa010bede3f9abe5c92cba881a634127b1f49c2907b1a4d47a0926376"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-1-1.stages.json",
+      "bytes": 7796787,
+      "sha256": "2f7c76823404626a8074f156489a248573ce326ebdcb4656a919a28312fe7b6b"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-2-0\\session-20260927T113154Z.jsonl",
+      "bytes": 51944571,
+      "sha256": "5bc8a7d79bf3ef37703653d3cbc25e9291d6f1c7ef51b7881744b4a33950d112"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-2-0.measurements.json",
+      "bytes": 1132500,
+      "sha256": "71c9a4517c169a39788267c498d45ffc53460326075d661400e7e3e7897a0ad0"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-2-0.stages.json",
+      "bytes": 6178798,
+      "sha256": "568d3d0a826678e695df0d6d342fbc7c4faa7823cc506c0b802dea230ef8375c"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-2-1\\session-20260927T113224Z.jsonl",
+      "bytes": 51944571,
+      "sha256": "44c1e3ab96f495bf34c5c8f831b7c5d46182c44373aef460b291028cf64ece20"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-2-1.measurements.json",
+      "bytes": 1366953,
+      "sha256": "9cfb15f83ef9868c0a2ddb07baa9204cdfb9343dd0b21947e9d08dc0b6158b2c"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\4-2-1.stages.json",
+      "bytes": 7796821,
+      "sha256": "938278e6b2415357cc20fce70962a6fb4d6887e1e64ad03409d987cdcd69a7ff"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1\\latency_benchmark.json",
+      "bytes": 86296,
+      "sha256": "d82ba1774d193a328653ea7d99ded9a9bceb61980cfb11e4d61f88c5763af59a"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1.log",
+      "bytes": 2076,
+      "sha256": "e79e293f1097306c08b0a7ed516bfb4196200a69cf7dfd8fa53c52f04b5d45db"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window1.pressure.json",
+      "bytes": 149530,
+      "sha256": "772c94dbb21eaa2270d9a710f62444085ebeae62d7150ea1b1c7359c3a01791a"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-0-0\\session-20260927T113445Z.jsonl",
+      "bytes": 70105961,
+      "sha256": "ce25d5d505d8a979d8d09bfc3c9ba7d0599e2f324fbc1b2e4ec7de4f844d3508"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-0-0.measurements.json",
+      "bytes": 1112727,
+      "sha256": "8eef5032b3ce8799f2337a17cd979516bfbcf514d5597efc83bf059979b350dc"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-0-0.stages.json",
+      "bytes": 6162144,
+      "sha256": "181a5441276fa6ebd903f10a88f6982f3ef12143156d09cea3c0167dc8c82c8e"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-0-1\\session-20260927T113610Z.jsonl",
+      "bytes": 70105961,
+      "sha256": "938adb61259870b9fca4e82d94f1775b1bd127f366fdbed2537049e8501be536"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-0-1.measurements.json",
+      "bytes": 1335758,
+      "sha256": "9445e6d0c22e6043e3cbe261dc2350af882c10f36156e52699561918bd5d67c6"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-0-1.stages.json",
+      "bytes": 7837049,
+      "sha256": "162f4d0adefbb1bb888aeee903836cd44514ca50397db88c35a615f07e1ff602"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-1-0\\session-20260927T113905Z.jsonl",
+      "bytes": 70105961,
+      "sha256": "e2c01935898e9d357d4a727453557f6b56933a886eda09394d0e3bf6c1cf2fcc"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-1-0.measurements.json",
+      "bytes": 1113451,
+      "sha256": "a89abc66f21a2eeaa6f91e8b802b2363ffa5c7e92c4e08c9ef93f83c66ed268b"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-1-0.stages.json",
+      "bytes": 6162152,
+      "sha256": "a0447ce4fcf0ca5c37cfb99c3a90668e4e31b099ebc5bebd71adc2edae0aea82"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-1-1\\session-20260927T113736Z.jsonl",
+      "bytes": 70105961,
+      "sha256": "c9295a5397209d8955d1de2faeb7a00f899f6411335fda6daed823455cb6953c"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-1-1.measurements.json",
+      "bytes": 1404058,
+      "sha256": "3bba2132218f49e7f3fd5e51846994256ecf5e28d9adff92617353cacf6dcabb"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-1-1.stages.json",
+      "bytes": 7837310,
+      "sha256": "8b942fd7656888aa3d5ec015925ae99c708ab4ad6e79ed7dba053de9767ad279"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-2-0\\session-20260927T114031Z.jsonl",
+      "bytes": 70105961,
+      "sha256": "b694a2a45f4596cf3b64bd280565590476dde3b059eb3ca636f2012caad98672"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-2-0.measurements.json",
+      "bytes": 1113593,
+      "sha256": "8ea47268a66b45a6aef4854dd5355688379fe49c50d63ef0c1b4f2701b4af8fa"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-2-0.stages.json",
+      "bytes": 6162144,
+      "sha256": "8870650f8db055325fec36abd3dee0f3867af7733bd746396ad9b3c7baad7c4a"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-2-1\\session-20260927T114155Z.jsonl",
+      "bytes": 70105961,
+      "sha256": "7d09920a6342c637d0c6fc9774c00d3ac22545a24f83758dbccd8b5661b6fd6e"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-2-1.measurements.json",
+      "bytes": 1336433,
+      "sha256": "ccf5dda276d3a1953a3ccc5fbacb450ebd9803d6a16bd06e9938b6a80c102923"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\1-2-1.stages.json",
+      "bytes": 7837087,
+      "sha256": "8f0bbe1251cc8603628b85133119a3573209e0a55746e8d4558b5705d334d130"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-0-0\\session-20260927T114323Z.jsonl",
+      "bytes": 70105961,
+      "sha256": "f5fde232453d96be02e7869b8e5f16dff7eeb2f09b15e0a1609d4d4e252dbc57"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-0-0.measurements.json",
+      "bytes": 1130691,
+      "sha256": "f24267ebd09558a8bbe8e5959cba258df3b61b232b13fc279ebd91750eed269b"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-0-0.stages.json",
+      "bytes": 6168950,
+      "sha256": "f5269ac184ca241cc7d7f3f06bcdec1d1efb939d4b89cbb35989ace28e12ffd7"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-0-1\\session-20260927T114403Z.jsonl",
+      "bytes": 70105961,
+      "sha256": "68fa97877625a0463c5eb896c27b549b6c037dde657cff5688b9b10605be6f17"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-0-1.measurements.json",
+      "bytes": 1370475,
+      "sha256": "2e5d1c84eea2672160d7827b6806dcf9663d1c53d2fdb19208d5ec1533c8d62e"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-0-1.stages.json",
+      "bytes": 7844572,
+      "sha256": "59f9ae4a7bd782856b3d0935e0ca00d00e78c124295a4a0ca252fea2c1c1c144"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-1-0\\session-20260927T114528Z.jsonl",
+      "bytes": 70105961,
+      "sha256": "70ce4f124375adfa37a097bee50d9c1cf214311967df96d3812376aae4f8f6b7"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-1-0.measurements.json",
+      "bytes": 1131546,
+      "sha256": "37f306cfbea7cf13dfe7a44bd819f78e993106bea52f6676694f8e884ac786f6"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-1-0.stages.json",
+      "bytes": 6169242,
+      "sha256": "5213a31f4417827507d902f515115da0a35f6302862ec9b67525f588e48e98c4"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-1-1\\session-20260927T114445Z.jsonl",
+      "bytes": 70105961,
+      "sha256": "a9feb881db59357b8f8a180e07bd1d90151a6c954e4f1b7cdff4ffdf7626ce2b"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-1-1.measurements.json",
+      "bytes": 1374131,
+      "sha256": "f0c21de4b2191e60cb06b25f58ead6b393614ea3dc7901268ae60d07e66f1b8a"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-1-1.stages.json",
+      "bytes": 7845621,
+      "sha256": "2607cfc0a3ee037dd7270dc459aca416b2f892661000037c38405ddb7b9dae2f"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-2-0\\session-20260927T114608Z.jsonl",
+      "bytes": 70105961,
+      "sha256": "de488a54e21ea5dce18dcca78e7a999216b1c39cea8fea5949636ee232b372f4"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-2-0.measurements.json",
+      "bytes": 1133153,
+      "sha256": "60267ab43cf9246222983b097fed1144b70d4f653ca06fa8109a2266c27fcf5f"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-2-0.stages.json",
+      "bytes": 6169580,
+      "sha256": "9e0ab8ea07ce3976c1fa6dd11cd094f763d264964473c49a178131fc55c7241d"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-2-1\\session-20260927T114650Z.jsonl",
+      "bytes": 70105961,
+      "sha256": "3cc0ab682383eceed2efde899fd06627a02e9f2d4d63a0d0397b8e4d88679df9"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-2-1.measurements.json",
+      "bytes": 1375606,
+      "sha256": "81b46f90680027428b26fe21bb60c28ce99e545661f03f85dcc485ae0ef2423f"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\4-2-1.stages.json",
+      "bytes": 7845695,
+      "sha256": "58a83114f043784b7c295f031bb558c1b926e18af2f1923ee24ad5e6d6e7705b"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2\\latency_benchmark.json",
+      "bytes": 86564,
+      "sha256": "cee01986fb41d52b689021109baf7808a82e367d13e78285c92f6fb08d026ca0"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2.log",
+      "bytes": 2075,
+      "sha256": "338071df456f19b9d4b680ba0a3d8d27105063e7b6a92ffef57534d62cb486be"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\after-window2.pressure.json",
+      "bytes": 177667,
+      "sha256": "d7083375fb61beb04f435bfb6ae5e462a22a483e9fe31307b2b91abdcd66b972"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\1-0-0\\session-20260927T102202Z.jsonl",
+      "bytes": 51944466,
+      "sha256": "1b84c3a50973816d3fdbc3a434d73726f8d53d451795a359d3066b3f452517f6"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\1-0-0.measurements.json",
+      "bytes": 288218,
+      "sha256": "6e411c9bdf68ae711a3b656c14f30dcbf100583898a91650cffb0df7dcbb5328"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\1-0-1\\session-20260927T102318Z.jsonl",
+      "bytes": 51944466,
+      "sha256": "b8a4a10f4b3caa883a40be9bbbc849b8c8eb8ac494825ca97b47da05938bfc1b"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\1-0-1.measurements.json",
+      "bytes": 434621,
+      "sha256": "2d9fffebf194530a69afaa9ead4042816f9bfff1e69de211d137b431da037461"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\1-1-0\\session-20260927T102552Z.jsonl",
+      "bytes": 51944466,
+      "sha256": "c52e7c1f60ef4d075891cc2741d83cc816c87099dde238275c4c790d1796d96e"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\1-1-0.measurements.json",
+      "bytes": 288609,
+      "sha256": "ca00023a0826c1301726e18c42ecaea91d998597d920755f5feec6282a8d8adf"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\1-1-1\\session-20260927T102434Z.jsonl",
+      "bytes": 51944466,
+      "sha256": "dd312054776b6c698e55efdde1f6ade6140ce828561895401133ec5e5ad93f74"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\1-1-1.measurements.json",
+      "bytes": 435489,
+      "sha256": "852b56bfb52f5c9f7bf3534ca5c0b85e6654c37feade2dd7c76fb45341fc8644"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\1-2-0\\session-20260927T102710Z.jsonl",
+      "bytes": 51944466,
+      "sha256": "6a99ec50f63d91dbd32c69b670bd7302c58b5d978647a92a11057ca9eac2e256"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\1-2-0.measurements.json",
+      "bytes": 288815,
+      "sha256": "3b370cf2fd7866ed78639698779ee90557b30f4b0821e7a39f8d0e736e9fd195"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\1-2-1\\session-20260927T102827Z.jsonl",
+      "bytes": 51944466,
+      "sha256": "2d43ee426182ffee5a19415d59b0a869340bdd937656a92f52874aee67a54291"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\1-2-1.measurements.json",
+      "bytes": 435230,
+      "sha256": "7a74815e3caf75fedcf3006023a46b002857765d824a83d24a4b4708b93aea1d"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\4-0-0\\session-20260927T102946Z.jsonl",
+      "bytes": 51944466,
+      "sha256": "2770570aeb370df69fd7b5771ac876515a9b2afd371ac9e2f7b7fe8bef24103e"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\4-0-0.measurements.json",
+      "bytes": 262443,
+      "sha256": "db14b6745695018c0f32a6d1fae3066dd8e491ef3126cd50817394f7131cdf3e"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\4-0-1\\session-20260927T103018Z.jsonl",
+      "bytes": 51944466,
+      "sha256": "803649a42629c11b6ef89b552c28b05f2314e8ccd09b542ac2a5979bbbd5f2d0"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\4-0-1.measurements.json",
+      "bytes": 411663,
+      "sha256": "77d3819186d0eaf4429bcc5df5223dc188274b45ba551ac4e09ba1e3f6fc249a"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\4-1-0\\session-20260927T103125Z.jsonl",
+      "bytes": 51944466,
+      "sha256": "0886aa4996f4d98f514a0d75530342c5126811ddf94bc2c13c18abcdba9ca461"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\4-1-0.measurements.json",
+      "bytes": 260755,
+      "sha256": "0312fb102a6843bbde4165e2fdfeb68fcbca35c391e9c0bd60c179244f6e522a"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\4-1-1\\session-20260927T103051Z.jsonl",
+      "bytes": 51944466,
+      "sha256": "f1bf3728013810424f20b42d704a85ca5a48b09b058188b17d8c735b9ec18238"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\4-1-1.measurements.json",
+      "bytes": 413560,
+      "sha256": "77492ed966723d1bed3fe37b6c0a8935164f9ed33de98149b5e97e04b0c010dc"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\4-2-0\\session-20260927T103156Z.jsonl",
+      "bytes": 51944466,
+      "sha256": "88abb8addabcba19e705c7a003e46ac5c780cb2b509ac59567ed2e57c008a17f"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\4-2-0.measurements.json",
+      "bytes": 260500,
+      "sha256": "ab979357440fba7ebcd49ffd17c1f346ecf5043a722b6b37046db5e4bf126835"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\4-2-1\\session-20260927T103230Z.jsonl",
+      "bytes": 51944466,
+      "sha256": "ff80010fa944d7984b8ecac331b2ebb18042c701f15f1b9246cdf611632600f6"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\4-2-1.measurements.json",
+      "bytes": 412503,
+      "sha256": "1e5612d5b5112be8c0bb0c6502074b6246acb20aee2b1100a77b15dab75190bb"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1\\latency_benchmark.json",
+      "bytes": 44722,
+      "sha256": "a80a489551d9cd10bfb573bb7dde4204c573bcf4662692803a5e525a313f6c35"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1.log",
+      "bytes": 1730,
+      "sha256": "7704d69608d79b9f4af6473f67a9f7def1d625b03d5d4640f6455e4021676592"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window1.pressure.json",
+      "bytes": 144120,
+      "sha256": "f761fe52bc1fdd37f7cb83f414ba5129d90553e7852df7679f85db29bbd52c20"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\1-0-0\\session-20260927T103341Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "f1161e2bac658b35b1bbd9c195b7b53572824ab92083c155deadf9806cfae7c4"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\1-0-0.measurements.json",
+      "bytes": 288562,
+      "sha256": "c1aed22460f2083cd3b923f49b574d5b2b5e3f2a06a48d0a6611ed754b40d42d"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\1-0-1\\session-20260927T103506Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "e77fa3cffb50ad520139a10de0f6412eaa99022aea9844a498eaf421db47b4f8"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\1-0-1.measurements.json",
+      "bytes": 440452,
+      "sha256": "a9993d4e4b6bdffb27f40640b66aeeb7e484104bcad3c098d861f41106883928"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\1-1-0\\session-20260927T103806Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "839f26ad15b158bd9f7903a48769ea3b96e156235ebbf9e3093f809faafc0fd8"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\1-1-0.measurements.json",
+      "bytes": 289477,
+      "sha256": "f202c9f3de5efb34880c0d4155a9428a4f756f15f652e1e6f41439f147e4c866"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\1-1-1\\session-20260927T103638Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "82991a745bd61f6e52b22effa2617c69d317894e3354ee6d9ac69f746195516f"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\1-1-1.measurements.json",
+      "bytes": 441448,
+      "sha256": "3070d69e2fe902f2cc0c93de06daaba0e51e9afcfce296e62134b691e1bad3f4"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\1-2-0\\session-20260927T103935Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "70bb27093c86ff37d9ebcc26ef32f7b525cf4642b50cd32086b8a3075ad73c26"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\1-2-0.measurements.json",
+      "bytes": 289555,
+      "sha256": "56db92bbe4d75ea2015449c5f06617ef5e3e401de940a9fffa9875ad30b949aa"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\1-2-1\\session-20260927T104105Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "57b81338346ada07a81d892fc813d720bd2d90f433c3b349665bbb0be20d88b6"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\1-2-1.measurements.json",
+      "bytes": 440695,
+      "sha256": "0dccafac9aa5cf1e7558cbf6dfee44b63167717ac9a575a50bd3ac7f5bf10e4d"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\4-0-0\\session-20260927T104237Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "8682d0f0e1b5270ef9f4eafb92db2b5e623ed3a60d0b14bd1ebb7ca70ebd7c25"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\4-0-0.measurements.json",
+      "bytes": 262849,
+      "sha256": "54c78304e833fe3eea07bd4166a784e60f27e74161c4bde5b1c3642c29351913"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\4-0-1\\session-20260927T104321Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "922a678dd614832a18b0ec0cb751f7b05adfe74c9aeb2af4b6d0e2ab5aed0b9d"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\4-0-1.measurements.json",
+      "bytes": 418153,
+      "sha256": "27548c03975b7c5e0a858ff6a1f558216444cce8766f2023b6735f50e4225999"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\4-1-0\\session-20260927T104454Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "f41e0f24808d391c2db0bbd22ebf5e69ba4567778177ce8e84b9e30520d8cac2"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\4-1-0.measurements.json",
+      "bytes": 260089,
+      "sha256": "22ddf24a23a8af8ab58350f7b7533fe080f35eb8cae4afabb0892c66b80f3380"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\4-1-1\\session-20260927T104408Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "7fd0d7703d623c99d699716587028e65c1969a1efc0c3ff4e89ab80301000f44"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\4-1-1.measurements.json",
+      "bytes": 419355,
+      "sha256": "1a4e35d4fea2095e0088f5221b669b09633030d3ddf6911df221b78bf25b9cea"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\4-2-0\\session-20260927T104539Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "a6688e9dd3429c11483db8375d86fd547644252b6df60abf5d22a37fde768291"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\4-2-0.measurements.json",
+      "bytes": 261441,
+      "sha256": "a1278771523b22159657e10fe15f971e6b85511eb37472ea759ae9466fb7c9ed"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\4-2-1\\session-20260927T104624Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "8de60db6d9590ca6df9279e9378283c7da22b72e2249575245beef6ea85313f5"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\4-2-1.measurements.json",
+      "bytes": 418219,
+      "sha256": "538fac821c18eb69f259da4be917836da932e74d80570105c34bb13ea74a9d95"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2\\latency_benchmark.json",
+      "bytes": 44693,
+      "sha256": "cfed3c3070b2e19d8ebfb1f381d4e64c1ff38f215d5347a32ec6f94b3680db22"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2.log",
+      "bytes": 1728,
+      "sha256": "fa52b33c40773757aef47d0b378a89075d89eefe4c2408c0f42adcbe8a5100c7"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\before-window2.pressure.json",
+      "bytes": 171184,
+      "sha256": "a64d62c31ee3a996367091e8426308186f3332896ce1b7d03096e02e24a2ef42"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\benchmark-tail.txt",
+      "bytes": 13998,
+      "sha256": "699a24538fdbccdd2ea270c7e5ca2c2ec5e1af32522cb4bff94fb663c166c02f"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\causal-controls\\ready-context-snapshots.json",
+      "bytes": 1891705,
+      "sha256": "7f26dc10454d1d51c42bc9e23f7cadb2f4ad19d2240820bc21e51fa3688c60dd"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\causal-controls\\ready-vs-fill.csv",
+      "bytes": 5292,
+      "sha256": "d1a630df8cf511cca5f35ba467a49377ec060818472c7ed4973808ff67f7a76b"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\causal-controls\\receipt-witnesses.json",
+      "bytes": 10873,
+      "sha256": "7c835ce37715afa4165c862464db83ec9685886d295b1a667520c04181095a19"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\development-paths-mfe.jsonl",
+      "bytes": 5601940,
+      "sha256": "2b6b21735f2b214614046b68e5708bd27975066765e335422e85442d67960ff6"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\development-paths-reproduced.jsonl",
+      "bytes": 5601940,
+      "sha256": "2b6b21735f2b214614046b68e5708bd27975066765e335422e85442d67960ff6"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\development-paths.jsonl",
+      "bytes": 5153737,
+      "sha256": "bb9b6edbef985b582fd848ee47feb3ffdbfe9411aa9c79e8ebf1003c47458f9b"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\diagnostics-tests.txt",
+      "bytes": 100,
+      "sha256": "e94dcac69869153054475d5571b74d8d6c139ce492eb291eaaeb677d66008dee"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\environment-before.json",
+      "bytes": 2998,
+      "sha256": "32dd7b0fd7b2326fb62f4b249162fcd852815a791b56eaf0b71bf7f8c0258615"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\final-preservation.json",
+      "bytes": 3293,
+      "sha256": "629049d92a82363a090e51849fbbf7dbb7bbcde43fb9c89a95af14c144301e85"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\final-trace-targeted.txt",
+      "bytes": 100,
+      "sha256": "1a4d886f38765c20bdcbdb0d8663ed3fe53db4d3dabd6614c90acf840d6d3421"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\full-preflight.txt",
+      "bytes": 1654,
+      "sha256": "8dbabdad87588266edea6afcb9a9773ef455edfdeaf591e862708e8cc7430bfb"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\gc-probe\\0-0\\session-20260927T104918Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "ab55f5c18ba0c9c5d7082c9d5275bab2793dd05c69df1ca60fc9f7fc6c597e61"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\gc-probe\\0-0.measurements.json",
+      "bytes": 266838,
+      "sha256": "45af54d212a3a6978eb15b37203ce84cd0d794ccf98a47e7f9d173cebe27881f"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\gc-probe\\0-1\\session-20260927T105001Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "37a41f918a78db59ba39986de8414942cc550c607bb5d2539e22a91b57d468df"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\gc-probe\\0-1.measurements.json",
+      "bytes": 417627,
+      "sha256": "a8a6d6faa5177350026b18f8279d1d549a027303070b21b34d4c920bb6659a85"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\gc-probe\\1-0\\session-20260927T105133Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "3d817b6b0d9a1a897dce3152139a6801efdcbf5f1c22f5f677f87f8cedac2c3f"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\gc-probe\\1-0.measurements.json",
+      "bytes": 260420,
+      "sha256": "b5fc26288756293f5b1b803e640e38bcd318ecfa65db3e46940165c753813a44"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\gc-probe\\1-1\\session-20260927T105046Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "5b8c85e8ae8cf636afa37b844c2507c53e498e256778451c307dd8d0a4575474"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\gc-probe\\1-1.measurements.json",
+      "bytes": 420636,
+      "sha256": "a8231cf5a085602c358dab11961a464c30b9b4e66cca03a64ab2c5872ac04688"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\gc-probe\\2-0\\session-20260927T105217Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "ec1a68f93a5f5f0686e4f45764864660771d46d5584a28253346877702ef1bb6"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\gc-probe\\2-0.measurements.json",
+      "bytes": 261346,
+      "sha256": "2ec13ed9d738a01d84f181fcb7ed0b5b90dbdeaa372fe2711bbfe0461f92e022"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\gc-probe\\2-1\\session-20260927T105303Z.jsonl",
+      "bytes": 70105856,
+      "sha256": "d04e10c9b563edb62b81813676c9ce9176bcfae0b43bcb3c3a98d921a081e554"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\gc-probe\\2-1.measurements.json",
+      "bytes": 417024,
+      "sha256": "e3ee1ee27e173376e2d0dbaa7d227b996c147a21f29425a43b59d9f0647074b2"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\gc-probe\\gc-diagnosis.json",
+      "bytes": 23756,
+      "sha256": "a9541fbdcef0007bc4c0ed51b1ec8790c0bd5497d7112614600c1f35bdee3f6a"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\gc-probe\\gc-raw.json",
+      "bytes": 14508084,
+      "sha256": "0ebcc1c9405d1af0160109c206c6295329e542bd21dc2dace9e48d918dd1de2a"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\gc-probe.log",
+      "bytes": 629,
+      "sha256": "db4c7c78b7498ad00a862407586af1a35b3848288d9380fb922cea1623732bc0"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\ml-final\\manifest.json",
+      "bytes": 676,
+      "sha256": "b44cc6a4b04d92574a369469fff71ad32f314b59b45fb87b972b351997cab6fe"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\ml-final\\ml_plan_diagnostics.csv",
+      "bytes": 89947,
+      "sha256": "56bc8c9afe554172b44eda14ff394aa0231cf10135d100b112943fbe1084d1bc"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\ml-final\\ml_score_payoff.csv",
+      "bytes": 49925,
+      "sha256": "295101274da8751dcb2ae22acbffcceb06bfaf5d18fc3a4b5b5a23bdc26b417c"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\ml-final\\validation_scores.csv",
+      "bytes": 1888754,
+      "sha256": "4d491204436f9f069f9555db5bf1c1d88adf6cd65ca501ea998a3162fa5879ca"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\ml-v1\\manifest.json",
+      "bytes": 676,
+      "sha256": "b44cc6a4b04d92574a369469fff71ad32f314b59b45fb87b972b351997cab6fe"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\ml-v1\\ml_plan_diagnostics.csv",
+      "bytes": 69640,
+      "sha256": "ee5cb889602ac119226d304db33db3be63b91d2528cc83b5fce5fbe6f574a8d6"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\ml-v1\\ml_score_payoff.csv",
+      "bytes": 38532,
+      "sha256": "4f6515157e4bca03220d597d6d5e9cb36b9249a30992a4d779614a5778e2fb67"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\ml-v1\\validation_scores.csv",
+      "bytes": 1888754,
+      "sha256": "4d491204436f9f069f9555db5bf1c1d88adf6cd65ca501ea998a3162fa5879ca"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\ml-v2-path-audit\\manifest.json",
+      "bytes": 676,
+      "sha256": "b44cc6a4b04d92574a369469fff71ad32f314b59b45fb87b972b351997cab6fe"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\ml-v2-path-audit\\ml_plan_diagnostics.csv",
+      "bytes": 82189,
+      "sha256": "c9ce733d8263650681164e33099c312bfc92ab398e5da555263c1b6acfc6a7ff"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\ml-v2-path-audit\\ml_score_payoff.csv",
+      "bytes": 45057,
+      "sha256": "44bb43e3b207f137940ce24a2b162790c683076d015bef18a58e0919afa27d44"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\ml-v2-path-audit\\validation_scores.csv",
+      "bytes": 1888754,
+      "sha256": "4d491204436f9f069f9555db5bf1c1d88adf6cd65ca501ea998a3162fa5879ca"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\morning-paths.jsonl",
+      "bytes": 2446008,
+      "sha256": "f79c28893e8bc8ec79b827a1bae7e32da0b3d2aa978d5676890d18fd5085a733"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\morning-paths.manifest.json",
+      "bytes": 335,
+      "sha256": "1c91d9f68955240df9d085a980edc4750e5c62faba23e1fadf9e5d40f8e3278f"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\noon-paths.jsonl",
+      "bytes": 2707729,
+      "sha256": "4dea93a7ccd45225d5f50e86be9e0ddb74da5b89d88c40e1ffb34ada7a8502fa"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\noon-paths.manifest.json",
+      "bytes": 333,
+      "sha256": "89a17213578a66a9d35e4df666606a855c49138a2e090840140fc1fa071bdd89"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\offline_benchmark.before.py",
+      "bytes": 14062,
+      "sha256": "22405dfaa7376c58fdac8f21e0e8dc81d354c774d77eb413f38423f8c433ed54"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\performance-assembly-v1\\performance-isolated.json",
+      "bytes": 533382,
+      "sha256": "228c22063949b12f1e58438f540590b540af69c2f5f9779781363b9e5acbe856"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\performance-assembly-v1\\performance-stages.csv",
+      "bytes": 63712,
+      "sha256": "effc75433f267309737108b324f324a0e3355545949eaedc38321db84ded08df"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\performance-final\\performance-isolated.json",
+      "bytes": 547002,
+      "sha256": "9847747460c7dd51aba1f24f6d3d4f7bda963bb4e9407b3c0d8fa0f7dc94714d"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\performance-final\\performance-stages.csv",
+      "bytes": 63712,
+      "sha256": "effc75433f267309737108b324f324a0e3355545949eaedc38321db84ded08df"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\performance-final\\worst-path-witness.json",
+      "bytes": 1810,
+      "sha256": "f9eaaa75454c155d6d335069cf55ff96575e42c1b10405aa831d2b696fd1d555"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\pre-entry-historical-evidence.json",
+      "bytes": 3227,
+      "sha256": "52f1fd940b9bccf8dbf69c0cb14e8fae80f7238299fe08ecd4986e43fbf072ef"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\pre-entry-regression-before.txt",
+      "bytes": 2104,
+      "sha256": "e1fec3dc49a52dbb3ff2b1c8bedb9e278f037cdc8c6524b4ecfcf4130cef5517"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\sampling-ready-audit.json",
+      "bytes": 7913,
+      "sha256": "780d27a35b6cd33e92e06b03d450b78536c89f149ee6dad9f879b026f06b7092"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\sampling-ready-reproduced.json",
+      "bytes": 7914,
+      "sha256": "5042a807d597cd5a113ae1af6e99d400770f3bf921774ed9bfa9b7b35f268e4a"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\staged-smoke\\1-0-0\\session-20260927T110121Z.jsonl",
+      "bytes": 52965287,
+      "sha256": "e371435729a0f70d5d79c1709d7dce14e1933b93276a485f651b0c92259cc695"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\staged-smoke\\1-0-0.measurements.json",
+      "bytes": 43248,
+      "sha256": "d409cd92cf21129b971b6215966ca1b1f9c8c22648ef013637b0f4b8951fcbf6"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\staged-smoke\\1-0-0.stages.json",
+      "bytes": 320702,
+      "sha256": "04b2f49657aaf21630a6090ff7dfffc467ee4639148f14f975d33858476f2724"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\staged-smoke\\1-0-1\\session-20260927T110150Z.jsonl",
+      "bytes": 52965287,
+      "sha256": "b818a41b0c812f46a7d7c7fcab8fb190a501e4af82e1c2fa62c86b1df745aede"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\staged-smoke\\1-0-1.measurements.json",
+      "bytes": 55409,
+      "sha256": "7e91e17738815ecb54b06419c97b9389d3fed276fc8dc1e11ea04e38f64c3fd6"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\staged-smoke\\1-0-1.stages.json",
+      "bytes": 411972,
+      "sha256": "b1d31bba0a22aca308bc64cf2b280ef9873d547759e2261307b9e58076a52e30"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\staged-smoke\\4-0-0\\session-20260927T110221Z.jsonl",
+      "bytes": 52965287,
+      "sha256": "282ab92b74d609838f446242ce08573650af78a2bac6e29b21964297f4b14fcc"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\staged-smoke\\4-0-0.measurements.json",
+      "bytes": 42906,
+      "sha256": "d2a1d07869ae1f7bb87884b58ba31a73a0d420225343b6eeb20f2c1dda3e6a14"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\staged-smoke\\4-0-0.stages.json",
+      "bytes": 321014,
+      "sha256": "a40a72ec919e3a61a5104d1ed177706c52ee9b1156466b8c84d8c06d4acedd0c"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\staged-smoke\\4-0-1\\session-20260927T110246Z.jsonl",
+      "bytes": 52965287,
+      "sha256": "5da05de4087a094bb238a3c0bb6a5e2b25e28602fe70f53aedcae254c15a308d"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\staged-smoke\\4-0-1.measurements.json",
+      "bytes": 56602,
+      "sha256": "0ee01fca9e9351836be72421c10ccc57ad9a1cecd17d4e49d3e3dbd45771e484"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\staged-smoke\\4-0-1.stages.json",
+      "bytes": 412556,
+      "sha256": "e93c663c14231def5474bc64c681b3365799bfc461f52fdb55e8b12f3b324b0b"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\staged-smoke\\latency_benchmark.json",
+      "bytes": 27232,
+      "sha256": "d345b6bba75cf63e251ca09101c0d263fced4fda0bf3bc29a26cde827baf1625"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\staged-smoke.log",
+      "bytes": 678,
+      "sha256": "039471a0723127e78ca18ba67d40ac44a4da547f3d9b6994cf26b8cf07e01fc9"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\starting-preservation.json",
+      "bytes": 1952,
+      "sha256": "f20eb84d177dd7234259e1cacee68e49a9bdbb527f17856c1c1346793092bf34"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\targeted-after-entry-fix.txt",
+      "bytes": 101,
+      "sha256": "c36850a34efecd687efbc8f75b37ac50691e4453afdc9f5139d240eb032af9fe"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trace-targeted.txt",
+      "bytes": 101,
+      "sha256": "2cb6a23465306edf2605a211595d14d3d823cacc71cf521fec31e10bc1300927"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v1\\all_ready_controls.csv",
+      "bytes": 29835,
+      "sha256": "12eb14d61374d67e224bf865e9d4d2fffc7cb2fcf2197ce9f5d1fdf28ea73d4d"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v1\\routing-summary.json",
+      "bytes": 312,
+      "sha256": "031df1508c76a3c9309e3bc66b5ca89a380b3173bbd004772c767a16f2603d59"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v1\\routing_delta_reconciliation.csv",
+      "bytes": 3792,
+      "sha256": "a011d691296c00e150e0974eefdf5a691191eacc7f082fe20376a4db9374ef4b"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v1\\trade-evidence.json",
+      "bytes": 52382228,
+      "sha256": "26837cb805a91e4e54c0c471c3398f57ba42207f1ba7706cc4ac748f0a03ad4a"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v1\\trade_failure_attribution.csv",
+      "bytes": 31500,
+      "sha256": "d7968be6c19197230405a10739d05c45852fdebe30086004c7c2b17062a6b3cc"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v1\\trade_quote_paths.csv",
+      "bytes": 57958,
+      "sha256": "e7cf1cc8e60fdb6cd0d831bc49c5a9eac1a288f8884838a562d3ed45dcec85c7"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v2\\all_ready_controls.csv",
+      "bytes": 29835,
+      "sha256": "12eb14d61374d67e224bf865e9d4d2fffc7cb2fcf2197ce9f5d1fdf28ea73d4d"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v2\\routing-summary.json",
+      "bytes": 312,
+      "sha256": "031df1508c76a3c9309e3bc66b5ca89a380b3173bbd004772c767a16f2603d59"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v2\\routing_delta_reconciliation.csv",
+      "bytes": 3792,
+      "sha256": "a011d691296c00e150e0974eefdf5a691191eacc7f082fe20376a4db9374ef4b"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v2\\trade-evidence.json",
+      "bytes": 52368400,
+      "sha256": "227720360ee671559e7bf0523dcbe682eb4d58cd6d69c1e8a551b448ca0f55da"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v2\\trade_failure_attribution.csv",
+      "bytes": 31500,
+      "sha256": "d7968be6c19197230405a10739d05c45852fdebe30086004c7c2b17062a6b3cc"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v2\\trade_quote_paths.csv",
+      "bytes": 57958,
+      "sha256": "e7cf1cc8e60fdb6cd0d831bc49c5a9eac1a288f8884838a562d3ed45dcec85c7"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v3-entry-snapshot\\all_ready_controls.csv",
+      "bytes": 29835,
+      "sha256": "12eb14d61374d67e224bf865e9d4d2fffc7cb2fcf2197ce9f5d1fdf28ea73d4d"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v3-entry-snapshot\\routing-summary.json",
+      "bytes": 312,
+      "sha256": "031df1508c76a3c9309e3bc66b5ca89a380b3173bbd004772c767a16f2603d59"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v3-entry-snapshot\\routing_delta_reconciliation.csv",
+      "bytes": 3792,
+      "sha256": "a011d691296c00e150e0974eefdf5a691191eacc7f082fe20376a4db9374ef4b"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v3-entry-snapshot\\trade-evidence.json",
+      "bytes": 52368400,
+      "sha256": "227720360ee671559e7bf0523dcbe682eb4d58cd6d69c1e8a551b448ca0f55da"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v3-entry-snapshot\\trade_failure_attribution.csv",
+      "bytes": 32548,
+      "sha256": "e87ea713960d3e386c282882ddd15ae1b5ffbed7c20d261eb95e8d851fbbdb84"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\audit-pr58-trade-plan\\trades-v3-entry-snapshot\\trade_quote_paths.csv",
+      "bytes": 57958,
+      "sha256": "e7cf1cc8e60fdb6cd0d831bc49c5a9eac1a288f8884838a562d3ed45dcec85c7"
+    }
+  ],
+  "inputs": [
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\A\\A.jsonl",
+      "bytes": 396550424,
+      "sha256": "cbc4df52ef042a022e6b2927bbf590dd1ec4fcd2b59c344ad05a1ce03f184d4c"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\B\\B.jsonl",
+      "bytes": 430060362,
+      "sha256": "dff700e7efe2c4411e1255e9144a2ce9393eec1f12f3b48a4d6b3a06b97d3eaf"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\C\\C.jsonl",
+      "bytes": 428996035,
+      "sha256": "5d23c0a2820c6c892b647ce9fd45b4315bc4bc9d81547a750d7a2729b1eadcdf"
+    },
+    {
+      "path": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\docs\\pr58-readiness\\run-provenance.json",
+      "bytes": 78174,
+      "sha256": "0d64a29f861f22c8cf8bfd66e6c09d00ea5f08cbbd97eb8af3a1fc471fcfca8a"
+    },
+    {
+      "path": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\docs\\pr58-readiness\\dataset-manifest-v2.json",
+      "bytes": 28546,
+      "sha256": "c1c9162c1dff8add024a08a356555f31b3c622efb78e8742f7b1655aa0b3d501"
+    },
+    {
+      "path": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\docs\\pr58-readiness\\model-manifest-v2.json",
+      "bytes": 8025,
+      "sha256": "15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3"
+    },
+    {
+      "path": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\models\\ml\\impulse-v1-final\\manifest.json",
+      "bytes": 7461,
+      "sha256": "95e87865ced30be653ea1c7ca6720a26ea1b79b7126b652db7f81b4958ebc9e3"
+    }
+  ],
+  "code": [
+    {
+      "path": "scalp_bot/engine.py",
+      "sha256": "e7296ad0ffd2bcfebe4fd0564dfb0efcc67987d8667b317fe9171c312fed27ea"
+    },
+    {
+      "path": "scalp_bot/offline_benchmark.py",
+      "sha256": "00ff1701a797a865e175cb1d806b40669b418238bfad70e4ad1520bfde992607"
+    },
+    {
+      "path": "scalp_bot/offline_benchmark_trace.py",
+      "sha256": "7d823c53d8fde3946ee1e61f65691d9e9e605bb0f01c0c09ea1afc5504b796c3"
+    },
+    {
+      "path": "scalp_bot/offline_trade_diagnosis.py",
+      "sha256": "6a9b8a01a740cc36aaa566c8a1614f7d759edc0c119737fc8d4938ed5e93e6fa"
+    },
+    {
+      "path": "scalp_bot/ml/plan_diagnosis.py",
+      "sha256": "a5e37e0b1302ba3de645cb127a54747246f06e472be84ca68ee50ce72a1ed8f2"
+    },
+    {
+      "path": "scalp_bot/ml/plan_paths.py",
+      "sha256": "03dc0690588c8ee1cac00c8b6bfb513c5a9fc0335d58c2cdb6ede0c2dc1f3df9"
+    },
+    {
+      "path": "scripts/audit-pr58-causal-controls.py",
+      "sha256": "04b98b0ed48f8aabecefd59ceda1acb72e78401c9337e6b108d2683d670ae7c1"
+    },
+    {
+      "path": "scripts/audit-pr58-sampling.py",
+      "sha256": "92609239c87696c509a5a76295ebc2cc49a839c44230c34fcd69b8c3cf91bca2"
+    },
+    {
+      "path": "scripts/benchmark-isolated.py",
+      "sha256": "8ff6b5b70c577ca56bd478ac38e7fb65d8f5f192d088e39871dc8a9c3cd8e98a"
+    },
+    {
+      "path": "scripts/benchmark-gc-probe.py",
+      "sha256": "231ed10c5dc2142a6f421fd3f08644f3c885507687ab73fe5658772142a1257e"
+    },
+    {
+      "path": "scripts/summarize-pr58-performance.py",
+      "sha256": "c99a336770dce47ec75e5626e9c139bd4727cbdac061a85c1d98510fcbc35d66"
+    },
+    {
+      "path": "scripts/build-pr58-trade-review.py",
+      "sha256": "abd95103d6112014cc86f85cb11a631a571e7f54720ba29f55f958fc4b41edc1"
+    },
+    {
+      "path": "scripts/manifest-pr58-trade-review.py",
+      "sha256": "6d3b196acbd2f6ec689c451b02e26fc136d995d820cc5fdc7c9920363085b8eb"
+    }
+  ],
+  "source_scope": "complete historical load hashes in performance-isolated.json; original capture/index provenance referenced, not replaced by a new certification",
+  "final_ci": "final-ci.json and its checksum receipt are written after publishing and are necessarily outside this pre-publication file snapshot"
+}
