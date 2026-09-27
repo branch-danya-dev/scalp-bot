@@ -1753,24 +1753,7 @@ class PaperBroker:
         pos.partial_required_net_usd = required_net
         pos.partial_economic_ready = True
 
-        risk_distance = self._initial_risk_distance(pos)
-        runner_stop = self._runner_breakeven_stop(pos)
-        if pos.side == Side.LONG:
-            pos.stop = max(pos.stop, runner_stop)
-            if may_extend_runner(pos.strategy_details):
-                pos.target = max(
-                    pos.target,
-                    pos.entry
-                    + risk_distance * self.config.runner_target_r,
-                )
-        else:
-            pos.stop = min(pos.stop, runner_stop)
-            if may_extend_runner(pos.strategy_details):
-                pos.target = min(
-                    pos.target,
-                    pos.entry
-                    - risk_distance * self.config.runner_target_r,
-                )
+        self._after_partial_fill(pos)
 
         return {
             "event": "partial_take",
@@ -1811,6 +1794,28 @@ class PaperBroker:
             "mfeR": pos.mfe_r,
             "reason": "partial_take_at_r_and_net",
         }
+
+    def _after_partial_fill(self, pos: Position) -> None:
+        """Shared runner geometry after an actual partial fill has been booked."""
+        risk_distance = self._initial_risk_distance(pos)
+        runner_stop = self._runner_breakeven_stop(pos)
+        if pos.side == Side.LONG:
+            pos.stop = max(pos.stop, runner_stop)
+            if may_extend_runner(pos.strategy_details):
+                pos.target = max(
+                    pos.target,
+                    pos.entry
+                    + risk_distance * self.config.runner_target_r,
+                )
+        else:
+            pos.stop = min(pos.stop, runner_stop)
+            if may_extend_runner(pos.strategy_details):
+                pos.target = min(
+                    pos.target,
+                    pos.entry
+                    - risk_distance * self.config.runner_target_r,
+                )
+
 
     def _preview_realize(
         self,
