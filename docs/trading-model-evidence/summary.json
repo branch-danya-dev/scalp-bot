@@ -1,0 +1,679 @@
+{
+  "base": "dfcc5949f2b5cb6f902e304dfbe5bd1f4a7b3132",
+  "source": {
+    "sourceSha256": "feced7f2ce49d673dd9ab08747ebf64dfd60db85f9f57aeaf855a625438c9f91",
+    "fileHashes": {
+      "scalp_bot/__init__.py": "d03eacad88bd7a33d49f0a635660e8241fa832e06a3d288fe742cf46833c1b42",
+      "scalp_bot/activity.py": "7210a1826445cb59d278a722ea7a133d7a0271eb44f8f79ca322cd100c8dedb8",
+      "scalp_bot/admission.py": "9d0a7595677ed8ac37a92c6c65c705293cc38747721251d65505f29760dd53e2",
+      "scalp_bot/analysis_pack.py": "af9e607a96e3fd4a57853df9e317f20263488437f15728b2a86bb081ebe85eed",
+      "scalp_bot/app.py": "02761d1da665081f0236367d7dd003a3a414ecc89b55325d72912dd79fe10b9e",
+      "scalp_bot/bybit.py": "3a8ef3e92d258ddd07e6055ad65777f57ef8aeb3694ea92eae89532ca2e55925",
+      "scalp_bot/capture.py": "e83484d969f7918272cb0da9687f8bc692a2960709da7fe3f8fb523fb349a2ce",
+      "scalp_bot/capture_replay.py": "074ad553b753f90e82ffcd650976764c524e0338135ca9eb0ab890eb064dd4a3",
+      "scalp_bot/config.py": "293ceb49b53f2178a0860dbcc0f53818b5288b69798fa935ec13c5e882c17ac4",
+      "scalp_bot/demo_paper/__init__.py": "02702e8a3b04f1cae207806a204e1fac1ffb8820b35946eeadc470fd9c00e069",
+      "scalp_bot/demo_paper/__main__.py": "821fa18ab26c5920ad3f3716e7fe75cb86c103de769c67d5c3a108b26d8a2893",
+      "scalp_bot/demo_paper/contracts.py": "ff5bbaaaac8e31e28f29410032b6b90eeb1fad1fda97d5cb31cccb07009102b0",
+      "scalp_bot/demo_paper/engine.py": "c321607d0c66c77c7773dc112ac9f2f6f213e7331d6ae049f2c1d4c972a5d9a8",
+      "scalp_bot/demo_paper/ml_adapter.py": "2256117379620a9430adda4a41c072b04dc5210f57a27d50fefc2ebcc9e375f1",
+      "scalp_bot/demo_paper/portfolio.py": "3733be3a065e848b05c5b34a1a4fc9fd054ec30c7b0e46e5d984a656e56ea1d4",
+      "scalp_bot/demo_paper/preflight.py": "edd4500e947480e0d9a0639ebca3d9ca2117fc93deab73f0d185905750176b36",
+      "scalp_bot/demo_paper/report.py": "202f1eb095c56b743c4d03f648e1e4d2daeef9b3c5d89a5afab5fbc21a961fb8",
+      "scalp_bot/demo_paper/runtime.py": "d388588d8ec19c1fe84a1329abe64fadbfad588a6c244770da1a3f148331b611",
+      "scalp_bot/demo_paper/transport.py": "028bcfa4b4c6150c2e30d8fac1a245f76b3b4a9b177b969bc3e75c0a10019d7c",
+      "scalp_bot/demo_paper/venues.py": "8157d673b7c2f54cdba40047cacbbde32253d7e4c1dca7a0622a9c012a608e32",
+      "scalp_bot/domain.py": "d7e88696e91522775b3c7a1c391dd3c3220affb107855f24b7417de1ffad4d31",
+      "scalp_bot/e01_comparison.py": "0543974cd9db151a187c389177c6bab5de75ec28db9999ee0cc78fbf8a7f4248",
+      "scalp_bot/e01_feed.py": "a0f410b2b6d14e46b56cbe3e9a27d638aee4d068e109bee74c254d279aa6de83",
+      "scalp_bot/e01_live.py": "11d7de3497ac7becabe0e0fb06830d0c72db6e4bf0b45957fe5b3480623a1300",
+      "scalp_bot/e06_capture.py": "a377b631ac878d2fa90f2dd87780638aafc165b2fd181616682a9d51b2cc3778",
+      "scalp_bot/economic_calibration.py": "1f72293a0d28cd8c786f90843501cf2aab883ee31582e8e044fba53ce7794ede",
+      "scalp_bot/engine.py": "9c4659f93a8d0cc0e78cf00cffe901eec0217c96c1a2c68bafa3eadce6ab5b82",
+      "scalp_bot/execution.py": "a7dba54da70a91cf7e720f7c33076c0bb3d386a430358c8ff0bdb37e3a339105",
+      "scalp_bot/execution_book.py": "affaaf7a8929077ca7c29dd205b8c30c5fbbda567c16587fea2074d5ff8dde27",
+      "scalp_bot/expectancy.py": "45b19b73087888ef45f0cb258e11202a92ddb0915232cc991b728e91130171a4",
+      "scalp_bot/git_session_export.py": "3562a66357f4fc7c414c85bf6f00883202403b15c21054dbfa6d023aeb781196",
+      "scalp_bot/hindsight_review.py": "881155e64c894f71ff4d9401736bfde7966b807a36c47e2c22ef41fdda13700f",
+      "scalp_bot/input_journal.py": "042c0ac93be5fb4cb53a5d188e9fb3da35594fc53b50b5c9eb7dd4d7dad69a03",
+      "scalp_bot/input_scope.py": "e9d6780d53293998818ce53a1e6483544fb7ae5fdc0a895ebddf37487e37c8f1",
+      "scalp_bot/instrument.py": "baa0dec23dab7765479ff21ec88c780b09593b62d71b42e024eff7276687c25a",
+      "scalp_bot/latency_observability.py": "af438842381a121ea0accfa2178194096beccd2ce7259bc02d95fe8e756325fa",
+      "scalp_bot/long_run_pack.py": "ef7e865f872437446e0c0bcc77b7f5053a144c2aec420b5008a88efb1ca7b6d4",
+      "scalp_bot/manifest_schema.py": "b9a2787886c5d22f0cef2d8faef62ada641fdcaa15538be7e9986387aaff889e",
+      "scalp_bot/manifest_validation.py": "a3fec0b6ed3eae6150e23a80e9d7bda41c36d6f762146cd6a626e4751b6fc1e8",
+      "scalp_bot/market_clock.py": "7d578181249e8f9e777a55c86ee7cb7fb22a1d069339087870f599d69e661f9f",
+      "scalp_bot/market_interaction_review.py": "5bcbc03c386e6f1aab0d1b136ee261c3e25849e240ae50d14c4187091f4aba1f",
+      "scalp_bot/market_runtime.py": "2e86b3068bb65f3d680bcfb0ab1ec2ac010f0ab968e8683bfa3a1b0f9ff6b820",
+      "scalp_bot/ml/__init__.py": "f8e84cafb0793674c0d0069a9c4f3ca3213f23390d0f5c2d0d15f8e79ab32e22",
+      "scalp_bot/ml/__main__.py": "86702260b28fb49e9161ef7a5eb66fa3e9af2c08e5e487b0dde1b3dc8e5c934d",
+      "scalp_bot/ml/arbitration.py": "9267bcfbcdd161e856ab521ee95d082a7cd8a3d4a4a83b5d3d41892c71f1641e",
+      "scalp_bot/ml/capture_context.py": "4b3135cd108eee0a88191eb3d695131c24f697c7b63a7a268cac206a47f09091",
+      "scalp_bot/ml/combine_periods.py": "d24dd795a6cdb640c0ec735075c97ebbf60f79fc91f5945cb6ee5b6df60e23ba",
+      "scalp_bot/ml/context_audit.py": "a06e4e49c32dbc332817d8161ad313797cd8bc2633b96743b38a3d743c468542",
+      "scalp_bot/ml/contracts.py": "20b8aa774f7dc5d3e83018c95b502bc53fea84d2525c054b26c2e4e22a548a84",
+      "scalp_bot/ml/dataset.py": "267e58836c756beeb65305806889f1c8770ae9c60e17faf993c0dd8968a76896",
+      "scalp_bot/ml/diagnostics.py": "ae8ab6fc6154510ead8a061f67e8a81f1ee3d69c0b8956fd7665e10a01fb05c2",
+      "scalp_bot/ml/engine_dataset.py": "020aca312a945c8633428b8a32781df9053a04bce471df6c75630018937eaa0d",
+      "scalp_bot/ml/features.py": "712bf1c8ee851429bd85b16ed729dd1d0c9c8cfd2d2161d1b4f7f98a2eb6eaa2",
+      "scalp_bot/ml/history/__init__.py": "2a6860a47041816f15fe30a75e37788383bce122b2c2c5dcf609adbe5d23f076",
+      "scalp_bot/ml/history/__main__.py": "b992bfa9b385eadbe926f5d374c2f6717a9092e99166bbc48a92ee3da184b10a",
+      "scalp_bot/ml/history/adapters.py": "b7201c9ed7a7ccff0bc4f27c7bd36c7dcb7cad5272650f87140d57dabbba8f66",
+      "scalp_bot/ml/history/alignment.py": "ca546a99c76ea070e8faabe51454cf1151169f09985f44d1cb96429bb31e785d",
+      "scalp_bot/ml/history/book.py": "75d82bee9c234d4aa40bf8b726d0f368be2f7906f1888d2ea93fc8377772ed23",
+      "scalp_bot/ml/history/importer.py": "8db4d1cc467660e8aa70b20fd53cbf972d5af090af1f59777047edfc0de86758",
+      "scalp_bot/ml/history/samples.py": "cd0d263632d14752ead7b17bf7d414a789158b4f5b0f514511b65b868bdbf4ea",
+      "scalp_bot/ml/history/sources.py": "5c1eb7e17352db9b5f6fff99f03e0367deb12acdc749d8834b812a2af880e682",
+      "scalp_bot/ml/learning.py": "35790522eee8bf600c03d63aa59882ca6f89c329dcfc0493c8fa872eefe98b46",
+      "scalp_bot/ml/plan_diagnosis.py": "a5e37e0b1302ba3de645cb127a54747246f06e472be84ca68ee50ce72a1ed8f2",
+      "scalp_bot/ml/plan_paths.py": "03dc0690588c8ee1cac00c8b6bfb513c5a9fc0335d58c2cdb6ede0c2dc1f3df9",
+      "scalp_bot/ml/prepared_dataset.py": "2f3ab0a5bca42d7a47e22d53373784ab42d545a203cc37f1cd420bf61fcdabbe",
+      "scalp_bot/ml/process_stats.py": "55cb308d2a46edac5f4053dfc9a7c7c9ed0b11af601195e421fb0cabe939e419",
+      "scalp_bot/ml/shadow.py": "2a2b192594404a275548f976f711380a564c675e9f80fd8a3ad746157df69ca7",
+      "scalp_bot/ml/worker.py": "9adaec5b4a17794660dbab8c67c2627e3dcd283b21649d338765d6eda93dacef",
+      "scalp_bot/observability.py": "34691a18e3853124908d43add19530791e8468c433a3522d8931c0af20221eca",
+      "scalp_bot/offline_benchmark.py": "62d614904ef9ba1349307f8bdf681c868447454b8b93becd3973864973bf7b4a",
+      "scalp_bot/offline_benchmark_trace.py": "7d823c53d8fde3946ee1e61f65691d9e9e605bb0f01c0c09ea1afc5504b796c3",
+      "scalp_bot/offline_bootstrap.py": "21b62dc8bcf2704fe2de6cf9f2820cf8b3e3d3801a96d44236901ce520d9c18f",
+      "scalp_bot/offline_comparison.py": "23c4bb0b043d30dbabdfe394219c82c9f9644f9d6ef9dee8804db612788871eb",
+      "scalp_bot/offline_index.py": "e3bbcbbfb3398c39d36349fc828c5fd3fca3e2e3704435801e329a563939e22b",
+      "scalp_bot/offline_market_index.py": "bd9c4be92ee65c2b853abbf8e365079937b41406993da6429dbbf6f7563e82e9",
+      "scalp_bot/offline_scheduler.py": "53586cf5483dd679fe40f5ce0e5f96febdc241cd209e1084000435c567ff7afe",
+      "scalp_bot/offline_segment.py": "9ef8302884af94faf1c92d994ca06e9c76bffc53a9f8aa925af0d37bdec48b25",
+      "scalp_bot/offline_study.py": "df4d9152265493f495e0854075848a43fe275cc379449914ec1d72106fff5cd7",
+      "scalp_bot/offline_trade_diagnosis.py": "6a9b8a01a740cc36aaa566c8a1614f7d759edc0c119737fc8d4938ed5e93e6fa",
+      "scalp_bot/offline_transport.py": "15bafda4fbaea59c513dfd57055f3df05ddfd7124b6db856a8251276790ba74c",
+      "scalp_bot/opportunity_review.py": "3900c23cee6a53406731726824e5632a6bbd00d94357b8b6fa6a85647e04329e",
+      "scalp_bot/paper.py": "f4b092b956a8b68b736b3a11ecee25f9f2f72df3a6f9c0d2c192abb2836f2c56",
+      "scalp_bot/parallel_scenarios.py": "db4b4f00330885e0c664ad59ec1d2a82b5e69f4646ad2972a7f262d986d9d2dd",
+      "scalp_bot/performance_matrix.py": "04f490bb29defa1bb7947e26c6204388447ceb5d9a7cc0f721ab9c64735a7aec",
+      "scalp_bot/preflight.py": "70bcd4e1a2c327d180617adfb1ad72e6645b4d2aa3f84dd67ad0c7a1d1bfc172",
+      "scalp_bot/raw_session_archive.py": "bf5def2861b15c0900dcaa195022b2a9d8cfced7da1a0e5eb8f794dac5ef0bb1",
+      "scalp_bot/recorder.py": "3af3b9b1c9b479b5d1eb665dd7596708839c09d99b9027c3ecf36d5e9d208017",
+      "scalp_bot/research.py": "55e9863d238cb5e73441d1e085b29f61582fb1526368b36b06789c35e4272e97",
+      "scalp_bot/research_dataset.py": "f5935d6c7eabaee92036cb3afbe8470be8770df2b02f273fd96ad6b25d43ec62",
+      "scalp_bot/research_policy.py": "f6f661e96e8b82000701e73ac34ecb378f15924da11c1db5ac0ce386bddbf2d2",
+      "scalp_bot/risk.py": "baa387c93c52e5d02bcb3006bfa704476e44eb9f2b118da4c26d34b7ba991f3d",
+      "scalp_bot/run_manifest.py": "d8f413520dde7b1759de40240245c53b6b73ec1f7318d433090a6c94b1a88d5c",
+      "scalp_bot/runtime_clock.py": "0180be929aa96ee3d12061a0954d00045746a0d839d57aa13d9966654d720023",
+      "scalp_bot/scenario.py": "f24f4b2f79cdf40861761fe22e8c8866d875981e85b0fcfc3af6677910db0242",
+      "scalp_bot/scenario_episodes.py": "04d1e182cf1e42954c0d620598bf000e362370cd295fbeee56ca1f728d9d7dbc",
+      "scalp_bot/scenario_identity.py": "14f0d7cfcc7eca07f9f4ce8b39e01309d1f18ba5136e2f16bfb8d33c5e0bfee3",
+      "scalp_bot/scenario_runtime.py": "ddf288d96a245bc1be43717d7a2e494f4cf7e1a9a6369bd6a29e90aa76ff5e33",
+      "scalp_bot/session_validation.py": "9f680b77bc29efbbfa4fde26a3ac58b0c6ab81433a24ba736114e7a8985b8c8e",
+      "scalp_bot/setup_segments.py": "7ad47c51e9956d3895f5d0883c016f14fbdf3eae2f506b1e2a2927b0022be897",
+      "scalp_bot/source_await.py": "4744b8197fdeeb3b4247d86c7aa2d7fa2ef8212afdf12ff741912267d863b986",
+      "scalp_bot/source_failure.py": "17090aa96b985f694b1b8412edab4cae9d2e20943f7183fff9db5367f10ffc84",
+      "scalp_bot/stability_validation.py": "64ce9f403b83e2555b70b40ef4679a4e422a6a7910206bbbd943e1e20bcce651",
+      "scalp_bot/strategies.py": "f2006cd88ce36fe9095e071ec25dc0c2786c3c9468cdaacc85275ca90493e24a",
+      "scalp_bot/strategy/__init__.py": "78a1c72f81e3b663fb2a9b638533305257aeb805b42402d3298e167ae25f0632",
+      "scalp_bot/strategy/base.py": "b72aa2880b537102f81aa36f89eea077fa28706d0fb35d476ac57fe2197d376b",
+      "scalp_bot/strategy/breakout.py": "1243af3f74bcf0772ed27c0b8c7079c6f7dff47dd7fd0aef79ff3378e8a535cb",
+      "scalp_bot/strategy/common.py": "ddb4ca925ab38ae6e68bb749bd5abc87b74753ad17c434fec65f04545f45e3c5",
+      "scalp_bot/strategy/density.py": "b6c33e4cccd13a5b3496d470245854186f07c79a6e86a466963236779ee365b4",
+      "scalp_bot/strategy/flow.py": "2fc7cf0fdc59a1f59b64b971ae5ca73d728912462a156cb806a7055b0313d558",
+      "scalp_bot/strategy/flow_context.py": "674d76947e54d7e73acd1d97300c84287e9ecafd89f7a0a43b500317d43949e8",
+      "scalp_bot/strategy/freshness.py": "a4b8823fa94b6fdfb75d4586e3647e80c7db3b211c969d396586f4a64c0b6ec0",
+      "scalp_bot/strategy/lifecycle.py": "b03bf8b5264ff01c3528d10a622a76079596eb8fd5840b3914ae27d2ca18cf19",
+      "scalp_bot/strategy/liquidity.py": "1d78af5587b27d62524d956abcef4e95b58cb734aa621b20f310fb0584ca9ab0",
+      "scalp_bot/strategy/liquidity_evidence.py": "b1b841a9f84e5e1d08d66763443f9949b3f8ba4145e2be827a61e1a23c8d85a3",
+      "scalp_bot/strategy/market_context.py": "470045f08d1877d488b8df2dc2aff6f9b4ac16352ffed1ad1828446ae80c2198",
+      "scalp_bot/strategy/playbook_context.py": "d3b3387534a022e155324f1c77e57114c8d3432b280e7c61f500e5500de8f341",
+      "scalp_bot/strategy/position_policy.py": "3efd9e3e5190fa40b124933f39ca9deaecbb0c2fd4d381ebddb403bead031a0f",
+      "scalp_bot/strategy/pre_state.py": "8f2119a7bd465a58f6c365f0bdd72b9df882c2ba24f054adf9407093a9eed563",
+      "scalp_bot/strategy/preparation.py": "ccde5fef3de808facf1b076e768d4ccf75caebefa401fe3a4a618ed3fc6f3378",
+      "scalp_bot/strategy/price_action_hypothesis.py": "f61c77847c3347bf59d421eef92dcfd9b4079140abc0350ca8d787df081fa83b",
+      "scalp_bot/strategy/regime.py": "74ff66b4970f8884cab5eae930e38e5f685024131e5536c286a8a08c9f862ff5",
+      "scalp_bot/strategy/rejection_response.py": "6c018c3186ffd1b6458473104d4e313013085a4bdc735ce25d57705a96fcd464",
+      "scalp_bot/strategy/semantic_arbiter.py": "3f33cb2a7e023ec3d29adedbda4a96fd308088562af2739e293a5b610abd9a4f",
+      "scalp_bot/strategy/structure.py": "f465e1ce3573a82f5bddaf1327a1392860a1985a3201c1619bb3d01b799061ff",
+      "scalp_bot/strategy/targets.py": "8ba08b7a4aea71aff6b398680374856c0d3eeb6f1b705c0c7d9dd40aaa50f641",
+      "scalp_bot/strategy/trend_structure.py": "75927f5764c8b3a497265cc5c817af59c9239f2cb6ef82e741fc98cf383771fe",
+      "scalp_bot/strategy/weak_level_rejection.py": "8e6c8cc8b215b7f8f8238386923274785b32415e85c1c1e1f5b31d00517a6f0f",
+      "scalp_bot/strategy_policy.py": "a7be435589e39bdd5bd1331e1fa30164896e3dcf130190653bded1d3fe80bf6d",
+      "pyproject.toml": "8203eeba9b205144d525c52805d80774c638e338e876a6e802a10a2d2c12dead"
+    },
+    "gitHead": "e0a291f111c97d133d634adb6ab303b63885ecc0",
+    "trackedDirty": false,
+    "scope": "source_on_disk_at_run_start_not_loaded_bytecode"
+  },
+  "checks": {
+    "windowsFull": {
+      "passed": 1506,
+      "durationSeconds": 226.33
+    },
+    "windowsMlCi": {
+      "passed": 313,
+      "durationSeconds": 14.28
+    },
+    "linuxFull": {
+      "passed": 1497,
+      "skipped": 4,
+      "durationSeconds": 95.29
+    },
+    "javascriptSyntax": "app.js and replay.js passed",
+    "failedAttemptsRetained": [
+      "baseline editable-import source mismatch",
+      "regression-first failures",
+      "Linux on Windows mount: timeouts/cache permissions, interrupted; native ext4 passed without changed limits",
+      "capture profile v2: unpaced warmup overflow, not accepted"
+    ],
+    "githubCi": {
+      "runId": 36354743216,
+      "url": "https://github.com/branch-danya-dev/scalp-bot/actions/runs/36354743216",
+      "head": "e0a291f111c97d133d634adb6ab303b63885ecc0",
+      "linux": "success",
+      "windowsMl": "success"
+    }
+  },
+  "replay": {
+    "scope": "counterfactual fixed captured membership/availability; not original scheduler parity",
+    "complete": true,
+    "source": "first 300s smoke; development capture",
+    "sourceCommit": "e0a291f111c97d133d634adb6ab303b63885ecc0",
+    "rows": 141558,
+    "events": {
+      "clock_sync": 26,
+      "symbol_activated": 10,
+      "research_frame": 868,
+      "market_frame": 432,
+      "clock_admission_changed": 102,
+      "market_context_changed": 19627,
+      "strategy_state_transition": 861,
+      "decision": 1212,
+      "scenario_transition": 203,
+      "bot_started": 1,
+      "entry_freshness_changed": 24,
+      "risk_reject": 16,
+      "first_reclaim": 25,
+      "economic_shadow": 1,
+      "admission_fire": 1,
+      "trade_opened": 1,
+      "setup_consumed": 1,
+      "trade_closed": 1,
+      "run_summary": 1,
+      "bot_stopped": 1
+    },
+    "balance": 999.3302717492595,
+    "netPnl": -0.6697282507404994,
+    "trades": [
+      {
+        "symbol": "NEARUSDT",
+        "strategy": "weak_level_rejection",
+        "side": "long",
+        "netPnl": -0.6697282507404994,
+        "reason": "weak_level_context_lost",
+        "openedAt": 1790546620.7090416,
+        "closedAt": 1790546654.7391899,
+        "mfeR": 0.6577379533213116,
+        "maeR": 0.10737187128852169
+      }
+    ],
+    "openPositions": {},
+    "pendingEntries": [],
+    "limitation": "Counterfactual timing; not native output parity or evidence of improved PnL."
+  },
+  "smokes": {
+    "before_hot_path_fixes": {
+      "fills": 1,
+      "prepared": 11,
+      "netPnl": -1.225866556347921,
+      "stageLatencyMs": {
+        "event_loop_lateness": {
+          "n": 27410,
+          "p50": 3.2573,
+          "p95": 22.5623,
+          "p99": 48.0222,
+          "max": 266.3178
+        },
+        "receive_to_parse": {
+          "n": 141412,
+          "p50": 0.0042,
+          "p95": 0.0194,
+          "p99": 0.057800000000000004,
+          "max": 133.3435
+        },
+        "exchange_to_receive": {
+          "n": 141412,
+          "p50": -295.0613498687744,
+          "p95": 27797.301292419434,
+          "p99": 34160.175800323486,
+          "max": 38687.16597557068
+        },
+        "parse_to_processor": {
+          "n": 141412,
+          "p50": 0.7380000000000001,
+          "p95": 15.771299999999998,
+          "p99": 30.5031,
+          "max": 250.15290000000002
+        },
+        "capture_market_detach_enqueue": {
+          "n": 141412,
+          "p50": 0.0278,
+          "p95": 0.1098,
+          "p99": 0.2782,
+          "max": 190.0128
+        },
+        "processor_to_book": {
+          "n": 114172,
+          "p50": 0.1073,
+          "p95": 0.5273,
+          "p99": 0.8527,
+          "max": 214.9865
+        },
+        "strategy_function": {
+          "n": 32555,
+          "p50": 0.7511,
+          "p95": 2.0989,
+          "p99": 4.5066999999999995,
+          "max": 13.749
+        },
+        "parse_to_features": {
+          "n": 14045,
+          "p50": 20.2799,
+          "p95": 57.4812,
+          "p99": 74.4311,
+          "max": 283.0036
+        },
+        "book_to_features": {
+          "n": 8691,
+          "p50": 16.0888,
+          "p95": 51.983799999999995,
+          "p99": 65.3236,
+          "max": 276.3424
+        },
+        "parse_to_strategy": {
+          "n": 14045,
+          "p50": 20.302899999999998,
+          "p95": 57.501799999999996,
+          "p99": 74.4498,
+          "max": 283.0305
+        },
+        "strategy_evaluation": {
+          "n": 14045,
+          "p50": 2.1559,
+          "p95": 5.952500000000001,
+          "p99": 10.777099999999999,
+          "max": 205.81050000000002
+        },
+        "features": {
+          "n": 269,
+          "p50": 0.061,
+          "p95": 0.0848,
+          "p99": 0.2007,
+          "max": 1.0811
+        },
+        "data_to_features": {
+          "n": 269,
+          "p50": 10.1605,
+          "p95": 48.8233,
+          "p99": 64.7816,
+          "max": 236.5682
+        },
+        "prediction": {
+          "n": 538,
+          "p50": 0.5109,
+          "p95": 0.6699,
+          "p99": 0.7821,
+          "max": 1.1212
+        },
+        "data_to_adapter": {
+          "n": 538,
+          "p50": 50.6907,
+          "p95": 484.6965,
+          "p99": 823.336,
+          "max": 993.3625
+        },
+        "strategy_to_fire": {
+          "n": 1,
+          "p50": 33.9282,
+          "p95": 33.9282,
+          "p99": 33.9282,
+          "max": 33.9282
+        },
+        "fire_to_order": {
+          "n": 1,
+          "p50": 3.0477,
+          "p95": 3.0477,
+          "p99": 3.0477,
+          "max": 3.0477
+        },
+        "order_to_ack": {
+          "n": 1,
+          "p50": 1.2957999999999998,
+          "p95": 1.2957999999999998,
+          "p99": 1.2957999999999998,
+          "max": 1.2957999999999998
+        },
+        "order_to_fill": {
+          "n": 1,
+          "p50": 1.351,
+          "p95": 1.351,
+          "p99": 1.351,
+          "max": 1.351
+        }
+      },
+      "riskReasons": {
+        "invalid stop or target distance": 2,
+        "economic_gate: winner_cost_share 5.429 > maximum 0.350": 1,
+        "economic_gate: winner_cost_share 1.177 > maximum 0.350": 1,
+        "invalid stop or target distance after depth adjustment": 1,
+        "economic_gate: winner_cost_share 2.144 > maximum 0.350": 1,
+        "economic_gate: winner_cost_share 1.093 > maximum 0.350": 1,
+        "economic_gate: winner_cost_share 0.825 > maximum 0.350": 1,
+        "economic_gate: winner_cost_share 0.758 > maximum 0.350": 1,
+        "economic_gate: winner_cost_share 0.875 > maximum 0.350": 1,
+        "economic_gate: winner_cost_share 0.837 > maximum 0.350": 1,
+        "economic_gate: winner_cost_share 0.898 > maximum 0.350": 1,
+        "economic_gate: winner_cost_share 1.162 > maximum 0.350": 1,
+        "economic_gate: winner_cost_share 0.780 > maximum 0.350": 1,
+        "economic_gate: winner_cost_share 0.936 > maximum 0.350": 1,
+        "economic_gate: winner_cost_share 1.170 > maximum 0.350": 1,
+        "economic_safety: impulse first take cannot cover planned costs/profit floor": 1
+      },
+      "riskAdmissionStages": {
+        "PREPARED_INTENT": 17
+      },
+      "fireChecks": [
+        {
+          "symbol": "NEARUSDT",
+          "stage": "FIRE",
+          "netAtTarget": 5.76806566473659,
+          "contextAllowed": true
+        }
+      ],
+      "errors": [],
+      "writerHealth": {
+        "background": false,
+        "queuedRows": 22510,
+        "writtenRows": 22510,
+        "pendingRows": 0,
+        "queueDepth": 0,
+        "queueCapacity": 8192,
+        "droppedRows": 0,
+        "droppedBulkRows": 0,
+        "droppedCriticalRows": 0,
+        "writerError": null,
+        "inputWriterError": null,
+        "inputAccepted": 2163327,
+        "inputWritten": 2163327
+      },
+      "inputValidation": {
+        "schema": "replay-input-v4",
+        "structuralStatus": "checks_passed",
+        "parityReady": false,
+        "coverage": "experimental_partial",
+        "missingCoverage": [
+          "offline_replay_parity",
+          "capture_load_validation"
+        ],
+        "captureManifestChecked": true,
+        "policySnapshotChecked": true,
+        "boundRuns": 1,
+        "headerPresent": true,
+        "footerPresent": true,
+        "missingReceiptCount": 0,
+        "counts": {
+          "header": 1,
+          "manifest": 2,
+          "policy_snapshot": 1,
+          "service": 2,
+          "scope": 349344,
+          "source_await": 82,
+          "clock_sample": 26,
+          "clock_read": 1577946,
+          "scanner_result": 5,
+          "bootstrap": 10,
+          "symbol_lifecycle": 10,
+          "transport": 108,
+          "market_message": 141412,
+          "callback": 19021,
+          "dispatch": 2382,
+          "scheduler": 72895,
+          "control": 2,
+          "context_await": 42,
+          "rest_context": 34,
+          "run_end": 1,
+          "footer": 1
+        },
+        "issues": {},
+        "source": {
+          "file": "session-20260927T215915Z.inputs.jsonl.gz",
+          "snapshotBytes": 217412325,
+          "bytesRead": 1075359905,
+          "snapshotSha256": "834ea1f7742311dc19ab9278d17ea4fcd6cafeee5ecf83854ec4d75009a73054",
+          "compression": "gzip",
+          "hashBasis": "decoded_jsonl"
+        }
+      },
+      "shadow": {
+        "scope": "V2 performance probe, no ML orders or V3 training",
+        "counts": {
+          "submitted": 538,
+          "forecasts": 538,
+          "probability_abstention": 538
+        },
+        "workerFailure": null,
+        "worker": {
+          "module": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an\\work\\scalp-bot\\scalp_bot\\__init__.py",
+          "pid": 13516,
+          "exchange_imported": false,
+          "resources": {
+            "cpu_seconds": 0.609375,
+            "rss_mb": 95.40625,
+            "peak_rss_mb": 95.40625
+          }
+        },
+        "modelSha256": "a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2"
+      },
+      "configSha256": "51e5c25e5fb209760e1a34f9511c7e0408493f3444e9e7f63ab331ee4563e610",
+      "sourceSha256": "fbad389c42114ef905a1d196d1c42aa78b55ee174de65ba1f77673d6ebb9d1a9"
+    },
+    "after_hot_path_fixes": {
+      "fills": 0,
+      "prepared": 1,
+      "netPnl": 0,
+      "stageLatencyMs": {
+        "event_loop_lateness": {
+          "n": 36644,
+          "p50": 2.489,
+          "p95": 10.481,
+          "p99": 17.4498,
+          "max": 236.7428
+        },
+        "receive_to_parse": {
+          "n": 110657,
+          "p50": 0.0042,
+          "p95": 0.016900000000000002,
+          "p99": 0.0445,
+          "max": 9.424399999999999
+        },
+        "exchange_to_receive": {
+          "n": 110657,
+          "p50": -319.96703147888184,
+          "p95": -264.4615173339844,
+          "p99": -56.01167678833008,
+          "max": 3452.476739883423
+        },
+        "parse_to_processor": {
+          "n": 110657,
+          "p50": 0.0809,
+          "p95": 5.6325,
+          "p99": 10.954699999999999,
+          "max": 196.1492
+        },
+        "capture_market_detach_enqueue": {
+          "n": 110657,
+          "p50": 0.0324,
+          "p95": 0.1002,
+          "p99": 0.224,
+          "max": 26.4618
+        },
+        "processor_to_book": {
+          "n": 98959,
+          "p50": 0.1227,
+          "p95": 0.5486,
+          "p99": 0.7858999999999999,
+          "max": 26.5583
+        },
+        "strategy_function": {
+          "n": 34928,
+          "p50": 0.479,
+          "p95": 1.2748,
+          "p99": 1.8243999999999998,
+          "max": 16.0873
+        },
+        "parse_to_features": {
+          "n": 8875,
+          "p50": 9.686399999999999,
+          "p95": 47.7408,
+          "p99": 57.685100000000006,
+          "max": 269.6183
+        },
+        "parse_to_strategy": {
+          "n": 8875,
+          "p50": 9.7185,
+          "p95": 47.7715,
+          "p99": 57.7138,
+          "max": 269.6499
+        },
+        "strategy_evaluation": {
+          "n": 8875,
+          "p50": 2.8575,
+          "p95": 4.572900000000001,
+          "p99": 8.2686,
+          "max": 15.683800000000002
+        },
+        "book_to_features": {
+          "n": 6571,
+          "p50": 10.8784,
+          "p95": 47.092299999999994,
+          "p99": 53.689099999999996,
+          "max": 258.9084
+        },
+        "features": {
+          "n": 249,
+          "p50": 0.0614,
+          "p95": 0.0885,
+          "p99": 0.1937,
+          "max": 0.2476
+        },
+        "data_to_features": {
+          "n": 249,
+          "p50": 6.8609,
+          "p95": 19.5505,
+          "p99": 32.4399,
+          "max": 67.8708
+        },
+        "prediction": {
+          "n": 498,
+          "p50": 0.5065,
+          "p95": 0.7252,
+          "p99": 0.858,
+          "max": 1.4493
+        },
+        "data_to_adapter": {
+          "n": 498,
+          "p50": 31.8945,
+          "p95": 95.1445,
+          "p99": 123.4093,
+          "max": 134.9196
+        }
+      },
+      "riskReasons": {
+        "invalid stop or target distance": 1
+      },
+      "riskAdmissionStages": {
+        "PREPARED_INTENT": 1
+      },
+      "fireChecks": [],
+      "errors": [],
+      "writerHealth": {
+        "background": false,
+        "queuedRows": 17913,
+        "writtenRows": 17913,
+        "pendingRows": 0,
+        "queueDepth": 0,
+        "queueCapacity": 8192,
+        "droppedRows": 0,
+        "droppedBulkRows": 0,
+        "droppedCriticalRows": 0,
+        "writerError": null,
+        "inputWriterError": null,
+        "inputAccepted": 1585794,
+        "inputWritten": 1585794
+      },
+      "inputValidation": {
+        "schema": "replay-input-v4",
+        "structuralStatus": "checks_passed",
+        "parityReady": false,
+        "coverage": "experimental_partial",
+        "missingCoverage": [
+          "offline_replay_parity",
+          "capture_load_validation"
+        ],
+        "captureManifestChecked": true,
+        "policySnapshotChecked": true,
+        "boundRuns": 1,
+        "headerPresent": true,
+        "footerPresent": true,
+        "missingReceiptCount": 0,
+        "counts": {
+          "header": 1,
+          "manifest": 2,
+          "policy_snapshot": 1,
+          "service": 2,
+          "scope": 270052,
+          "source_await": 78,
+          "clock_sample": 24,
+          "clock_read": 1146147,
+          "scanner_result": 5,
+          "bootstrap": 10,
+          "symbol_lifecycle": 10,
+          "transport": 80,
+          "market_message": 110657,
+          "callback": 15334,
+          "dispatch": 2444,
+          "scheduler": 40873,
+          "control": 2,
+          "context_await": 39,
+          "rest_context": 31,
+          "run_end": 1,
+          "footer": 1
+        },
+        "issues": {},
+        "source": {
+          "file": "session-20260927T222026Z.inputs.jsonl.gz",
+          "snapshotBytes": 155645943,
+          "bytesRead": 777599110,
+          "snapshotSha256": "52df565a94f748738bbce7d0a1ea95f0f32cc22acd7e76b8a6fd9a0f89a3dbc5",
+          "compression": "gzip",
+          "hashBasis": "decoded_jsonl"
+        }
+      },
+      "shadow": {
+        "scope": "V2 performance probe, no ML orders or V3 training",
+        "counts": {
+          "submitted": 498,
+          "forecasts": 498,
+          "probability_abstention": 498
+        },
+        "workerFailure": null,
+        "worker": {
+          "module": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an\\work\\scalp-bot\\scalp_bot\\__init__.py",
+          "pid": 22868,
+          "exchange_imported": false,
+          "resources": {
+            "cpu_seconds": 0.640625,
+            "rss_mb": 95.59765625,
+            "peak_rss_mb": 95.59765625
+          }
+        },
+        "modelSha256": "a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2"
+      },
+      "configSha256": "3a4dc624021235fb3425b00d2936ecbcbf0183d7304f17d9a7580c56c0764a44",
+      "sourceSha256": "feced7f2ce49d673dd9ab08747ebf64dfd60db85f9f57aeaf855a625438c9f91"
+    }
+  },
+  "liveComparisonLimit": "Different periods/traffic (141412 vs 110657 market messages); not a controlled performance A/B. Final live run has zero fills and remains trading-inconclusive."
+}

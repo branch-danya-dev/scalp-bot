@@ -1,3 +1,78 @@
+# Trading model handoff — 28.09.2026
+
+Ветка `codex/trading-model-admission`, [draft PR #60](https://github.com/branch-danya-dev/scalp-bot/pull/60). База `dfcc5949f2b5cb6f902e304dfbe5bd1f4a7b3132`; проверенный implementation commit `e0a291f111c97d133d634adb6ab303b63885ecc0`. Main не изменён. Реальных mainnet/Demo заявок и 8h/12h прогонов не было.
+
+## Состояние
+
+P0 реализован: scenario больше не заменяет HTF/flow/local policy; финальный dispatch повторно проверяет текущий MarketContext. Контекстная инвалидация breakout/rejection возвращена с 3s debounce по свежим наблюдениям; owner не меняется, hard stops сохранены. PreparedIntent → EconomicPlan → FIRE разделены; несколько независимых символов допускаются за один pass с пересчётом бюджета после каждого резервирования.
+
+P1: добавлены сегменты strategy × trend relation × local regime × HTF × flow × target source × stop distance × cost share и режимы expectancy off/shadow/enforce. Default — shadow, минимум 100 валидных уникальных закрытых позиций; неполные сегменты не запрещают вход. Conditional target payout не объявляется expectancy. Hash/encoding capture перенесены в bounded FIFO writer; market message detach p99 0.224 ms в финальном smoke. Pending maker tick использует узкий evaluator с порядком fill → invalidation. Windows IPC receive вынесен из market loop в bounded reply relay; consumer уступает управление между FIFO-сообщениями. Лимиты очередей, fees, slippage, stress и risk caps не увеличивались.
+
+P2 — исследовательская основа, а не готовая обученная модель: first-prepared collector и advisory forecast contract, purged walk-forward/embargo/leave-symbol-out, заранее зафиксированный протокол. Собрано 11 + 1 реальных first-prepared FeatureSnapshot; это features без executable labels, `trainingReady=false`. V3 не обучена и не включена; её runtime ranker/veto adapter ещё предстоит реализовать и проверить. V2 weights и threshold 0.55 сохранены. Worker не импортирует exchange/broker/risk; обычный admission остаётся единственным путём к исполнению.
+
+## Коммиты и проверки
+
+- `dc7c092` — аудит и implementation plan по файлам/тестам.
+- `8abbf3b` — восстановление MarketContext и post-fill context loss.
+- `0bde9a4` — writer hash/encoding вне market consumer.
+- `764b8db` — admission, multi-symbol budgets, сегменты, V3 contracts/protocol, smoke tooling.
+- `25aa629` — IPC reply relay, FIFO fairness, отсутствие ссылок на recorder/engine в отложенных строках.
+- `e0a291f` — runner-target frequencies и сохранение неизвестных outcome flags.
+
+Регрессии подтверждённых дефектов сначала падали; receipts сохранены в рабочем каталоге. Финальный Windows preflight: **1506 passed** (226.33 s). Windows ML/spawn CI-equivalent: **313 passed** (14.28 s). Linux/Python 3.12: **1497 passed, 4 skipped** (95.29 s); опциональные ML-зависимости проверены на Windows. JS syntax — passed. [GitHub CI 36354743216](https://github.com/branch-danya-dev/scalp-bot/actions/runs/36354743216): Linux и Windows success.
+
+Первый Linux запуск на Windows mount дал timeout/cache-permission ошибки; повтор на native ext4 прошёл без изменения тестовых таймаутов. Проверено совпадение всех 128 Python-файлов Linux-копии с веткой. Для локального Windows venv из исходного checkout требуется `PYTHONPATH` на изолированный clone; иначе CLI может импортировать старый editable package.
+
+## Технические smoke и replay
+
+| Проверка | До последних hot-path fixes | Текущий head |
+|---|---:|---:|
+| Публичный paper интервал | 300 s | 300 s |
+| Market messages | 141412 | 110657 |
+| First-prepared snapshots | 11 | 1 |
+| Естественные fills | 1 | 0 |
+| Закрытый portfolio net, USDT | -1.225867 | 0, торговли не было |
+| Loop p99, ms; budget 20 | 48.0222 — fail | 17.4498 — pass |
+| Data→adapter p99, ms; budget 250 | 823.3360 — fail | 123.4093 — pass |
+| Input rows written | 2163327 | 1585794 |
+| Backpressure / writer drops | 0 / 0 | 0 / 0 |
+| Input chain/scope checks | passed | passed |
+| Risk rejections before FIRE | 17/17 | 1/1 |
+
+Первый FIRE имел `contextAllowed=true`, `netAtTarget=5.7681`; сделка NEARUSDT weak_level_rejection закрыта по duration_elapsed. Финальный live smoke **торгово неопределённый: 0 fills**; FIRE→order на этом head в live не измерен. Предыдущий FIRE→order был 3.0477 ms. Два периода различаются нагрузкой, поэтому улучшение p99 не выдаётся за строгий performance A/B. Сохраняются отдельные loop outliers до 236.74 ms; GC не отключался и лимиты не повышались. Короткая диагностика обнаружила main-thread Windows pipe polling и отдельные GC паузы; не все причины исторических сетевых ошибок установлены.
+
+Текущий код отдельно исполнил естественный setup на записи первого smoke: **1 вход, 1 закрытие по weak_level_context_lost, net -0.669728 USDT**, открытых/pending остатков нет. Это counterfactual replay с собственным логическим scheduler, не native output parity и не доказательство улучшения PnL. Его результат не складывается с live PnL и ready labels.
+
+## Edge и решение
+
+Исторический parallel_legacy: breakout 3 закрытия / net -1.439775; rejection 5 / net -41.766602, все пять countertrend. Covered ready controls: rejection countertrend 0 положительных illustrative net60 из 11; countertrend breakout в этой выборке отсутствует. Это уже изученные development-периоды и малая выборка. Автоматический veto или удаление стратегии не введены. Подробности: [historical evidence](docs/trading-model-historical-evidence.md).
+
+План 30/15 bps / 30s для V3 не перенесён автоматически: медиана quote MFE60 15.53 bps для breakout и 2.74 bps для rejection, но нет достаточных depth/fill labels для подбора новых чисел. Основной V3 plan — frozen structural plan стратегии; альтернативы выбираются только на training, до validation. [V3 protocol](docs/ml-v3-prepared-protocol.md).
+
+## После smoke
+
+1. Не запускать 8h по факту зелёного CI или нулевого net. Текущий live fill gate остаётся непроверенным; не ослаблять economics ради активности.
+2. Развить V3 features в executable labels с depth, maker evidence, partial/runner/costs и censoring. Зафиксировать global wall-time provenance для объединения capture; текущие mono domains не склеивать. Нужны независимые периоды/символы; PR58 и эти smoke уже development.
+3. Обучение, calibration, purged walk-forward и leave-symbol-out; только затем проверенный ranker/veto adapter через общий AdmissionEngine. Ни source/model selection, ни threshold не подбирать на holdout.
+4. Перед A/B проверить общий feed/scanner, независимые ledgers, один бюджет на ветвь, остановку обеих ветвей при loss/DD 30 USDT и нулевую дополнительную DD B. Эти experiment-controller guards должны быть реализованы и проверены: исторический rule-profile оставлен с `enforce_session_loss_limit=false`.
+5. [Новый 8h-протокол](docs/trading-model-next-8h-protocol.md) и [паспорт](docs/trading-model-evidence/next-8h-passport.json) инертны, `launchAuthorized=false`. Model V3 hash и полный B config hash — null, не вымышленные значения. Старый PR59 не менялся; ranker не выдаётся за прежний критерий самостоятельных ML-сделок.
+
+## Provenance и артефакты
+
+- Source on disk SHA256: `feced7f2ce49d673dd9ab08747ebf64dfd60db85f9f57aeaf855a625438c9f91`.
+- Smoke config SHA256: `3a4dc624021235fb3425b00d2936ecbcbf0183d7304f17d9a7580c56c0764a44`.
+- Planned common rule-config A/B SHA256: `cef3b2a317b13b58f3ca491a05a9783ad87bc44d8acfee67e042886f3f36ff0b`. Полный B ещё не определён.
+- Diagnostic V2 model SHA256: `a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2`; manifest SHA256: `15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3`.
+- Runtime SHA256: `af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5`.
+
+Компактные результаты и hashes: [evidence summary](docs/trading-model-evidence/summary.json). Подробные пользовательские отчёты лежат в `outputs/` текущего чата. Сырые captures: `work/paper-smoke-300s`, `work/paper-smoke-post-300s`, диагностический `work/paper-smoke-diagnostic-60s`; replay — `work/postfix-replay-first-smoke`. Корень чата: `G:/codex/2026-09-28/referenced-chatgpt-conversation-this-is-an`. Исходные данные `G:/scalp-bot/data` не изменялись. Не удалять raw, failed attempts или source receipts при следующем этапе.
+
+---
+
+# Исторические записи до текущего этапа
+
+Прежние разрешения на Demo и другие запуски относятся к описанным ниже этапам, не к этой задаче.
+
 # Latest handoff — private Demo heartbeat diagnosis
 
 Повторный Demo завершился в 22:12 МСК с private_ws_gap после примерно 10 минут без сделок; финальная сверка прошла. Найден и исправлен отсутствующий прикладной heartbeat Bybit; добавлена диагностика этапов/close codes без секретов. Причина конкретного старого разрыва журналом не сохранена; VPN пользователь не менял. [Разбор](docs/demo-paper-1h/PRIVATE_HEARTBEAT_FIX.md). Ordinary paper продолжает свой час; новый Demo-час автоматически не запущен. Проверка двух приватных соединений завершена без заявок: старый клиент снова оборвался через 640.40 s; исправленный выдержал 660.41 s и 32/32 прикладных pong. Серверный close reason отсутствует, поэтому вывод ограничен этой парой. 73 targeted и полный CI 36344057891 прошли. Receipt и hashes — в разборе.

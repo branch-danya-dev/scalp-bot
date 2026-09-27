@@ -1,0 +1,17 @@
+{
+  "schema": "prepared-setup-v3",
+  "trainingReady": false,
+  "limitation": "Features only; executable labels, training, calibration and independent validation are not built.",
+  "files": [
+    {
+      "file": "prepared-first-smoke.jsonl",
+      "sha256": "a28489387ce5eff539b090de1d882ab6db9e1bc4f7452129c417ee3a126f797c",
+      "count": 11
+    },
+    {
+      "file": "prepared-postfix-smoke.jsonl",
+      "sha256": "c7ab07f0814f40759c627201548219e3fa75f0b25b82dc5a47772ba23404a4ce",
+      "count": 1
+    }
+  ]
+}
