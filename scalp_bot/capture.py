@@ -20,6 +20,7 @@ import msgspec
 
 from .engine import TradingEngine
 from .recorder import SessionRecorder
+from .input_journal import DeferredJournalRow, detach_json, resolve_journal_row
 from .run_manifest import code_provenance
 
 
@@ -72,19 +73,25 @@ class InputWriter:
         if self.error or self.closed:
             self.error = self.error or "input writer already closed"
             return
-        if payload["kind"] == "manifest" and payload["body"]["phase"] == "capture":
-            self.manifest = deepcopy(payload["body"]["manifest"])
-        data = self.encoder.encode(dict(event=event, symbol=symbol, payload=payload)) + b"\n"
+        body = payload.row if isinstance(payload, DeferredJournalRow) else payload
+        if body["kind"] == "manifest" and body["body"]["phase"] == "capture":
+            self.manifest = deepcopy(body["body"]["manifest"])
+        if isinstance(payload, DeferredJournalRow):
+            size = payload.retained_bytes
+        else:
+            payload, size = detach_json(payload)
+            size += 2048
+        data = dict(event=event, symbol=symbol, payload=payload)
         with self.lock:
-            if self.pending_bytes + len(data) > self.max_queue_bytes:
+            if self.pending_bytes + size > self.max_queue_bytes:
                 self.error = "input recording queue exceeded its byte limit"
                 return
-            self.pending_bytes += len(data)
+            self.pending_bytes += size
         try:
-            self.queue.put_nowait(data)
+            self.queue.put_nowait((data, size))
         except Full:
             with self.lock:
-                self.pending_bytes -= len(data)
+                self.pending_bytes -= size
             self.error = "input recording queue is full"
             return
         self.accepted += 1
@@ -96,12 +103,13 @@ class InputWriter:
                     item = self.queue.get()
                     if item is _STOP:
                         return
+                    row, size = item
                     try:
-                        output.write(item)
+                        output.write(self.encoder.encode(resolve_journal_row(row)) + b"\n")
                         self.written += 1
                     finally:
                         with self.lock:
-                            self.pending_bytes -= len(item)
+                            self.pending_bytes -= size
         except BaseException as exc:
             self.error = f"input writer failed: {type(exc).__name__}"
 

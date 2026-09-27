@@ -11,6 +11,8 @@ import gzip
 import json
 import math
 import os
+import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
@@ -243,6 +245,53 @@ def valid_body(kind: str, symbol: object, body: object, schema: str = SCHEMA) ->
     return False
 
 
+def detach_json(value):
+    """Copy only JSON containers; account conservatively for retained memory."""
+    if isinstance(value, dict):
+        result = {}
+        size = sys.getsizeof(value)
+        for key, item in value.items():
+            copied, used = detach_json(item)
+            result[key] = copied
+            size += sys.getsizeof(key) + used
+        return result, size
+    if isinstance(value, (list, tuple)):
+        result = []
+        size = sys.getsizeof(value)
+        for item in value:
+            copied, used = detach_json(item)
+            result.append(copied)
+            size += used
+        return result, size + sys.getsizeof(result)
+    if value is None or isinstance(value, (str, bool, int)):
+        return value, sys.getsizeof(value)
+    if isinstance(value, float) and math.isfinite(value):
+        return value, sys.getsizeof(value)
+    raise ValueError("input journal requires finite JSON data")
+
+
+@dataclass(slots=True)
+class DeferredJournalRow:
+    row: dict
+    journal: object
+    retained_bytes: int
+
+    def resolve(self):
+        # Exactly one FIFO writer owns the chain. Sequence/count stay assigned
+        # at enqueue time: any dropped row remains detectable by validation.
+        self.row["previousHash"] = self.journal.previous_hash
+        self.row["hash"] = fingerprint(self.row)
+        self.journal.previous_hash = self.row["hash"]
+        return self.row
+
+
+def resolve_journal_row(row):
+    payload = row.get("payload")
+    if isinstance(payload, DeferredJournalRow):
+        row["payload"] = payload.resolve()
+    return row
+
+
 class InputJournal:
     def __init__(self, record: Callable, clock: RuntimeClock) -> None:
         self.record = record
@@ -259,19 +308,19 @@ class InputJournal:
         if kind not in KINDS or not valid_body(kind, symbol, body):
             raise ValueError("unsupported input journal body")
         # Detach BEFORE enqueueing: the engine may mutate the message later.
-        detached = json.loads(json.dumps(body, allow_nan=False))
+        detached, retained = detach_json(body)
         wall, mono = self.clock.time(), self.clock.perf_counter_ns()
         if not _finite(wall) or not _uint(mono):
             raise ValueError("invalid processing clock observation")
         row = {"schema": SCHEMA, "sequence": self.sequence + 1,
                "previousHash": self.previous_hash, "kind": kind, "symbol": symbol,
                "processingWallSeconds": wall, "processingMonoNs": mono, "body": detached}
-        row["hash"] = fingerprint(row)
         # Advance even if the bounded recorder drops a row. The next row/footer
         # then exposes that loss instead of numbering the surviving rows anew.
         self.sequence += 1
-        self.previous_hash = row["hash"]
-        self.record(EVENT, symbol, row)
+        deferred = DeferredJournalRow(row, self, retained + 2048)
+        asynchronous = bool(getattr(getattr(self.record, "__self__", None), "defer_journal_hashes", False))
+        self.record(EVENT, symbol, deferred if asynchronous else deferred.resolve())
 
     def market_message(self, symbol: str, message) -> None:
         # No generic __dict__/transport/headers/auth/OTel serialization.

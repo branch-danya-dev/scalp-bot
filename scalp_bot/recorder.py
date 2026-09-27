@@ -10,6 +10,7 @@ from time import monotonic
 import msgspec
 
 from .runtime_clock import RuntimeClock, SystemRuntimeClock
+from .input_journal import resolve_journal_row
 
 
 _ROW_ENCODER = msgspec.json.Encoder()
@@ -98,6 +99,7 @@ class _BoundedRecorderQueue:
 
 
 class SessionRecorder:
+    defer_journal_hashes = True
     def __init__(
         self,
         directory: str,
@@ -149,7 +151,7 @@ class SessionRecorder:
         self._writer_thread.start()
 
     def _write_row_sync(self, row: dict) -> None:
-        encoded = _ROW_ENCODER.encode(row) + b"\n"
+        encoded = _ROW_ENCODER.encode(resolve_journal_row(row)) + b"\n"
         with self.path.open("ab") as fh:
             fh.write(encoded)
 
@@ -169,7 +171,7 @@ class SessionRecorder:
                         item.done.set()
                         continue
                     fh.write(
-                        _ROW_ENCODER.encode(item) + b"\n"
+                        _ROW_ENCODER.encode(resolve_journal_row(item)) + b"\n"
                     )
                     self._written_rows += 1
                     if item.get("event") in {"run_summary", "bot_stopped"}:
