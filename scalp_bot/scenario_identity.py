@@ -32,6 +32,10 @@ class MarketObjectRef:
 
 
 def level_ref(level) -> MarketObjectRef | None:
+    # Avoid serializing the complete mutable level for one immutable field.
+    if not isinstance(level, dict) and hasattr(level, "generation_id"):
+        key = level.generation_id
+        return MarketObjectRef("structural_level", str(key)) if key else None
     raw = level if isinstance(level, dict) else level.public()
     # Generation is the existing playbook identity; a display/level id is not a substitute.
     key = raw.get("generation_id")

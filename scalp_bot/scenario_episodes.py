@@ -11,7 +11,12 @@ from .scenario_identity import level_ref
 
 
 def breach_witness(level, side: str, candles, forming, now_ms: int) -> int | None:
-    rows = [c for c in candles if c.confirmed and c.start_ms + 60_000 <= now_ms][-1:]
+    # Only the last eligible closed bar is used. Reverse traversal preserves
+    # list-order semantics, including corrections/future bars, without rescanning
+    # hundreds of old bars once for every structural object on every quote.
+    last = next((c for c in reversed(candles)
+                 if c.confirmed and c.start_ms + 60_000 <= now_ms), None)
+    rows = [last] if last is not None else []
     if forming is not None and forming.start_ms <= now_ms:
         rows.append(forming)
     witnesses = [c.start_ms for c in rows if

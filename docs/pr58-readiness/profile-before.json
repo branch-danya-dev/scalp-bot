@@ -1,0 +1,47 @@
+{
+  "source": "first 3000 historical input events, B, ML off",
+  "profiler": "cProfile",
+  "total_seconds": 12.423097399999975,
+  "hotspots": [
+    {
+      "file": "scalp_bot/offline_study.py",
+      "line": 97,
+      "function": "_evaluate",
+      "calls": 397,
+      "self_seconds": 0.0011189000000000001,
+      "cumulative_seconds": 3.9313797000000004
+    },
+    {
+      "file": "C:/Users/workingspace/AppData/Local/Programs/Python/Python313/Lib/typing.py",
+      "line": 1043,
+      "function": "_evaluate",
+      "calls": 44,
+      "self_seconds": 5.7400000000000006e-05,
+      "cumulative_seconds": 0.00043450000000000004
+    },
+    {
+      "file": "scalp_bot/engine.py",
+      "line": 3122,
+      "function": "_evaluate",
+      "calls": 397,
+      "self_seconds": 0.053120200000000006,
+      "cumulative_seconds": 3.9263044000000002
+    },
+    {
+      "file": "scalp_bot/scenario_episodes.py",
+      "line": 13,
+      "function": "breach_witness",
+      "calls": 20558,
+      "self_seconds": 0.6708951000000001,
+      "cumulative_seconds": 0.6754486000000001
+    },
+    {
+      "file": "scalp_bot/scenario_identity.py",
+      "line": 34,
+      "function": "level_ref",
+      "calls": 35582,
+      "self_seconds": 0.0313777,
+      "cumulative_seconds": 0.6607747
+    }
+  ]
+}
