@@ -1,0 +1,79 @@
+{
+  "source": "docs/run-reviews/two-hour-20260926",
+  "scope": "all recorded scenarios and ready markouts, not candidate counterfactual",
+  "owners": {
+    "level_breakout": {
+      "scenarios": 120,
+      "prepared": 119,
+      "ready": 21,
+      "filled": 1,
+      "episodes": 136
+    },
+    "weak_level_rejection": {
+      "scenarios": 81,
+      "prepared": 50,
+      "ready": 11,
+      "filled": 5,
+      "episodes": 149
+    }
+  },
+  "horizons": {
+    "5": {
+      "rejection_ready": 11,
+      "observed": 11,
+      "unknown": 0,
+      "positive_gross_markout": 6,
+      "negative_gross_markout": 5,
+      "nonexecuted": 6,
+      "warning": "gross markouts are not target/stop fills or net trade wins"
+    },
+    "15": {
+      "rejection_ready": 11,
+      "observed": 11,
+      "unknown": 0,
+      "positive_gross_markout": 3,
+      "negative_gross_markout": 8,
+      "nonexecuted": 6,
+      "warning": "gross markouts are not target/stop fills or net trade wins"
+    },
+    "30": {
+      "rejection_ready": 11,
+      "observed": 11,
+      "unknown": 0,
+      "positive_gross_markout": 3,
+      "negative_gross_markout": 8,
+      "nonexecuted": 6,
+      "warning": "gross markouts are not target/stop fills or net trade wins"
+    },
+    "60": {
+      "rejection_ready": 11,
+      "observed": 11,
+      "unknown": 0,
+      "positive_gross_markout": 2,
+      "negative_gross_markout": 9,
+      "nonexecuted": 6,
+      "warning": "gross markouts are not target/stop fills or net trade wins"
+    },
+    "120": {
+      "rejection_ready": 11,
+      "observed": 11,
+      "unknown": 0,
+      "positive_gross_markout": 4,
+      "negative_gross_markout": 7,
+      "nonexecuted": 6,
+      "warning": "gross markouts are not target/stop fills or net trade wins"
+    }
+  },
+  "candidate": {
+    "policy": "quote_tape_v1",
+    "enabled_by_default": false,
+    "exact_historical_comparison_complete": false,
+    "lost_winners": null,
+    "new_entries": null,
+    "removed_entries": null,
+    "extra_delay_ms": null,
+    "remaining_move": null,
+    "portfolio_delta_net": null,
+    "reason": "first current-reclaim executable quote is not a recorded legacy state field; reconstruct the complete strategy prefix on raw events before evaluating this exact candidate"
+  }
+}
