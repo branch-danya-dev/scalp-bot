@@ -1,0 +1,80 @@
+{
+  "observed_at": "2026-09-27T19:22:44.162406+00:00",
+  "incident": {
+    "run_id": "2eab3171d9cd40c39671ce22b9daf399",
+    "reason": "private_ws_gap",
+    "gap_wall_ms": 1790536326814,
+    "positions_reconciled": true,
+    "pairs": 0,
+    "finished_exit_code": 2,
+    "vpn_changed": false,
+    "server_close_reason_recorded": false
+  },
+  "source_hashes": {
+    "result.json": "7adf07486e43706b6f3acb661d6df3ecdd60c662bc7ffa485fecf96eafdd8d1d",
+    "experiment-events.jsonl": "5217cea49f02162317d37a4df4dc5e9f475a1dc0775e4820cfb4639c5ff3774e",
+    "manifest.json": "233894f8655a7e757f6c88e19046a73549bdaa7c554abb328d43b35deb783b23"
+  },
+  "regression_before": {
+    "command": "python -m pytest tests/demo_paper/test_private_heartbeat.py -q",
+    "result": "1 failed",
+    "failure": "expected only reconnected; observed private_ws_gap after simulated idle cutoff"
+  },
+  "regression_after": {
+    "command": "python -m pytest tests/demo_paper tests/test_transport_recovery.py -q",
+    "passed": 73,
+    "seconds": 6.72
+  },
+  "probe_orders_sent": 0,
+  "new_trading_hour_started": false,
+  "reference": "https://bybit-exchange.github.io/docs/v5/ws/connect#how-to-send-the-heartbeat-packet",
+  "code_commit": "371252690d061f3551daf3589a77ead278ccae4c",
+  "ci": {
+    "run_id": 36344057891,
+    "status": "success",
+    "jobs": {
+      "test": 108689601777,
+      "ml-windows": 108689601618
+    }
+  },
+  "probe": {
+    "started_utc": "2026-09-27T19:19:26.875837+00:00",
+    "duration_seconds": 660,
+    "orders_sent": 0,
+    "endpoint": "wss://stream-demo.bybit.com/v5/private",
+    "arms": {
+      "baseline": {
+        "status": "GAP",
+        "pings": 0,
+        "pongs": 0,
+        "private_messages": 0,
+        "gaps": 1,
+        "last_gap": "private_ws_gap",
+        "receive_error": {
+          "type": "ConnectionClosedError",
+          "received_close_code": null,
+          "elapsed_seconds": 640.4017281999113
+        },
+        "elapsed_seconds": 640.4026490999386
+      },
+      "candidate": {
+        "status": "SURVIVED_660_SECONDS",
+        "pings": 32,
+        "pongs": 32,
+        "private_messages": 0,
+        "gaps": 0,
+        "last_gap": "reconnected",
+        "elapsed_seconds": 660.4107918998925
+      }
+    },
+    "finished_utc": "2026-09-27T19:30:27.287602+00:00"
+  },
+  "probe_interpretation": "Old client repeated a private gap at 640.40 seconds; candidate survived 660.41 seconds with 32 matching application pongs. Supports missing application heartbeat as a cause; neither the original incident nor control includes an explicit peer close reason. One bounded pair is not a guarantee against all future network faults.",
+  "probe_hashes": {
+    "baseline_transport.py": "64106c2bebbc95c3ef74ac57735252fab6f91068778004f4824d42cd6bfcd995",
+    "probe.py": "468efbf080491b9cc9a5fcb681e4a2c6e20fe5880c6c32b15d5a09f1e39dd1fb",
+    "probe-events.jsonl": "a0f6e655f3fbf3b306eebaab188b3ae971b8fa2dd8a6c40083f69b7cf664d1ab",
+    "probe-status.json": "ded82f04aac6cb6f87946b14f59badb08aea39bdfc580a2f4573b53c9437e58b",
+    "probe-console.log": "ded82f04aac6cb6f87946b14f59badb08aea39bdfc580a2f4573b53c9437e58b"
+  }
+}
