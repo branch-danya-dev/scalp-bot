@@ -95,7 +95,10 @@ class Arm:
             return [("health_stop",pos.quantity,"Market",None)] if stop_reason else []
         direction=1 if pos.side==Side.LONG else -1
         gross=direction*(executable-pos.entry)*pos.original_quantity
-        pos.last_price=executable;pos.unrealized_pnl=direction*(executable-pos.entry)*pos.quantity-pos.entry_fee_remaining
+        pos.last_price=executable
+        pos.estimated_exit_fee_usd=pos.quantity*executable*self.config.taker_fee_rate
+        pos.unrealized_pnl=direction*(executable-pos.entry)*pos.quantity-pos.entry_fee_remaining-pos.estimated_exit_fee_usd
+        pos.current_move_pct=direction*(executable-pos.entry)/pos.entry
         pos.mfe_usd=max(pos.mfe_usd,gross);pos.mae_usd=max(pos.mae_usd,-gross)
         pos.max_favorable_move_pct=max(pos.max_favorable_move_pct,direction*(executable-pos.entry)/pos.entry)
         pos.max_adverse_move_pct=max(pos.max_adverse_move_pct,-direction*(executable-pos.entry)/pos.entry)

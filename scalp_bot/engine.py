@@ -2812,6 +2812,9 @@ class TradingEngine(ScenarioRuntime):
 
         return on_message, fast_book_state, deep_book_state
 
+    def _market_stream_options(self):
+        return {}
+
     async def _symbol_worker(
         self,
         symbol: str,
@@ -2841,6 +2844,7 @@ class TradingEngine(ScenarioRuntime):
             on_message,
             stop_event,
             on_transport=capture_transport,
+            **self._market_stream_options(),
             fast_orderbook_depth=fast_depth,
             deep_orderbook_depth=deep_depth,
             market_queue_size=self.config.market_queue_size,
@@ -4534,6 +4538,10 @@ class TradingEngine(ScenarioRuntime):
             ),
         )
 
+    def _submit_research_opportunity(self, opportunity) -> bool:
+        """Explicit opt-in execution boundary; ordinary paper behavior is unchanged."""
+        return False
+
     def _latency_for_selected_opportunity(
         self,
         opportunity: Opportunity,
@@ -5114,6 +5122,9 @@ class TradingEngine(ScenarioRuntime):
                     ),
                 },
             )
+            return
+
+        if self._submit_research_opportunity(best):
             return
 
         best.session.last_risk_fingerprint = None

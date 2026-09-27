@@ -879,6 +879,7 @@ async def _stream_topics(
     queue_max_lag_seconds: float = 0.50,
     on_transport: Callable[[dict], None] | None = None,
     on_backpressure: Callable[[dict], None] | None = None,
+    connect_factory=None,
 ) -> None:
     attempt = 0
     stage = "idle"
@@ -906,7 +907,7 @@ async def _stream_topics(
         queue: asyncio.Queue[MarketMessage] | None = None
         try:
             notify("connecting")
-            async with websockets.connect(
+            async with (connect_factory or websockets.connect)(
                 ws_url,
                 ping_interval=20,
                 ping_timeout=20,
@@ -1098,6 +1099,7 @@ async def stream_symbol(
     market_queue_max_lag_seconds: float = 0.50,
     on_transport: Callable[[dict], None] | None = None,
     on_backpressure: Callable[[dict], None] | None = None,
+    connect_factory=None,
 ) -> None:
     valid_depths = {1, 50, 200, 1000}
     if orderbook_depth is not None:
@@ -1126,6 +1128,7 @@ async def stream_symbol(
             stop_event,
             on_transport=on_transport,
             on_backpressure=on_backpressure,
+            **({"connect_factory": connect_factory} if connect_factory is not None else {}),
             queue_size=market_queue_size,
             queue_put_timeout_seconds=(
                 market_queue_put_timeout_seconds
@@ -1146,6 +1149,7 @@ async def stream_symbol(
             stop_event,
             on_transport=on_transport,
             on_backpressure=on_backpressure,
+            **({"connect_factory": connect_factory} if connect_factory is not None else {}),
             queue_size=market_queue_size,
             queue_put_timeout_seconds=(
                 market_queue_put_timeout_seconds
@@ -1161,6 +1165,7 @@ async def stream_symbol(
             stop_event,
             on_transport=on_transport,
             on_backpressure=on_backpressure,
+            **({"connect_factory": connect_factory} if connect_factory is not None else {}),
             queue_size=market_queue_size,
             queue_put_timeout_seconds=(
                 market_queue_put_timeout_seconds

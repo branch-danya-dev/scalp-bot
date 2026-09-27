@@ -26,3 +26,6 @@ models/ml/
 
 # Local PR58 offline study artifacts; retained manifests/reports are in docs.
 data/pr58-*
+
+# Dedicated local Demo secret profile (never captured).
+.env.demo-paper.local
