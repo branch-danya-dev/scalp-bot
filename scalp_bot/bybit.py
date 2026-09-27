@@ -884,14 +884,19 @@ async def _stream_topics(
     stage = "idle"
     stage_started = perf_counter_ns()
     attempt_started = stage_started
-    def notify(phase: str, *, error_type=None, discarded=0):
+    def notify(phase: str, *, error_type=None, discarded=0, error=None):
         if on_transport is not None:
+            chain = []
+            while error is not None and len(chain)<4:
+                code = getattr(error, "errno", None)
+                chain.append({"type": type(error).__name__, "errno": code if type(code) is int else None})
+                error = error.__cause__ or error.__context__
             on_transport({"phase": phase, "attempt": attempt, "topics": list(topics),
                           "errorType": error_type, "discarded": discarded,
                           "diagnostics": {"schemaVersion": 1, "stage": stage,
                               "stageElapsedMs": (perf_counter_ns()-stage_started)/1e6,
                               "attemptElapsedMs": (perf_counter_ns()-attempt_started)/1e6,
-                              "host": urlsplit(ws_url).hostname,
+                              "host": urlsplit(ws_url).hostname, "errorChain": chain,
                               "connectScope": "combined DNS/TCP/TLS/HTTP upgrade; subphase unknown"}})
     while not stop_event.is_set():
         attempt += 1
@@ -1049,7 +1054,7 @@ async def _stream_topics(
         except Exception as exc:
             if on_backpressure is not None and isinstance(exc, MarketDataBackpressureError):
                 on_backpressure({"topics": list(topics), "errorType": type(exc).__name__, "message": str(exc)})
-            notify("fault", error_type=type(exc).__name__)
+            notify("fault", error_type=type(exc).__name__, error=exc)
             if not stop_event.is_set():
                 await asyncio.sleep(2)
         finally:

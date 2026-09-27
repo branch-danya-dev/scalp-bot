@@ -114,3 +114,16 @@ async def test_transport_only_windows_continue_same_worker_state(tmp_path, monke
         assert replay.sessions['AAA'].orderbook == live.sessions['AAA'].orderbook
     finally:
         await live.close(); await replay.close()
+
+
+async def test_diagnostics_do_not_add_runtime_clock_reads_or_change_replay_inputs(tmp_path, monkeypatch):
+    live,prefix,inputs,outputs=await fixture(tmp_path,monkeypatch,diagnostics=True)
+    replay=restore_cold_engine(prefix)
+    try:
+        assert any(r['event']=='transport_diagnostics' for r in outputs)
+        assert all('diagnostics' not in r['body'] for r in inputs if r['kind']=='transport')
+        trading_outputs=[r for r in outputs if r['event']!='transport_diagnostics']
+        report=await OfflineScheduledReplay(replay).apply(inputs,expected_events=trading_outputs)
+        assert report['outputsMatch']
+    finally:
+        await live.close();await replay.close()
