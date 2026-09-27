@@ -10,7 +10,7 @@
   "horizon_seconds": 30,
   "target_bps": 30,
   "stop_bps": 15,
-  "config_sha256": "926ccc3b0d8a1d030ea71044ba2081f820dd2e3263f16cf8612f190cac63fa87",
+  "config_sha256": "0a88c02d915ba04ca2c708c3eb3fe8ba6c9585f95d81993c5744031102e0b23d",
   "bounds": {
     "session_loss_usdt_each_arm": 30,
     "reconciliation_seconds": 90,
@@ -27,5 +27,5 @@
   "default_enabled": false,
   "research_only": true,
   "ml_trading_outcome_if_no_fills": "ML_TRADING_NOT_TESTED",
-  "note": "Bounds frozen before observation; owner confirms this complete passport locally at Start. PR59 unchanged."
+  "note": "Profile rehashed for manifest v6 segment expectancy shadow defaults. No Demo start authorized; V2 weights and threshold unchanged."
 }

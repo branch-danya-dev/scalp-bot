@@ -21,7 +21,8 @@ from .source_await import source_await
 from .manifest_validation import fingerprint
 from .domain import Action, Candle, Candidate, OrderBook, Side, StrategyDecision, TradeTick, Trend
 from .paper import PaperBroker, Position
-from .expectancy import StrategyExpectancyBook
+from .expectancy import StrategyExpectancyBook, SegmentExpectancyBook
+from .setup_segments import closed_observation
 from .strategy_policy import minimum_expectancy_r
 from .observability import build_decision_trace
 from .instrument import InstrumentSpec
@@ -47,6 +48,8 @@ from .risk import RiskEngine
 from .parallel_scenarios import ParallelScenarioRouter
 from .execution_book import coherent_execution_book
 from .scenario_runtime import ScenarioRuntime
+from .admission import AdmissionEngine, Opportunity
+from .market_runtime import MarketRuntime
 from .strategy.flow import best_level_ofi_usd, prune_trades
 from .strategy.lifecycle import LevelLifecycleTracker
 from .strategy.structure import aggregate_candles
@@ -869,26 +872,20 @@ class ActiveSymbolSession:
         }
 
 
-@dataclass(slots=True)
-class Opportunity:
-    priority: SelectionPriority
-    arbitration: SemanticCandidateAssessment
-    session: ActiveSymbolSession
-    decision: StrategyDecision
-    plan: object
-    position_action: str = "open"
-
-
-class TradingEngine(ScenarioRuntime):
+class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
     def __init__(self, config: Settings, *, clock: RuntimeClock | None = None,
                  capture_inputs: bool = False, rest_client=None, recorder=None,
-                 research_policy=None, configure_observability: bool = True) -> None:
+                 research_policy=None, configure_observability: bool = True,
+                 prepared_collector=None) -> None:
         self.clock = clock if clock is not None else SystemRuntimeClock()
         self.config = config
+        # Offline/research-only observer receives immutable public features.
+        self.prepared_collector = prepared_collector
         if configure_observability:
             configure_telemetry(config)
         self.rest = rest_client if rest_client is not None else BybitRestClient(config)
         self.risk = RiskEngine(config)
+        self.segment_expectancy = SegmentExpectancyBook()
         self.broker = PaperBroker(config, clock=self.clock)
         self.router = ParallelScenarioRouter(preparation_seconds=config.active_symbol_idle_timeout_seconds)
         self.recorder = recorder if recorder is not None else SessionRecorder(
@@ -2058,57 +2055,10 @@ class TradingEngine(ScenarioRuntime):
                 new_fire_setups = (
                     after_setups - before_setups
                 )
-                if latency_message is not None and new_fire_setups:
-                    latency_message.fire_mono_ns = self.clock.perf_counter_ns()
-                    strategy_name = sorted(
-                        new_fire_setups
-                    )[0][0]
-                    observe_latency(
-                        "strategy_to_fire",
-                        max(
-                            0.0,
-                            (
-                                latency_message.fire_mono_ns
-                                - latency_message.strategy_eval_started_mono_ns
-                            )
-                            / 1_000_000_000,
-                        ),
-                        stream=stream_name(latency_message.topic),
-                        strategy=strategy_name,
-                    )
-                    exchange_receive = exchange_receive_seconds(
-                        latency_message
-                    )
-                    receipt_to_fire = max(
-                        0.0,
-                        (
-                            latency_message.fire_mono_ns
-                            - latency_message.receipt_mono_ns
-                        )
-                        / 1_000_000_000,
-                    )
-                    if (
-                        exchange_receive is not None
-                        and exchange_receive >= 0
-                    ):
-                        observe_latency(
-                            "exchange_to_fire",
-                            exchange_receive + receipt_to_fire,
-                            stream=stream_name(latency_message.topic),
-                            strategy=strategy_name,
-                        )
-                    trace_snapshot = latency_snapshot(
-                        latency_message
-                    )
+                if latency_message is not None:
                     for decision in session.decisions.values():
-                        setup_key = (
-                            decision.strategy,
-                            str(decision.setup_id or ""),
-                        )
-                        if setup_key in new_fire_setups:
-                            decision.details[
-                                "latencyTrace"
-                            ] = trace_snapshot
+                        if decision.tradeable:
+                            decision.details["latencyTrace"] = latency_snapshot(latency_message)
                 self._arbiter_latency_message = (
                     latency_message
                     if new_fire_setups
@@ -2446,70 +2396,6 @@ class TradingEngine(ScenarioRuntime):
         # Force the next live evaluation to rebuild structural
         # geometry from that refreshed confirmed-candle snapshot.
         session.static_analysis_key = None
-
-    async def _process_public_trade_message(
-        self,
-        session: ActiveSymbolSession,
-        message: MarketMessage,
-    ) -> list[TradeTick]:
-        """Apply one public-trade batch without leaking later ticks backward.
-
-        A resting maker order must see each exchange trade in causal order:
-        the current tick may fill it, then strategy invalidation may react to
-        that tick. Later trades from the same websocket batch must never be
-        visible to an earlier fill/cancel decision.
-        """
-        rows = message.get("data") or []
-        if not rows:
-            return []
-
-        ticks: list[TradeTick] = []
-        wall_now = self.clock.time()
-        for row in rows:
-            session.trade_sequence += 1
-            tick = TradeTick(
-                ts_ms=int(row.get("T") or self.clock.time() * 1000),
-                price=float(row["p"]),
-                size=float(row["v"]),
-                side=str(row.get("S") or ""),
-                sequence=session.trade_sequence,
-            )
-            session.trades.append(tick)
-            self._overlay_trade_on_forming_candle(
-                session,
-                tick,
-            )
-            session.last_price = tick.price
-            session.last_trade_stream_at = wall_now
-            session.trade_receipt_mono = (message.get("receipt_mono_ns", 0) or 0) / 1e9 or None
-            session.latest_processed_event_ms = max(session.latest_processed_event_ms, tick.ts_ms)
-            session.trade_exchange_ts_ms = max(session.trade_exchange_ts_ms, tick.ts_ms)
-            prune_trades(
-                session.trades,
-                tick.ts_ms,
-                self.config.trade_buffer_seconds,
-            )
-            ticks.append(tick)
-
-            # Execution caused by this exact trade has priority over strategy
-            # invalidation caused by the same trade. Otherwise a fill can be
-            # retroactively cancelled after the market already traded through.
-            self._mark_execution_from_market(
-                session,
-                trade_ts_ms=tick.ts_ms,
-                trade_price=tick.price,
-                trade_notional_usd=tick.notional,
-                trade_side=tick.side,
-            )
-
-            # If the resting order survived this tick, only now may the
-            # strategy use this tick to decide whether the order is still
-            # valid before the next exchange trade is processed.
-            if session.symbol in self.broker.pending_entries:
-                session.last_eval = self.clock.monotonic()
-                await self._evaluate(session)
-
-        return ticks
 
     def _market_handler(self, symbol: str):
         """Create one worker's stateful handler, shared by live and offline adapters."""
@@ -4664,635 +4550,6 @@ class TradingEngine(ScenarioRuntime):
             except Exception as exc:
                 self._emit("arbiter_error", None, {"error": str(exc)})
 
-    @input_scope("arbiter", symbol_arg=False)
-    def _arbitrate_once(self) -> None:
-        self._record_input("callback", None, {"name": "arbiter"})
-        opportunities: list[Opportunity] = []
-        now = self.clock.time()
-        clock = self._clock_state()
-        if clock is not None and not clock["valid"]:
-            self._cancel_all_pending("clock_invalid")
-            for session in self.sessions.values():
-                session.decisions.clear()
-            return
-        for event in self.broker.expire_pending(now):
-            self._pop_pending_order_latency(
-                str(event.get("symbol") or ""),
-                str(event.get("setupId") or ""),
-            )
-            self._emit(
-                "entry_cancelled",
-                event.get("symbol"),
-                event,
-            )
-        candidate_map = {
-            item.symbol: item
-            for item in self.candidates
-        }
-
-        for session in self.sessions.values():
-            if self._clock_entry_block(session):
-                continue
-            if session.symbol in self.broker.pending_entries:
-                continue
-            existing_position = self.broker.positions.get(
-                session.symbol
-            )
-            if (
-                session.last_market_at <= 0
-                or now - session.last_market_at
-                > self.config.market_stale_seconds
-            ):
-                continue
-            if not session.book_is_fresh(now):
-                continue
-            if not session.deep_book_is_fresh(now):
-                continue
-            if not session.confirmed_candle_is_fresh(
-                self.config.confirmed_candle_stale_seconds,
-                clock["evaluationMs"] / 1000 if clock is not None else now,
-            ):
-                continue
-
-            planned: list[tuple[
-                StrategyDecision,
-                object,
-                SemanticCandidateAssessment,
-                int,
-                float,
-                str,
-            ]] = []
-
-            for decision in session.decisions.values():
-                if decision.strategy == "orderbook_density":
-                    continue
-                if (
-                    not decision.tradeable
-                    or not self.strategy_enabled.get(
-                        decision.strategy,
-                        False,
-                    )
-                ):
-                    continue
-
-                setup_id = self._resolve_setup_id(
-                    session,
-                    decision,
-                )
-                decision.setup_id = setup_id
-                staged_entry = (
-                    decision.details.get("stagedEntry")
-                    if isinstance(
-                        decision.details.get("stagedEntry"),
-                        dict,
-                    )
-                    else {}
-                )
-                staged_phase = str(
-                    staged_entry.get("phase") or "full"
-                )
-                position_action = (
-                    "add"
-                    if existing_position is not None
-                    else "open"
-                )
-                if existing_position is not None:
-                    if staged_phase != "add":
-                        continue
-                    if (
-                        existing_position.strategy
-                        != decision.strategy
-                        or existing_position.side
-                        != decision.side
-                        or existing_position.setup_id
-                        != setup_id
-                    ):
-                        continue
-                elif staged_phase == "add":
-                    # The probe may have been rejected or timed out. Never
-                    # execute an orphaned add as if a position existed.
-                    continue
-
-                if not self._scenario_entry_valid(session, decision):
-                    continue
-                base_assessment = self._owned_assessment(session, decision)
-                decision.details["semanticArbitration"] = (
-                    base_assessment.public()
-                )
-                decision.details["riskScale"] = (
-                    base_assessment.risk_scale
-                )
-                decision.details["riskScaleSource"] = (
-                    "scenario_size_policy"
-                )
-                if not base_assessment.allowed:
-                    self._record_arbiter_blocked(
-                        session,
-                        decision,
-                        base_assessment,
-                    )
-                    continue
-
-                policy_pre = self._evaluate_research_policy(
-                    session,
-                    decision,
-                    phase="pre_plan",
-                    arbitration=base_assessment,
-                )
-                if policy_pre.blocked:
-                    continue
-
-                blocked_reason = self._setup_blocked_reason(
-                    session,
-                    decision.strategy,
-                    setup_id,
-                    now,
-                )
-                if blocked_reason:
-                    self._record_setup_blocked(
-                        session,
-                        decision,
-                        blocked_reason,
-                    )
-                    continue
-
-                expectancy_snapshot = self.expectancy.snapshot(
-                    decision.strategy,
-                    min_samples=(
-                        self.config.strategy_expectancy_min_samples
-                    ),
-                    minimum_expectancy_r=minimum_expectancy_r(
-                        self.config,
-                        decision.strategy,
-                    ),
-                )
-                if (
-                    self.config.enforce_strategy_expectancy_gate
-                    and expectancy_snapshot["sampleReady"]
-                    and expectancy_snapshot["status"] == "negative"
-                ):
-                    self._risk_reject_if_changed(
-                        session,
-                        decision,
-                        (
-                            "strategy expectancy gate: "
-                            f"{expectancy_snapshot['expectancyR']:.3f}R < "
-                            f"{expectancy_snapshot['minimumExpectancyR']:.3f}R"
-                        ),
-                        diagnostics={
-                            "expectancy": expectancy_snapshot,
-                            "semanticArbitration": (
-                                base_assessment.public()
-                            ),
-                        },
-                    )
-                    continue
-
-                if position_action == "add":
-                    allowed = (
-                        existing_position is not None
-                        and not existing_position.partial_taken
-                        and self.broker.available_notional > 0
-                        and self.broker.available_risk_usd > 0
-                    )
-                    portfolio_reason = (
-                        "allowed"
-                        if allowed
-                        else "staged add portfolio budget exhausted"
-                    )
-                else:
-                    allowed, portfolio_reason = (
-                        self.broker.can_open(session.symbol)
-                    )
-                if not allowed:
-                    self._risk_reject_if_changed(
-                        session,
-                        decision,
-                        portfolio_reason,
-                        diagnostics={
-                            "semanticArbitration": (
-                                base_assessment.public()
-                            ),
-                        },
-                    )
-                    continue
-
-                result = self._build_risk_plan_for_opportunity(
-                    session,
-                    decision,
-                    setup_id,
-                    position_action,
-                    existing_position,
-                )
-                if not result.allowed or result.plan is None:
-                    diagnostics = dict(
-                        result.diagnostics or {}
-                    )
-                    diagnostics["semanticArbitration"] = (
-                        base_assessment.public()
-                    )
-                    self._risk_reject_if_changed(
-                        session,
-                        decision,
-                        result.reason,
-                        diagnostics=diagnostics,
-                    )
-                    continue
-
-                # The owner supplied one frozen hypothesis. Economics does not
-                # send it back through another context-selection pass.
-                result.plan.strategy_details["semanticArbitration"] = base_assessment.public()
-
-                if (
-                    position_action == "open"
-                    and result.plan.entry_mode == "maker_limit"
-                ):
-                    allowed, pending_reason = (
-                        self.broker.can_place_pending(
-                            session.symbol
-                        )
-                    )
-                    if not allowed:
-                        self._risk_reject_if_changed(
-                            session,
-                            decision,
-                            pending_reason,
-                            diagnostics={
-                                "semanticArbitration": (
-                                    base_assessment.public()
-                                ),
-                            },
-                        )
-                        continue
-
-                economics = (
-                    result.plan.strategy_details.get(
-                        "economics"
-                    )
-                    if isinstance(
-                        result.plan.strategy_details,
-                        dict,
-                    )
-                    else None
-                )
-                shadow_reasons = (
-                    tuple(
-                        economics.get(
-                            "shadowRejectReasons"
-                        )
-                        or []
-                    )
-                    if isinstance(economics, dict)
-                    else ()
-                )
-                shadow_fingerprint = (
-                    decision.strategy,
-                    setup_id,
-                    shadow_reasons,
-                )
-                if shadow_reasons:
-                    if (
-                        session.last_economic_shadow_fingerprint
-                        != shadow_fingerprint
-                    ):
-                        session.last_economic_shadow_fingerprint = (
-                            shadow_fingerprint
-                        )
-                        self._emit(
-                            "economic_shadow",
-                            session.symbol,
-                            {
-                                "strategy": decision.strategy,
-                                "setupId": setup_id,
-                                "shadowRejectReasons": list(
-                                    shadow_reasons
-                                ),
-                                "economics": economics,
-                                "decision": decision.public(),
-                                "semanticArbitration": (
-                                    base_assessment.public()
-                                ),
-                            },
-                            snapshot=True,
-                        )
-                else:
-                    session.last_economic_shadow_fingerprint = (
-                        None
-                    )
-
-                policy_post = self._evaluate_research_policy(
-                    session,
-                    decision,
-                    phase="post_plan",
-                    plan=result.plan,
-                    arbitration=base_assessment,
-                )
-                if policy_post.blocked:
-                    continue
-
-                scanner_candidate = candidate_map.get(
-                    session.symbol
-                )
-                activity_rank = (
-                    scanner_candidate.activity_rank
-                    if (
-                        scanner_candidate
-                        and scanner_candidate.activity_rank
-                    )
-                    else 99
-                )
-                activity_score = (
-                    scanner_candidate.activity_score
-                    if scanner_candidate
-                    else 0.0
-                )
-                planned.append(
-                    (
-                        decision,
-                        result.plan,
-                        base_assessment,
-                        int(activity_rank),
-                        float(activity_score),
-                        position_action,
-                    )
-                )
-
-            if not planned:
-                continue
-
-            final_assessments = {row[0].strategy: row[2] for row in planned}
-            for (
-                decision,
-                plan,
-                base_assessment,
-                activity_rank,
-                activity_score,
-                position_action,
-            ) in planned:
-                assessment = final_assessments.get(
-                    decision.strategy,
-                    base_assessment,
-                )
-                decision.details["semanticArbitration"] = (
-                    assessment.public()
-                )
-                if not assessment.allowed:
-                    self._record_arbiter_blocked(
-                        session,
-                        decision,
-                        assessment,
-                    )
-                    continue
-
-                policy_final = self._evaluate_research_policy(
-                    session,
-                    decision,
-                    phase="final",
-                    plan=plan,
-                    arbitration=assessment,
-                )
-                if policy_final.blocked:
-                    continue
-
-                session.arbiter_block_fingerprints.pop(
-                    decision.strategy,
-                    None,
-                )
-                plan.strategy_details[
-                    "semanticArbitration"
-                ] = assessment.public()
-                priority = build_selection_priority(
-                    assessment,
-                    plan,
-                    activity_rank=activity_rank,
-                    activity_score=activity_score,
-                )
-                plan.strategy_details[
-                    "selectionPriority"
-                ] = priority.public()
-                opportunities.append(
-                    Opportunity(
-                        priority=priority,
-                        arbitration=assessment,
-                        session=session,
-                        decision=decision,
-                        plan=plan,
-                        position_action=position_action,
-                    )
-                )
-
-        if not opportunities:
-            return
-
-        winners = {}
-        for item in sorted(opportunities, key=lambda item: self.router.ready_key(
-                item.session.symbol, item.decision.strategy)):
-            symbol = item.session.symbol
-            if symbol not in winners:
-                winners[symbol] = item
-            else:
-                self.router.reject(symbol, "dispatcher", "earlier_eligible_ready_proposal",
-                    self.clock.perf_counter_ns()/1e9, strategy=item.decision.strategy)
-        best = max(winners.values(), key=lambda item: item.priority.key())
-        if self._clock_entry_block(best.session):
-            return
-        if best.position_action == "add":
-            allowed, reason = self.broker.can_add(
-                best.plan
-            )
-        elif best.plan.entry_mode == "maker_limit":
-            allowed, reason = self.broker.can_place_pending(
-                best.session.symbol
-            )
-        else:
-            allowed, reason = self.broker.can_open(
-                best.session.symbol
-            )
-        if not allowed:
-            self._risk_reject_if_changed(
-                best.session,
-                best.decision,
-                reason,
-                diagnostics={
-                    "semanticArbitration": (
-                        best.arbitration.public()
-                    ),
-                    "selectionPriority": (
-                        best.priority.public()
-                    ),
-                },
-            )
-            return
-
-        if self._submit_research_opportunity(best):
-            return
-
-        best.session.last_risk_fingerprint = None
-        best.session.last_blocked_fingerprint = None
-        latency_message = (
-            self._latency_for_selected_opportunity(best)
-        )
-        selection_payload = {
-            "latencyTrace": latency_snapshot(
-                latency_message
-            ),
-            "semanticArbitration": (
-                best.arbitration.public()
-            ),
-            "selectionPriority": best.priority.public(),
-            "playbookSetupQuality": float(
-                best.decision.details.get(
-                    "setupQuality",
-                    best.decision.confidence,
-                )
-                or 0.0
-            ),
-        }
-
-        self.router.submitted(best.session.symbol, self.clock.perf_counter_ns()/1e9, strategy=best.decision.strategy)
-        best.plan.strategy_details["scenario"] = self.router.scenarios[best.session.symbol].public()
-        self._scenario_events()
-        if best.plan.entry_mode == "maker_limit":
-            execution_mode = "paper_maker"
-            self._mark_order_sent(
-                latency_message,
-                strategy=best.decision.strategy,
-                execution_mode=execution_mode,
-            )
-            with span(
-                "paper.order.submit",
-                **{
-                    "market.symbol": best.session.symbol,
-                    "strategy.name": best.decision.strategy,
-                    "execution.mode": execution_mode,
-                    "market.event_id": (
-                        latency_message.event_id
-                        if latency_message is not None
-                        else None
-                    ),
-                },
-            ):
-                if best.position_action == "add":
-                    pending = self.broker.place_pending_add(
-                        best.plan,
-                        min_trade_ts_ms=(
-                            best.session.trades[-1].ts_ms
-                            if best.session.trades
-                            else None
-                        ),
-                    )
-                    pending_event = "entry_add_pending"
-                else:
-                    pending = self.broker.place_pending(
-                        best.plan,
-                        min_trade_ts_ms=(
-                            best.session.trades[-1].ts_ms
-                            if best.session.trades
-                            else None
-                        ),
-                    )
-                    pending_event = "entry_pending"
-            self._mark_order_ack(
-                latency_message,
-                strategy=best.decision.strategy,
-                execution_mode=execution_mode,
-            )
-            if latency_message is not None:
-                self._pending_order_latency[
-                    (
-                        best.session.symbol,
-                        str(best.plan.setup_id),
-                    )
-                ] = latency_message
-                best.plan.strategy_details[
-                    "latencyTrace"
-                ] = latency_snapshot(latency_message)
-                selection_payload["latencyTrace"] = (
-                    latency_snapshot(latency_message)
-                )
-            self._emit(
-                pending_event,
-                best.session.symbol,
-                {
-                    "plan": best.plan.public(),
-                    "pending": pending.public(),
-                    "reasons": best.decision.reasons,
-                    "visuals": best.decision.visuals,
-                    **selection_payload,
-                },
-                snapshot=True,
-            )
-            return
-
-        execution_mode = "paper_taker"
-        self._mark_order_sent(
-            latency_message,
-            strategy=best.decision.strategy,
-            execution_mode=execution_mode,
-        )
-        best.session.last_trade_at = now
-        with span(
-            "paper.order.submit",
-            **{
-                "market.symbol": best.session.symbol,
-                "strategy.name": best.decision.strategy,
-                "execution.mode": execution_mode,
-                "market.event_id": (
-                    latency_message.event_id
-                    if latency_message is not None
-                    else None
-                ),
-            },
-        ):
-            if best.position_action == "add":
-                position = self.broker.add(
-                    best.plan,
-                    coherent_execution_book(best.session.orderbook, best.session.depth_orderbook()),
-                )
-            else:
-                position = self.broker.open(
-                    best.plan,
-                    coherent_execution_book(best.session.orderbook, best.session.depth_orderbook()),
-                )
-
-        self._mark_order_ack(
-            latency_message,
-            strategy=best.decision.strategy,
-            execution_mode=execution_mode,
-        )
-        self._mark_order_fill(
-            latency_message,
-            strategy=best.decision.strategy,
-            execution_mode=execution_mode,
-        )
-        if latency_message is not None:
-            best.plan.strategy_details[
-                "latencyTrace"
-            ] = latency_snapshot(latency_message)
-
-        if best.position_action == "add":
-            self._record_added_position(
-                best.session,
-                best.decision,
-                best.plan.public(),
-                position.public(),
-                semantic_arbitration=(
-                    best.arbitration.public()
-                ),
-                selection_priority=best.priority.public(),
-            )
-        else:
-            self._record_opened_position(
-                best.session,
-                best.decision,
-                best.plan.public(),
-                position.public(),
-                semantic_arbitration=(
-                    best.arbitration.public()
-                ),
-                selection_priority=best.priority.public(),
-            )
-
     def _record_opened_position(
         self,
         session: ActiveSymbolSession,
@@ -5680,6 +4937,11 @@ class TradingEngine(ScenarioRuntime):
                 entry=plan.setup_entry, stop=plan.stop, target=plan.target,
                 details=plan.strategy_details)
             reason = self.strategies[strategy_key].entry_invalidation(probe,session.orderbook)
+            if reason is None:
+                assessment = self._current_entry_assessment(session, probe)
+                if assessment is not None and not assessment.allowed:
+                    reason = "entry_context:" + ",".join(assessment.blockers)
+
 
         if reason is None:
             return
@@ -5966,6 +5228,7 @@ class TradingEngine(ScenarioRuntime):
                         event.get("initialRiskUsd") or 0.0
                     ),
                 )
+                self.segment_expectancy.record(closed_observation(event, session.symbol))
                 self._consume_setup(
                     session,
                     str(event.get("strategy") or ""),
@@ -6149,6 +5412,9 @@ class TradingEngine(ScenarioRuntime):
         *,
         diagnostics: dict | None = None,
     ) -> None:
+        if decision is not None and decision.tradeable:
+            admission = decision.details.setdefault("admission", {"stage": "PREPARED_INTENT"})
+            admission.update(stage="PREPARED_INTENT", rejectionReason=reason)
         self.router.reject(session.symbol, (diagnostics or {}).get("rejectionOwner", "risk"),
                            reason, self.clock.perf_counter_ns()/1e9,
                            strategy=decision.strategy if decision else None)

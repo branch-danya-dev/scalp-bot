@@ -67,6 +67,7 @@ class PairedEngine(TradingEngine):
         allowed,reason=self.portfolio.admit(intent,best.session.instrument)
         self.recorder.record("paired_admission",best.session.symbol,dict(pair_id=intent.pair_id,allowed=allowed,reason=reason))
         if allowed:
+            self._mark_admission_fire(best)
             self.router.submitted(best.session.symbol,self.clock.perf_counter_ns()/1e9,strategy=best.decision.strategy)
             self._scenario_events()
         return True

@@ -1,4 +1,5 @@
 from copy import deepcopy
+from dataclasses import replace
 import json
 from pathlib import Path
 import runpy
@@ -128,10 +129,12 @@ async def test_legacy_foreign_obstacle_flag_cannot_add_second_context_veto(tmp_p
     # unmodified-strategy integration test above. Positions are never inserted.
     for engine in pair.engines.values():
         session = engine.sessions['AAA']
-        session.market_context = context(resistance=mature_level('resistance', 100.45, 100.45, generation='other'))
+        session.market_context = replace(session.market_context,
+            structure=context(resistance=mature_level('resistance', 100.45, 100.45, generation='other')).structure)
         session.decisions = {'level_breakout': decision('level_breakout', Action.LONG,
             entry=100.365, stop=99.9, target=101.5, watched_level=100.24,
             details=dict(state='impulse', levelLifecycle={'generation_id': 'own'},
+                stagedEntry={'confirmationReady': True},
                 opportunityFreshness={'classification': 'fresh'},
                 flowAlignment={'classification': 'strongly_aligned'}))}
     await pair.apply(feed[-1])

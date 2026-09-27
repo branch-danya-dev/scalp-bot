@@ -155,6 +155,8 @@ async def measure(rows,manifest,output,model,*,shadow,speed,start_ns):
         warm=[r for r in rows if r['processingMonoNs']<start_ns]
         load=[r for r in rows if r['processingMonoNs']>=start_ns]
         for event in warm:arbiter=await ingest(engine,handlers,event,arbiter)
+        if hasattr(engine, "benchmark_warmup_complete"):
+            engine.benchmark_warmup_complete()
         if worker:
             worker.start();deadline=time.perf_counter()+30
             while not worker.ready and not worker.failed and time.perf_counter()<deadline:

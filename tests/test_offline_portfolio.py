@@ -4,6 +4,7 @@ Synthetic market paths validate parity, not strategy profitability.
 """
 import asyncio
 from copy import deepcopy
+from dataclasses import replace
 import json
 
 import pytest
@@ -20,13 +21,21 @@ from test_input_journal import write_report
 
 
 def install_signal(engine):
+    from scalp_bot.domain import Trend
+    from scalp_bot.strategy.regime import LocalRegime
+    from test_playbook_context import local_snapshot
+    build_context = engine._build_market_context
+    def controlled_context(*args, **kwargs):
+        return replace(build_context(*args, **kwargs), local_regime=local_snapshot(
+            LocalRegime.BULLISH_TREND, direction=Trend.UP, parent=Trend.UP))
+    engine._build_market_context = controlled_context
     def evaluate(*args, **kwargs):
         return StrategyDecision(strategy='trend_structure', action=Action.LONG,
             reasons=['controlled integration signal'], confidence=.9, entry=100,
             stop=99.5, target=100.8, watched_level=99.8, setup_id='portfolio-fixture',
             details={'setupQuality': .9})
     engine.strategies['trend_structure'].evaluate = evaluate
-    # This fixture controls BOTH the scenario and the signal. Production tests
+    # This fixture controls context, scenario and signal. Production tests
     # below use the actual router, history, strategy and cold replay unchanged.
     def controlled_situation(context, candles, structure, enabled, *, episodes=None):
         return ({"status":"OBSERVING", "rangeAbs":1}, [dict(

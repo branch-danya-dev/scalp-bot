@@ -80,7 +80,7 @@ def restore_cold_engine(prefix):
     if rows[1]['body']['phase'] != 'capture':
         raise SegmentMismatch('run manifest cannot replace capture manifest')
     manifest = rows[1]['body']['manifest']
-    if manifest.get('manifestVersion') not in (3, 4, 5) or check_manifest(manifest)[1]:
+    if manifest.get('manifestVersion') not in (3, 4, 5, 6) or check_manifest(manifest)[1]:
         raise SegmentMismatch('incomplete or invalid capture manifest')
     if (manifest['recordSchemaVersion'] != 'jsonl-clock-v2'
             or manifest['executionModelVersion'] != 'paper-v2-fast-head'):

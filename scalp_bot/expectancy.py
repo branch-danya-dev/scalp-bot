@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from .setup_segments import segment_key, finite
 
 
 @dataclass(slots=True)
@@ -114,3 +115,30 @@ class StrategyExpectancyBook:
             min_samples=min_samples,
             minimum_expectancy_r=minimum_expectancy_r,
         )
+
+
+class SegmentExpectancyBook:
+    """Only completed unique positions contribute, never overlapping path labels."""
+    def __init__(self):
+        self.stats = {}
+        self.seen = set()
+
+    def record(self, observation):
+        risk, net = observation.get("initialRiskUsd"), observation.get("netPnl")
+        if not finite(risk) or risk <= 0 or not finite(net) or observation["identity"] in self.seen:
+            return
+        self.seen.add(observation["identity"])
+        key = segment_key(observation["segment"])
+        self.stats.setdefault(key, StrategyExpectancy()).record(net, risk)
+
+    def assess(self, segment, *, mode, min_samples, minimum_expectancy_r):
+        if mode not in {"off", "shadow", "enforce"}:
+            raise ValueError("unknown segment gate mode")
+        key = segment_key(segment)
+        stats = self.stats.get(key, StrategyExpectancy()).public(
+            min_samples=min_samples, minimum_expectancy_r=minimum_expectancy_r)
+        ready = stats["sampleReady"] and "unknown" not in key
+        would_veto = ready and stats["status"] == "negative"
+        return dict(**stats, segment=segment, mode=mode, evidenceReady=ready,
+            wouldVeto=would_veto, blocked=mode == "enforce" and would_veto,
+            source="prior_unique_closed_positions", payoutMeaning="empirical_net_expectancy")

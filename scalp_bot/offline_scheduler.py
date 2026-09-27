@@ -113,7 +113,7 @@ class OfflineScheduledReplay(OfflineSegmentReplay):
             if origin is None:
                 raise SegmentMismatch('Start requires cold provenance-bound engine')
             if (candidate['configSha256'] != origin['configSha256']
-                    or candidate['manifestVersion'] not in (3, 4, 5)
+                    or candidate['manifestVersion'] not in (3, 4, 5, 6)
                     or candidate['recordSchemaVersion'] != 'jsonl-clock-v2'
                     or candidate['executionModelVersion'] != 'paper-v2-fast-head'
                     or candidate['code']['sourceSha256'] != origin['sourceSha256']

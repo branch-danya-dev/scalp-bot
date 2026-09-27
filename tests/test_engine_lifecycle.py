@@ -2795,7 +2795,7 @@ async def test_public_trade_batch_fills_before_later_tick_can_invalidate(
             )
             engine._validate_pending_entry(current)
 
-        engine._evaluate = invalidate_after_trade  # type: ignore[method-assign]
+        engine._evaluate_pending_entry = invalidate_after_trade  # type: ignore[method-assign]
 
         await engine._process_public_trade_message(
             session,
@@ -2868,7 +2868,7 @@ async def test_public_trade_batch_does_not_expose_future_ticks_to_pending_valida
                 "test_cancel",
             )
 
-        engine._evaluate = cancel_on_first_visible_tick  # type: ignore[method-assign]
+        engine._evaluate_pending_entry = cancel_on_first_visible_tick  # type: ignore[method-assign]
 
         await engine._process_public_trade_message(
             session,
@@ -3219,15 +3219,14 @@ async def test_fast_event_evaluation_bypasses_poll_interval_and_arbitrates_fire(
         assert message.strategy_eval_finished_mono_ns >= (
             message.strategy_eval_started_mono_ns
         )
-        assert message.fire_mono_ns >= (
-            message.strategy_eval_finished_mono_ns
-        )
+        # A mocked arbiter has not admitted any economic plan.
+        assert message.fire_mono_ns == 0
         trace = session.decisions[
             "level_breakout"
         ].details["latencyTrace"]
         assert trace["eventId"] == "m-fast-fixture"
         assert trace["traceId"] == "0" * 31 + "2"
-        assert trace["fireTsNs"] is not None
+        assert trace["fireTsNs"] is None
     finally:
         engine.running = False
         await engine.rest.close()

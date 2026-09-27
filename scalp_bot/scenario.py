@@ -452,9 +452,9 @@ class ScenarioRouter:
         decision.details["opportunityTrigger"] = dict(price=s.frozen["opportunityPrice"],
             observedAtMs=s.frozen["opportunityMs"],
             expectedImpulsePct=decision.details["expectedImpulsePct"], source="scenario_frozen_budget")
-        self.transition(s,"ARMED",now,"owner supplied frozen executable plan")
+        self.transition(s,"ARMED",now,"owner supplied causal prepared intent; economics pending")
         decision.details["scenario"] = s.public()
-        decision.details["planContractVersion"] = 1
+        decision.details["planContractVersion"] = 2
         return decision
 
     def reject(self, symbol, owner, reason, now):

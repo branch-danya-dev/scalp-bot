@@ -274,6 +274,7 @@ class StrategyDecision:
 
     @property
     def tradeable(self) -> bool:
+        """Legacy geometry readiness; execution requires AdmissionEngine FIRE."""
         return self.side is not None and None not in (self.entry, self.stop, self.target)
 
     def public(self) -> dict[str, Any]:

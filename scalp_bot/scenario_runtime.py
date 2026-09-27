@@ -34,6 +34,9 @@ class ScenarioRuntime:
                                    "owner observed a confirmed structural break")
         decision = self.router.accept_decision(session.symbol, decision,
             self.clock.perf_counter_ns()/1e9, session.orderbook)
+        if decision.tradeable:
+            intent = self._prepare_intent(session, decision)
+            self._observe_prepared_intent(session, intent)
         session.scenario_view = self.router.public(session.symbol)
         self._scenario_events()
         return decision
@@ -69,7 +72,7 @@ class ScenarioRuntime:
         session.scenario_view = self.router.public(session.symbol)
 
     def _owned_assessment(self, session, decision):
-        """Compatibility telemetry; no second context/strategy contest."""
+        """Ownership telemetry; market policy is checked separately at dispatch."""
         s=self.router.scenario_for(session.symbol, decision.strategy)
         owned=bool(s and s.owner==decision.strategy and s.state not in TERMINAL
                    and s.side==decision.action.value)
@@ -92,21 +95,14 @@ class ScenarioRuntime:
         s=self.router.scenario_for(session.symbol, decision.strategy)
         if not s or s.owner!=decision.strategy or s.state in TERMINAL:
             return False
-        if session.market_context is not None:
-            playbook = {"level_breakout": PlaybookKind.LEVEL_BREAKOUT,
-                        "weak_level_rejection": PlaybookKind.LEVEL_REJECTION,
-                        "trend_structure": PlaybookKind.TREND_CONTINUATION}.get(decision.strategy)
-            if playbook is not None:
-                assessment = assess_entry_context(playbook, decision.action,
-                    self.router.context_for(session.market_context, session.symbol, decision.strategy),
-                    session.trend, breakout_confirmed=bool(
-                        decision.details.get("stagedEntry", {}).get("confirmationReady")))
-                decision.details["finalEntryContextAssessment"] = assessment.public()
-                if not assessment.allowed:
-                    self._risk_reject_if_changed(session, decision,
-                        "entry context: " + ", ".join(assessment.blockers),
-                        diagnostics={"rejectionOwner": "market_context", "entryContext": assessment.public()})
-                    return False
+        assessment = self._current_entry_assessment(session, decision)
+        if assessment is not None:
+            decision.details["finalEntryContextAssessment"] = assessment.public()
+            if not assessment.allowed:
+                self._risk_reject_if_changed(session, decision,
+                    "entry context: " + ", ".join(assessment.blockers),
+                    diagnostics={"rejectionOwner": "market_context", "entryContext": assessment.public()})
+                return False
         execution = self.router.executions.get(session.symbol)
         if execution is not None and execution is not s:
             self.router.reject(session.symbol, "execution", "symbol_busy:"+execution.state,
@@ -140,3 +136,26 @@ class ScenarioRuntime:
                 diagnostics={"rejectionOwner":"strategy","scenario":s.public()})
             return False
         return True
+
+    def _current_entry_assessment(self, session, decision):
+        playbook = {"level_breakout": PlaybookKind.LEVEL_BREAKOUT,
+                    "weak_level_rejection": PlaybookKind.LEVEL_REJECTION,
+                    "trend_structure": PlaybookKind.TREND_CONTINUATION}.get(decision.strategy)
+        if session.market_context is None or playbook is None:
+            return None
+        return assess_entry_context(playbook, decision.action,
+            self.router.context_for(session.market_context, session.symbol, decision.strategy),
+            session.trend, breakout_confirmed=bool(
+                decision.details.get("stagedEntry", {}).get("confirmationReady")))
+
+    def _observe_prepared_intent(self, session, intent):
+        if self.prepared_collector is None or session.market_context is None:
+            return
+        context = session.market_context
+        sequence = self.input_journal.sequence if self.input_journal else getattr(self.recorder, "sequence", 0)
+        capture_id = self.recorder.path.name
+        trade_seconds = self._trade_buffer_seconds(session)
+        self.prepared_collector.observe_prepared(intent, context, capture_id=capture_id,
+            epoch=self.router.epochs.get(session.symbol, 0), sequence=sequence,
+            available_ns=self.clock.perf_counter_ns(), trade_seconds=trade_seconds,
+            deep_fresh=session.deep_book_is_fresh(), units_verified=session.instrument is not None)

@@ -139,6 +139,8 @@ def test_v4_manifest_still_accepts_original_public_schema():
     m=example()
     m["manifestVersion"]=4
     m["config"].pop("research_rejection_response_policy")
+    m["config"].pop("segment_expectancy_mode")
+    m["config"].pop("segment_expectancy_min_samples")
     m["configSha256"]=fingerprint(m["config"])
     rehash(m)
     result,issues=check_manifest(m)

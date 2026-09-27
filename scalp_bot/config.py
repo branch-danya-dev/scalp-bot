@@ -120,6 +120,8 @@ class Settings(BaseSettings):
 
     strategy_expectancy_min_samples: int = 30
     enforce_strategy_expectancy_gate: bool = False
+    segment_expectancy_mode: Literal["off", "shadow", "enforce"] = "shadow"
+    segment_expectancy_min_samples: int = 100
     # Stage 9 research-only readiness guards. These values do not block
     # trading; they only decide when conditional economic calibration has
     # enough observations to be interpreted.
