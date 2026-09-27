@@ -2,6 +2,14 @@ from scalp_bot.expectancy import SegmentExpectancyBook
 from scalp_bot.setup_segments import DIMENSIONS, setup_segment, summarize
 
 
+def test_closed_outcomes_include_runner_target_and_keep_missing_flags_unknown():
+    from scalp_bot.setup_segments import closed_observation
+    row = closed_observation(dict(reason='runner_target'))
+    assert row['target'] is True
+    assert row['partial'] is None
+    assert closed_observation({})['stop'] is None
+
+
 def test_segment_is_entry_time_and_side_relative():
     details = {"entryContextAssessment": {"directionPlan": {
         "localRegime": "bearish_trend", "htfBias": "bearish"}, "flowClassification": "opposed"},

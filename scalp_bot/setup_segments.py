@@ -97,8 +97,10 @@ def closed_observation(payload, symbol=None):
     reason = str(payload.get("reason") or "")
     return dict(identity=identity, segment=segment, netPnl=payload.get("netPnl"),
         initialRiskUsd=payload.get("initialRiskUsd"), mfeR=payload.get("mfeR"), maeR=payload.get("maeR"),
-        target=reason == "target", stop=reason == "stop", partial=bool(payload.get("partialTaken")),
-        noFollowThrough="no_follow" in reason)
+        target=reason in {"target", "runner_target"} if reason else None,
+        stop=reason == "stop" if reason else None,
+        partial=bool(payload['partialTaken']) if 'partialTaken' in payload else None,
+        noFollowThrough="no_follow" in reason if reason else None)
 
 
 def analyze_events(path):
