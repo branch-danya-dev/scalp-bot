@@ -1,0 +1,23 @@
+{
+  "local": {
+    "command": ".venv/Scripts/python.exe scripts/test_preflight.py",
+    "head": "e760ddb155cc76a74f57174d986f350ebd2e21a6",
+    "result": "1390 passed in 244.40s (0:04:04)",
+    "exit_code": 0,
+    "log": "preflight-final.txt",
+    "source_frozen": true
+  },
+  "targeted": {
+    "tests": 104,
+    "exit_code": 0
+  },
+  "ci": {
+    "status": "checked after publication on final PR head; exact receipt at persistent artifact path",
+    "receipt": "G:/scalp-bot/data/pr58-completion/final-ci.json",
+    "required_jobs": [
+      "test (Linux full suite + JS syntax)",
+      "ml-windows (optional ML/spawn)"
+    ]
+  },
+  "historical_controls": "existing T01-T06 and XRP/reclaim/frozen/ownership/recovery tests retained"
+}

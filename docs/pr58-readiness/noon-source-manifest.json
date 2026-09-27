@@ -1,0 +1,60 @@
+{
+  "source": "G:\\scalp-bot\\data\\paper-captures\\24h-20260926-151653-835-9dde484e\\session-20260926T121926Z.inputs.jsonl.gz",
+  "compressed_sha256": "f7b31a58543ca11b1319228b0b17cb792101abdbd31d4e28823a406da6b00b36",
+  "rows": 30014028,
+  "counts": {
+    "header": 1,
+    "manifest": 2,
+    "policy_snapshot": 1,
+    "service": 2,
+    "scope": 4953934,
+    "source_await": 974,
+    "clock_sample": 390,
+    "clock_read": 22071982,
+    "scanner_result": 86,
+    "bootstrap": 11,
+    "symbol_lifecycle": 11,
+    "transport": 309,
+    "market_message": 1976416,
+    "callback": 343384,
+    "dispatch": 46618,
+    "scheduler": 611806,
+    "external": 6097,
+    "control": 3,
+    "context_await": 1085,
+    "rest_context": 915,
+    "run_end": 1
+  },
+  "selected": {
+    "manifest": 2,
+    "clock_sample": 390,
+    "scanner_result": 86,
+    "bootstrap": 11,
+    "symbol_lifecycle": 11,
+    "transport": 276,
+    "market_message": 1976298,
+    "control": 3,
+    "rest_context": 915,
+    "run_end": 1
+  },
+  "run_end": {
+    "sequence": 30011223,
+    "wall": 1790431057.3974588,
+    "body": {
+      "manifestId": "603f2fb9f8c040eb8f44af8ff9b03efa",
+      "manifestSha256": "0dd74ded35f8c50eed7c7790600b99f05958e0915d366ff945d2ee0613e263d2",
+      "reason": "bot_stop"
+    }
+  },
+  "first_wall": 1790425166.9684982,
+  "last_wall": 1790431058.2545955,
+  "gzip_crc_complete": false,
+  "compressed_tail_truncated": true,
+  "hash_chain_links_contiguous": true,
+  "selected_row_content_hashes_recomputed": true,
+  "all_row_content_hashes_recomputed": false,
+  "complete_run_end": true,
+  "footer_present": false,
+  "scope": "causal semantic index, not original scheduler/full replay certification",
+  "elapsed_seconds": 168.28743089991622
+}

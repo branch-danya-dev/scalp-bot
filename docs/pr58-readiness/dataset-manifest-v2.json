@@ -1,0 +1,869 @@
+{
+  "schema_version": 2,
+  "training_ready": true,
+  "feature_schema": "market-context-v1:dd86ef9b9197904ed2516bbcadbb173331155b49ade52d3394701685ae70601c",
+  "feature_names": [
+    "book_ready",
+    "candle_fresh",
+    "book_age_seconds",
+    "spread_bps",
+    "top5_depth_usd",
+    "top5_depth_imbalance",
+    "trade_covered_5s",
+    "trade_count_5s",
+    "trade_notional_usd_5s",
+    "cvd_usd_5s",
+    "trade_imbalance_5s",
+    "ofi_covered_5s",
+    "ofi_event_count_5s",
+    "normalized_ofi_5s",
+    "trade_covered_15s",
+    "trade_count_15s",
+    "trade_notional_usd_15s",
+    "cvd_usd_15s",
+    "trade_imbalance_15s",
+    "ofi_covered_15s",
+    "ofi_event_count_15s",
+    "normalized_ofi_15s",
+    "trade_covered_60s",
+    "trade_count_60s",
+    "trade_notional_usd_60s",
+    "cvd_usd_60s",
+    "trade_imbalance_60s",
+    "ofi_covered_60s",
+    "ofi_event_count_60s",
+    "normalized_ofi_60s",
+    "forming_known",
+    "body_bps",
+    "range_bps",
+    "close_position",
+    "volume_pace_ratio",
+    "range_expansion_ratio",
+    "velocity_bps_per_second",
+    "micro_move_5s_bps",
+    "micro_move_15s_bps",
+    "liquidity_known",
+    "wall_present",
+    "wall_distance_bps",
+    "remaining_ratio",
+    "attack_ratio",
+    "depletion_per_second",
+    "replenishment_ratio",
+    "structure_known",
+    "support_distance_bps",
+    "resistance_distance_bps"
+  ],
+  "dataset_sha256": "4d16ae2daa47df4f97f7d854f1d81004025695cca795dc9a26dfd5da188b30d8",
+  "policy_sha256": "2d6a03991ebef67d12b1b00e3de683abf64bf8311dded372c716a5cf8cc8d3f5",
+  "plan_policy": {
+    "version": "ImpulsePlanPolicyV1.1",
+    "frozen_before_training": true,
+    "universe": "all seven symbols actually activated in stopped current-12h capture, not winners",
+    "source": "original raw input journal via existing read-only audit index",
+    "sample_seconds": 10,
+    "warmup_seconds": 60,
+    "horizon_seconds": 30,
+    "latency_ms": 100,
+    "nominal_usdt": 100,
+    "stop_bps": 15,
+    "target_bps": 30,
+    "taker_fee_rate": 0.00055,
+    "slippage_bps_each_fill": 1,
+    "partial": false,
+    "entry": "next available executable depth at/after latency; historical qty_step round down",
+    "exit": "first executable-side crossing; taker depth plus slippage; timeout has mark-to-market net payoff",
+    "ambiguous_or_incomplete": "excluded, never profitable or ordinary timeout",
+    "max_book_age_ms": 1500,
+    "splits": [
+      0.5,
+      0.65,
+      0.8
+    ],
+    "purge": "full 30-second label horizon plus shared 60-second episode buckets globally across symbols",
+    "catboost": {
+      "iterations": 100,
+      "depth": 4,
+      "learning_rate": 0.05,
+      "thread_count": 1,
+      "random_seed": 1729
+    },
+    "calibration": "temperature scalar fitted on calibration split only",
+    "selection": "fixed probability >= 0.55; no test tuning",
+    "limits": {
+      "max_sources": 3,
+      "max_events": 5000000,
+      "max_seconds_training": 300,
+      "network_download_bytes": 0
+    },
+    "scope": "technical first model; all original capture dates previously audited, temporal development test is not untouched holdout"
+  },
+  "source": "actual StudyEngine B contexts after sequential raw event processing",
+  "evidence_scope": "different archived same-day periods; held-out labels frozen before training; market dates previously manually reviewed",
+  "inventory": {
+    "ENAUSDT": {
+      "instrument": {
+        "symbol": "ENAUSDT",
+        "status": "Trading",
+        "tick_size": 1e-05,
+        "qty_step": 1.0,
+        "min_order_qty": 1.0,
+        "min_notional_value": 5.0,
+        "max_order_qty": 3500000.0,
+        "max_market_order_qty": 700000.0,
+        "funding_interval_minutes": 240,
+        "max_leverage": 50.0
+      },
+      "units": "captured linear base quantity; quote USDT",
+      "specification_time": "original contemporaneous bootstrap"
+    },
+    "ZECUSDT": {
+      "instrument": {
+        "symbol": "ZECUSDT",
+        "status": "Trading",
+        "tick_size": 0.01,
+        "qty_step": 0.01,
+        "min_order_qty": 0.01,
+        "min_notional_value": 5.0,
+        "max_order_qty": 5500.0,
+        "max_market_order_qty": 1100.0,
+        "funding_interval_minutes": 480,
+        "max_leverage": 75.0
+      },
+      "units": "captured linear base quantity; quote USDT",
+      "specification_time": "original contemporaneous bootstrap"
+    },
+    "ONDOUSDT": {
+      "instrument": {
+        "symbol": "ONDOUSDT",
+        "status": "Trading",
+        "tick_size": 0.0001,
+        "qty_step": 1.0,
+        "min_order_qty": 1.0,
+        "min_notional_value": 5.0,
+        "max_order_qty": 4500000.0,
+        "max_market_order_qty": 900000.0,
+        "funding_interval_minutes": 240,
+        "max_leverage": 50.0
+      },
+      "units": "captured linear base quantity; quote USDT",
+      "specification_time": "original contemporaneous bootstrap"
+    },
+    "SUIUSDT": {
+      "instrument": {
+        "symbol": "SUIUSDT",
+        "status": "Trading",
+        "tick_size": 0.0001,
+        "qty_step": 10.0,
+        "min_order_qty": 10.0,
+        "min_notional_value": 5.0,
+        "max_order_qty": 330000.0,
+        "max_market_order_qty": 66000.0,
+        "funding_interval_minutes": 480,
+        "max_leverage": 50.0
+      },
+      "units": "captured linear base quantity; quote USDT",
+      "specification_time": "original contemporaneous bootstrap"
+    },
+    "ETHUSDT": {
+      "instrument": {
+        "symbol": "ETHUSDT",
+        "status": "Trading",
+        "tick_size": 0.01,
+        "qty_step": 0.01,
+        "min_order_qty": 0.01,
+        "min_notional_value": 5.0,
+        "max_order_qty": 10000.0,
+        "max_market_order_qty": 2000.0,
+        "funding_interval_minutes": 480,
+        "max_leverage": 150.0
+      },
+      "units": "captured linear base quantity; quote USDT",
+      "specification_time": "original contemporaneous bootstrap"
+    },
+    "SOXLUSDT": {
+      "instrument": {
+        "symbol": "SOXLUSDT",
+        "status": "Trading",
+        "tick_size": 0.01,
+        "qty_step": 0.01,
+        "min_order_qty": 0.01,
+        "min_notional_value": 5.0,
+        "max_order_qty": 20000.0,
+        "max_market_order_qty": 5000.0,
+        "funding_interval_minutes": 480,
+        "max_leverage": 100.0
+      },
+      "units": "captured linear base quantity; quote USDT",
+      "specification_time": "original contemporaneous bootstrap"
+    },
+    "SOLUSDT": {
+      "instrument": {
+        "symbol": "SOLUSDT",
+        "status": "Trading",
+        "tick_size": 0.01,
+        "qty_step": 0.1,
+        "min_order_qty": 0.1,
+        "min_notional_value": 5.0,
+        "max_order_qty": 96000.0,
+        "max_market_order_qty": 12000.0,
+        "funding_interval_minutes": 480,
+        "max_leverage": 100.0
+      },
+      "units": "captured linear base quantity; quote USDT",
+      "specification_time": "original contemporaneous bootstrap"
+    },
+    "XRPUSDT": {
+      "instrument": {
+        "symbol": "XRPUSDT",
+        "status": "Trading",
+        "tick_size": 0.0001,
+        "qty_step": 0.1,
+        "min_order_qty": 0.1,
+        "min_notional_value": 5.0,
+        "max_order_qty": 7500000.0,
+        "max_market_order_qty": 1500000.0,
+        "funding_interval_minutes": 480,
+        "max_leverage": 100.0
+      },
+      "units": "captured linear base quantity; quote USDT",
+      "specification_time": "original contemporaneous bootstrap"
+    },
+    "BTCUSDT": {
+      "instrument": {
+        "symbol": "BTCUSDT",
+        "status": "Trading",
+        "tick_size": 0.1,
+        "qty_step": 0.001,
+        "min_order_qty": 0.001,
+        "min_notional_value": 5.0,
+        "max_order_qty": 1500.0,
+        "max_market_order_qty": 150.0,
+        "funding_interval_minutes": 480,
+        "max_leverage": 150.0
+      },
+      "units": "captured linear base quantity; quote USDT",
+      "specification_time": "original contemporaneous bootstrap"
+    },
+    "HYPEUSDT": {
+      "instrument": {
+        "symbol": "HYPEUSDT",
+        "status": "Trading",
+        "tick_size": 0.01,
+        "qty_step": 0.01,
+        "min_order_qty": 0.01,
+        "min_notional_value": 5.0,
+        "max_order_qty": 73500.0,
+        "max_market_order_qty": 14700.0,
+        "funding_interval_minutes": 480,
+        "max_leverage": 75.0
+      },
+      "units": "captured linear base quantity; quote USDT",
+      "specification_time": "original contemporaneous bootstrap"
+    },
+    "NEARUSDT": {
+      "instrument": {
+        "symbol": "NEARUSDT",
+        "status": "Trading",
+        "tick_size": 0.001,
+        "qty_step": 0.1,
+        "min_order_qty": 0.1,
+        "min_notional_value": 5.0,
+        "max_order_qty": 469060.0,
+        "max_market_order_qty": 66470.0,
+        "funding_interval_minutes": 480,
+        "max_leverage": 75.0
+      },
+      "units": "captured linear base quantity; quote USDT",
+      "specification_time": "original contemporaneous bootstrap"
+    },
+    "DOGEUSDT": {
+      "instrument": {
+        "symbol": "DOGEUSDT",
+        "status": "Trading",
+        "tick_size": 1e-05,
+        "qty_step": 1.0,
+        "min_order_qty": 1.0,
+        "min_notional_value": 5.0,
+        "max_order_qty": 43678900.0,
+        "max_market_order_qty": 5991100.0,
+        "funding_interval_minutes": 480,
+        "max_leverage": 75.0
+      },
+      "units": "captured linear base quantity; quote USDT",
+      "specification_time": "original contemporaneous bootstrap"
+    }
+  },
+  "labels": {
+    "stop_first": 1193,
+    "timeout": 15460,
+    "target_first": 137
+  },
+  "splits": {
+    "train": 6482,
+    "calibration": 4160,
+    "purged": 278,
+    "validation": 3023,
+    "test": 2847
+  },
+  "excluded": {
+    "transport_gap": 594,
+    "right_censored": 116
+  },
+  "coverage": {
+    "book_ready": 1.0,
+    "candle_fresh": 1.0,
+    "book_age_seconds": 1.0,
+    "spread_bps": 1.0,
+    "top5_depth_usd": 1.0,
+    "top5_depth_imbalance": 1.0,
+    "trade_covered_5s": 1.0,
+    "trade_count_5s": 1.0,
+    "trade_notional_usd_5s": 1.0,
+    "cvd_usd_5s": 1.0,
+    "trade_imbalance_5s": 0.8808814770696843,
+    "ofi_covered_5s": 1.0,
+    "ofi_event_count_5s": 1.0,
+    "normalized_ofi_5s": 1.0,
+    "trade_covered_15s": 1.0,
+    "trade_count_15s": 1.0,
+    "trade_notional_usd_15s": 1.0,
+    "cvd_usd_15s": 1.0,
+    "trade_imbalance_15s": 0.9889219773674807,
+    "ofi_covered_15s": 1.0,
+    "ofi_event_count_15s": 1.0,
+    "normalized_ofi_15s": 1.0,
+    "trade_covered_60s": 1.0,
+    "trade_count_60s": 1.0,
+    "trade_notional_usd_60s": 1.0,
+    "cvd_usd_60s": 1.0,
+    "trade_imbalance_60s": 1.0,
+    "ofi_covered_60s": 1.0,
+    "ofi_event_count_60s": 1.0,
+    "normalized_ofi_60s": 1.0,
+    "forming_known": 1.0,
+    "body_bps": 1.0,
+    "range_bps": 1.0,
+    "close_position": 1.0,
+    "volume_pace_ratio": 1.0,
+    "range_expansion_ratio": 1.0,
+    "velocity_bps_per_second": 1.0,
+    "micro_move_5s_bps": 0.7645026801667659,
+    "micro_move_15s_bps": 0.9049434187016081,
+    "liquidity_known": 1.0,
+    "wall_present": 0.6454437164979154,
+    "wall_distance_bps": 0.6454437164979154,
+    "remaining_ratio": 0.6454437164979154,
+    "attack_ratio": 0.6454437164979154,
+    "depletion_per_second": 0.6454437164979154,
+    "replenishment_ratio": 0.6454437164979154,
+    "structure_known": 1.0,
+    "support_distance_bps": 1.0,
+    "resistance_distance_bps": 0.9996426444312091
+  },
+  "mask_mean": {
+    "forming_known": 1.0,
+    "liquidity_known": 0.6508040500297796,
+    "structure_known": 1.0
+  },
+  "split_classes": {
+    "train": {
+      "stop_first": 582,
+      "timeout": 5815,
+      "target_first": 85
+    },
+    "calibration": {
+      "timeout": 3901,
+      "stop_first": 235,
+      "target_first": 24
+    },
+    "validation": {
+      "timeout": 2770,
+      "stop_first": 239,
+      "target_first": 14
+    },
+    "test": {
+      "timeout": 2710,
+      "stop_first": 124,
+      "target_first": 13
+    }
+  },
+  "candidate_version": "impulse-v2",
+  "source_datasets": [
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\morning-context\\dataset",
+      "sha256": "6e9d10ca8ca797cff32f1aad3fa035d551104cd6688710426a42be9faba901de"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\noon-context\\dataset",
+      "sha256": "eaede370243f71a1428ebc39f05ee189d1ca0ad3468c8600eb028e897c7d3504"
+    }
+  ],
+  "frozen_protocol": {
+    "version": "v2-documented-capture-fallback",
+    "frozen_before_label_build": true,
+    "reason": "2024 mandatory execution fields unverified; dated bootstrap specs actually found in two other archived captures",
+    "sources": [
+      {
+        "name": "1h-20260926-123243-230-fcf4035f",
+        "source": "G:\\scalp-bot\\data\\paper-captures\\1h-20260926-123243-230-fcf4035f\\session-20260926T093515Z.inputs.jsonl.gz"
+      },
+      {
+        "name": "24h-20260926-151653-835-9dde484e",
+        "source": "G:\\scalp-bot\\data\\paper-captures\\24h-20260926-151653-835-9dde484e\\session-20260926T121926Z.inputs.jsonl.gz"
+      }
+    ],
+    "split_rule": {
+      "first_capture": "train entire eligible prefix",
+      "second_capture": "calibration first 40%; validation next 30%; test final 30%; boundaries frozen by eligible chronological source range, not outcomes"
+    },
+    "purge_seconds": 60,
+    "hyperparameters": "unchanged impulse-plan-v1",
+    "policy": "unchanged fixed 0.55; no alternate action tuning",
+    "test_status": "new label holdout for this experiment; capture previously reviewed as a bot run, not a pristine research-unseen market date",
+    "two_hour_capture_role": "feature parity and development diagnostic only; excluded from v2 training/evaluation due prior label inspection",
+    "order_authority": false,
+    "noon_source_period_ns": [
+      532337778476300,
+      538228111292200
+    ],
+    "noon_boundaries_ns": [
+      534693911602660,
+      536461011447430
+    ],
+    "boundary_evidence": "raw manifest-to-run_end interval, frozen before reading generated label files"
+  },
+  "inventory_by_capture": {
+    "capture-20260926T093515Z": {
+      "ENAUSDT": {
+        "instrument": {
+          "symbol": "ENAUSDT",
+          "status": "Trading",
+          "tick_size": 1e-05,
+          "qty_step": 1.0,
+          "min_order_qty": 1.0,
+          "min_notional_value": 5.0,
+          "max_order_qty": 3500000.0,
+          "max_market_order_qty": 700000.0,
+          "funding_interval_minutes": 240,
+          "max_leverage": 50.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "ZECUSDT": {
+        "instrument": {
+          "symbol": "ZECUSDT",
+          "status": "Trading",
+          "tick_size": 0.01,
+          "qty_step": 0.01,
+          "min_order_qty": 0.01,
+          "min_notional_value": 5.0,
+          "max_order_qty": 5500.0,
+          "max_market_order_qty": 1100.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 75.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "ONDOUSDT": {
+        "instrument": {
+          "symbol": "ONDOUSDT",
+          "status": "Trading",
+          "tick_size": 0.0001,
+          "qty_step": 1.0,
+          "min_order_qty": 1.0,
+          "min_notional_value": 5.0,
+          "max_order_qty": 4500000.0,
+          "max_market_order_qty": 900000.0,
+          "funding_interval_minutes": 240,
+          "max_leverage": 50.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "SUIUSDT": {
+        "instrument": {
+          "symbol": "SUIUSDT",
+          "status": "Trading",
+          "tick_size": 0.0001,
+          "qty_step": 10.0,
+          "min_order_qty": 10.0,
+          "min_notional_value": 5.0,
+          "max_order_qty": 330000.0,
+          "max_market_order_qty": 66000.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 50.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "ETHUSDT": {
+        "instrument": {
+          "symbol": "ETHUSDT",
+          "status": "Trading",
+          "tick_size": 0.01,
+          "qty_step": 0.01,
+          "min_order_qty": 0.01,
+          "min_notional_value": 5.0,
+          "max_order_qty": 10000.0,
+          "max_market_order_qty": 2000.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 150.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "SOXLUSDT": {
+        "instrument": {
+          "symbol": "SOXLUSDT",
+          "status": "Trading",
+          "tick_size": 0.01,
+          "qty_step": 0.01,
+          "min_order_qty": 0.01,
+          "min_notional_value": 5.0,
+          "max_order_qty": 20000.0,
+          "max_market_order_qty": 5000.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 100.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "SOLUSDT": {
+        "instrument": {
+          "symbol": "SOLUSDT",
+          "status": "Trading",
+          "tick_size": 0.01,
+          "qty_step": 0.1,
+          "min_order_qty": 0.1,
+          "min_notional_value": 5.0,
+          "max_order_qty": 96000.0,
+          "max_market_order_qty": 12000.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 100.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "XRPUSDT": {
+        "instrument": {
+          "symbol": "XRPUSDT",
+          "status": "Trading",
+          "tick_size": 0.0001,
+          "qty_step": 0.1,
+          "min_order_qty": 0.1,
+          "min_notional_value": 5.0,
+          "max_order_qty": 7500000.0,
+          "max_market_order_qty": 1500000.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 100.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "BTCUSDT": {
+        "instrument": {
+          "symbol": "BTCUSDT",
+          "status": "Trading",
+          "tick_size": 0.1,
+          "qty_step": 0.001,
+          "min_order_qty": 0.001,
+          "min_notional_value": 5.0,
+          "max_order_qty": 1500.0,
+          "max_market_order_qty": 150.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 150.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "HYPEUSDT": {
+        "instrument": {
+          "symbol": "HYPEUSDT",
+          "status": "Trading",
+          "tick_size": 0.01,
+          "qty_step": 0.01,
+          "min_order_qty": 0.01,
+          "min_notional_value": 5.0,
+          "max_order_qty": 73500.0,
+          "max_market_order_qty": 14700.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 75.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "NEARUSDT": {
+        "instrument": {
+          "symbol": "NEARUSDT",
+          "status": "Trading",
+          "tick_size": 0.001,
+          "qty_step": 0.1,
+          "min_order_qty": 0.1,
+          "min_notional_value": 5.0,
+          "max_order_qty": 469060.0,
+          "max_market_order_qty": 66470.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 75.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "DOGEUSDT": {
+        "instrument": {
+          "symbol": "DOGEUSDT",
+          "status": "Trading",
+          "tick_size": 1e-05,
+          "qty_step": 1.0,
+          "min_order_qty": 1.0,
+          "min_notional_value": 5.0,
+          "max_order_qty": 43678900.0,
+          "max_market_order_qty": 5991100.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 75.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      }
+    },
+    "capture-20260926T121926Z": {
+      "ETHUSDT": {
+        "instrument": {
+          "symbol": "ETHUSDT",
+          "status": "Trading",
+          "tick_size": 0.01,
+          "qty_step": 0.01,
+          "min_order_qty": 0.01,
+          "min_notional_value": 5.0,
+          "max_order_qty": 10000.0,
+          "max_market_order_qty": 2000.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 150.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "ENAUSDT": {
+        "instrument": {
+          "symbol": "ENAUSDT",
+          "status": "Trading",
+          "tick_size": 1e-05,
+          "qty_step": 1.0,
+          "min_order_qty": 1.0,
+          "min_notional_value": 5.0,
+          "max_order_qty": 3500000.0,
+          "max_market_order_qty": 700000.0,
+          "funding_interval_minutes": 240,
+          "max_leverage": 50.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "XRPUSDT": {
+        "instrument": {
+          "symbol": "XRPUSDT",
+          "status": "Trading",
+          "tick_size": 0.0001,
+          "qty_step": 0.1,
+          "min_order_qty": 0.1,
+          "min_notional_value": 5.0,
+          "max_order_qty": 7500000.0,
+          "max_market_order_qty": 1500000.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 100.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "BTCUSDT": {
+        "instrument": {
+          "symbol": "BTCUSDT",
+          "status": "Trading",
+          "tick_size": 0.1,
+          "qty_step": 0.001,
+          "min_order_qty": 0.001,
+          "min_notional_value": 5.0,
+          "max_order_qty": 1500.0,
+          "max_market_order_qty": 150.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 150.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "DOGEUSDT": {
+        "instrument": {
+          "symbol": "DOGEUSDT",
+          "status": "Trading",
+          "tick_size": 1e-05,
+          "qty_step": 1.0,
+          "min_order_qty": 1.0,
+          "min_notional_value": 5.0,
+          "max_order_qty": 43678900.0,
+          "max_market_order_qty": 5991100.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 75.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "SOXLUSDT": {
+        "instrument": {
+          "symbol": "SOXLUSDT",
+          "status": "Trading",
+          "tick_size": 0.01,
+          "qty_step": 0.01,
+          "min_order_qty": 0.01,
+          "min_notional_value": 5.0,
+          "max_order_qty": 20000.0,
+          "max_market_order_qty": 5000.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 100.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "NEARUSDT": {
+        "instrument": {
+          "symbol": "NEARUSDT",
+          "status": "Trading",
+          "tick_size": 0.001,
+          "qty_step": 0.1,
+          "min_order_qty": 0.1,
+          "min_notional_value": 5.0,
+          "max_order_qty": 469060.0,
+          "max_market_order_qty": 66470.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 75.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "SOLUSDT": {
+        "instrument": {
+          "symbol": "SOLUSDT",
+          "status": "Trading",
+          "tick_size": 0.01,
+          "qty_step": 0.1,
+          "min_order_qty": 0.1,
+          "min_notional_value": 5.0,
+          "max_order_qty": 96000.0,
+          "max_market_order_qty": 12000.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 100.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "SUIUSDT": {
+        "instrument": {
+          "symbol": "SUIUSDT",
+          "status": "Trading",
+          "tick_size": 0.0001,
+          "qty_step": 10.0,
+          "min_order_qty": 10.0,
+          "min_notional_value": 5.0,
+          "max_order_qty": 330000.0,
+          "max_market_order_qty": 66000.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 50.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "HYPEUSDT": {
+        "instrument": {
+          "symbol": "HYPEUSDT",
+          "status": "Trading",
+          "tick_size": 0.01,
+          "qty_step": 0.01,
+          "min_order_qty": 0.01,
+          "min_notional_value": 5.0,
+          "max_order_qty": 73500.0,
+          "max_market_order_qty": 14700.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 75.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      },
+      "ZECUSDT": {
+        "instrument": {
+          "symbol": "ZECUSDT",
+          "status": "Trading",
+          "tick_size": 0.01,
+          "qty_step": 0.01,
+          "min_order_qty": 0.01,
+          "min_notional_value": 5.0,
+          "max_order_qty": 5500.0,
+          "max_market_order_qty": 1100.0,
+          "funding_interval_minutes": 480,
+          "max_leverage": 75.0
+        },
+        "units": "captured linear base quantity; quote USDT",
+        "specification_time": "original contemporaneous bootstrap"
+      }
+    }
+  },
+  "sampling_universe": {
+    "capture-20260926T093515Z": [
+      "BTCUSDT",
+      "DOGEUSDT",
+      "ENAUSDT",
+      "ETHUSDT",
+      "HYPEUSDT",
+      "NEARUSDT",
+      "ONDOUSDT",
+      "SOLUSDT",
+      "SOXLUSDT",
+      "SUIUSDT",
+      "XRPUSDT",
+      "ZECUSDT"
+    ],
+    "capture-20260926T121926Z": [
+      "BTCUSDT",
+      "DOGEUSDT",
+      "ENAUSDT",
+      "ETHUSDT",
+      "HYPEUSDT",
+      "NEARUSDT",
+      "SOLUSDT",
+      "SOXLUSDT",
+      "SUIUSDT",
+      "XRPUSDT",
+      "ZECUSDT"
+    ]
+  },
+  "universe_note": "all eligible activated symbols in the predeclared additional captures; legacy plan_policy universe text describes v1 only; numeric payoff policy unchanged",
+  "untouched_external_test": false,
+  "external_2024_admitted": false,
+  "source_exclusions": {
+    "G:\\scalp-bot\\data\\pr58-completion\\morning-context\\dataset": {
+      "transport_gap": 261,
+      "right_censored": 63
+    },
+    "G:\\scalp-bot\\data\\pr58-completion\\noon-context\\dataset": {
+      "transport_gap": 333,
+      "right_censored": 53
+    }
+  },
+  "split_period_market_ms": {
+    "train": [
+      1790415383834,
+      1790418951541
+    ],
+    "calibration": [
+      1790425235671,
+      1790427481990
+    ],
+    "validation": [
+      1790427551481,
+      1790429261992
+    ],
+    "test": [
+      1790429351487,
+      1790431031461
+    ]
+  }
+}

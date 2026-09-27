@@ -1,0 +1,86 @@
+{
+  "retention": "local until explicit owner deletion; no automated expiry",
+  "artifacts": [
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\dataset-v2\\dataset.jsonl",
+      "bytes": 21679320,
+      "sha256": "4d16ae2daa47df4f97f7d854f1d81004025695cca795dc9a26dfd5da188b30d8"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\dataset-v2-verified\\dataset.jsonl",
+      "bytes": 21679320,
+      "sha256": "4d16ae2daa47df4f97f7d854f1d81004025695cca795dc9a26dfd5da188b30d8"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\dataset-v2-verified\\manifest.json",
+      "bytes": 28546,
+      "sha256": "c1c9162c1dff8add024a08a356555f31b3c622efb78e8742f7b1655aa0b3d501"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\model-v2\\model.cbm",
+      "bytes": 69000,
+      "sha256": "a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\model-v2\\logistic.npz",
+      "bytes": 2936,
+      "sha256": "ba4715d91faa5f4802c6d2014acb923ea88e2bb497757264bc8ffbfb3d5a60ce"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\model-v2\\manifest.json",
+      "bytes": 8025,
+      "sha256": "15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\model-v2\\evaluation.json",
+      "bytes": 13533,
+      "sha256": "6e5cfb2230a98e3955577e0ec154ca19501874fde9d7c5c629d67f7289faf036"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\shadow-v2-verified\\forecasts.jsonl",
+      "bytes": 1376559,
+      "sha256": "d1fe7c13e6e85fef02fc313d1d21e8fd31aff0bfccb18626e4dce615d042a3f1"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\shadow-v2-verified\\report.json",
+      "bytes": 1332,
+      "sha256": "0b1c5bd56164cac49c48fb1e6b6583107f48283970acb611de10c6e3e4e9d084"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\A\\A.jsonl",
+      "bytes": 396550424,
+      "sha256": "cbc4df52ef042a022e6b2927bbf590dd1ec4fcd2b59c344ad05a1ce03f184d4c"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\B\\B.jsonl",
+      "bytes": 430060362,
+      "sha256": "dff700e7efe2c4411e1255e9144a2ce9393eec1f12f3b48a4d6b3a06b97d3eaf"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\C\\C.jsonl",
+      "bytes": 428996035,
+      "sha256": "5d23c0a2820c6c892b647ce9fd45b4315bc4bc9d81547a750d7a2729b1eadcdf"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\market-index\\quotes.sqlite",
+      "bytes": 123543552,
+      "sha256": "02fcf918e09e7170227b478c7e4822e46f79a94c2cb35b86a083622c7cf04c2c"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\morning-verified\\index-manifest.json",
+      "bytes": 1795,
+      "sha256": "6d71113ac543792d65175ba66b841bc7333efa642567237e3b136c8b8f64a1e2"
+    },
+    {
+      "path": "G:\\scalp-bot\\data\\pr58-completion\\noon-verified\\index-manifest.json",
+      "bytes": 1790,
+      "sha256": "60bac7009aa8b07ad725cedafa157cb7b7c33440e3f8587a9ecbec3f542dd6e5"
+    }
+  ],
+  "weights_real": true,
+  "v1_unchanged": true,
+  "raw_unchanged": true,
+  "final_ci_result_path": "G:\\scalp-bot\\data\\pr58-completion\\final-ci.json",
+  "baseline_tracked_code_unchanged": true,
+  "baseline_new_untracked_directory": "G:\\scalp-bot\\data\\pr58-completion"
+}

@@ -1,0 +1,27 @@
+{
+  "v1_dataset": {
+    "path": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\data\\ml\\impulse-v1-final\\dataset.jsonl",
+    "sha256": "d41d66da5dd8746c779cad43798ab7f95b3e39f4c8de19ac153ceb84cec6f4b1",
+    "unchanged": true
+  },
+  "v1_dataset_manifest": {
+    "path": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\data\\ml\\impulse-v1-final\\manifest.json",
+    "sha256": "812939b8c7b157b63f3078f11ecefe3a25bdf75e2ca6f884f2824bff9f80064d",
+    "unchanged": true
+  },
+  "v1_model": {
+    "path": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\models\\ml\\impulse-v1-final\\model.cbm",
+    "sha256": "d901a0d0e55b33cc6bbe4212c9f91fa4b11f645bf2f27aaf321468f7662178c4",
+    "unchanged": true
+  },
+  "v1_model_manifest": {
+    "path": "C:\\Users\\workingspace\\.codex\\worktrees\\parallel-scenarios-ml\\scalp-bot\\models\\ml\\impulse-v1-final\\manifest.json",
+    "sha256": "95e87865ced30be653ea1c7ca6720a26ea1b79b7126b652db7f81b4958ebc9e3",
+    "unchanged": true
+  },
+  "original_raw": {
+    "path": "G:\\scalp-bot\\data\\paper-captures\\current-12h-20260926-222654-704-f604f5f6\\session-20260926T193029Z.inputs.jsonl.gz",
+    "sha256": "caf9cf7c293faab93d3832a96b52298beb12da4316ed55c2f414e346dd337a6d",
+    "unchanged": true
+  }
+}

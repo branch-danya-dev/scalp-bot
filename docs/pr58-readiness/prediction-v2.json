@@ -1,0 +1,20 @@
+{
+  "model_version": "catboost-impulse-v2:a9bb5445db534b93",
+  "source": {
+    "capture_id": "capture-20260926T093515Z",
+    "symbol": "ENAUSDT",
+    "selection_epoch": 1,
+    "source_sequence": 163169,
+    "market_time_ms": 1790415383834,
+    "available_mono_ns": 522552449016100,
+    "clock_domain": "capture:capture-20260926T093515Z",
+    "feature_schema": "market-context-v1:dd86ef9b9197904ed2516bbcadbb173331155b49ade52d3394701685ae70601c"
+  },
+  "side": "long",
+  "probabilities": {
+    "target_first": 0.04936845772344712,
+    "stop_first": 0.38417261568285177,
+    "timeout": 0.5664589265937011
+  },
+  "order_authority": false
+}
