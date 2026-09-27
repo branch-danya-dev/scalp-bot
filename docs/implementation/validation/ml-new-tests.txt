@@ -1,0 +1,18 @@
+....F.....                                                               [100%]
+================================== FAILURES ===================================
+_______ test_temporal_purge_is_global_across_symbols_and_entire_episode _______
+
+    def test_temporal_purge_is_global_across_symbols_and_entire_episode():
+        rows=[dict(ref=dict(available_mono_ns=t*10**9,symbol=s),label_end_ns=(t+30)*10**9)
+              for s in ("AAA","BBB") for t in (10,40,61,121,181)]
+        temporal_split(rows,[60*10**9,120*10**9,180*10**9])
+>       assert [r["split"] for r in rows[:5]]==["purged","purged","purged","purged","test"]
+E       AssertionError: assert ['purged', 'p...ed', 'purged'] == ['purged', 'p...rged', 'test']
+E         
+E         At index 4 diff: 'purged' != 'test'
+E         Use -v to get more diff
+
+tests\ml\test_dataset_learning.py:76: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/ml/test_dataset_learning.py::test_temporal_purge_is_global_across_symbols_and_entire_episode
+1 failed, 9 passed in 1.74s

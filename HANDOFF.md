@@ -1,45 +1,31 @@
-# Текущее состояние
+# Handoff — параллельные сценарии и ML
 
-27 сентября 2026. Аудит остановленного current-12h завершён.
-Ветка **codex/two-hour-run-audit**, база **3403b03**, код/регрессии **1f40b1a**,
-аудит/таблицы **fb53534**. [Draft PR #57](https://github.com/branch-danya-dev/scalp-bot/pull/57).
-Worktree: `C:/Users/workingspace/.codex/worktrees/two-hour-audit/scalp-bot`.
-Baseline `G:/scalp-bot` сохранён. Main и ML/PR #54 не изменялись.
+27 сентября 2026. Ветка `codex/parallel-scenarios-ml-v1`, worktree
+`C:/Users/workingspace/.codex/worktrees/parallel-scenarios-ml/scalp-bot`.
+Интегрированы проверенные heads #57 f0364a5 и #54 c45c7b4, без переписывания веток.
+Baseline G:/scalp-bot на 3403b03 чистый; исходный capture hash неизменен.
 
-Capture `current-12h-20260926-222654-704-f604f5f6`: 22:30:53 → 00:38:41 МСК,
-**2:07:48,188**, шесть сделок, баланс **959,267881**, net **−40,732119 USDT**.
-Все закрыты по стопу до ручного Stop. Gzip/hash/sequence целы; seal incomplete
-из-за семи незавершённых fast WebSocket attempts. Полный replay не сертифицирован;
-новый портфельный PnL после патча неизвестен.
+Обычные стратегии независимо готовятся на символе. Earliest eligible ready получает
+общий резерв; время равенства разрешает стабильный tie-break. Один владелец
+исполнения/позиции, WAIT/ошибка/отказ другой стратегии не блокируют подготовку.
+Сохранены frozen-plan, object/episode и защиты. UI показывает каждый сценарий.
 
-## Исправлено
+Transport consumer failure обнаруживается при немом recv, reconnect сбрасывает
+книгу и подтверждения с требованием snapshot; close timeout #57 сохранён.
+Новая rejection quote+tape политика существует отдельно и по умолчанию выключена.
+Историческое полное сравнение её альтернативных входов не завершено.
 
-- XRP: новый эпизод наследовал старое поглощение; доказано на реальных 3328 prints.
-  Новый episodeKey сбрасывает absorption/fire, сохраняя подготовку и ограничения.
-- ARMED не возвращается в PREPARED после risk refusal + WAIT; frozen/firstSignal
-  сохраняются, WAIT не создаёт заявку.
-- Close timeout 2 с укладывается в существующий shutdown 5 с. Действительно
-  незавершённый teardown по-прежнему не получает sealed.
-- **1144 tests passed**, синтаксис 205 Python / 5 JS. Защитные выходы всех шести
-  позиций и прибыльный partial T01 воспроизведены и сохранены.
+ML: обучены CatBoost и logistic, rule/prior controls, сохранены dataset/weights и
+manifests; worker/shadow реально выполнены. Подробности [ML_HANDOFF](ML_HANDOFF.md).
+1371 локальный тест прошёл; CI будет указан в [IMPLEMENTATION_REVIEW](IMPLEMENTATION_REVIEW.md).
+Синтетический off/shadow сохранил ordinary ledger, но event-loop budget20мс не пройден.
 
-ETH: initial stop 2668,67 сработал по bid 2668,66, без переноса/partial.
-Новые rejection-сценарии назначались; вечный generation block не найден.
-В **23:48:45–23:50:11** было ~85,85 с без fast-book. Поздняя отмена ETH:20:
-anchor 2664,79, range_abs 0,875, цена 2667,47 > 2667,415. Scanner держал 7/12
-слотов, вытеснения другого кандидата не установлено.
+Не доказаны: причина всех failed handshakes, независимая модельная полезность,
+portfolio PnL маршрутизации/новой политики. Capture остановлен, incomplete seal,
+полный baseline replay не сертифицирован; исходник/footer не править.
+Новый рынок, реальные заявки, ML trading и main merge требуют отдельного решения.
 
-## Продолжение
-
-[Аудит](TWO_HOUR_RUN_REVIEW.md), [patch/test review](PATCH_REVIEW.md),
-[таблицы, evidence index и графики](docs/run-reviews/two-hour-20260926/).
-Raw, переиспользуемые SQLite-индексы и рабочие скрипты анализа остаются локально
-в `G:/scalp-bot/data/audit-two-hour-20260927`, в Git их нет.
-
-Рассмотреть патч и отдельные гипотезы: micro-response, экономика маленького
-stop/partial, сопровождение после partial, покрытие тренда, причины failed handshakes.
-Торговые пороги/профили не менялись. Issue #55 обновлён и открыт.
-**Не сливать main и не назначать/запускать новый рынок без решения владельца.**
-
-[Предыдущий handoff](docs/handoff-before-two-hour-audit-2026-09-27.md).
-[R01–R05](docs/scenario-router-remediation.md).
+[Новый контракт](docs/architecture/parallel-scenarios.md),
+[транспорт](docs/implementation/TRANSPORT.md),
+[исследование политики/выходов](docs/implementation/REJECTION_POLICY.md),
+[предыдущий handoff](docs/handoff-before-parallel-20260927.md).

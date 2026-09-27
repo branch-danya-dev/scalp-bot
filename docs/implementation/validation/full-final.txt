@@ -1,0 +1,454 @@
+........................................................................ [  5%]
+........................................................................ [ 10%]
+........................................................................ [ 15%]
+........................................................................ [ 21%]
+........................................................................ [ 26%]
+........................................................................ [ 31%]
+...............F....................................FF.................. [ 36%]
+........................................................................ [ 42%]
+........................................................................ [ 47%]
+.............................FF......................................... [ 52%]
+........................................................................ [ 57%]
+........................................................................ [ 63%]
+........................................................................ [ 68%]
+........................................................................ [ 73%]
+........................................................................ [ 78%]
+........................................................................ [ 84%]
+........................................................................ [ 89%]
+........................................................................ [ 94%]
+........................................................................ [ 99%]
+...                                                                      [100%]
+================================== FAILURES ===================================
+______________ test_strategies_receive_only_confirmed_1m_candles ______________
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-361/test_strategies_receive_only_c0')
+
+    @pytest.mark.asyncio
+    async def test_strategies_receive_only_confirmed_1m_candles(tmp_path) -> None:
+        engine = make_engine(tmp_path)
+        seen: list[Candle] = []
+    
+        class CaptureStrategy:
+            key = "capture"
+            label = "capture"
+    
+            def evaluate(
+                self,
+                candles,
+                book,
+                trend,
+                **kwargs,
+            ):
+                seen.extend(candles)
+                return StrategyDecision(
+                    strategy=self.key,
+                    action=Action.WAIT,
+                    reasons=["capture"],
+                )
+    
+            def reset(self, symbol: str) -> None:
+                return None
+    
+            def manage_position(self, **kwargs):
+                return None
+    
+        engine.strategies = {"capture": CaptureStrategy()}  # type: ignore[assignment]
+        engine.strategy_enabled = {"capture": True}
+        session = ActiveSymbolSession(
+            symbol="AAAUSDT",
+            candles=[
+                Candle(0, 100, 101, 99, 100, 1, 100, confirmed=True),
+                Candle(
+                    60_000,
+                    100,
+                    150,
+                    50,
+                    140,
+                    1000,
+                    140_000,
+                    confirmed=False,
+                ),
+            ],
+            orderbook=book(),
+            last_price=100,
+        )
+        engine.sessions[session.symbol] = session
+    
+        try:
+            assigned(engine, session, "capture")
+>           await engine._evaluate(session)
+
+tests\test_engine_lifecycle.py:1413: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scalp_bot\input_scope.py:49: in wrapped
+    return await fn(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\engine.py:3513: in _evaluate
+    decision = self._scenario_decision(session, decision)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\scenario_runtime.py:34: in _scenario_decision
+    decision = self.router.accept_decision(session.symbol, decision,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.parallel_scenarios.ParallelScenarioRouter object at 0x000001C06258FA10>
+symbol = 'AAAUSDT'
+decision = StrategyDecision(strategy='capture', action=<Action.WAIT: 'wait'>, reasons=['capture'], confidence=0.0, watched_level=None, entry=None, stop=None, target=None, visuals={}, details={}, setup_id=None)
+now = 574964.4316412
+book = OrderBook(bids=[(99.99, 100)], asks=[(100.01, 100)])
+
+    def accept_decision(self, symbol, decision, now, book):
+>       child = self.children[decision.strategy]
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'capture'
+
+scalp_bot\parallel_scenarios.py:79: KeyError
+_______ test_deep_book_update_alone_does_not_drive_strategy_evaluation ________
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-361/test_deep_book_update_alone_do0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001C063A88EC0>
+
+    @pytest.mark.asyncio
+    async def test_deep_book_update_alone_does_not_drive_strategy_evaluation(
+        tmp_path,
+        monkeypatch,
+    ) -> None:
+        engine = make_engine(
+            tmp_path,
+            event_evaluation_min_interval_seconds=0.0,
+        )
+        session = ActiveSymbolSession(
+            symbol="DEEPUSDT",
+            candles=[candle()],
+            orderbook=book(),
+            last_price=100.0,
+            last_book_at=time(),
+            book_synced=True,
+            last_eval=10**9,
+            decisions={
+                "level_breakout": StrategyDecision(
+                    strategy="level_breakout",
+                    action=Action.WAIT,
+                    reasons=["armed fixture"],
+                    confidence=0.8,
+                    watched_level=100.0,
+                    details={"state": "armed"},
+                )
+            },
+        )
+        engine.sessions[session.symbol] = session
+        evaluations: list[str] = []
+    
+        async def fake_evaluate(target: ActiveSymbolSession) -> None:
+            evaluations.append(target.symbol)
+    
+        async def fake_stream(
+            ws_url,
+            symbol,
+            callback,
+            stop_event,
+            orderbook_depth=None,
+            *,
+            fast_orderbook_depth=50,
+            deep_orderbook_depth=1000,
+            market_queue_size=512,
+            market_queue_put_timeout_seconds=0.05,
+            market_queue_max_lag_seconds=0.50,
+        ):
+            await callback({
+                "topic": f"orderbook.{deep_orderbook_depth}.{symbol}",
+                "type": "snapshot",
+                "ts": 1_000,
+                "data": {
+                    "u": 1,
+                    "seq": 10,
+                    "b": [["99.99", "100"]],
+                    "a": [["100.01", "100"]],
+                },
+            })
+    
+        monkeypatch.setattr(engine, "_evaluate", fake_evaluate)
+        monkeypatch.setattr(
+            "scalp_bot.engine.stream_symbol",
+            fake_stream,
+        )
+    
+        try:
+>           await engine._symbol_worker(
+                session.symbol,
+                asyncio.Event(),
+            )
+
+tests\test_engine_lifecycle.py:3302: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.engine.TradingEngine object at 0x000001C05DE8EC10>
+symbol = 'DEEPUSDT'
+stop_event = <asyncio.locks.Event object at 0x000001C062785370 [unset]>
+
+    async def _symbol_worker(
+        self,
+        symbol: str,
+        stop_event: asyncio.Event,
+    ) -> None:
+        self._transport_worker_serial += 1
+        worker_id = self._transport_worker_serial
+        on_message, fast_book_state, deep_book_state = self._market_handler(symbol)
+        fast_depth = self.config.fast_orderbook_depth
+        deep_depth = self.config.deep_orderbook_depth
+    
+        def capture_transport(event):
+            self._record_input("transport", symbol, {**event, "workerId": worker_id,
+                "fastState": self._transport_book_state(fast_book_state),
+                "deepState": self._transport_book_state(deep_book_state)})
+            self._invalidate_transport(symbol, event, fast_book_state, deep_book_state)
+    
+>       await stream_symbol(
+            self.config.bybit_public_ws_url,
+            symbol,
+            on_message,
+            stop_event,
+            on_transport=capture_transport,
+            fast_orderbook_depth=fast_depth,
+            deep_orderbook_depth=deep_depth,
+            market_queue_size=self.config.market_queue_size,
+            market_queue_put_timeout_seconds=(
+                self.config.market_queue_put_timeout_seconds
+            ),
+            market_queue_max_lag_seconds=(
+                self.config.market_queue_max_lag_seconds
+            ),
+        )
+E       TypeError: test_deep_book_update_alone_does_not_drive_strategy_evaluation.<locals>.fake_stream() got an unexpected keyword argument 'on_transport'
+
+scalp_bot\engine.py:2832: TypeError
+_____________ test_fast_book_desync_does_not_destroy_deep_context _____________
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-361/test_fast_book_desync_does_not0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001C062408C90>
+
+    @pytest.mark.asyncio
+    async def test_fast_book_desync_does_not_destroy_deep_context(
+        tmp_path,
+        monkeypatch,
+    ) -> None:
+        engine = make_engine(
+            tmp_path,
+            event_driven_evaluation_enabled=False,
+        )
+        session = ActiveSymbolSession(
+            symbol="GAPUSDT",
+            candles=[candle()],
+            last_price=100.0,
+            last_eval=10**9,
+        )
+        engine.sessions[session.symbol] = session
+    
+        async def fake_stream(
+            ws_url,
+            symbol,
+            callback,
+            stop_event,
+            orderbook_depth=None,
+            *,
+            fast_orderbook_depth=50,
+            deep_orderbook_depth=1000,
+            market_queue_size=512,
+            market_queue_put_timeout_seconds=0.05,
+            market_queue_max_lag_seconds=0.50,
+        ):
+            await callback({
+                "topic": f"orderbook.{deep_orderbook_depth}.{symbol}",
+                "type": "snapshot",
+                "ts": 1_000,
+                "data": {
+                    "u": 1,
+                    "seq": 100,
+                    "b": [["99.90", "200"]],
+                    "a": [["100.10", "200"]],
+                },
+            })
+            await callback({
+                "topic": f"orderbook.{fast_orderbook_depth}.{symbol}",
+                "type": "snapshot",
+                "ts": 1_010,
+                "data": {
+                    "u": 1,
+                    "seq": 200,
+                    "b": [["99.99", "20"]],
+                    "a": [["100.01", "20"]],
+                },
+            })
+            try:
+                await callback({
+                    "topic": f"orderbook.{fast_orderbook_depth}.{symbol}",
+                    "type": "delta",
+                    "ts": 1_020,
+                    "data": {
+                        "u": 3,
+                        "seq": 202,
+                        "b": [],
+                        "a": [],
+                    },
+                })
+            except Exception:
+                pass
+    
+        monkeypatch.setattr(
+            "scalp_bot.engine.stream_symbol",
+            fake_stream,
+        )
+    
+        try:
+>           await engine._symbol_worker(
+                session.symbol,
+                asyncio.Event(),
+            )
+
+tests\test_engine_lifecycle.py:3387: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.engine.TradingEngine object at 0x000001C05DE8E710>
+symbol = 'GAPUSDT'
+stop_event = <asyncio.locks.Event object at 0x000001C062787470 [unset]>
+
+    async def _symbol_worker(
+        self,
+        symbol: str,
+        stop_event: asyncio.Event,
+    ) -> None:
+        self._transport_worker_serial += 1
+        worker_id = self._transport_worker_serial
+        on_message, fast_book_state, deep_book_state = self._market_handler(symbol)
+        fast_depth = self.config.fast_orderbook_depth
+        deep_depth = self.config.deep_orderbook_depth
+    
+        def capture_transport(event):
+            self._record_input("transport", symbol, {**event, "workerId": worker_id,
+                "fastState": self._transport_book_state(fast_book_state),
+                "deepState": self._transport_book_state(deep_book_state)})
+            self._invalidate_transport(symbol, event, fast_book_state, deep_book_state)
+    
+>       await stream_symbol(
+            self.config.bybit_public_ws_url,
+            symbol,
+            on_message,
+            stop_event,
+            on_transport=capture_transport,
+            fast_orderbook_depth=fast_depth,
+            deep_orderbook_depth=deep_depth,
+            market_queue_size=self.config.market_queue_size,
+            market_queue_put_timeout_seconds=(
+                self.config.market_queue_put_timeout_seconds
+            ),
+            market_queue_max_lag_seconds=(
+                self.config.market_queue_max_lag_seconds
+            ),
+        )
+E       TypeError: test_fast_book_desync_does_not_destroy_deep_context.<locals>.fake_stream() got an unexpected keyword argument 'on_transport'
+
+scalp_bot\engine.py:2832: TypeError
+___________ test_only_assigned_playbook_receives_canonical_context ____________
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-361/test_only_assigned_playbook_re0')
+
+    def test_only_assigned_playbook_receives_canonical_context(tmp_path) -> None:
+        engine = make_engine(tmp_path)
+        try:
+            strategies = {
+                key: CaptureStrategy(key)
+                for key in (
+                    "trend_structure",
+                    "weak_level_rejection",
+                    "level_breakout",
+                )
+            }
+            engine.strategies = strategies
+            engine.strategy_enabled = {
+                key: True
+                for key in strategies
+            }
+    
+            session = ActiveSymbolSession(
+                symbol="AAAUSDT",
+                candles=flat_rows(80, 60_000),
+                context_5m=flat_rows(80, 5 * 60_000),
+                context_15m=flat_rows(80, 15 * 60_000),
+                context_1h=flat_rows(80, 60 * 60_000),
+                orderbook=OrderBook(
+                    bids=[(99.99, 100.0)],
+                    asks=[(100.01, 100.0)],
+                ),
+                last_price=100.0,
+                last_market_at=time.time(),
+                last_book_at=time.time(),
+                book_synced=True,
+                confirmed_candle_stale_after_seconds=0,
+            )
+            engine.sessions[session.symbol] = session
+    
+            assigned(engine, session, "level_breakout")
+            asyncio.run(engine._evaluate(session))
+    
+            assert session.market_context is not None
+            owner = strategies["level_breakout"]
+>           assert owner.seen_contexts[0] is session.market_context
+E           AssertionError: assert MarketContext(symbol='AAAUSDT', observed_at_ms=1790467816917, last_price=100.0, legacy_trend=<Trend.FLAT: 'flat'>, htf...'clock': 'monotonic'}, 'lastRejection': None, 'preparation': None, 'cancellation': None, 'lastTransitionReason': None}) is MarketContext(symbol='AAAUSDT', observed_at_ms=1790467816917, last_price=100.0, legacy_trend=<Trend.FLAT: 'flat'>, htf..., top5_ask_notional_usd=10001.0, top5_depth_usd=20000.0, trade_buffer_seconds=0.0), forming_candle=None, scenario=None)
+E            +  where MarketContext(symbol='AAAUSDT', observed_at_ms=1790467816917, last_price=100.0, legacy_trend=<Trend.FLAT: 'flat'>, htf..., top5_ask_notional_usd=10001.0, top5_depth_usd=20000.0, trade_buffer_seconds=0.0), forming_candle=None, scenario=None) = ActiveSymbolSession(symbol='AAAUSDT', candles=[Candle(start_ms=0, open=99.99, high=100.00999999999999, low=99.97, clos...scenario selected before signal'}}, 'execution': None, 'busyReason': None, 'activationEpoch': 0, 'readyProposals': []}).market_context
+
+tests\test_market_context_engine.py:332: AssertionError
+_ test_engine_exposes_forming_candle_without_passing_it_as_confirmed_structure _
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-361/test_engine_exposes_forming_ca0')
+
+    def test_engine_exposes_forming_candle_without_passing_it_as_confirmed_structure(tmp_path) -> None:
+        engine = make_engine(tmp_path)
+        try:
+            strategy = CaptureStrategy("trend_structure")
+            engine.strategies = {strategy.key: strategy}
+            engine.strategy_enabled = {strategy.key: True}
+    
+            closed = flat_rows(80, 60_000)
+            forming = Candle(
+                start_ms=80 * 60_000,
+                open=100.0,
+                high=100.30,
+                low=99.95,
+                close=100.25,
+                volume=150.0,
+                turnover=150.0 * 100.25,
+                confirmed=False,
+            )
+            session = ActiveSymbolSession(
+                symbol="AAAUSDT",
+                candles=[*closed, forming],
+                context_5m=flat_rows(80, 5 * 60_000),
+                context_15m=flat_rows(80, 15 * 60_000),
+                context_1h=flat_rows(80, 60 * 60_000),
+                orderbook=OrderBook(
+                    bids=[(100.24, 100.0)],
+                    asks=[(100.26, 100.0)],
+                ),
+                last_price=100.25,
+                last_market_at=time.time(),
+                last_book_at=time.time(),
+                book_synced=True,
+                confirmed_candle_stale_after_seconds=0,
+            )
+            engine.sessions[session.symbol] = session
+    
+            assigned(engine, session, "trend_structure")
+            asyncio.run(engine._evaluate(session))
+    
+            assert strategy.seen_candle_counts == [80]
+>           assert strategy.seen_contexts[0] is session.market_context
+E           AssertionError: assert MarketContext(symbol='AAAUSDT', observed_at_ms=1790467817239, last_price=100.25, legacy_trend=<Trend.FLAT: 'flat'>, ht...'clock': 'monotonic'}, 'lastRejection': None, 'preparation': None, 'cancellation': None, 'lastTransitionReason': None}) is MarketContext(symbol='AAAUSDT', observed_at_ms=1790467817239, last_price=100.25, legacy_trend=<Trend.FLAT: 'flat'>, ht...ne, micro_move_5s_bps=None, micro_range_5s_bps=None, micro_move_15s_bps=None, micro_range_15s_bps=None), scenario=None)
+E            +  where MarketContext(symbol='AAAUSDT', observed_at_ms=1790467817239, last_price=100.25, legacy_trend=<Trend.FLAT: 'flat'>, ht...ne, micro_move_5s_bps=None, micro_range_5s_bps=None, micro_move_15s_bps=None, micro_range_15s_bps=None), scenario=None) = ActiveSymbolSession(symbol='AAAUSDT', candles=[Candle(start_ms=0, open=99.99, high=100.00999999999999, low=99.97, clos...ne, 'lastTransitionReason': None}}, 'execution': None, 'busyReason': None, 'activationEpoch': 0, 'readyProposals': []}).market_context
+
+tests\test_market_context_engine.py:388: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_engine_lifecycle.py::test_strategies_receive_only_confirmed_1m_candles
+FAILED tests/test_engine_lifecycle.py::test_deep_book_update_alone_does_not_drive_strategy_evaluation
+FAILED tests/test_engine_lifecycle.py::test_fast_book_desync_does_not_destroy_deep_context
+FAILED tests/test_market_context_engine.py::test_only_assigned_playbook_receives_canonical_context
+FAILED tests/test_market_context_engine.py::test_engine_exposes_forming_candle_without_passing_it_as_confirmed_structure
+5 failed, 1366 passed in 226.35s (0:03:46)
