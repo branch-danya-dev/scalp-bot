@@ -7,7 +7,8 @@ import json
 import multiprocessing as mp
 import os
 from pathlib import Path
-from queue import Empty, Full
+from queue import Empty, Full, Queue
+from threading import Event, Thread
 import time
 
 from .contracts import ImpulseForecast
@@ -57,12 +58,29 @@ class InferenceWorker:
         self.latest=OrderedDict();self.active={};self.inflight=None;self.process=None
         self.ready=False;self.failed=None;self.started=0;self.coalesced=0;self.dropped=0;self.info={}
         self.closed=False
+        # Queue.get_nowait() on multiprocessing.Queue still enters Windows
+        # named-pipe polling. Keep every OS receive off the market event loop.
+        self.received=Queue(maxsize=1)
+        self.receiver_stop=Event();self.receiver=None;self.receive_error=None
 
     def start(self):
         if self.process is not None or self.closed:raise RuntimeError("worker already started/closed")
         self.process=self.ctx.Process(target=self.target,args=(self.model_dir,self.inbox,self.outbox,self.ttl_ns),
                                       name="scalp-ml-shadow",daemon=True)
         self.process.start();self.started=time.perf_counter_ns()
+        self.receiver=Thread(target=self._receive_replies,name='ml-reply-relay',daemon=True)
+        self.receiver.start()
+
+    def _receive_replies(self):
+        while not self.receiver_stop.is_set():
+            try:item=self.outbox.get(timeout=.05)
+            except Empty:continue
+            except (EOFError,OSError,ValueError):
+                if not self.receiver_stop.is_set():self.receive_error='worker_channel_closed'
+                return
+            while not self.receiver_stop.is_set():
+                try:self.received.put(item,timeout=.05);break
+                except Full:continue
 
     def activate(self,symbol,epoch):
         if self.active.get(symbol)!=epoch:
@@ -96,7 +114,7 @@ class InferenceWorker:
         if self.closed:return []
         results=[];now=time.perf_counter_ns()
         try:
-            item=self.outbox.get_nowait()
+            item=self.received.get_nowait()
         except Empty:item=None
         if item is not None:
             if item[0]=="ready":self.ready=True;self.info=item[1]
@@ -109,6 +127,7 @@ class InferenceWorker:
                 else:results.append(item)
         if self.process is not None:
             if not self.process.is_alive() and item is None:self.failed="worker_crashed"
+            elif self.receive_error:self.failed=self.receive_error
             elif not self.ready and now-self.started>self.startup_ns:self.failed="startup_timeout"
             elif self.inflight and now-self.inflight[1]>self.timeout_ns:self.failed="prediction_timeout"
         if self.failed:
@@ -128,5 +147,9 @@ class InferenceWorker:
             if self.process.is_alive():
                 self.process.terminate();self.process.join(timeout)
             if self.process.is_alive():raise RuntimeError("worker did not terminate")
+        self.receiver_stop.set()
+        if self.receiver is not None:
+            self.receiver.join(max(.2,timeout))
+            if self.receiver.is_alive():raise RuntimeError('worker reply relay did not terminate')
         for queue in (self.inbox,self.outbox):
             queue.cancel_join_thread();queue.close()

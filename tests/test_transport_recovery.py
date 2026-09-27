@@ -6,6 +6,25 @@ import pytest
 from scalp_bot.bybit import _receive_or_processor_failure, _process_market_queue, MarketDataBackpressureError, OrderBookState
 
 
+async def test_ready_market_queue_yields_between_messages_without_reordering():
+    from scalp_bot.bybit import MarketMessage
+    queue = asyncio.Queue()
+    for i in range(100):
+        queue.put_nowait(MarketMessage(topic=f'publicTrade.{i}', data=[]))
+    stop = asyncio.Event()
+    processed, observed = [], []
+    async def apply(message):
+        processed.append(int(message.topic.split('.')[-1]))
+        if len(processed) == 100:
+            stop.set()
+    async def observer():
+        await asyncio.sleep(0)
+        observed.append(len(processed))
+    await asyncio.gather(_process_market_queue(queue, apply, stop, max_lag_seconds=0), observer())
+    assert processed == list(range(100))
+    assert 0 < observed[0] < 100
+
+
 async def test_consumer_failure_interrupts_silent_recv_and_leaves_no_receive_task():
     cancelled = asyncio.Event()
     class Socket:

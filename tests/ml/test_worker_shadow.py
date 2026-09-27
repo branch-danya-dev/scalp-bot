@@ -61,6 +61,17 @@ def test_latest_mailbox_is_bounded_and_deactivation_drops_queued_work(tmp_path):
     finally:worker.close()
 
 
+def test_parent_poll_never_touches_windows_ipc(tmp_path, monkeypatch):
+    worker = InferenceWorker(tmp_path)
+    def forbidden(*args, **kwargs):
+        raise AssertionError("parent event loop must not enter OS pipe polling")
+    monkeypatch.setattr(worker.outbox, 'get_nowait', forbidden)
+    try:
+        assert worker.poll() == []
+    finally:
+        worker.close()
+
+
 def test_shadow_admits_only_current_metadata_and_duplicate_is_rejected():
     from test_dataset_learning import instrument
     metadata=dict(model_version="m1",policy_version="p1",plan_policy=dict(version="p1",stop_bps=15,target_bps=30,nominal_usdt=100))

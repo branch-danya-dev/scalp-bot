@@ -10,6 +10,21 @@ from test_input_journal import message
 from scalp_bot.capture import CaptureRecorder
 
 
+def test_deferred_public_rows_do_not_retain_the_recorder_or_engine():
+    import weakref
+    class Sink:
+        defer_journal_hashes = True
+        def record(self, event, symbol, payload):
+            rows.append(payload)
+    rows = []
+    sink = Sink()
+    reference = weakref.ref(sink)
+    journal = InputJournal(sink.record, ReplayRuntimeClock(wall_seconds=1000, mono_ns=10))
+    del journal, sink
+    assert reference() is None
+    assert rows[0].resolve()['sequence'] == 1
+
+
 @pytest.mark.parametrize("compressed", [False, True])
 def test_real_capture_hashes_on_fifo_writer_and_detaches_inputs(tmp_path, monkeypatch, compressed):
     import scalp_bot.input_journal as module

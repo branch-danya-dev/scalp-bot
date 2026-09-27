@@ -849,6 +849,11 @@ async def _process_market_queue(
                 active_root.end()
             queue.task_done()
 
+        # A ready asyncio.Queue.get() and a CPU-only callback do not suspend.
+        # Preserve FIFO application, but let clocks, other symbols and worker
+        # replies run between messages instead of draining a burst atomically.
+        await asyncio.sleep(0)
+
 
 async def _receive_or_processor_failure(ws, processor):
     """A dead consumer must wake a silent socket immediately, not after 35s."""

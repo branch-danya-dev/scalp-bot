@@ -271,17 +271,22 @@ def detach_json(value):
 
 
 @dataclass(slots=True)
+class JournalHashChain:
+    previous_hash: str | None = None
+
+
+@dataclass(slots=True)
 class DeferredJournalRow:
     row: dict
-    journal: object
+    chain: JournalHashChain
     retained_bytes: int
 
     def resolve(self):
         # Exactly one FIFO writer owns the chain. Sequence/count stay assigned
         # at enqueue time: any dropped row remains detectable by validation.
-        self.row["previousHash"] = self.journal.previous_hash
+        self.row["previousHash"] = self.chain.previous_hash
         self.row["hash"] = fingerprint(self.row)
-        self.journal.previous_hash = self.row["hash"]
+        self.chain.previous_hash = self.row["hash"]
         return self.row
 
 
@@ -297,7 +302,7 @@ class InputJournal:
         self.record = record
         self.clock = clock
         self.sequence = 0
-        self.previous_hash: str | None = None
+        self.chain = JournalHashChain()
         self.closed = False
         self.append("header", None, {"coverage": "experimental_partial",
             "missingCoverage": list(MISSING_COVERAGE), "parityReady": False})
@@ -318,9 +323,13 @@ class InputJournal:
         # Advance even if the bounded recorder drops a row. The next row/footer
         # then exposes that loss instead of numbering the surviving rows anew.
         self.sequence += 1
-        deferred = DeferredJournalRow(row, self, retained + 2048)
+        deferred = DeferredJournalRow(row, self.chain, retained + 2048)
         asynchronous = bool(getattr(getattr(self.record, "__self__", None), "defer_journal_hashes", False))
         self.record(EVENT, symbol, deferred if asynchronous else deferred.resolve())
+
+    @property
+    def previous_hash(self):
+        return self.chain.previous_hash
 
     def market_message(self, symbol: str, message) -> None:
         # No generic __dict__/transport/headers/auth/OTel serialization.
