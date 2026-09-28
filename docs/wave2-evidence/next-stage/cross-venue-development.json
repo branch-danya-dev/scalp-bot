@@ -1,0 +1,552 @@
+{
+  "schema": "cross-venue-study-v1",
+  "population": "identical_causal_prepared_membership",
+  "samples": 11,
+  "complete": 1,
+  "censored": 10,
+  "results": [
+    {
+      "fold": 0,
+      "strategy": "level_breakout",
+      "alignment": "aligned",
+      "samples": 0,
+      "metrics": {
+        "target_before_stop": {
+          "samples": 0,
+          "mean": null
+        },
+        "realized_net_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "executable_mfe_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "executable_mae_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "time_to_mfe_ms": {
+          "samples": 0,
+          "mean": null
+        },
+        "no_follow_through": {
+          "samples": 0,
+          "mean": null
+        },
+        "stop": {
+          "samples": 0,
+          "mean": null
+        },
+        "partial": {
+          "samples": 0,
+          "mean": null
+        },
+        "target": {
+          "samples": 0,
+          "mean": null
+        }
+      },
+      "concentration": {
+        "symbol": {},
+        "capture_id": {}
+      },
+      "regimes": {},
+      "portfolioPnl": null,
+      "bySymbol": {},
+      "byRegime": {}
+    },
+    {
+      "fold": 0,
+      "strategy": "level_breakout",
+      "alignment": "neutral",
+      "samples": 0,
+      "metrics": {
+        "target_before_stop": {
+          "samples": 0,
+          "mean": null
+        },
+        "realized_net_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "executable_mfe_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "executable_mae_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "time_to_mfe_ms": {
+          "samples": 0,
+          "mean": null
+        },
+        "no_follow_through": {
+          "samples": 0,
+          "mean": null
+        },
+        "stop": {
+          "samples": 0,
+          "mean": null
+        },
+        "partial": {
+          "samples": 0,
+          "mean": null
+        },
+        "target": {
+          "samples": 0,
+          "mean": null
+        }
+      },
+      "concentration": {
+        "symbol": {},
+        "capture_id": {}
+      },
+      "regimes": {},
+      "portfolioPnl": null,
+      "bySymbol": {},
+      "byRegime": {}
+    },
+    {
+      "fold": 0,
+      "strategy": "level_breakout",
+      "alignment": "opposed",
+      "samples": 0,
+      "metrics": {
+        "target_before_stop": {
+          "samples": 0,
+          "mean": null
+        },
+        "realized_net_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "executable_mfe_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "executable_mae_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "time_to_mfe_ms": {
+          "samples": 0,
+          "mean": null
+        },
+        "no_follow_through": {
+          "samples": 0,
+          "mean": null
+        },
+        "stop": {
+          "samples": 0,
+          "mean": null
+        },
+        "partial": {
+          "samples": 0,
+          "mean": null
+        },
+        "target": {
+          "samples": 0,
+          "mean": null
+        }
+      },
+      "concentration": {
+        "symbol": {},
+        "capture_id": {}
+      },
+      "regimes": {},
+      "portfolioPnl": null,
+      "bySymbol": {},
+      "byRegime": {}
+    },
+    {
+      "fold": 0,
+      "strategy": "level_breakout",
+      "alignment": "unavailable",
+      "samples": 0,
+      "metrics": {
+        "target_before_stop": {
+          "samples": 0,
+          "mean": null
+        },
+        "realized_net_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "executable_mfe_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "executable_mae_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "time_to_mfe_ms": {
+          "samples": 0,
+          "mean": null
+        },
+        "no_follow_through": {
+          "samples": 0,
+          "mean": null
+        },
+        "stop": {
+          "samples": 0,
+          "mean": null
+        },
+        "partial": {
+          "samples": 0,
+          "mean": null
+        },
+        "target": {
+          "samples": 0,
+          "mean": null
+        }
+      },
+      "concentration": {
+        "symbol": {},
+        "capture_id": {}
+      },
+      "regimes": {},
+      "portfolioPnl": null,
+      "bySymbol": {},
+      "byRegime": {}
+    },
+    {
+      "fold": 0,
+      "strategy": "weak_level_rejection",
+      "alignment": "aligned",
+      "samples": 0,
+      "metrics": {
+        "target_before_stop": {
+          "samples": 0,
+          "mean": null
+        },
+        "realized_net_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "executable_mfe_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "executable_mae_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "time_to_mfe_ms": {
+          "samples": 0,
+          "mean": null
+        },
+        "no_follow_through": {
+          "samples": 0,
+          "mean": null
+        },
+        "stop": {
+          "samples": 0,
+          "mean": null
+        },
+        "partial": {
+          "samples": 0,
+          "mean": null
+        },
+        "target": {
+          "samples": 0,
+          "mean": null
+        }
+      },
+      "concentration": {
+        "symbol": {},
+        "capture_id": {}
+      },
+      "regimes": {},
+      "portfolioPnl": null,
+      "bySymbol": {},
+      "byRegime": {}
+    },
+    {
+      "fold": 0,
+      "strategy": "weak_level_rejection",
+      "alignment": "neutral",
+      "samples": 0,
+      "metrics": {
+        "target_before_stop": {
+          "samples": 0,
+          "mean": null
+        },
+        "realized_net_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "executable_mfe_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "executable_mae_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "time_to_mfe_ms": {
+          "samples": 0,
+          "mean": null
+        },
+        "no_follow_through": {
+          "samples": 0,
+          "mean": null
+        },
+        "stop": {
+          "samples": 0,
+          "mean": null
+        },
+        "partial": {
+          "samples": 0,
+          "mean": null
+        },
+        "target": {
+          "samples": 0,
+          "mean": null
+        }
+      },
+      "concentration": {
+        "symbol": {},
+        "capture_id": {}
+      },
+      "regimes": {},
+      "portfolioPnl": null,
+      "bySymbol": {},
+      "byRegime": {}
+    },
+    {
+      "fold": 0,
+      "strategy": "weak_level_rejection",
+      "alignment": "opposed",
+      "samples": 0,
+      "metrics": {
+        "target_before_stop": {
+          "samples": 0,
+          "mean": null
+        },
+        "realized_net_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "executable_mfe_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "executable_mae_r": {
+          "samples": 0,
+          "mean": null
+        },
+        "time_to_mfe_ms": {
+          "samples": 0,
+          "mean": null
+        },
+        "no_follow_through": {
+          "samples": 0,
+          "mean": null
+        },
+        "stop": {
+          "samples": 0,
+          "mean": null
+        },
+        "partial": {
+          "samples": 0,
+          "mean": null
+        },
+        "target": {
+          "samples": 0,
+          "mean": null
+        }
+      },
+      "concentration": {
+        "symbol": {},
+        "capture_id": {}
+      },
+      "regimes": {},
+      "portfolioPnl": null,
+      "bySymbol": {},
+      "byRegime": {}
+    },
+    {
+      "fold": 0,
+      "strategy": "weak_level_rejection",
+      "alignment": "unavailable",
+      "samples": 1,
+      "metrics": {
+        "target_before_stop": {
+          "samples": 1,
+          "mean": 0.0
+        },
+        "realized_net_r": {
+          "samples": 1,
+          "mean": -0.19069932205817722
+        },
+        "executable_mfe_r": {
+          "samples": 1,
+          "mean": 0.32677521212917937
+        },
+        "executable_mae_r": {
+          "samples": 1,
+          "mean": 0.4101995090871557
+        },
+        "time_to_mfe_ms": {
+          "samples": 1,
+          "mean": 7270.7194
+        },
+        "no_follow_through": {
+          "samples": 1,
+          "mean": 0.0
+        },
+        "stop": {
+          "samples": 1,
+          "mean": 0.0
+        },
+        "partial": {
+          "samples": 1,
+          "mean": 0.0
+        },
+        "target": {
+          "samples": 1,
+          "mean": 0.0
+        }
+      },
+      "concentration": {
+        "symbol": {
+          "NEARUSDT": 1
+        },
+        "capture_id": {
+          "current-causal.jsonl": 1
+        }
+      },
+      "regimes": {
+        "bullish_trend": 1
+      },
+      "portfolioPnl": null,
+      "bySymbol": {
+        "NEARUSDT": {
+          "samples": 1,
+          "metrics": {
+            "target_before_stop": {
+              "samples": 1,
+              "mean": 0.0
+            },
+            "realized_net_r": {
+              "samples": 1,
+              "mean": -0.19069932205817722
+            },
+            "executable_mfe_r": {
+              "samples": 1,
+              "mean": 0.32677521212917937
+            },
+            "executable_mae_r": {
+              "samples": 1,
+              "mean": 0.4101995090871557
+            },
+            "time_to_mfe_ms": {
+              "samples": 1,
+              "mean": 7270.7194
+            },
+            "no_follow_through": {
+              "samples": 1,
+              "mean": 0.0
+            },
+            "stop": {
+              "samples": 1,
+              "mean": 0.0
+            },
+            "partial": {
+              "samples": 1,
+              "mean": 0.0
+            },
+            "target": {
+              "samples": 1,
+              "mean": 0.0
+            }
+          },
+          "concentration": {
+            "symbol": {
+              "NEARUSDT": 1
+            },
+            "capture_id": {
+              "current-causal.jsonl": 1
+            }
+          },
+          "regimes": {
+            "bullish_trend": 1
+          },
+          "portfolioPnl": null
+        }
+      },
+      "byRegime": {
+        "bullish_trend": {
+          "samples": 1,
+          "metrics": {
+            "target_before_stop": {
+              "samples": 1,
+              "mean": 0.0
+            },
+            "realized_net_r": {
+              "samples": 1,
+              "mean": -0.19069932205817722
+            },
+            "executable_mfe_r": {
+              "samples": 1,
+              "mean": 0.32677521212917937
+            },
+            "executable_mae_r": {
+              "samples": 1,
+              "mean": 0.4101995090871557
+            },
+            "time_to_mfe_ms": {
+              "samples": 1,
+              "mean": 7270.7194
+            },
+            "no_follow_through": {
+              "samples": 1,
+              "mean": 0.0
+            },
+            "stop": {
+              "samples": 1,
+              "mean": 0.0
+            },
+            "partial": {
+              "samples": 1,
+              "mean": 0.0
+            },
+            "target": {
+              "samples": 1,
+              "mean": 0.0
+            }
+          },
+          "concentration": {
+            "symbol": {
+              "NEARUSDT": 1
+            },
+            "capture_id": {
+              "current-causal.jsonl": 1
+            }
+          },
+          "regimes": {
+            "bullish_trend": 1
+          },
+          "portfolioPnl": null
+        }
+      }
+    }
+  ],
+  "promotionAuthorized": false,
+  "mode": "telemetry_only",
+  "status": "REQUIRES_STABILITY_REVIEW",
+  "limitations": [
+    "overlapping_labels_not_portfolio_returns",
+    "observed_leadership_not_exchange_causality",
+    "independent_capture_symbol_regime_stability_required"
+  ],
+  "datasetHash": "b2bd787c085eb5e9d6d683cdf4bbaccf81a3b00f697c5d54cf3fd80645ebfa06",
+  "labelSource": "current logical derivative; native proof missing",
+  "independentEdgeGate": "INCONCLUSIVE",
+  "ablation": "NOT_TESTED_DATASET_GATE",
+  "modelFitPerformed": false
+}

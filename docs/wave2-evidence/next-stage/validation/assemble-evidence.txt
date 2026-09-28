@@ -1,0 +1,40 @@
+{
+  "gate": "NOT_MET",
+  "counts": {
+    "prepared": 11,
+    "complete": 1,
+    "censored": 0,
+    "economicRejected": 10,
+    "economicallyEligible": 1,
+    "symbols": {
+      "NEARUSDT": 1
+    },
+    "captures": {
+      "current-causal.jsonl": 1
+    },
+    "strategies": {
+      "weak_level_rejection": 1
+    },
+    "independentPeriods": 0,
+    "utcDays": 0
+  },
+  "reasons": [
+    "capture_concentration",
+    "capture_integrity_replay_or_population",
+    "capture_interval",
+    "complete",
+    "flowAlignment",
+    "htfAlignment",
+    "independent_periods",
+    "localRegime",
+    "loso_support",
+    "prepared",
+    "strategies",
+    "symbol_concentration",
+    "symbols",
+    "utc_days"
+  ],
+  "ordinaryEventsEqual": true,
+  "ledgerEqual": true,
+  "labelReplay": "PASS"
+}

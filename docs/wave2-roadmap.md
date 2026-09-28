@@ -1,5 +1,38 @@
 # Wave 2: audited plan and evidence
 
+## Current continuation from exact 01c491d — 28 September 2026
+
+The current gate authority is [next-stage evidence](wave2-next-stage-evidence.md).
+Earlier tables below are retained historical receipts, not current authorization.
+Implementation `b163f785ed4a85deede118e03a57fecf7633c039` adds measured pipeline
+boundaries, native-label input serialization/replay tooling, preregistered dataset
+promotion and global-UTC population assembly, Bybit-only ablation, concrete offline
+shared-feed paper arms and inert Demo execution calibration contracts.
+
+W2.0 **NOT_MET**; complete native six-variant module-cost replay **NOT_TESTED**;
+native executable-label path **INCONCLUSIVE**. Current historical logical replay
+has 11 preparations, 1 managed closure and 1 exactly replayed derivative label;
+ordinary events/ledger match exact starting head. It does not consume the native
+clock tape. Dataset **NOT_MET**; no fit or model promotion. Maker development
+segments have no positive 500/1000ms net cohort; hypothesis/independent validation
+are absent. No new public market capture or order was run.
+
+Offline A/B pass_all, veto, model failures, fixed/relative loss/DD, writer/gap and
+bounded finalization are implemented/tested. A trained-model live runner remains
+gated. [Demo calibration](demo-execution-calibration.md) is offline only and needs
+subsequent owner authorization for orders after technical/data/model gates.
+Full Windows 1666 passed; exact implementation CI Linux 1652 passed/6 skipped,
+Windows targeted 521 passed and JS syntax passed. These are correctness checks.
+
+Next: full native module-cost proof → equivalent latency fix → one preregistered
+900s public-paper natural-path/label capture → independent data under
+[frozen population policy](wave2-dataset-promotion.md) → frozen V3/LOSO/test and
+same-PortfolioRisk economic ranking → future paired/Demo qualification. No retries
+for fills, W2.6/7/8, 8h/12h or mainnet; no threshold/fee/risk/queue limit relaxation.
+
+## Historical audit and evidence
+
+
 Baseline: draft PR60, `1a2d0f67da0331df7d2d134bffde6f64141c7898`.
 Work branch: `codex/wave2-shadow`. Main and PR60 remain unchanged.
 PR60 final-head GitHub workflow 36356147417 succeeded. No review threads were

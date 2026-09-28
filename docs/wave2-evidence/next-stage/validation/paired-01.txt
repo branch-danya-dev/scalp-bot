@@ -1,0 +1,78 @@
+F.F....F.................                                                [100%]
+================================== FAILURES ===================================
+_____________ test_actual_admission_pass_all_and_single_veto[1.0] _____________
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-481/test_actual_admission_pass_all0')
+score = 1.0
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("score", [1.,-1.])
+    async def test_actual_admission_pass_all_and_single_veto(tmp_path,score):
+        a,b,harness,p,h,f=setup(tmp_path,score)
+        result=await harness.replay([event()],p,h)
+        assert result["state"] == "COMPLETED"
+        assert len(a.ledger()["closed"]) == 1
+>       assert len(b.ledger()["closed"]) == (1 if score>0 else 0)
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests\test_paired_paper.py:50: AssertionError
+______________ test_unavailable_B_never_falls_back_to_A[expired] ______________
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-481/test_unavailable_B_never_falls0')
+fault = 'expired'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("fault",["expired","wrong_intent","wrong_source","wrong_model","worker_crash","missing"])
+    async def test_unavailable_B_never_falls_back_to_A(tmp_path,fault):
+        a,b,harness,p,h,f=setup(tmp_path)
+        if fault=="expired":b.ranker.forecasts[f.identity]=replace(f,expires_mono_ns=10**9+1)
+        elif fault=="wrong_intent":b.ranker.receive(replace(f,identity="wrong"))
+        elif fault=="wrong_source":b.ranker.receive(replace(f,source=replace(f.source,source_sequence=2)))
+        elif fault=="wrong_model":b.ranker.receive(replace(f,model_hash="b"*64))
+        elif fault=="worker_crash":b.ranker.failure="worker_crashed"
+        else:b.ranker.forecasts.clear()
+        row=event()
+        if fault=="expired":row.update(processingMonoNs=10**9+2,processingWallSeconds=1000.000000002)
+        result=await harness.replay([row],p,h)
+>       assert result["state"]=="INCOMPLETE"
+E       AssertionError: assert 'COMPLETED' == 'INCOMPLETE'
+E         
+E         - INCOMPLETE
+E         ? --
+E         + COMPLETED
+E         ?         +
+
+tests\test_paired_paper.py:73: AssertionError
+______________ test_unavailable_B_never_falls_back_to_A[missing] ______________
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-481/test_unavailable_B_never_falls5')
+fault = 'missing'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("fault",["expired","wrong_intent","wrong_source","wrong_model","worker_crash","missing"])
+    async def test_unavailable_B_never_falls_back_to_A(tmp_path,fault):
+        a,b,harness,p,h,f=setup(tmp_path)
+        if fault=="expired":b.ranker.forecasts[f.identity]=replace(f,expires_mono_ns=10**9+1)
+        elif fault=="wrong_intent":b.ranker.receive(replace(f,identity="wrong"))
+        elif fault=="wrong_source":b.ranker.receive(replace(f,source=replace(f.source,source_sequence=2)))
+        elif fault=="wrong_model":b.ranker.receive(replace(f,model_hash="b"*64))
+        elif fault=="worker_crash":b.ranker.failure="worker_crashed"
+        else:b.ranker.forecasts.clear()
+        row=event()
+        if fault=="expired":row.update(processingMonoNs=10**9+2,processingWallSeconds=1000.000000002)
+        result=await harness.replay([row],p,h)
+>       assert result["state"]=="INCOMPLETE"
+E       AssertionError: assert 'COMPLETED' == 'INCOMPLETE'
+E         
+E         - INCOMPLETE
+E         ? --
+E         + COMPLETED
+E         ?         +
+
+tests\test_paired_paper.py:73: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_paired_paper.py::test_actual_admission_pass_all_and_single_veto[1.0]
+FAILED tests/test_paired_paper.py::test_unavailable_B_never_falls_back_to_A[expired]
+FAILED tests/test_paired_paper.py::test_unavailable_B_never_falls_back_to_A[missing]
+3 failed, 22 passed in 0.72s

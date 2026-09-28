@@ -1,0 +1,20 @@
+{
+  "status": "BLOCKED_AS_REQUIRED",
+  "reason": "verified dataset evidence required before fitting/testing",
+  "gateReasons": [
+    "capture_concentration",
+    "capture_integrity_replay_or_population",
+    "capture_interval",
+    "complete",
+    "flowAlignment",
+    "htfAlignment",
+    "independent_periods",
+    "localRegime",
+    "loso_support",
+    "prepared",
+    "strategies",
+    "symbol_concentration",
+    "symbols",
+    "utc_days"
+  ]
+}

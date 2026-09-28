@@ -1,0 +1,21 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+________ test_failed_finalization_preserves_each_arm_balance_and_error ________
+
+    @pytest.mark.asyncio
+    async def test_failed_finalization_preserves_each_arm_balance_and_error():
+        controller, a, b, passport, hashes, clock = fixture()
+        controller.start(passport, hashes)
+        async def broken():
+            raise RuntimeError("reconciliation failed")
+        a.finalize = broken
+        result = await controller.finalize()
+        assert result["state"] == "INCOMPLETE"
+>       assert len(result["armSnapshots"]) == 2
+                   ^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'armSnapshots'
+
+tests\test_experiment_finalization_receipt.py:14: KeyError
+=========================== short test summary info ===========================
+FAILED tests/test_experiment_finalization_receipt.py::test_failed_finalization_preserves_each_arm_balance_and_error
+1 failed in 0.23s

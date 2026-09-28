@@ -1,0 +1,15 @@
+{
+  "prepared": 11,
+  "completeLabels": 1,
+  "balance": 999.3302717492595,
+  "failure": null,
+  "nativeReplay": {
+    "status": "FAIL",
+    "reason": "source code differs from recorded capture",
+    "gate": "source/runtime binding before native replay"
+  },
+  "labelReplay": {
+    "status": "NOT_TESTED",
+    "reason": "exact starting source lacks persisted label-input replay"
+  }
+}

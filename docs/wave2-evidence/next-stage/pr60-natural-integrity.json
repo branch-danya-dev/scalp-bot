@@ -1,0 +1,48 @@
+{
+  "schema": "replay-input-v4",
+  "structuralStatus": "checks_passed",
+  "parityReady": false,
+  "coverage": "experimental_partial",
+  "missingCoverage": [
+    "offline_replay_parity",
+    "capture_load_validation"
+  ],
+  "captureManifestChecked": true,
+  "policySnapshotChecked": true,
+  "boundRuns": 1,
+  "headerPresent": true,
+  "footerPresent": true,
+  "missingReceiptCount": 0,
+  "counts": {
+    "header": 1,
+    "manifest": 2,
+    "policy_snapshot": 1,
+    "service": 2,
+    "scope": 349344,
+    "source_await": 82,
+    "clock_sample": 26,
+    "clock_read": 1577946,
+    "scanner_result": 5,
+    "bootstrap": 10,
+    "symbol_lifecycle": 10,
+    "transport": 108,
+    "market_message": 141412,
+    "callback": 19021,
+    "dispatch": 2382,
+    "scheduler": 72895,
+    "control": 2,
+    "context_await": 42,
+    "rest_context": 34,
+    "run_end": 1,
+    "footer": 1
+  },
+  "issues": {},
+  "source": {
+    "file": "session-20260927T215915Z.inputs.jsonl.gz",
+    "snapshotBytes": 217412325,
+    "bytesRead": 1075359905,
+    "snapshotSha256": "834ea1f7742311dc19ab9278d17ea4fcd6cafeee5ecf83854ec4d75009a73054",
+    "compression": "gzip",
+    "hashBasis": "decoded_jsonl"
+  }
+}

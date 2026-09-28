@@ -1,3 +1,24 @@
+# Wave 2 next-stage handoff — 28.09.2026
+
+Продолжение PR61 от `01c491d7961126836e04682bed874c7f14971100`; опубликованная реализация `b163f785ed4a85deede118e03a57fecf7633c039`. Main и PR60 не изменены. **W2.0 остаётся NOT_MET; native executable-label gate — INCONCLUSIVE.**
+
+Добавлены корреляция latency/queue/IPC/relay/codec и GC overlap, сохранённый label-input replay, preregistered population gate с fail-closed fit, multi-capture join и Bybit-only/CrossVenue ablation contract. Concrete offline shared-feed A/B использует текущие admission/PortfolioRisk/PaperBroker; pass_all/veto и отказные сценарии проверены. DemoExecutionCalibration — инертный протокол и offline ledgers, без сетевых заявок.
+
+Полный сохранённый PR60 период на exact `01c491d` и текущем коде: **11 PreparedIntent, 10 economic rejections, 1 закрытая NEARUSDT сделка, net −0.669728 USDT**. 1232 ordinary events и ledger совпадают. Current frozen-plan label: **−0.988647 USDT**, 2875 input operations воспроизводят lifecycle/costs точно. Label PnL не подменяет ordinary portfolio PnL. Это logical replay, не native clock-tape parity; strict source mismatch не обходили.
+
+Новый instrumented fixed-prefix diagnostic оказался INVALID: **21768 input rejects**, high-water 33546679 / 33554432 bytes. Parent queue/IPC доминируют над prediction; GC max 93.1188ms. Полный six-variant native module-cost proof и true allocation rate не сделаны. Perf win не принят, лимиты не увеличены. Сохраняется последнее native FAIL **24.4621 / 308.2433ms** и fixed-workload FAIL **31.3096 / 291.1001ms**.
+
+Dataset **NOT_MET**: 11 observations / 1 derivative label, нет native label proof и независимого покрытия. Обучение не запускалось. Maker: 4490 candidates / 808 virtually filled, все средние markouts отрицательны; нет положительного marginal segment на 500+1000ms и нет admission hypothesis. Внешние venues telemetry-only, missing coverage явно сохранено.
+
+Полный Windows preflight: **1666 passed**. Exact implementation CI [36410907199](https://github.com/branch-danya-dev/scalp-bot/actions/runs/36410907199): Linux **1652 passed / 6 skipped**, Windows targeted **521 passed**, JS syntax passed. Финальный docs/evidence head проверяется отдельным exact-head CI в PR. Зелёные тесты не подтверждают profitability.
+
+Следующий блокер — полный ordered event/scheduler/clock module-cost replay и semantically equivalent latency fix. Только после controlled budgets допускается **один 900s public-paper capture**, без retry/extension. W2.6/7/8, 30–60m market paired, 8h/12h, Demo/mainnet не запускались и не разрешаются этим результатом. Demo orders требуют отдельного последующего разрешения владельца.
+
+[Полная таблица gates и ограничения](docs/wave2-next-stage-evidence.md), [population policy](docs/wave2-dataset-promotion.md), [Demo protocol](docs/demo-execution-calibration.md), [evidence/hashes/raw inventories](docs/wave2-evidence/next-stage/). Все failed captures, включая ошибку context hash до исправления и overflow diagnostic, сохранены отдельно. Исходные native captures не менялись.
+
+---
+## Предыдущие записи Wave 2 (история, не текущие разрешения)
+
 # Wave 2 handoff — 28.09.2026
 
 База: draft PR60 `1a2d0f67da0331df7d2d134bffde6f64141c7898`. Ветка `codex/wave2-shadow`, draft PR61; main и PR60 не изменены.

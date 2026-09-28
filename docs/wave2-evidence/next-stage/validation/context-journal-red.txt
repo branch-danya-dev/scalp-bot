@@ -1,0 +1,47 @@
+..F                                                                      [100%]
+================================== FAILURES ===================================
+_ test_context_round_trip_preserves_typed_features_and_exact_freshness_reads __
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-491/test_context_round_trip_preser0')
+
+    def test_context_round_trip_preserves_typed_features_and_exact_freshness_reads(tmp_path):
+        from types import SimpleNamespace
+        from test_features import context
+        from scalp_bot.domain import Trend
+        original=SimpleNamespace(symbol="AAA",market_context=context(),trend=Trend.UP,last_price=100,
+            orderbook=book(99.99,100),depth_orderbook=lambda:book(99.99,100),decisions={},
+            book_is_fresh=lambda:True,deep_book_is_fresh=lambda:False)
+        observed=ContextObservation(original)
+        assert observed.deep_book_is_fresh() is False
+        # Real JSON/hash/codec boundary matters: horizons use integer keys in memory.
+        from scalp_bot.research_journal import ResearchJournal, read_research
+        journal=ResearchJournal(tmp_path/"context.jsonl.gz","capture",{})
+        journal.append("label_input",observed.payload())
+        journal.close()
+>       rows=list(read_research(journal.path))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\ml\test_native_label_inputs.py:47: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-491/test_context_round_trip_preser0/context.jsonl.gz')
+
+    def read_research(path):
+        previous = None
+        capture_id = None
+        footer = False
+        sequence = 0
+        with gzip.open(path, "rt", encoding="utf-8") as stream:
+            for line in stream:
+                row = json.loads(line)["payload"]
+                digest = row.pop("hash")
+                sequence += 1
+                if (footer or row["sequence"] != sequence or row["previousHash"] != previous
+                        or fingerprint(row) != digest or row["schema"] != "wave2-research-v1"):
+>                   raise ValueError("research hash/sequence integrity failure")
+E                   ValueError: research hash/sequence integrity failure
+
+scalp_bot\research_journal.py:54: ValueError
+=========================== short test summary info ===========================
+FAILED tests/ml/test_native_label_inputs.py::test_context_round_trip_preserves_typed_features_and_exact_freshness_reads
+1 failed, 2 passed in 0.64s

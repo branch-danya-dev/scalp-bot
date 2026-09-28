@@ -1,0 +1,23 @@
+{
+  "prepared": 11,
+  "completeLabels": 1,
+  "balance": 999.3302717492595,
+  "failure": null,
+  "nativeReplay": {
+    "status": "FAIL",
+    "reason": "source code differs from recorded capture",
+    "gate": "source/runtime binding before native replay"
+  },
+  "labelReplay": {
+    "status": "PASS",
+    "inputs": 2875,
+    "labels": 1,
+    "complete": 1,
+    "censored": 0,
+    "matched": true,
+    "expectedHash": "7b4a982805adc67cabbf919d5acf6840f2214d2dcde5231d5d99ed1280b03dfd",
+    "actualHash": "7b4a982805adc67cabbf919d5acf6840f2214d2dcde5231d5d99ed1280b03dfd",
+    "nativeSourceGate": "REQUIRES_PRIMARY_SOURCE_AND_NATIVE_PATH_PROOF",
+    "promotionAuthorized": false
+  }
+}

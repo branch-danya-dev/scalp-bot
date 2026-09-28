@@ -1,0 +1,29 @@
+{
+  "gc": {
+    "count": 682,
+    "generations": {
+      "0": 621,
+      "1": 56,
+      "2": 5
+    },
+    "pausesMs": {
+      "count": 682,
+      "p50": 0.7929,
+      "p95": 2.4706,
+      "p99": 3.6205,
+      "max": 93.1188
+    },
+    "overlappingCallbacks": 682,
+    "enabledThroughout": true
+  },
+  "allocation": {
+    "netBlockDelta": {
+      "count": 25045,
+      "p50": 87,
+      "p95": 622,
+      "p99": 1542,
+      "max": 16802
+    },
+    "trueAllocationThroughput": "NOT_TESTED; retained-block delta is not allocation rate"
+  }
+}

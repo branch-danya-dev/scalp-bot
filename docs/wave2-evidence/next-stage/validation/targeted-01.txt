@@ -1,0 +1,32 @@
+........................................................................ [ 23%]
+........................................................................ [ 46%]
+.....F.................................................................. [ 69%]
+........................................................................ [ 92%]
+.......................                                                  [100%]
+================================== FAILURES ===================================
+__________________ test_existing_runtime_does_not_import_ml ___________________
+
+    def test_existing_runtime_does_not_import_ml():
+        root = Path(__file__).resolve().parents[2] / "scalp_bot"
+        for path in root.rglob("*.py"):
+            if not {"ml", "demo_paper"}.intersection(path.relative_to(root).parts) and path.name not in {"offline_study.py", "offline_benchmark.py"}:
+                text = path.read_text(encoding="utf-8")
+>               assert "scalp_bot.ml" not in text and "from .ml" not in text
+E               assert ('scalp_bot.ml' not in '"""Concrete...finalize()\n'
+E                 
+E                 'scalp_bot.ml' is contained here:
+E                   finalize() and 'from .ml' not in '"""Concrete...finalize()\n'
+E                 
+E                 'from .ml' is contained here:
+E                   eniedRest
+E                   from .ml.prepared_adapter import PreparedRanker
+E                 ? ++++++++
+E                   from .ml.prepared_dataset import PreparedDatasetCollector
+E                   from .runtime_clock import ReplayRuntimeClock...
+E                 
+E                 ...Full output truncated (159 lines hidden), use '-vv' to show)
+
+tests\ml\test_foundation.py:120: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/ml/test_foundation.py::test_existing_runtime_does_not_import_ml
+1 failed, 310 passed in 7.95s
