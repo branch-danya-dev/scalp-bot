@@ -482,3 +482,85 @@ async def test_occupied_dashboard_port_fails_before_demo_credentials_or_runtime(
         with pytest.raises(SafetyError, match="UI port .* unavailable; trading was not started"):
             await main_async(args)
     assert not (tmp_path / "never-started").exists()
+
+
+@pytest.mark.asyncio
+async def test_demo_reuses_unchanged_execution_depth_but_delivers_every_trade(tmp_path, monkeypatch):
+    import time
+    from scalp_bot.trading24h import DemoSession
+    from scalp_bot.engine import ActiveSymbolSession
+    import scalp_bot.execution_book as depth
+    cfg = settings(tmp_path / "run" / "sessions"); cfg.exchange_clock_enabled = False
+    owner = DemoSession(cfg, Credentials("fake", "fake", "123"), tmp_path / "run")
+    market = ActiveSymbolSession("AAA", clock=owner.clock, book_synced=True, deep_book_synced=True)
+    market.orderbook = OrderBook([(100, 10)], [(101, 10)])
+    market.deep_orderbook = OrderBook([(100, 10), (99, 20)], [(101, 10), (102, 20)])
+    market.last_book_at = market.last_deep_book_at = time.time()
+    calls, tape = [], []
+    original = depth.coherent_execution_book
+    def merge(fast, deep):
+        calls.append((fast, deep)); return original(fast, deep)
+    monkeypatch.setattr(depth, "coherent_execution_book", merge)
+    owner.arms["paper"].venue.market = lambda symbol, book, **kw: tape.append((kw["trade_price"], book))
+    try:
+        for tick in range(100):
+            owner.engine._market_for_pair(market, trade_price=100 + tick / 100, trade_notional_usd=10, trade_side="Buy")
+        assert len(calls) == 1 and [r[0] for r in tape] == [100 + i / 100 for i in range(100)]
+        assert all(row[1] is tape[0][1] for row in tape)
+        market.orderbook = OrderBook([(100.1, 10)], [(101.1, 10)])
+        owner.engine._market_for_pair(market)
+        market.deep_orderbook = OrderBook([(100.1, 10), (99, 30)], [(101.1, 10), (102, 30)])
+        owner.engine._market_for_pair(market)
+        assert len(calls) == 3
+        assert tape[-1][1] == original(market.orderbook, market.deep_orderbook)
+        market.deep_book_synced = False
+        owner.engine._market_for_pair(market)
+        assert len(tape) == 102 and "AAA" not in owner.portfolio.books
+    finally:
+        await owner.engine.close(); await owner.rest.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["paper", "demo"])
+async def test_upstream_stale_frame_forces_snapshot_recovery_before_application(tmp_path, mode):
+    import time
+    from scalp_bot.trading24h import DemoSession, PaperEngine
+    from scalp_bot.engine import ActiveSymbolSession
+    from scalp_bot.bybit import MarketMessage, MarketDataBackpressureError
+    root = tmp_path / "run"; cfg = settings(root / "sessions")
+    owner = DemoSession(cfg, Credentials("fake", "fake", "123"), root) if mode == "demo" else None
+    engine = owner.engine if owner else PaperEngine(cfg, configure_observability=False)
+    market = ActiveSymbolSession("AAA", clock=engine.clock)
+    engine.sessions["AAA"] = market
+    handler, fast, deep = engine._market_handler("AAA")
+    engine._clock_state = lambda *args: dict(valid=True, exchange_lower_ms=100000)
+    # The application receive timestamp is current, but the frame was buffered
+    # upstream for 28 seconds, as observed in the affected live Demo run.
+    stale = MarketMessage(topic="orderbook.50.AAA", type="snapshot", ts=72000, cts=72000,
+        data={"u": 1, "seq": 1, "b": [["100", "1"]], "a": [["101", "1"]]}, receipt_mono_ns=time.perf_counter_ns())
+    try:
+        with pytest.raises(MarketDataBackpressureError, match="upstream.*backlog"):
+            await handler(stale)
+        assert not fast.synced and not market.orderbook.bids
+        assert not market.fast_book_exchange_ts_ms
+        engine._invalidate_transport("AAA", {"phase": "fault", "topics": ["orderbook.50.AAA"]}, fast, deep)
+        assert not market.book_synced and market.fast_receipt_mono is None
+        fresh = MarketMessage(topic="orderbook.50.AAA", type="snapshot", ts=99900, cts=99900,
+            data={"u": 5, "seq": 5, "b": [["100", "1"]], "a": [["101", "1"]]}, receipt_mono_ns=time.perf_counter_ns())
+        await handler(fresh)
+        assert fast.synced and market.book_synced and market.fast_book_exchange_ts_ms == 99900
+        assert market.orderbook.bids == [(100.0, 1.0)]
+    finally:
+        engine._clock_state = lambda *args: None
+        await engine.close()
+        if owner: await owner.rest.close()
+
+
+@pytest.mark.parametrize("fast_stamp,deep_stamp,allowed", [(99900,99800,True), (72000,99900,False), (99800,97500,False), (99000,99900,False)])
+def test_demo_protection_requires_event_freshness_and_two_way_depth_coherence(fast_stamp, deep_stamp, allowed):
+    from scalp_bot.trading24h import execution_books_ready
+    engine = NS(_clock_state=lambda: dict(valid=True, exchange_lower_ms=100000))
+    market = NS(book_is_fresh=lambda: True, deep_book_is_fresh=lambda: True,
+        fast_book_exchange_ts_ms=fast_stamp, deep_book_exchange_ts_ms=deep_stamp,
+        book_stale_after_seconds=1.5, deep_book_stale_after_seconds=1.5, deep_book_max_skew_seconds=.5)
+    assert execution_books_ready(engine, market) is allowed

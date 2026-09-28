@@ -153,5 +153,19 @@ private/public gaps, clock pause/resume, empty-universe rescan, REST read retry,
 independent Demo/Paper fills and reconciliation. A short live smoke proves startup
 and stream health; it does not prove 24-hour uptime or profitability.
 
+Public-data backlog recovery also checks the exchange event timestamp: a freshly
+received frame may already be old in upstream buffers. With a valid bounded clock,
+an orderbook frame older than twice its existing freshness limit reconnects that
+stream and requires a new snapshot. The entry freshness limit stays at 1.5 seconds;
+entries remain paused until current data returns. `market_backlog_reconnect` records
+the affected topic and measured age. Brief genuine network gaps can still display
+the data-not-ready banner; the warning is not suppressed.
+
+The 24h Demo path caches merged L50/L1000 depth only while both source book objects
+are unchanged. Every trade still reaches the Paper comparison venue in causal order
+for maker confirmation. New book objects rebuild the depth; transport invalidation
+clears it. Demo quote management and exposure recovery check both exchange event
+freshness and absolute fast/deep timestamp skew, in addition to receipt freshness.
+
 Bybit reference: [Demo destinations](https://bybit-exchange.github.io/docs/v5/demo),
 [private heartbeat](https://bybit-exchange.github.io/docs/v5/ws/connect).

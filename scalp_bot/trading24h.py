@@ -82,6 +82,31 @@ class CrossContext:
         self.cross_service = PublicCrossVenueService(self.cross, Journal())
         self.cross_task = None
 
+    def _market_handler(self, symbol):
+        handler, fast, deep = super()._market_handler(symbol)
+        depths = {f"orderbook.{self.config.fast_orderbook_depth}.": self.config.book_stale_seconds,
+                  f"orderbook.{self.config.deep_orderbook_depth}.": self.config.deep_book_stale_seconds}
+
+        async def current_message(message):
+            # recv() freshness cannot detect frames buffered upstream of our
+            # application queue. Recover the affected socket with a new snapshot;
+            # never skip individual orderbook deltas and keep using that book.
+            topic = str(message.get("topic") or "")
+            limit = next((v for prefix, v in depths.items() if topic.startswith(prefix)), None)
+            stamp = message.get("cts") or message.get("ts")
+            clock = self._clock_state() if limit is not None and stamp else None
+            if clock and clock["valid"]:
+                age = clock["exchange_lower_ms"] - float(stamp)
+                if age > 2 * limit * 1000:
+                    from .bybit import MarketDataBackpressureError
+                    self.recorder.record("market_backlog_reconnect", symbol,
+                        dict(topic=topic, exchangeAgeMs=age, entryLimitMs=limit * 1000,
+                             recoveryLimitMs=2 * limit * 1000))
+                    raise MarketDataBackpressureError(f"upstream {topic} backlog: {age:.0f}ms")
+            await handler(message)
+
+        return current_message, fast, deep
+
     async def start(self):
         self.cross_task = asyncio.create_task(self._cross_loop(), name="trading-cross-venue")
         await super().start()
@@ -109,8 +134,13 @@ class PaperEngine(CrossContext, TradingEngine):
 
 class DemoEngine(CrossContext, PairedEngine):
     """Same scanner/strategy/admission as Paper; two independent existing ledgers."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._paired_book_cache = {}
+
     def _invalidate_transport(self, symbol, event, fast_state, deep_state):
         TradingEngine._invalidate_transport(self, symbol, event, fast_state, deep_state)
+        self._paired_book_cache.pop(symbol, None)
         self.portfolio.books.pop(symbol, None)
         self.portfolio.arms["paper"].venue.books.pop(symbol, None)
         pair = self.portfolio.by_symbol.get(symbol)
@@ -118,11 +148,25 @@ class DemoEngine(CrossContext, PairedEngine):
             self.portfolio.cancel_entries.add(pair)
 
     def _market_for_pair(self, session, **kwargs):
-        if not session.book_is_fresh() or not session.deep_book_is_fresh():
+        if not execution_books_ready(self, session):
             self.portfolio.books.pop(session.symbol, None)
             self.portfolio.arms["paper"].venue.books.pop(session.symbol, None)
             return
         super()._market_for_pair(session, **kwargs)
+
+    def _paired_execution_book(self, session):
+        from .execution_book import coherent_execution_book
+        fast = session.orderbook
+        deep = session.depth_orderbook() if session.deep_book_is_fresh() else None
+        cached = self._paired_book_cache.get(session.symbol)
+        if cached is None or cached[0] is not fast or cached[1] is not deep:
+            cached = (fast, deep, coherent_execution_book(fast, deep))
+            if session.symbol not in self._paired_book_cache and len(self._paired_book_cache) >= max(1, self.config.max_active_symbols):
+                self._paired_book_cache.pop(next(iter(self._paired_book_cache)))
+            self._paired_book_cache[session.symbol] = cached
+        # OrderBookState publishes new objects on each update. All individual
+        # trades still visit PaperVenue in causal order for maker confirmation.
+        return cached[2]
 
     def _cancel_all_pending(self, reason):
         if reason == "clock_invalid":
@@ -137,6 +181,22 @@ class DemoEngine(CrossContext, PairedEngine):
             self.portfolio.cancel_entries.add(pair)
             return
         super()._validate_pending_entry(session)
+
+
+def execution_books_ready(engine, session):
+    if not session.book_is_fresh() or not session.deep_book_is_fresh():
+        return False
+    clock = engine._clock_state()
+    if clock and clock["valid"]:
+        for stamp, limit in ((session.fast_book_exchange_ts_ms, session.book_stale_after_seconds),
+                             (session.deep_book_exchange_ts_ms, session.deep_book_stale_after_seconds)):
+            if stamp <= 0 or clock["exchange_lower_ms"] - stamp > limit * 1000:
+                return False
+        # The old generic skew helper only checked deep lagging behind fast.
+        # A delayed fast feed must not combine with a far newer deep quote.
+        if abs(session.fast_book_exchange_ts_ms - session.deep_book_exchange_ts_ms) > session.deep_book_max_skew_seconds * 1000:
+            return False
+    return True
 
 
 class ReadRetryDemoRest(DemoRest):
@@ -299,7 +359,7 @@ class DemoSession(Session):
         for symbol, pair in list(self.portfolio.by_symbol.items()):
             session = self.engine.sessions.get(symbol)
             key = "market:" + symbol
-            healthy = session is not None and session.book_is_fresh() and session.deep_book_is_fresh()
+            healthy = session is not None and execution_books_ready(self.engine, session)
             if healthy:
                 self.recovery.pop(key, None)
             else:
