@@ -1,0 +1,22 @@
+[
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-5\\work\\fixture-01",
+    "status": "FAILED_BEFORE_CAPTURE",
+    "reason": "code_provenance required root argument"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-5\\work\\fixture-02",
+    "status": "FAILED_REPLAY",
+    "reason": "tuple/list representation compared with Python equality; changed to exact canonical JSON hash comparison"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-5\\work\\fixture-03",
+    "status": "FIXTURE_MET",
+    "productionCoverage": false
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-5\\work\\tax-01",
+    "status": "BOUNDED_TAX_MET",
+    "productionCoverage": false
+  }
+]

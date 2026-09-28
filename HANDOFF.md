@@ -1,3 +1,35 @@
+# N3 prospective v5 handoff — 28.09.2026
+
+**W2.0 NOT_MET. Полный production native A–F executor не завершён.**
+Продолжение exact PR61 `e4de7a0`; main и PR60 не меняются.
+
+Добавлены отдельный opt-in `native-causal-v5`, bounded shared sequencer с
+module/task/parent ownership, canonical chain/footer, строгие lifecycle/clock/
+dispatch checks, optional V2 worker/relay boundaries и `NativeControlledDriver`
+для явно зарегистрированных native asyncio operations. V4 raw и readers не
+мигрировались. Audit/план закоммичен до кода: local `047c0a3`, published `74c57d5`.
+
+Offline fixture выполняет настоящие engine callbacks и research components;
+V2 capture использует существующую frozen модель и real spawn/relay. A–F дважды
+совпадают по ordinary fixture operations без leftovers. Это ограниченное proof:
+native service/event scheduler не подключён, portfolio пустой, V3 даёт rejection,
+V2 replay пересчитывает модель локально. Полного production semantic/IPC proof нет.
+
+Нельзя трактовать fixture/tax MET как H=MET. Header и reports явно запрещают
+production coverage; eligible A–F cost, profile-directed fix, 900s и natural
+label parity не выполнены. Последнее настоящее native p99 остаётся
+24.4621 / 308.2433ms. Dataset NOT_MET, Maker NO_SUPPORTED_HYPOTHESIS_YET,
+CrossVenue telemetry-only; training/paired/Demo/8h/12h не запускались.
+
+[Текущий v5 evidence](docs/n3-native-v5-evidence.md),
+[точная production architecture boundary и следующий patch](docs/n3-native-v5-architecture.md),
+[план до кода](docs/n3-native-v5-plan.md),
+[validation и inventories](docs/wave2-evidence/n3-native-v5/).
+Исторический authoritative native evidence сохранён ниже и в
+`docs/n3-native-evidence.md`; его captures не получили недостающих данных.
+
+---
+
 # N3 native handoff — 28.09.2026
 
 **W2.0 NOT_MET; N3.0 six-variant executor NOT_TESTED и ещё не реализован.**

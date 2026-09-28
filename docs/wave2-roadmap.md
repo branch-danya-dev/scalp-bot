@@ -1,5 +1,22 @@
 # Wave 2: audited plan and evidence
 
+## Prospective v5 continuation from e4de7a0 — 28 September 2026
+
+Current engineering authority: [v5 evidence](n3-native-v5-evidence.md), alongside
+the unchanged [historical native evidence](n3-native-evidence.md).
+Explicit-owned prospective recording, bounded shared sequencing, worker/relay
+boundaries and a strict operation driver are implemented and tested offline.
+The production scheduler/observer/probe/IPC replay integration is **NOT_MET**;
+eligible complete A-F module cost is **NOT_TESTED**. Fixture A-F repeatability
+does not close N3.0 or H. **W2.0 remains NOT_MET**, and no 900s capture was started.
+
+The next patch is the [documented production dispatch architecture](n3-native-v5-architecture.md):
+stable ingress identity independent of clock rows; native task/await ownership;
+split module operations; extracted frozen probe; external instrument/gap order;
+real child replay coordinator; indexed complete-session adapter. No further
+profile or speculative latency optimization substitutes for this integration.
+All downstream/data/maker/CrossVenue restrictions below remain in force.
+
 ## N3 continuation from 179af6d — 28 September 2026
 
 Current authority: [N3 native evidence](n3-native-evidence.md). W2.0 remains
