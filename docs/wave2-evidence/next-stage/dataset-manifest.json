@@ -1,0 +1,212 @@
+{
+  "schema": "prepared-multicapture-population-v1",
+  "datasetHash": "b2bd787c085eb5e9d6d683cdf4bbaccf81a3b00f697c5d54cf3fd80645ebfa06",
+  "populationPolicyHash": "a064a63eec5478dd654ce29598b2c693f50ca5c3d52a94d842b702717dac9a4e",
+  "trainingReady": false,
+  "captures": {
+    "current-causal.jsonl": {
+      "primaryIntegrity": "MET",
+      "labelReplay": "NOT_MET",
+      "labelInputReplay": {
+        "status": "PASS",
+        "inputs": 2875,
+        "labels": 1,
+        "complete": 1,
+        "censored": 0,
+        "matched": true,
+        "expectedHash": "7b4a982805adc67cabbf919d5acf6840f2214d2dcde5231d5d99ed1280b03dfd",
+        "actualHash": "7b4a982805adc67cabbf919d5acf6840f2214d2dcde5231d5d99ed1280b03dfd",
+        "nativeSourceGate": "REQUIRES_PRIMARY_SOURCE_AND_NATIVE_PATH_PROOF",
+        "promotionAuthorized": false
+      },
+      "sourceHash": "fb6b852a9b8339827f5d6ce8e33752c21705407faa065f4e01474680c2ba79ba",
+      "configHash": "51e5c25e5fb209760e1a34f9511c7e0408493f3444e9e7f63ab331ee4563e610",
+      "runtimeHash": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+      "primarySha256": "834ea1f7742311dc19ab9278d17ea4fcd6cafeee5ecf83854ec4d75009a73054",
+      "preparedCount": 11,
+      "populationComplete": true,
+      "startWallMs": 1790546371861,
+      "endWallMs": 1790546674009,
+      "scope": "logical causal derivative; native source/tape unproven",
+      "sourceDirectory": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an\\work\\paper-smoke-300s",
+      "derivedDirectory": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-3\\work\\historical-current-keyfix",
+      "counts": {
+        "header": 1,
+        "venue_gap": 54,
+        "venue_event": 193142,
+        "maker_candidate": 2442,
+        "maker_fill": 1231,
+        "maker_markout": 3686,
+        "maker_outcome": 2442,
+        "maker_cancel": 2032,
+        "prepared": 11,
+        "label_input": 2875,
+        "prepared_censored": 10,
+        "prepared_label": 1,
+        "segment_position": 1,
+        "footer": 1
+      }
+    },
+    "session-20260928T004746Z.jsonl": {
+      "primaryIntegrity": "MET",
+      "labelReplay": "NOT_MET",
+      "labelInputReplay": "NOT_TESTED",
+      "sourceHash": "f3ceff6b63250811fb0dfbd3a06a743379537e7425fbb34fc5dc75dd522f44e1",
+      "configHash": "3aaba312e78b6b7d50daff788a080f26223dddeec7ecdb2a6717a6aeffc32a88",
+      "runtimeHash": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+      "primarySha256": "f2f1cb95c8198b111d2025405d49e4314fca5c2d36bad47bcf5a9c8604babdd5",
+      "preparedCount": 0,
+      "populationComplete": true,
+      "startWallMs": 1790556485559,
+      "endWallMs": 1790556789747,
+      "scope": "native capture with zero prepared",
+      "sourceDirectory": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-2\\work\\w20-load\\paper-300s",
+      "derivedDirectory": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-2\\work\\w20-load\\paper-300s",
+      "counts": {
+        "header": 1,
+        "venue_instruments": 2,
+        "venue_gap": 72,
+        "venue_event": 212165,
+        "maker_candidate": 2214,
+        "maker_fill": 1283,
+        "venue_raw": 62520,
+        "maker_markout": 3845,
+        "maker_outcome": 2214,
+        "maker_cancel": 1769,
+        "footer": 1
+      }
+    },
+    "session-20260928T092647Z.jsonl": {
+      "primaryIntegrity": "MET",
+      "labelReplay": "NOT_MET",
+      "labelInputReplay": "NOT_TESTED",
+      "sourceHash": "b6d464c6a378733331937668cfac197d9360b5c326de11d15bc48487f4bf1a7e",
+      "configHash": "ac49297b814ff3801aa734978fe0fd802f5416d9ada36c65ab1c3faad9bbe9a0",
+      "runtimeHash": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+      "primarySha256": "b0b3689be2d0171b7a38e720434da582c3d48bd1e85bf4c14b371961a5c2000a",
+      "preparedCount": 0,
+      "populationComplete": true,
+      "startWallMs": 1790587628887,
+      "endWallMs": 1790587933123,
+      "scope": "native capture with zero prepared",
+      "sourceDirectory": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-2\\work\\w20-callback\\paper-300s",
+      "derivedDirectory": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-2\\work\\w20-callback\\paper-300s",
+      "counts": {
+        "header": 1,
+        "venue_instruments": 2,
+        "venue_gap": 72,
+        "venue_event": 185839,
+        "maker_candidate": 2276,
+        "maker_fill": 744,
+        "maker_markout": 2228,
+        "venue_raw": 57156,
+        "maker_outcome": 2276,
+        "maker_cancel": 1978,
+        "footer": 1
+      }
+    }
+  },
+  "gate": {
+    "schema": "dataset-promotion-receipt-v1",
+    "policy": {
+      "version": "wave2-population-20260928-v1",
+      "min_prepared": 2000,
+      "min_complete_labels": 1000,
+      "min_per_strategy": 200,
+      "min_symbols": 6,
+      "min_independent_captures": 6,
+      "min_utc_days": 3,
+      "min_capture_duration_ms": 600000,
+      "period_separation_ms": 180000,
+      "max_symbol_share": 0.3,
+      "max_capture_share": 0.25,
+      "min_loso_symbols": 4,
+      "min_labels_per_loso_symbol": 100,
+      "min_captures_per_loso_symbol": 3,
+      "min_categories_per_context": 2,
+      "min_labels_per_context_category": 100,
+      "max_context_missing_fraction": 0.1,
+      "max_censored_fraction": 0.35,
+      "required_fill_depth_provenance_ratio": 1.0
+    },
+    "policyHash": "a064a63eec5478dd654ce29598b2c693f50ca5c3d52a94d842b702717dac9a4e",
+    "datasetHash": "b2bd787c085eb5e9d6d683cdf4bbaccf81a3b00f697c5d54cf3fd80645ebfa06",
+    "status": "NOT_MET",
+    "reasons": [
+      "capture_concentration",
+      "capture_integrity_replay_or_population",
+      "capture_interval",
+      "complete",
+      "flowAlignment",
+      "htfAlignment",
+      "independent_periods",
+      "localRegime",
+      "loso_support",
+      "prepared",
+      "strategies",
+      "symbol_concentration",
+      "symbols",
+      "utc_days"
+    ],
+    "counts": {
+      "prepared": 11,
+      "complete": 1,
+      "censored": 0,
+      "economicRejected": 10,
+      "economicallyEligible": 1,
+      "symbols": {
+        "NEARUSDT": 1
+      },
+      "captures": {
+        "current-causal.jsonl": 1
+      },
+      "strategies": {
+        "weak_level_rejection": 1
+      },
+      "independentPeriods": 0,
+      "utcDays": 0
+    },
+    "contexts": {
+      "localRegime": {
+        "counts": {
+          "bullish_trend": 1
+        },
+        "missing": 0
+      },
+      "htfAlignment": {
+        "counts": {
+          "neutral": 1
+        },
+        "missing": 0
+      },
+      "flowAlignment": {
+        "counts": {
+          "aligned": 1
+        },
+        "missing": 0
+      }
+    },
+    "losoSymbols": [],
+    "provenanceRatio": 1.0,
+    "checks": {
+      "prepared": false,
+      "complete": false,
+      "strategies": false,
+      "symbols": false,
+      "symbol_concentration": false,
+      "capture_concentration": false,
+      "censor_rate": true,
+      "independent_periods": false,
+      "utc_days": false,
+      "loso_support": false,
+      "localRegime": false,
+      "htfAlignment": false,
+      "flowAlignment": false,
+      "fill_depth_provenance": true
+    },
+    "externalCoverageRequired": false,
+    "promotionAuthorized": false
+  },
+  "timeDomain": "global_local_utc; monotonic remains capture-local",
+  "promotionAuthorized": false
+}

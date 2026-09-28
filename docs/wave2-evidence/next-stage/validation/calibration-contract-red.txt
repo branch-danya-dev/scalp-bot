@@ -1,0 +1,28 @@
+..FF                                                                     [100%]
+================================== FAILURES ===================================
+_______________ test_entry_mode_cannot_differ_from_frozen_plan ________________
+
+    def test_entry_mode_cannot_differ_from_frozen_plan():
+        cal,intent=fixture()
+        c=Command.make("demo",intent.pair_id,"AAAUSDT","Buy",1,"PostOnly",99,False,"entry",1,10)
+>       with pytest.raises(SafetyError,match="geometry"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'scalp_bot.demo_paper.contracts.SafetyError'>
+
+tests\demo_paper\test_calibration.py:52: Failed
+_________________ test_empty_ledgers_cannot_complete_contract _________________
+
+    def test_empty_ledgers_cannot_complete_contract():
+        cal,intent=fixture()
+        for arm in ("paper","demo"):
+>           assert not cal.reconcile(arm,account_hash="a"*64,instrument_hash="b"*64,
+                foreign_activity=False,unknown_exposure=False,positions_flat=True)
+E           AssertionError: assert not True
+E            +  where True = reconcile('paper', account_hash=('a' * 64), instrument_hash=('b' * 64), foreign_activity=False, unknown_exposure=False, positions_flat=True)
+E            +    where reconcile = <scalp_bot.demo_paper.calibration.DemoExecutionCalibration object at 0x0000020EC5C2C510>.reconcile
+
+tests\demo_paper\test_calibration.py:59: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/demo_paper/test_calibration.py::test_entry_mode_cannot_differ_from_frozen_plan
+FAILED tests/demo_paper/test_calibration.py::test_empty_ledgers_cannot_complete_contract
+2 failed, 2 passed in 0.15s

@@ -1,0 +1,20 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+___________ test_maker_entry_batch_cannot_also_fill_its_maker_exit ____________
+
+    def test_maker_entry_batch_cannot_also_fill_its_maker_exit():
+        path = PreparedPath(prepared(maker=True), Settings(_env_file=None), LabelPolicy())
+        advance(path, 250, sequence=50)
+        tick = TradeTick(100260, 99.9, 1000, "Sell", sequence=1)
+        advance(path, 270, sequence=51, tick=tick)
+        up = book(100.6, 100.61)
+        exit_tick = TradeTick(100290, 100.7, 1000, "Buy", sequence=2)
+        advance(path, 300, sequence=51, tick=exit_tick, book=up, depth=up)
+>       assert not path.broker.positions["AAAUSDT"].partial_taken
+E       AssertionError: assert not True
+E        +  where True = Position(symbol='AAAUSDT', strategy='level_breakout', side=<Side.LONG: 'long'>, original_quantity=4.0, quantity=2.8, o...ity': None, 'strategy_details': {}, 'net_at_target': 4, 'net_at_stop': 2}}], opened_mono=1.27, opened_exchange_ms=None).partial_taken
+
+tests\ml\test_prepared_labels.py:87: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/ml/test_prepared_labels.py::test_maker_entry_batch_cannot_also_fill_its_maker_exit
+1 failed in 0.29s

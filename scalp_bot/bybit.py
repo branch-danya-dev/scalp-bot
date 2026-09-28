@@ -21,6 +21,8 @@ from .activity import (
     opportunity_readiness,
 )
 from .config import Settings
+from .native_dispatch import create_task as native_create_task
+from .native_v5 import NativeTapeError
 from .domain import Candidate, Candle, OrderBook
 from .instrument import InstrumentSpec
 from .execution import FeeSchedule
@@ -64,6 +66,7 @@ class MarketMessage(msgspec.Struct):
     receipt_wall_ns: int = 0
     receipt_mono_ns: int = 0
     parsed_mono_ns: int = 0
+    enqueued_mono_ns: int = 0
     processor_started_mono_ns: int = 0
     book_updated_mono_ns: int = 0
     features_ready_mono_ns: int = 0
@@ -74,6 +77,7 @@ class MarketMessage(msgspec.Struct):
     order_ack_mono_ns: int = 0
     fill_mono_ns: int = 0
     otel_span: Any = None
+    ingress_identity: Any = None
 
     def get(self, key: str, default=None):
         return getattr(self, key, default)
@@ -111,8 +115,9 @@ def _kline_is_confirmed(
 
 
 class BybitRestClient:
-    def __init__(self, config: Settings) -> None:
+    def __init__(self, config: Settings, *, native_dispatch=None) -> None:
         self.config = config
+        self.native_dispatch = native_dispatch
         configured_urls = [
             config.bybit_rest_url,
             *[
@@ -198,13 +203,14 @@ class BybitRestClient:
             for attempt in range(retries + 1):
                 await self._pace_request()
                 try:
-                    sent_mono = perf_counter_ns() / 1e9
+                    clock = self.native_dispatch.clock() if self.native_dispatch is not None else None
+                    sent_mono = (clock.perf_counter_ns() if clock else perf_counter_ns()) / 1e9
                     response = await self.client.get(
                         f"{base_url}{path}",
                         params=params,
                     )
-                    received_mono = perf_counter_ns() / 1e9
-                    received_wall_ms = time_ns() / 1e6
+                    received_mono = (clock.perf_counter_ns() if clock else perf_counter_ns()) / 1e9
+                    received_wall_ms = (clock.time_ns() if clock else time_ns()) / 1e6
                 except httpx.RequestError as exc:
                     endpoint_errors.append(
                         f"{base_url}: {type(exc).__name__}: {exc}"
@@ -758,15 +764,34 @@ StreamCallback = Callable[
 ]
 
 
+class _DiagnosticMarketQueue(asyncio.Queue):
+    def __init__(self, *args, native_dispatch=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.native_dispatch = native_dispatch
+
+    def _put(self, message):
+        if self.native_dispatch is not None:
+            from dataclasses import asdict
+            self.native_dispatch.boundary("market_enqueue", dict(source=asdict(message.ingress_identity)))
+        from . import pipeline_evidence
+        if pipeline_evidence.market_sink is not None:
+            message.enqueued_mono_ns = perf_counter_ns()
+        super()._put(message)
+
+
 async def _process_market_queue(
     queue: asyncio.Queue[MarketMessage],
     callback: StreamCallback,
     stop_event: asyncio.Event,
     *,
     max_lag_seconds: float,
+    native_dispatch=None,
 ) -> None:
     while not stop_event.is_set():
         message = await queue.get()
+        if native_dispatch is not None:
+            from dataclasses import asdict
+            native_dispatch.boundary("market_dequeue", dict(source=asdict(message.ingress_identity)))
         active_root = message.otel_span
         context = (
             trace.use_span(
@@ -780,7 +805,7 @@ async def _process_market_queue(
             with context:
                 message.queue_depth = queue.qsize()
                 message.processor_started_mono_ns = (
-                    perf_counter_ns()
+                    native_dispatch.clock().perf_counter_ns() if native_dispatch is not None else perf_counter_ns()
                 )
                 queue_anchor_ns = int(
                     message.parsed_mono_ns
@@ -845,9 +870,14 @@ async def _process_market_queue(
                 ):
                     await callback(message)
         finally:
-            if active_root is not None:
-                active_root.end()
-            queue.task_done()
+            try:
+                from . import pipeline_evidence
+                if pipeline_evidence.market_sink is not None:
+                    pipeline_evidence.market_sink(pipeline_evidence.market_record(message, perf_counter_ns()))
+            finally:
+                if active_root is not None:
+                    active_root.end()
+                queue.task_done()
 
         # A ready asyncio.Queue.get() and a CPU-only callback do not suspend.
         # Preserve FIFO application, but let clocks, other symbols and worker
@@ -855,9 +885,9 @@ async def _process_market_queue(
         await asyncio.sleep(0)
 
 
-async def _receive_or_processor_failure(ws, processor):
+async def _receive_or_processor_failure(ws, processor, native_dispatch=None):
     """A dead consumer must wake a silent socket immediately, not after 35s."""
-    receive = asyncio.create_task(ws.recv(decode=False))
+    receive = native_create_task(native_dispatch, ws.recv(decode=False), name="bybit-receive")
     try:
         done, _ = await asyncio.wait((receive, processor), timeout=35,
                                      return_when=asyncio.FIRST_COMPLETED)
@@ -885,6 +915,7 @@ async def _stream_topics(
     on_transport: Callable[[dict], None] | None = None,
     on_backpressure: Callable[[dict], None] | None = None,
     connect_factory=None,
+    native_dispatch=None,
 ) -> None:
     attempt = 0
     stage = "idle"
@@ -930,13 +961,14 @@ async def _stream_topics(
                     }),
                     text=True,
                 )
-                queue = asyncio.Queue(
+                queue = _DiagnosticMarketQueue(
                     maxsize=max(1, int(queue_size)),
+                    native_dispatch=native_dispatch,
                 )
                 notify("subscription_sent")
                 stage = "receive_or_process"
                 stage_started = perf_counter_ns()
-                processor = asyncio.create_task(
+                processor = native_create_task(native_dispatch,
                     _process_market_queue(
                         queue,
                         callback,
@@ -945,6 +977,7 @@ async def _stream_topics(
                             0.0,
                             queue_max_lag_seconds,
                         ),
+                        native_dispatch=native_dispatch,
                     ),
                     name=(
                         "market-processor:"
@@ -960,13 +993,16 @@ async def _stream_topics(
                             "market processor stopped unexpectedly"
                         )
 
-                    raw = await _receive_or_processor_failure(ws, processor)
+                    raw = await _receive_or_processor_failure(ws, processor, native_dispatch)
                     # Receipt is captured immediately after recv returns so
                     # socket wait time isn't counted as parser work.
-                    receipt_wall_ns = time_ns()
-                    receipt_mono_ns = perf_counter_ns()
+                    receipt_wall_ns = (native_dispatch.clock().time_ns()
+                        if native_dispatch is not None else time_ns())
+                    receipt_mono_ns = (native_dispatch.clock().perf_counter_ns()
+                        if native_dispatch is not None else perf_counter_ns())
                     message = decode_market_message(raw)
-                    parsed_mono_ns = perf_counter_ns()
+                    parsed_mono_ns = (native_dispatch.clock().perf_counter_ns()
+                        if native_dispatch is not None else perf_counter_ns())
                     if not message.topic:
                         continue
 
@@ -977,6 +1013,12 @@ async def _stream_topics(
                     message.event_id = (
                         f"m{next(_MARKET_EVENT_IDS)}"
                     )
+                    if native_dispatch is not None:
+                        message.ingress_identity = native_dispatch.accept_ingress("bybit",
+                            str(message.topic).split(".")[-1], epoch=attempt,
+                            payload=dict(topic=message.topic, type=message.type, ts=message.ts,
+                                cts=message.cts, data=message.data))
+                        message.event_id = message.ingress_identity.event_id
                     stream = stream_name(message.topic)
                     root = tracer().start_span(
                         "market.event",
@@ -1040,7 +1082,7 @@ async def _stream_topics(
                     except asyncio.QueueFull:
                         try:
                             await asyncio.wait_for(
-                                queue.put(message),
+                                native_create_task(native_dispatch, queue.put(message), name="bybit-queue-put"),
                                 timeout=max(
                                     0.0,
                                     queue_put_timeout_seconds,
@@ -1056,6 +1098,8 @@ async def _stream_topics(
                             ) from exc
         except asyncio.CancelledError:
             notify("cancelled")
+            raise
+        except NativeTapeError:
             raise
         except Exception as exc:
             if on_backpressure is not None and isinstance(exc, MarketDataBackpressureError):
@@ -1105,6 +1149,7 @@ async def stream_symbol(
     on_transport: Callable[[dict], None] | None = None,
     on_backpressure: Callable[[dict], None] | None = None,
     connect_factory=None,
+    native_dispatch=None,
 ) -> None:
     valid_depths = {1, 50, 200, 1000}
     if orderbook_depth is not None:
@@ -1134,6 +1179,7 @@ async def stream_symbol(
             on_transport=on_transport,
             on_backpressure=on_backpressure,
             **({"connect_factory": connect_factory} if connect_factory is not None else {}),
+            **({"native_dispatch": native_dispatch} if native_dispatch is not None else {}),
             queue_size=market_queue_size,
             queue_put_timeout_seconds=(
                 market_queue_put_timeout_seconds
@@ -1147,7 +1193,7 @@ async def stream_symbol(
     # Keep the latency-sensitive and deep-liquidity feeds on independent
     # connections. A reconnect/desync on one depth must not stop the other.
     tasks = [
-        asyncio.create_task(_stream_topics(
+        native_create_task(native_dispatch, _stream_topics(
             ws_url,
             fast_topics,
             callback,
@@ -1155,6 +1201,7 @@ async def stream_symbol(
             on_transport=on_transport,
             on_backpressure=on_backpressure,
             **({"connect_factory": connect_factory} if connect_factory is not None else {}),
+            **({"native_dispatch": native_dispatch} if native_dispatch is not None else {}),
             queue_size=market_queue_size,
             queue_put_timeout_seconds=(
                 market_queue_put_timeout_seconds
@@ -1162,8 +1209,8 @@ async def stream_symbol(
             queue_max_lag_seconds=(
                 market_queue_max_lag_seconds
             ),
-        )),
-        asyncio.create_task(_stream_topics(
+        ), name="bybit-stream"),
+        native_create_task(native_dispatch, _stream_topics(
             ws_url,
             [f"orderbook.{deep_orderbook_depth}.{symbol}"],
             callback,
@@ -1171,6 +1218,7 @@ async def stream_symbol(
             on_transport=on_transport,
             on_backpressure=on_backpressure,
             **({"connect_factory": connect_factory} if connect_factory is not None else {}),
+            **({"native_dispatch": native_dispatch} if native_dispatch is not None else {}),
             queue_size=market_queue_size,
             queue_put_timeout_seconds=(
                 market_queue_put_timeout_seconds
@@ -1178,7 +1226,7 @@ async def stream_symbol(
             queue_max_lag_seconds=(
                 market_queue_max_lag_seconds
             ),
-        )),
+        ), name="bybit-stream"),
     ]
     try:
         await asyncio.gather(*tasks)

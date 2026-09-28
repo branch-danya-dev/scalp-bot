@@ -1,0 +1,27 @@
+[
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\capture\\external-source.json",
+    "bytes": 3955,
+    "sha256": "9d907ebcf2ee2d37fdc23c8eb0cd6e7165f728762b651ec1f0e3af17c26c334e"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\capture\\prepared.jsonl",
+    "bytes": 1497,
+    "sha256": "ac1bfc50dd0f14814f589fb9213a6ffb0c5f8592e9d0b7e4572cfd13bf1e383e"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\capture\\research.gz",
+    "bytes": 961517,
+    "sha256": "e4df091bd436aad98404a92712003828da905f0237050727dacf25300f74afd0"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\capture\\source.json",
+    "bytes": 89939,
+    "sha256": "456e284c9a54c4040ef109ed44871ebbc9e8d7bc80842ffa1d0b0305c7ac6848"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\capture\\whole-runtime-offline-v1.jsonl",
+    "bytes": 14339177,
+    "sha256": "522243346257ab24e7cf90dbcdb5c58e57b1ca27c0c96ed7059088656fddabd3"
+  }
+]

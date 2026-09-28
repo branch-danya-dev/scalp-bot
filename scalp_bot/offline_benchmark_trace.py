@@ -3,6 +3,7 @@ from contextlib import contextmanager
 import gc
 import threading
 import time
+import sys
 from .bybit import OrderBookState
 
 
@@ -41,6 +42,7 @@ class PipelineTrace:
     def processing(self,event):
         self.active_input=self.by_id[event['sequence']]
         self.active_input['processing_start_ns']=time.perf_counter_ns()
+        self.active_input['allocated_blocks_start']=sys.getallocatedblocks()
 
     def begin_apply(self,event):
         if event.get('symbol'):
@@ -50,6 +52,7 @@ class PipelineTrace:
     def end_apply(self,event):
         if self.enabled:
             self.active_input['processing_end_ns']=time.perf_counter_ns()
+            self.active_input['net_allocated_blocks']=sys.getallocatedblocks()-self.active_input['allocated_blocks_start']
             self.active_input=None
 
     def begin_eval(self,session,legacy_scheduled):
@@ -66,9 +69,13 @@ class PipelineTrace:
     def gc_callback(self,phase,info):
         key=(threading.get_ident(),info['generation'])
         if phase=='start':
-            if self.enabled:self.gc_started[key]=time.perf_counter_ns()
+            if self.enabled:self.gc_started[key]=(time.perf_counter_ns(), self.active_input['input_id'] if self.active_input else None,
+                self.active_eval['evaluation_id'] if self.active_eval else None)
         elif key in self.gc_started:
-            self.pauses.append(dict(generation=info['generation'],thread=key[0],start_ns=self.gc_started.pop(key),end_ns=time.perf_counter_ns(),collected=info['collected']))
+            start, callback, evaluation = self.gc_started.pop(key)
+            self.pauses.append(dict(generation=info['generation'],thread=key[0],start_ns=start,end_ns=time.perf_counter_ns(),
+                collected=info['collected'], input_id=callback, evaluation_id=evaluation,
+                overlaps_hot_callback=callback is not None or evaluation is not None, gc_enabled=gc.isenabled()))
 
     def install(self):
         original=OrderBookState.apply
@@ -119,6 +126,11 @@ class PipelineTrace:
                 if ref.source_sequence in self.predictions:
                     self.predictions[ref.source_sequence]['worker_sent_ns']=when
         worker._dispatch=dispatch
+
+    def worker_timing(self, row):
+        identity = row['identity'][3]
+        if identity in self.predictions:
+            self.predictions[identity]['pipeline'] = row
 
     def submitted(self,worker,snapshot,row):
         ident=snapshot.ref.source_sequence

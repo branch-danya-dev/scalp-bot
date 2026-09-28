@@ -59,6 +59,7 @@ class RejectionWatchState:
     pinned_generation_id: str | None = None
     pinned_until: float = 0.0
     swept: bool = False
+    sweep_extreme: float | None = None
     armed_at: float = 0.0
     armed_price: float = 0.0
     absorption_at: float = 0.0
@@ -84,6 +85,7 @@ class WeakLevelRejectionStrategy(Strategy):
     staged_entries_enabled = False
     probe_risk_fraction = 0.30
     response_policy = "legacy"  # Explicit research switch; default unchanged.
+    sweep_stop_enabled = False
     micro_response_min_bps = 1.5
     micro_response_min_seconds = 0.50
     micro_response_max_seconds = 6.0
@@ -122,6 +124,7 @@ class WeakLevelRejectionStrategy(Strategy):
         state.pinned_generation_id = None
         state.pinned_until = 0.0
         state.swept = False
+        state.sweep_extreme = None
         state.armed_at = 0.0
         state.armed_price = 0.0
         state.absorption_at = 0.0
@@ -245,6 +248,7 @@ class WeakLevelRejectionStrategy(Strategy):
             state.pinned_generation_id = None
             state.pinned_until = 0.0
             state.swept = False
+            state.sweep_extreme = None
             state.armed_at = 0.0
             state.armed_price = 0.0
             state.absorption_at = 0.0
@@ -268,6 +272,8 @@ class WeakLevelRejectionStrategy(Strategy):
                 state.fire_price = 0.0
                 state.reclaim_at_ms = 0
                 state.reclaim_quote = 0.0
+                state.sweep_extreme = None
+                state.swept = False
             state.confirmation_episode = episode
 
         if generation_id in state.used_generations:
@@ -372,6 +378,7 @@ class WeakLevelRejectionStrategy(Strategy):
             )
             if sweep_observed:
                 state.swept = True
+                state.sweep_extreme = max(state.sweep_extreme or live_high, live_high)
             reclaimed = price < zone.low
             failed_break = state.swept and reclaimed
             attack_absorbed = (
@@ -385,6 +392,8 @@ class WeakLevelRejectionStrategy(Strategy):
             )
             action = Action.SHORT
             stop_anchor = max(zone.high, round_level or zone.high)
+            if self.sweep_stop_enabled and state.sweep_extreme is not None:
+                stop_anchor = max(stop_anchor, state.sweep_extreme)
             stop = stop_anchor + buffer
             risk = stop - price
         else:
@@ -402,6 +411,7 @@ class WeakLevelRejectionStrategy(Strategy):
             )
             if sweep_observed:
                 state.swept = True
+                state.sweep_extreme = min(state.sweep_extreme or live_low, live_low)
             reclaimed = price > zone.high
             failed_break = state.swept and reclaimed
             attack_absorbed = (
@@ -415,6 +425,8 @@ class WeakLevelRejectionStrategy(Strategy):
             )
             action = Action.LONG
             stop_anchor = min(zone.low, round_level or zone.low)
+            if self.sweep_stop_enabled and state.sweep_extreme is not None:
+                stop_anchor = min(stop_anchor, state.sweep_extreme)
             stop = stop_anchor - buffer
             risk = price - stop
 
@@ -564,7 +576,7 @@ class WeakLevelRejectionStrategy(Strategy):
                 >= self.micro_response_min_bps
                 or tape_response_aligned
             )
-            and forming_position_supported
+            and (not getattr(self, "require_forming_position", True) or forming_position_supported)
         )
 
         early_absorption_ready = (
@@ -776,6 +788,7 @@ class WeakLevelRejectionStrategy(Strategy):
             action,
             min_distance_pct=0.0,
             structure=structure,
+            unconsumed_swings_only=self.causal_trading_quality,
         )
         nearest_obstacle = (
             liquidity_ladder[0]
@@ -905,6 +918,11 @@ class WeakLevelRejectionStrategy(Strategy):
                 "recentLevelFlow": recent_level_flow.public(),
                 "breakoutFlow": breakout_flow.public(),
                 "roundLevel": round_level,
+                "sweepExtreme": state.sweep_extreme,
+                "sweepStopEnabled": self.sweep_stop_enabled,
+                "stopAnchorSource": ("sweep_extreme" if self.sweep_stop_enabled
+                    and state.sweep_extreme is not None and stop_anchor == state.sweep_extreme else "zone_round_level"),
+                "stopDistance": abs(price - stop),
                 "weakLevel": (
                     structural_level is None
                     or structural_level.kind
@@ -950,6 +968,12 @@ class WeakLevelRejectionStrategy(Strategy):
                 },
                 "attackAbsorbed": attack_absorbed,
                 "flowReversed": flow_reversed,
+                "absorptionEvidence": {
+                    "episodeKey": state.confirmation_episode,
+                    "generation": generation_id,
+                    "observedAtMs": int(state.absorption_at * 1000),
+                    "responseWindowSeconds": self.micro_response_max_seconds,
+                } if state.absorption_at > 0 else None,
                 "absorptionObservedAt": (
                     state.absorption_at or None
                 ),
@@ -1069,6 +1093,10 @@ class WeakLevelRejectionStrategy(Strategy):
         market_context: "MarketContext | None" = None,
         observed_at_ms: int | None = None,
     ) -> str | None:
+        if strategy_details.get("rejectionClass") == "countertrend_reaction":
+            from ..trading_policy import broader_continuation_opposed
+            if broader_continuation_opposed(market_context, side.value):
+                return "countertrend_continuation_resumed"
         zone = (
             strategy_details.get("zone")
             if isinstance(strategy_details, dict)
@@ -1101,7 +1129,7 @@ class WeakLevelRejectionStrategy(Strategy):
                 since = strategy_details.get(key)
                 if since is None:
                     strategy_details[key] = now_ms
-                elif now_ms - int(since) >= 3_000:
+                elif now_ms - int(since) >= 1000 * float(strategy_details.get("countertrendFailureSeconds", 3.0)):
                     return "weak_level_invalidated"
             else:
                 strategy_details.pop(key, None)

@@ -14,6 +14,7 @@ from .bybit import (
 )
 from .config import Settings
 from .runtime_clock import RuntimeClock, SystemRuntimeClock, RecordingRuntimeClock
+from .native_dispatch import create_task as native_create_task
 from .input_scope import InputScopes, input_scope
 from .input_journal import InputJournal
 from .source_failure import SourceFailure, describe_source_error
@@ -444,14 +445,19 @@ class ActiveSymbolSession:
     def book_flow_snapshot(self, now_ms: int | None = None) -> dict:
         resolved_now_ms = int(self.clock.time() * 1000) if now_ms is None else now_ms
 
-        def window(seconds: int) -> tuple[float, int]:
-            cutoff = resolved_now_ms - seconds * 1000
-            rows = [
-                value
-                for ts, value in self.book_flow
-                if cutoff <= ts <= resolved_now_ms
-            ]
-            return sum(rows), len(rows)
+        cutoff_5 = resolved_now_ms - 5000
+        cutoff_15 = resolved_now_ms - 15000
+        cutoff_60 = resolved_now_ms - 60000
+        rows_5, rows_15, rows_60 = [], [], []
+        # Partition once, retaining arrival order and builtin sum semantics.
+        # Future and out-of-order events still use the same inclusive windows.
+        for ts, value in self.book_flow:
+            if cutoff_60 <= ts <= resolved_now_ms:
+                rows_60.append(value)
+                if ts >= cutoff_15:
+                    rows_15.append(value)
+                    if ts >= cutoff_5:
+                        rows_5.append(value)
 
         depth_usd = sum(
             price * qty
@@ -459,9 +465,9 @@ class ActiveSymbolSession:
                 self.orderbook.bids[:5] + self.orderbook.asks[:5]
             )
         )
-        ofi_5s, count_5s = window(5)
-        ofi_15s, count_15s = window(15)
-        ofi_60s, count_60s = window(60)
+        ofi_5s, count_5s = sum(rows_5), len(rows_5)
+        ofi_15s, count_15s = sum(rows_15), len(rows_15)
+        ofi_60s, count_60s = sum(rows_60), len(rows_60)
         latest_age_ms = (
             max(0, resolved_now_ms - self.last_book_flow_ms)
             if self.last_book_flow_ms > 0
@@ -876,21 +882,30 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
     def __init__(self, config: Settings, *, clock: RuntimeClock | None = None,
                  capture_inputs: bool = False, rest_client=None, recorder=None,
                  research_policy=None, configure_observability: bool = True,
-                 prepared_collector=None) -> None:
-        self.clock = clock if clock is not None else SystemRuntimeClock()
+                 prepared_collector=None, research_observer=None, prepared_ranker=None,
+                 native_dispatch=None) -> None:
+        self.native_dispatch = native_dispatch
+        self._source_identities = {}
+        self._native_event_serial = 0
+        self.clock = native_dispatch.clock() if native_dispatch is not None else (
+            clock if clock is not None else SystemRuntimeClock())
         self.config = config
         # Offline/research-only observer receives immutable public features.
         self.prepared_collector = prepared_collector
+        self.research_observer = research_observer
+        self.prepared_ranker = prepared_ranker
+        if prepared_ranker is not None and prepared_collector is None:
+            raise ValueError("V3 ranker requires causal prepared sources")
         if configure_observability:
             configure_telemetry(config)
-        self.rest = rest_client if rest_client is not None else BybitRestClient(config)
+        self.rest = rest_client if rest_client is not None else BybitRestClient(config, native_dispatch=native_dispatch)
         self.risk = RiskEngine(config)
         self.segment_expectancy = SegmentExpectancyBook()
         self.broker = PaperBroker(config, clock=self.clock)
         self.router = ParallelScenarioRouter(preparation_seconds=config.active_symbol_idle_timeout_seconds)
         self.recorder = recorder if recorder is not None else SessionRecorder(
             config.session_dir,
-            clock=self.clock,
+            clock=native_dispatch.source_clock if native_dispatch is not None else self.clock,
             queue_size=config.recorder_queue_size,
             critical_enqueue_timeout_seconds=(
                 config.recorder_critical_enqueue_timeout_seconds
@@ -905,6 +920,9 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
             strategy.key: strategy
             for strategy in default_strategies
         }
+        self.strategies["weak_level_rejection"].sweep_stop_enabled = config.trading_quality_enabled
+        for strategy in self.strategies.values():
+            strategy.causal_trading_quality = config.trading_quality_enabled
         self.broker.position_manager = lambda pos, gross: (
             self.strategies[pos.strategy].manage_progress(self.config,self.clock,pos,gross)
             if pos.strategy in self.strategies else False)
@@ -1105,12 +1123,14 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
         self.input_scopes = None
         self._context_batch_serial = 0
         self._source_request_serial = 0
-        self.input_journal = InputJournal(self.recorder.record, self.clock) if capture_inputs else None
+        self.input_journal = InputJournal(self.recorder.record,
+            native_dispatch.source_clock if native_dispatch is not None else self.clock) if capture_inputs else None
         if self.input_journal is not None:
             self._record_input("manifest", None, {"phase": "capture", "manifest": build_run_manifest(
                 self.config, self.strategy_enabled,
                 code=code_provenance(Path(__file__).resolve().parents[1]),
-                policy=self.research_policy.public())})
+                policy=self.research_policy.public(),
+                manifest_id=native_dispatch.identifier('capture_manifest') if native_dispatch is not None else None)})
             self._record_input("policy_snapshot", None, {
                 "mode": self.research_policy.mode.value,
                 "manifest": self.research_policy.manifest,
@@ -1134,8 +1154,23 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
 
 
     def _record_input(self, kind: str, symbol: str | None, body: dict) -> None:
+        if getattr(self, "native_dispatch", None) is not None and kind not in {"clock_read", "scope"}:
+            self.native_dispatch.boundary("input", dict(kind=kind, symbol=symbol, body=body))
         if self.input_journal is not None:
             self.input_journal.append(kind, symbol, body)
+
+    def _native_task(self, coroutine, *, name):
+        return native_create_task(self.native_dispatch, coroutine, name=name)
+
+    async def _native_gather(self, *coroutines, return_exceptions=False):
+        if self.native_dispatch is None:
+            return await asyncio.gather(*coroutines, return_exceptions=return_exceptions)
+        tasks = [self._native_task(coroutine, name=f"source-batch-{i}")
+            for i, coroutine in enumerate(coroutines)]
+        return await asyncio.gather(*tasks, return_exceptions=return_exceptions)
+
+    def source_identity(self, symbol):
+        return getattr(self, "_source_identities", {}).get(symbol)
 
     async def start(self) -> None:
         self._record_input("service", None, {"phase": "start"})
@@ -1151,12 +1186,12 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
 
     def _launch_service_tasks(self):
         self._tasks = [
-            asyncio.create_task(self._scanner_loop(), name="scanner"),
-            asyncio.create_task(self._context_loop(), name="context"),
-            asyncio.create_task(self._arbiter_loop(), name="trade-arbiter"),
+            self._native_task(self._scanner_loop(), name="scanner"),
+            self._native_task(self._context_loop(), name="context"),
+            self._native_task(self._arbiter_loop(), name="trade-arbiter"),
         ]
         if self.config.exchange_clock_enabled:
-            self._tasks.append(asyncio.create_task(self._clock_loop(), name="exchange-clock"))
+            self._tasks.append(self._native_task(self._clock_loop(), name="exchange-clock"))
 
     @input_scope("clock_sync", symbol_arg=False)
     async def _sync_clock_once(self) -> bool:
@@ -1189,6 +1224,15 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
         return False
 
     async def _input_sleep(self, source: str, delay: float) -> None:
+        if self.native_dispatch is not None:
+            self.native_dispatch.boundary("sleep_wait", dict(source=source, delay=delay))
+            try:
+                await self._periodic_sleep(delay)
+            except asyncio.CancelledError:
+                self.native_dispatch.boundary("sleep_cancelled", dict(source=source))
+                raise
+            self.native_dispatch.boundary("sleep_wake", dict(source=source))
+            return
         if self.input_journal is None:
             await self._periodic_sleep(delay)
             return
@@ -1356,10 +1400,11 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
 
     def _build_trading_manifest(self):
         return build_run_manifest(self.config, self.strategy_enabled,
-            code=code_provenance(Path(__file__).resolve().parents[1]), policy=self.research_policy.public())
+            code=code_provenance(Path(__file__).resolve().parents[1]), policy=self.research_policy.public(),
+            manifest_id=self.native_dispatch.identifier('run_manifest') if self.native_dispatch is not None else None)
 
     def _launch_run_timer(self):
-        self._paper_timer_task = asyncio.create_task(self._paper_run_timer(), name="paper-run-timer")
+        self._paper_timer_task = self._native_task(self._paper_run_timer(), name="paper-run-timer")
 
     @input_scope("paper_timer")
     async def _paper_run_timer(self) -> None:
@@ -1729,7 +1774,7 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
 
     def _launch_symbol_worker(self, symbol):
         stop_event = asyncio.Event()
-        task = asyncio.create_task(self._symbol_worker(symbol, stop_event), name=f"market-{symbol}")
+        task = self._native_task(self._symbol_worker(symbol, stop_event), name=f"market-{symbol}")
         self._worker_tasks[symbol] = (task, stop_event)
 
     async def _cleanup_active_symbols(self, now: float) -> None:
@@ -1873,7 +1918,10 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
             finally:
                 self._complete_event_evaluation(symbol, done)
                 self._event_tasks.discard(done)
-        task.add_done_callback(completed)
+        if self.native_dispatch is not None:
+            self.native_dispatch.add_done_callback(task, completed, name="event-evaluation-terminal")
+        else:
+            task.add_done_callback(completed)
 
     def _complete_event_evaluation(self, symbol, owner):
         session = self.sessions.get(symbol)
@@ -1916,13 +1964,16 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
 
         session.event_eval_pending = True
         capture_id = self.input_journal.sequence + 1 if self.input_journal is not None else None
+        if self.native_dispatch is not None:
+            self._native_event_serial += 1
+            capture_id = self._native_event_serial
         session.event_eval_capture_id = capture_id
         self._record_scheduler("scheduled", session.symbol, capture_id, reason)
         self._launch_event_evaluation(session.symbol, reason, capture_id)
 
     def _launch_event_evaluation(self, symbol, reason, capture_id):
         """Live task adapter; offline replay supplies a deterministic scheduler."""
-        task = asyncio.create_task(
+        task = self._native_task(
             self._run_event_evaluation(
                 symbol,
                 reason,
@@ -2139,7 +2190,7 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
             context_5m,
             context_15m,
             context_1h,
-        ) = await asyncio.gather(
+        ) = await self._native_gather(
             self.rest.instrument_info(symbol),
             self.rest.fee_schedule(symbol),
             self.rest.klines(
@@ -2297,7 +2348,7 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
                 if stale_1m
                 else asyncio.sleep(0, result=None)
             )
-            return await asyncio.gather(
+            return await self._native_gather(
                 one_minute,
                 self.rest.klines(
                     symbol,
@@ -2317,7 +2368,7 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
             )
 
         try:
-            results = await asyncio.gather(
+            results = await self._native_gather(
                 *(refresh(symbol, session) for symbol, session in items),
                 return_exceptions=True,
             )
@@ -2606,6 +2657,9 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
                         market_message=message,
                     )
 
+            if self.research_observer is not None and (is_fast_book or is_deep_book):
+                self.research_observer.book(self, session, message, fast=is_fast_book)
+
             # Periodic evaluation remains a fallback, but deep-book-only
             # context updates never drive the latency-sensitive strategy loop.
             if not deep_only:
@@ -2691,6 +2745,20 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
                         )
 
         async def on_message(message):
+            if self.native_dispatch is not None:
+                from dataclasses import asdict
+                from contextlib import nullcontext
+                identity = getattr(message, "ingress_identity", None)
+                if identity is None:
+                    identity = self.native_dispatch.accept_ingress("bybit", symbol,
+                        epoch=self.router.epochs.get(symbol, 0), event_id=message.event_id or None,
+                        payload=dict(topic=message.topic, type=message.type, ts=message.ts,
+                            cts=message.cts, data=message.data))
+                    message.ingress_identity = identity
+                with self.native_dispatch.scope("core", "market_apply", source=asdict(identity)):
+                    self._source_identities[symbol] = asdict(identity)
+                    with self.input_scopes.enter("market_message", symbol) if self.input_scopes else nullcontext():
+                        return await apply_message(message)
             if self.input_scopes is None:
                 return await apply_message(message)
             with self.input_scopes.enter("market_message", symbol):
@@ -2699,7 +2767,7 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
         return on_message, fast_book_state, deep_book_state
 
     def _market_stream_options(self):
-        return {}
+        return {"native_dispatch": self.native_dispatch} if self.native_dispatch is not None else {}
 
     async def _symbol_worker(
         self,
@@ -2765,6 +2833,8 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
             session.deep_receipt_mono = None
             session.deep_orderbook = OrderBook()
         if fast or deep:
+            if self.research_observer is not None:
+                self.research_observer.gap(self, symbol, "transport_"+event["phase"])
             session.decisions.clear()
             cancelled = self.broker.cancel_pending(symbol, "transport_epoch_changed")
             if cancelled is not None:
@@ -3794,12 +3864,17 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
         )
 
         session.market_context = context
+        # Preliminary density context deliberately has no liquidity evidence.
+        # It must not replace the previous completed observation's fingerprints:
+        # otherwise the final context falsely looks semantically new every tick.
+        if not emit:
+            return
         session.market_context_fingerprint = fingerprint
         session.market_context_semantic_fingerprint = (
             semantic_fingerprint
         )
 
-        if not emit or previous == fingerprint:
+        if previous == fingerprint:
             return
 
         semantic_changed = (
@@ -4394,10 +4469,18 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
         position_action: str,
         existing_position: Position | None,
     ):
+        if self.config.trading_quality_enabled:
+            from .trading_policy import prepare
+            from .risk import RiskResult
+            reason = prepare(self, session, decision)
+            decision.details["tradingRejectReason"] = reason
+            if reason:
+                return RiskResult(False, reason, diagnostics={
+                    "rejectionOwner": "trading_quality", "tradingPolicy": dict(decision.details)})
         decision.details["fundingSnapshot"] = (
             session.funding_public()
         )
-        return self.risk.build_plan(
+        result = self.risk.build_plan(
             session.symbol,
             decision,
             self.broker.balance,
@@ -4423,6 +4506,19 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
                 else 0.0
             ),
         )
+        if self.config.trading_quality_enabled and result.allowed and decision.strategy == "level_breakout":
+            from .trading_policy import breakout_path
+            path = breakout_path(decision, session.market_context, self.config, plan=result.plan)
+            decision.details["reachableStructuralPath"] = path.public()
+            if path.obstacle_before_first_take and not path.own_breakout_level_exempted:
+                result = RiskResult(False, "strong_obstacle_before_first_take",
+                    diagnostics={**(result.diagnostics or {}), "reachableStructuralPath": path.public()})
+        if self.config.trading_quality_enabled and "remainingMove" in decision.details:
+            decision.details["remainingMove"]["rejectReason"] = None if result.allowed else result.reason
+            decision.details["stopDistance"] = abs((result.plan.market_entry if result.plan else decision.entry) - decision.stop)
+            if result.diagnostics is not None:
+                result.diagnostics["remainingMove"] = dict(decision.details["remainingMove"])
+        return result
 
     def _submit_research_opportunity(self, opportunity) -> bool:
         """Explicit opt-in execution boundary; ordinary paper behavior is unchanged."""
@@ -4966,6 +5062,8 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
         self,
         session: ActiveSymbolSession,
     ) -> None:
+        if self.research_observer is not None:
+            self.research_observer.context(self, session)
         pos = self.broker.positions.get(session.symbol)
         if pos is None:
             return
@@ -5229,6 +5327,8 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
                     ),
                 )
                 self.segment_expectancy.record(closed_observation(event, session.symbol))
+                if self.research_observer is not None:
+                    self.research_observer.closed_position(self, session, event)
                 self._consume_setup(
                     session,
                     str(event.get("strategy") or ""),

@@ -1,0 +1,189 @@
+{
+  "sourceSha256": "fd9a0bc74a32784d7da56eea17c3642e4d9d1362646ca2ee0573b1da8bd15eb3",
+  "externalSourceSha256": "ea434900a657c7de37b7110b6f0759606180776e858e9f5f11ec7d3d34d82b31",
+  "externalConnections": {
+    "binance": 1,
+    "okx": 1
+  },
+  "ordinaryHashes": {
+    "decision": "3cd2f037c0dfef802a3aedfbb88806b5a07de0d36d08aa6efa881bb23f20110d",
+    "admission": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "execution": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "portfolio": "12f0506429059af8723b397671771c68c4d60d1d6600accffcb069e84c69b918"
+  },
+  "labelSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "eventCounts": {
+    "clock_sync": 1,
+    "symbol_activated": 1,
+    "scanner_update": 1,
+    "transport_diagnostics": 8,
+    "market_context_changed": 2,
+    "strategy_state_transition": 6,
+    "decision": 6,
+    "scenario_transition": 6,
+    "research_frame": 1,
+    "market_frame": 1,
+    "clock_admission_changed": 2,
+    "bot_started": 1,
+    "run_summary": 1,
+    "bot_stopped": 1
+  },
+  "researchFailure": null,
+  "writer": {
+    "background": false,
+    "queuedRows": 622,
+    "writtenRows": 622,
+    "pendingRows": 0,
+    "queueDepth": 0,
+    "queueCapacity": 8192,
+    "droppedRows": 0,
+    "droppedBulkRows": 0,
+    "droppedCriticalRows": 0,
+    "writerError": null
+  },
+  "probeCounts": {},
+  "forecastSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "workerFailure": null,
+  "workerExchangeImported": false
+}
+CLOSED 0 PREPARED 0 LABELS 0
+Traceback (most recent call last):
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-7\work\run_runtime.py", line 68, in <module>
+    asyncio.run(main(parser.parse_args()))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 196, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 726, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-7\work\run_runtime.py", line 42, in main
+    report=await coordinator.run(replay.run)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 101, in run
+    return await _stackful(awaitable, self.coordinator)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 61, in _stackful
+    result = stack.throw(exc)
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 39, in execute
+    yielded = iterator.throw(error) if error is not None else iterator.send(value)
+              ~~~~~~~~~~~~~~^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 184, in run
+    return await stepped()
+           ^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 128, in _terminal
+    native.end(reason=reason)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 221, in end
+    return self.emit("task_end", dict(reason=reason, outputs={} if outputs is None else outputs))
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 215, in emit
+    return self.endpoint.ring.put([self.endpoint.module_id, self.endpoint.producer,
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.task_id, self.parent_task_id, self.source, kind, data], observation)[0]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 77, in put
+    return self.coordinator.observe(payload, observation[0] if observation is not None else None)
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 256, in observe
+    raise self.poison(exc)
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 248, in observe
+    result = self._consume(payload, method)
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 208, in _consume
+    raise self.failure
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 156, in stepped
+    native.boundary("dispatch_resume", dict(index=serial,
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        outcome=type(error).__name__ if error is not None else "ready"))
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 219, in boundary
+    def boundary(self, name, value=None): return self.emit("boundary", dict(name=name, value={} if value is None else value))
+                                                 ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 215, in emit
+    return self.endpoint.ring.put([self.endpoint.module_id, self.endpoint.producer,
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.task_id, self.parent_task_id, self.source, kind, data], observation)[0]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 77, in put
+    return self.coordinator.observe(payload, observation[0] if observation is not None else None)
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 256, in observe
+    raise self.poison(exc)
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 248, in observe
+    result = self._consume(payload, method)
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 208, in _consume
+    raise self.failure
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 165, in stepped
+    value = yield yielded
+            ^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 43, in execute
+    value = host.switch(_Suspension(yielded))
+scalp_bot.native_v5.NativeTapeError: owned observation mismatch at token 2412: ('runtime:core:1:session', 'parent-asyncio')/boundary; expected {'name': 'input', 'value': {'kind': 'service', 'symbol': None, 'body': {'phase': 'close'}}}, actual {'name': 'dispatch_suspend', 'value': {'index': 7}}
+Exception ignored in: <coroutine object TradingEngine._paper_run_timer at 0x00000224E74CBD40>
+Traceback (most recent call last):
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\input_scope.py", line 66, in wrapped
+  File "C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\contextlib.py", line 162, in __exit__
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\input_scope.py", line 59, in scope
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 243, in boundary
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 82, in owner
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 75, in fail
+scalp_bot.native_v5.NativeTapeError: unknown or inherited native task/clock ownership
+Exception ignored in: <coroutine object TradingEngine._clock_loop at 0x00000224E74CA940>
+Traceback (most recent call last):
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\input_scope.py", line 66, in wrapped
+  File "C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\contextlib.py", line 162, in __exit__
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\input_scope.py", line 59, in scope
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 243, in boundary
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 82, in owner
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 75, in fail
+scalp_bot.native_v5.NativeTapeError: unknown or inherited native task/clock ownership
+Exception ignored in: <coroutine object TradingEngine._arbiter_loop at 0x00000224E74C9740>
+Traceback (most recent call last):
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\input_scope.py", line 66, in wrapped
+  File "C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\contextlib.py", line 162, in __exit__
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\input_scope.py", line 59, in scope
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 243, in boundary
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 82, in owner
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 75, in fail
+scalp_bot.native_v5.NativeTapeError: unknown or inherited native task/clock ownership
+Exception ignored in: <coroutine object TradingEngine._context_loop at 0x00000224E74C8840>
+Traceback (most recent call last):
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\input_scope.py", line 66, in wrapped
+  File "C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\contextlib.py", line 162, in __exit__
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\input_scope.py", line 59, in scope
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 243, in boundary
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 82, in owner
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 75, in fail
+scalp_bot.native_v5.NativeTapeError: unknown or inherited native task/clock ownership
+Exception ignored in: <coroutine object TradingEngine._scanner_loop at 0x00000224E74C8040>
+Traceback (most recent call last):
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\input_scope.py", line 66, in wrapped
+  File "C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\contextlib.py", line 162, in __exit__
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\input_scope.py", line 59, in scope
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 243, in boundary
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 82, in owner
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 75, in fail
+scalp_bot.native_v5.NativeTapeError: unknown or inherited native task/clock ownership
+Exception ignored in: <coroutine object _stream_topics at 0x00000224E553E1E0>
+Traceback (most recent call last):
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\bybit.py", line 1134, in _stream_topics
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\bybit.py", line 931, in notify
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\engine.py", line 2787, in capture_transport
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\engine.py", line 1155, in _record_input
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 243, in boundary
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 82, in owner
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 75, in fail
+scalp_bot.native_v5.NativeTapeError: unknown or inherited native task/clock ownership
+Exception ignored in: <coroutine object _stream_topics at 0x00000224E553D960>
+Traceback (most recent call last):
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\bybit.py", line 1134, in _stream_topics
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\bybit.py", line 931, in notify
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\engine.py", line 2787, in capture_transport
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\engine.py", line 1155, in _record_input
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 243, in boundary
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 82, in owner
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 75, in fail
+scalp_bot.native_v5.NativeTapeError: unknown or inherited native task/clock ownership

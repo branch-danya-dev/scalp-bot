@@ -1,0 +1,70 @@
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 12%]
+........................................................................ [ 16%]
+........................................................................ [ 20%]
+........................................................................ [ 25%]
+.............................F.......................................... [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 37%]
+........................................................................ [ 41%]
+........................................................................ [ 46%]
+........................................................................ [ 50%]
+........................................................................ [ 54%]
+........................................................................ [ 58%]
+........................................................................ [ 62%]
+........................................................................ [ 67%]
+........................................................................ [ 71%]
+........................................................................ [ 75%]
+........................................................................ [ 79%]
+........................................................................ [ 83%]
+........................................................................ [ 87%]
+........................................................................ [ 92%]
+........................................................................ [ 96%]
+...............................................................          [100%]
+================================== FAILURES ===================================
+_ test_capture_profile_wraps_existing_session_clocks_and_keeps_envelopes_raw __
+
+    def test_capture_profile_wraps_existing_session_clocks_and_keeps_envelopes_raw():
+        spec = importlib.util.spec_from_file_location('capture_profile', Path(__file__).parents[1]/'scripts/profile-capture-model.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _, _, Engine, _, _ = module.capture_components(clock_reads=True)
+        engine = Engine.__new__(Engine)
+        raw = ReplayRuntimeClock(wall_seconds=100, mono_ns=1000)
+        rows = []
+        engine.clock = raw
+        engine.recorder = SimpleNamespace(record=lambda event, symbol, row: rows.append(row))
+        engine.broker = SimpleNamespace(clock=raw)
+        engine.sessions = {'AAA': SimpleNamespace(clock=raw)}
+        engine.benchmark_warmup_complete()
+        assert engine.input_journal.clock is raw
+        assert engine.sessions['AAA'].clock is engine.broker.clock is engine.clock
+        engine.clock.set_observation(wall_seconds=101, mono_ns=2000)
+>       assert engine.sessions['AAA'].clock.time() == 101
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_capture_benchmark_clocks.py:24: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scalp_bot\runtime_clock.py:25: in time
+    return self._read("time")
+           ^^^^^^^^^^^^^^^^^^
+scalp_bot\runtime_clock.py:21: in _read
+    self.observe(method, value)
+scalp_bot\engine.py:1142: in _record_clock_read
+    self._record_input("clock_read", None, {"method": method, "value": value,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <capture_profile.capture_components.<locals>.CaptureStudy object at 0x0000016541412510>
+kind = 'clock_read', symbol = None
+body = {'method': 'time', 'scopeId': None, 'value': 101}
+
+    def _record_input(self, kind: str, symbol: str | None, body: dict) -> None:
+>       if self.native_dispatch is not None and kind not in {"clock_read", "scope"}:
+           ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'CaptureStudy' object has no attribute 'native_dispatch'
+
+scalp_bot\engine.py:1152: AttributeError
+=========================== short test summary info ===========================
+FAILED tests/test_capture_benchmark_clocks.py::test_capture_profile_wraps_existing_session_clocks_and_keeps_envelopes_raw
+1 failed, 1718 passed in 238.81s (0:03:58)

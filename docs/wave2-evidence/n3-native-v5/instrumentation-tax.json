@@ -1,0 +1,183 @@
+{
+  "protocol": {
+    "schema": "native-v5-tax-protocol-1",
+    "order": [
+      false,
+      true,
+      true,
+      false
+    ],
+    "batches": 160,
+    "clocksPerBatch": 64,
+    "batchPeriodSeconds": 0.01,
+    "ringBytes": 1048576,
+    "gcEnabled": true,
+    "sampling": false,
+    "acceptanceAuthority": false
+  },
+  "runs": [
+    {
+      "run": 0,
+      "recording": false,
+      "clocks": 10240,
+      "error": null,
+      "callbackMs": {
+        "count": 160,
+        "p50": 0.0066,
+        "p95": 0.011,
+        "p99": 0.0149,
+        "max": 0.0218
+      },
+      "nativeLoopLatenessMs": {
+        "count": 160,
+        "p50": 7.288199965842068,
+        "p95": 14.55530000384897,
+        "p99": 15.41170000564307,
+        "max": 15.553800039924681
+      },
+      "callbackTotalMs": 1.1158,
+      "elapsedSeconds": 1.5926061000209302,
+      "gcPausesMs": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "writer": null,
+      "chainAndCountValid": null,
+      "allocationThroughput": "NOT_TESTED",
+      "topAllocationSites": "NOT_TESTED"
+    },
+    {
+      "run": 1,
+      "recording": true,
+      "clocks": 10240,
+      "error": null,
+      "callbackMs": {
+        "count": 160,
+        "p50": 0.2986,
+        "p95": 0.4726,
+        "p99": 0.5281,
+        "max": 0.5683
+      },
+      "nativeLoopLatenessMs": {
+        "count": 160,
+        "p50": 7.317500072531402,
+        "p95": 14.605700154788792,
+        "p99": 14.77620005607605,
+        "max": 15.176799963228405
+      },
+      "callbackTotalMs": 51.4076,
+      "elapsedSeconds": 1.5966234999941662,
+      "gcPausesMs": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "writer": {
+        "accepted": 10243,
+        "rejected": 0,
+        "errorCode": 0,
+        "closed": true,
+        "pendingBytes": 0,
+        "highWaterBytes": 11482,
+        "capacityBytes": 1048576,
+        "written": 10243,
+        "writerError": null,
+        "batches": 103,
+        "maxBatchRows": 129,
+        "writerAlive": false
+      },
+      "chainAndCountValid": true,
+      "allocationThroughput": "NOT_TESTED",
+      "topAllocationSites": "NOT_TESTED"
+    },
+    {
+      "run": 2,
+      "recording": true,
+      "clocks": 10240,
+      "error": null,
+      "callbackMs": {
+        "count": 160,
+        "p50": 0.3022,
+        "p95": 0.4197,
+        "p99": 0.4899,
+        "max": 0.5675
+      },
+      "nativeLoopLatenessMs": {
+        "count": 160,
+        "p50": 7.481400039978325,
+        "p95": 14.596800087019801,
+        "p99": 15.018700039945543,
+        "max": 15.457000001333654
+      },
+      "callbackTotalMs": 50.5461,
+      "elapsedSeconds": 1.6058250999776646,
+      "gcPausesMs": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "writer": {
+        "accepted": 10243,
+        "rejected": 0,
+        "errorCode": 0,
+        "closed": true,
+        "pendingBytes": 0,
+        "highWaterBytes": 11392,
+        "capacityBytes": 1048576,
+        "written": 10243,
+        "writerError": null,
+        "batches": 104,
+        "maxBatchRows": 128,
+        "writerAlive": false
+      },
+      "chainAndCountValid": true,
+      "allocationThroughput": "NOT_TESTED",
+      "topAllocationSites": "NOT_TESTED"
+    },
+    {
+      "run": 3,
+      "recording": false,
+      "clocks": 10240,
+      "error": null,
+      "callbackMs": {
+        "count": 160,
+        "p50": 0.0076,
+        "p95": 0.012,
+        "p99": 0.0214,
+        "max": 0.0314
+      },
+      "nativeLoopLatenessMs": {
+        "count": 160,
+        "p50": 7.310100132599473,
+        "p95": 14.481600024737418,
+        "p99": 14.960400061681867,
+        "max": 15.380800003185868
+      },
+      "callbackTotalMs": 1.2961,
+      "elapsedSeconds": 1.6020305000711232,
+      "gcPausesMs": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "writer": null,
+      "chainAndCountValid": null,
+      "allocationThroughput": "NOT_TESTED",
+      "topAllocationSites": "NOT_TESTED"
+    }
+  ],
+  "status": "MET",
+  "taxMeanCallbackMs": 49.7709,
+  "taxMeanMicrosecondsPerClock": 4.860439453124999,
+  "scope": "bounded recorder throughput at 6400 owned clock reads/sec; not production W2 or native A-F attribution",
+  "controlledW20": "NOT_MET"
+}

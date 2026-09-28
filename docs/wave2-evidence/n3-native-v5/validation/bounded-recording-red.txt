@@ -1,0 +1,32 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+____ test_encoding_failure_poisons_capture_instead_of_omitting_observation ____
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-500/test_encoding_failure_poisons_0')
+
+    def test_encoding_failure_poisons_capture_instead_of_omitting_observation(tmp_path):
+        with NativeTapeWriter(tmp_path/"invalid.gz", capture_id="fixture", provenance=freeze()) as writer:
+            task = writer.endpoint("core", "parent").open_task("bad", "callback")
+            task.start()
+            with pytest.raises(NativeTapeError): task.boundary("invalid", {"x":float("nan")})
+>           assert writer.health()["errorCode"] != 0
+E           assert 0 != 0
+
+tests\test_native_v5.py:147: AssertionError
+_________ test_drain_batch_remains_charged_until_write_acknowledgment _________
+
+    def test_drain_batch_remains_charged_until_write_acknowledgment():
+        from scalp_bot.native_v5 import _Ring
+        ring = _Ring(1024)
+        ring.put(["core", "parent", "task", None, None, "task_start", {}])
+        pending = ring.health()["pendingBytes"]
+        batch, done = ring.drain()
+        assert batch and not done
+>       assert ring.health()["pendingBytes"] == pending
+E       assert 0 == 52
+
+tests\test_native_v5.py:158: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_native_v5.py::test_encoding_failure_poisons_capture_instead_of_omitting_observation
+FAILED tests/test_native_v5.py::test_drain_batch_remains_charged_until_write_acknowledgment
+2 failed, 14 deselected in 0.21s

@@ -89,14 +89,17 @@ class PairedEngine(TradingEngine):
     def _mark_position_from_book(self,session,**kwargs):
         self._market_for_pair(session,**kwargs)
 
-    def _market_for_pair(self,session,*,trade_price=None,trade_notional_usd=None,trade_side=None,**kwargs):
+    def _paired_execution_book(self, session):
         from ..execution_book import coherent_execution_book
+        return coherent_execution_book(session.orderbook,session.depth_orderbook() if session.deep_book_is_fresh() else None)
+
+    def _market_for_pair(self,session,*,trade_price=None,trade_notional_usd=None,trade_side=None,**kwargs):
         if not session.book_is_fresh():
             self.portfolio.books.pop(session.symbol,None)
             self.portfolio.arms["paper"].venue.books.pop(session.symbol,None)
             if session.symbol in self.portfolio.by_symbol:self.portfolio.halt("market_book_unhealthy")
             return
-        book=coherent_execution_book(session.orderbook,session.depth_orderbook() if session.deep_book_is_fresh() else None)
+        book=self._paired_execution_book(session)
         self.portfolio.books[session.symbol]=book
         receipt=session.trade_receipt_mono
         self.portfolio.arms["paper"].venue.market(session.symbol,book,trade_price=trade_price,

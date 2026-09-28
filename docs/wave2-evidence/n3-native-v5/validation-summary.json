@@ -1,0 +1,49 @@
+{
+  "schema": "native-v5-validation-summary-1",
+  "baseline": "e4de7a0fbebf308b3529dc89dc7d4ebeace5bebf",
+  "pr60": "1a2d0f67da0331df7d2d134bffde6f64141c7898",
+  "implementation": {
+    "local": "cc309d3",
+    "published": "f925838392ccd4aa17855e44aaa02b96e18baa63",
+    "tree": "20400892c1a1e5fa5731cc8a449f1934625c7a3d"
+  },
+  "fullWindows": {
+    "passed": 1705,
+    "seconds": 235.33,
+    "sourceSelection": "PYTHONPATH exact local checkout"
+  },
+  "expandedWindows": {
+    "passed": 604,
+    "seconds": 72.6
+  },
+  "javascript": "MET",
+  "nativeV5Tests": 34,
+  "sourceArchive": {
+    "files": 154,
+    "allHashesMatch": true
+  },
+  "provenance": {
+    "sourceSha256": "d7c3d0ede82f1f405af6846a81ca737f0d73517979fe5c8916775ba6216db3b6",
+    "configSha256": "4cd18ab4bbd1ea59fc8ad47889801901403e12eec1d25ab5f46a92d15b84f388",
+    "runtimeSha256": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+    "schemaSha256": "9ad943aacb5143f612d71c38f6fa34b75a3ca168a16ccd827ad27ed65d1aba1c"
+  },
+  "ci": {
+    "implementationRun": 36422588587,
+    "exactFinalHead": "recorded in PR61 and outputs/final-ci.json"
+  },
+  "gates": {
+    "explicitOwnedContract": "MET",
+    "fixtureAtoF": "MET",
+    "productionCapture": "NOT_MET",
+    "completeNativeExecutor": "NOT_MET",
+    "eligibleAtoFCost": "NOT_TESTED",
+    "controlledW20": "NOT_MET",
+    "market900s": "NOT_TESTED",
+    "nativeLabel": "INCONCLUSIVE",
+    "dataset": "NOT_MET"
+  },
+  "noMarketOrOrders": true,
+  "noTraining": true,
+  "mainAndPR60Unchanged": true
+}

@@ -1,0 +1,358 @@
+{
+  "schema": "n3-native-readiness-v1",
+  "controlledGate": "NOT_MET",
+  "sixVariantGate": "NOT_TESTED",
+  "nativeLabelGate": "INCONCLUSIVE",
+  "marketAuthorized": false,
+  "trainingAuthorized": false,
+  "demoAuthorized": false,
+  "blockers": [
+    "sourceMatches:false",
+    "configRoundtripMatches:false",
+    "v4_clock_reads_have_no_module_owner; A-E cannot skip or attribute them safely",
+    "external_supplemental_dispatch_lacks_total_primary_order",
+    "V2_probe_poll_and_worker_relay_schedule_not_in_native_dispatch_tape",
+    "six_variant_native_executor_not_implemented; strict ordinary scheduler alone is insufficient",
+    "native_replay_wall_cost_is_not_native_event_loop_or_real_IPC_latency"
+  ],
+  "variants": [
+    {
+      "id": "A",
+      "cumulativePath": "ordinary core",
+      "status": "NOT_TESTED",
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "measuredLatency": null
+    },
+    {
+      "id": "B",
+      "cumulativePath": "+ SegmentRegistry shadow",
+      "status": "NOT_TESTED",
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "measuredLatency": null
+    },
+    {
+      "id": "C",
+      "cumulativePath": "+ CrossVenue capture/context",
+      "status": "NOT_TESTED",
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "measuredLatency": null
+    },
+    {
+      "id": "D",
+      "cumulativePath": "+ MakerShadow",
+      "status": "NOT_TESTED",
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "measuredLatency": null
+    },
+    {
+      "id": "E",
+      "cumulativePath": "+ prepared/label hooks",
+      "status": "NOT_TESTED",
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "measuredLatency": null
+    },
+    {
+      "id": "F",
+      "cumulativePath": "+ V2 load probe/worker/relay",
+      "status": "NOT_TESTED",
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "measuredLatency": null
+    }
+  ],
+  "files": {
+    "primary": {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-2\\work\\w20-callback\\paper-300s\\session-20260928T092647Z.inputs.jsonl.gz",
+      "bytes": 243176816,
+      "sha256": "7a56ede64c47e5b60268b4c9f8b637834968c03409f0ace7aa226c918cdeb613"
+    },
+    "supplemental": {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-2\\work\\w20-callback\\paper-300s\\wave2-research.jsonl.gz",
+      "bytes": 65091525,
+      "sha256": "b217242e2eaa804b3fe76396bd70878c15934042f899e6de61793f051f707a01"
+    },
+    "session": {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-2\\work\\w20-callback\\paper-300s\\session-20260928T092647Z.jsonl",
+      "bytes": 138906703,
+      "sha256": "f286d996c1c0fb9bbc5df037df9944a50ac02b097f51c8b0b2fadab6785cf8ed"
+    }
+  },
+  "integrity": {
+    "schema": "replay-input-v4",
+    "structuralStatus": "checks_passed",
+    "parityReady": false,
+    "coverage": "experimental_partial",
+    "missingCoverage": [
+      "offline_replay_parity",
+      "capture_load_validation"
+    ],
+    "captureManifestChecked": true,
+    "policySnapshotChecked": true,
+    "boundRuns": 1,
+    "headerPresent": true,
+    "footerPresent": true,
+    "missingReceiptCount": 0,
+    "counts": {
+      "header": 1,
+      "manifest": 2,
+      "policy_snapshot": 1,
+      "service": 2,
+      "scope": 299824,
+      "source_await": 72,
+      "clock_sample": 22,
+      "clock_read": 1920104,
+      "scanner_result": 5,
+      "bootstrap": 9,
+      "symbol_lifecycle": 9,
+      "transport": 72,
+      "market_message": 115444,
+      "callback": 19919,
+      "dispatch": 2422,
+      "scheduler": 71168,
+      "control": 2,
+      "context_await": 39,
+      "rest_context": 31,
+      "run_end": 1,
+      "footer": 1
+    },
+    "issues": {},
+    "source": {
+      "file": "session-20260928T092647Z.inputs.jsonl.gz",
+      "snapshotBytes": 243176816,
+      "bytesRead": 1152821426,
+      "snapshotSha256": "b0b3689be2d0171b7a38e720434da582c3d48bd1e85bf4c14b371961a5c2000a",
+      "compression": "gzip",
+      "hashBasis": "decoded_jsonl"
+    }
+  },
+  "primary": {
+    "counts": {
+      "header": 1,
+      "manifest": 2,
+      "policy_snapshot": 1,
+      "service": 2,
+      "scope": 299824,
+      "source_await": 72,
+      "clock_sample": 22,
+      "clock_read": 1920104,
+      "scanner_result": 5,
+      "bootstrap": 9,
+      "symbol_lifecycle": 9,
+      "transport": 72,
+      "market_message": 115444,
+      "callback": 19919,
+      "dispatch": 2422,
+      "scheduler": 71168,
+      "control": 2,
+      "context_await": 39,
+      "rest_context": 31,
+      "run_end": 1,
+      "footer": 1
+    },
+    "rows": 2429150,
+    "lastSequence": 2429150,
+    "lastHash": "2a8ba40f8f2508582382607573fc285bd6329ed41c60bbdd13cf78c1ede19a10",
+    "footerPresent": true,
+    "hashes": {
+      "population": "0ef0fde7bcaaf4c5f0521aa01eae89487e5ee8df9f8a73cfcd35263f3c3828d5",
+      "clock": "6420b8831740b689151035bb5edf3cc204cc38353202b2b8fdbbe17fa036ef3b",
+      "scheduler": "6e0e70549ea6fd4bd8009a1d2bea51f831654e0cc20d992b2ea9707492da8b1a"
+    },
+    "hashBasis": "SHA256 concatenated 32-byte verified row hashes in original order",
+    "clocksByScope": {
+      "clock_sync": 66,
+      "scan": 15,
+      "bootstrap_apply": 45,
+      "transport_invalidate": 115,
+      "market_message": 1346496,
+      "evaluate": 456954,
+      "<outside-scope>": 10,
+      "clock_loop": 2,
+      "event_evaluation": 57714,
+      "market_health": 155,
+      "start_request": 7,
+      "arbiter": 58395,
+      "context_loop": 31,
+      "rest_context_apply": 95,
+      "stop": 4
+    },
+    "clocksWithoutModuleOwner": 1920104,
+    "outsideScopeClockExamples": [
+      {
+        "sequence": 21147,
+        "method": "perf_counter_ns"
+      },
+      {
+        "sequence": 21148,
+        "method": "time"
+      },
+      {
+        "sequence": 27804,
+        "method": "perf_counter_ns"
+      },
+      {
+        "sequence": 27805,
+        "method": "time"
+      },
+      {
+        "sequence": 31914,
+        "method": "perf_counter_ns"
+      }
+    ]
+  },
+  "binding": {
+    "recordedSourceSha256": "b6d464c6a378733331937668cfac197d9360b5c326de11d15bc48487f4bf1a7e",
+    "candidateSourceSha256": "b19a50ee2f201d652e5fd30b46b0673691e61c2cce601746d155654367117d7e",
+    "candidateGitHead": "35282d7617327d01b1bcafee59f72db23f0d3bc9",
+    "sourceMatches": false,
+    "recordedRuntimeSha256": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+    "candidateRuntimeSha256": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+    "runtimeMatches": true,
+    "configSha256": "ac49297b814ff3801aa734978fe0fd802f5416d9ada36c65ab1c3faad9bbe9a0",
+    "configRoundtripDifferences": [
+      "paper_run_duration_seconds"
+    ],
+    "configRoundtripError": null,
+    "configRoundtripMatches": false
+  },
+  "archiveBinding": {
+    "filesMatched": true,
+    "files": 144,
+    "scripts": {
+      "scripts/smoke-trading-model.py": "3c94163368cc876c32e5eda1319d59e4ccc9ffeaf39c41540f7205edd3151904",
+      "scripts/profile-capture-model.py": "6fa51919e8a55b359e06fe9e997a126d8db7c08c075b34b4e9915a46f94a2855"
+    },
+    "archiveSha256": "e2326c7a813eaaa2e8967c45ac8a6524e45223f2ddaa925ce4542c27d9e9a636",
+    "freezeSha256": "3bde0e096f26842f8e9c40bdbaf58eaacfe2c22dd0a7ee85202f928d58f4c648",
+    "archiveMatchesFreeze": true,
+    "sourceMatchesFreeze": true,
+    "configMatchesFreeze": true,
+    "runtimeMatchesFreeze": true
+  },
+  "supplemental": {
+    "counts": {
+      "header": 1,
+      "venue_instruments": 2,
+      "venue_gap": 72,
+      "venue_event": 185839,
+      "maker_candidate": 2276,
+      "maker_fill": 744,
+      "maker_markout": 2228,
+      "venue_raw": 57156,
+      "maker_outcome": 2276,
+      "maker_cancel": 1978,
+      "footer": 1
+    },
+    "rows": 252573,
+    "captureId": "session-20260928T092647Z.jsonl",
+    "populationSha256": "a33fcdf24fbe5d120aff3b57430bc253479ebd867aa28ab459aeb9a73c69f6ab",
+    "externalCounts": {
+      "venue_instruments": 2,
+      "venue_gap": 36,
+      "venue_raw": 57156,
+      "venue_event": 57138
+    },
+    "externalWithoutPrimaryOrder": {
+      "venue_instruments": 2,
+      "venue_gap": 36,
+      "venue_raw": 57156,
+      "venue_event": 57138
+    },
+    "chainComplete": true
+  },
+  "nativeTraces": {
+    "counts": {
+      "clock_sync": 22,
+      "symbol_activated": 9,
+      "transport_diagnostics": 72,
+      "research_frame": 796,
+      "market_frame": 447,
+      "clock_admission_changed": 43,
+      "scanner_update": 5,
+      "market_context_changed": 18717,
+      "strategy_state_transition": 635,
+      "decision": 828,
+      "scenario_transition": 58,
+      "bot_started": 1,
+      "shadow_features": 244,
+      "shadow_forecast": 488,
+      "run_summary": 1,
+      "bot_stopped": 1
+    },
+    "joins": {
+      "forecasts": 488,
+      "sourceMatched": 488,
+      "featureMatched": 488,
+      "criticalPathsExact": 488
+    },
+    "tracesSha256": "429ab6c4ecd93b843ac7d7708897728e0a15260b50a71059fbdd6e0efd5e13bf",
+    "stagesMs": {
+      "receive_to_parse": {
+        "count": 488,
+        "p50": 0.0045,
+        "p95": 0.0171,
+        "p99": 0.0429,
+        "max": 0.0969
+      },
+      "parse_to_callback": {
+        "count": 488,
+        "p50": 0.334,
+        "p95": 9.4275,
+        "p99": 31.2792,
+        "max": 57.8961
+      },
+      "data_to_adapter": {
+        "count": 488,
+        "p50": 44.6248,
+        "p95": 157.6321,
+        "p99": 308.2433,
+        "max": 377.5108
+      },
+      "data_to_features": {
+        "count": 488,
+        "p50": 7.5473,
+        "p95": 27.7819,
+        "p99": 56.3704,
+        "max": 139.5616
+      },
+      "features_to_prediction_end": {
+        "count": 488,
+        "p50": 21.557,
+        "p95": 123.9015,
+        "p99": 244.647,
+        "max": 335.734
+      },
+      "prediction_end_to_receipt": {
+        "count": 488,
+        "p50": 6.6515,
+        "p95": 27.0525,
+        "p99": 44.1362,
+        "max": 215.5485
+      },
+      "adapter": {
+        "count": 488,
+        "p50": 0.0137,
+        "p95": 0.0197,
+        "p99": 0.0251,
+        "max": 0.0343
+      }
+    },
+    "missingStages": [
+      "enqueue",
+      "callback_end",
+      "probe_poll_dispatch",
+      "worker_start",
+      "request_ipc",
+      "reply_ipc",
+      "relay_enqueue",
+      "relay_dwell",
+      "prepared_to_plan_to_fire"
+    ],
+    "scope": "recorded native observations; no new replay timing and no sum of marginal p99s"
+  }
+}

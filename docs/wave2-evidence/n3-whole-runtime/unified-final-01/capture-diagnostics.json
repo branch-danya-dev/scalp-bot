@@ -1,0 +1,500 @@
+{
+  "scope": "actual all-on F capture only; small synthetic population, not A-F cost or W2 acceptance",
+  "stages": {
+    "event_loop_lateness": {
+      "count": 1741,
+      "p50": 10.4029,
+      "p95": 11.0424,
+      "p99": 14.6335,
+      "max": 143.006
+    },
+    "features": {
+      "count": 4,
+      "p50": 0.0684,
+      "p95": 0.0739,
+      "p99": 0.0739,
+      "max": 0.1271
+    },
+    "data_to_features": {
+      "count": 4,
+      "p50": 4.1995,
+      "p95": 4.566,
+      "p99": 4.566,
+      "max": 11.1699
+    },
+    "prediction": {
+      "count": 8,
+      "p50": 0.5284,
+      "p95": 0.5854,
+      "p99": 0.5854,
+      "max": 1.1763
+    },
+    "data_to_adapter": {
+      "count": 8,
+      "p50": 30.6635,
+      "p95": 46.0341,
+      "p99": 46.0341,
+      "max": 46.3283
+    }
+  },
+  "joinedItems": [
+    {
+      "identity": [
+        "whole-runtime-offline-v1.jsonl",
+        "AAAUSDT",
+        2,
+        5,
+        "long"
+      ],
+      "available_ns": 713106642139200,
+      "submit_ns": 713106656786900,
+      "parent_queue_depth": 1,
+      "feature_ready_ns": 713106646063400,
+      "probe_queued_ns": 713106646063400,
+      "probe_queue_depth": 1,
+      "nativeTask": {
+        "task_id": "probe:AAAUSDT:2:5:long",
+        "parent_task_id": "runtime:v2:146:probe:evaluate",
+        "source": {
+          "capture_id": "whole-runtime-offline-v1.jsonl",
+          "symbol": "AAAUSDT",
+          "epoch": 1,
+          "source_sequence": 5,
+          "event_id": "bybit:5"
+        }
+      },
+      "dispatch_ns": 713106656798600,
+      "worker_start_ns": 713106657313700,
+      "prediction_end_ns": 713106658490000,
+      "relay_received_ns": 713106658847300,
+      "relay_enqueued_ns": 713106658856800,
+      "relay_queue_depth": 1,
+      "adapter_receive_ns": 713106672718300,
+      "terminal": "forecast",
+      "adapter_end_ns": 713106672781600
+    },
+    {
+      "identity": [
+        "whole-runtime-offline-v1.jsonl",
+        "AAAUSDT",
+        2,
+        5,
+        "short"
+      ],
+      "available_ns": 713106642139200,
+      "submit_ns": 713106672982800,
+      "parent_queue_depth": 1,
+      "feature_ready_ns": 713106646063400,
+      "probe_queued_ns": 713106646063400,
+      "probe_queue_depth": 0,
+      "nativeTask": {
+        "task_id": "probe:AAAUSDT:2:5:short",
+        "parent_task_id": "runtime:v2:146:probe:evaluate",
+        "source": {
+          "capture_id": "whole-runtime-offline-v1.jsonl",
+          "symbol": "AAAUSDT",
+          "epoch": 1,
+          "source_sequence": 5,
+          "event_id": "bybit:5"
+        }
+      },
+      "dispatch_ns": 713106672997200,
+      "worker_start_ns": 713106673327800,
+      "prediction_end_ns": 713106673743100,
+      "relay_received_ns": 713106674020900,
+      "relay_enqueued_ns": 713106674029900,
+      "relay_queue_depth": 1,
+      "adapter_receive_ns": 713106688125000,
+      "terminal": "forecast",
+      "adapter_end_ns": 713106688173300
+    },
+    {
+      "identity": [
+        "whole-runtime-offline-v1.jsonl",
+        "AAAUSDT",
+        2,
+        19,
+        "long"
+      ],
+      "available_ns": 713108465698800,
+      "submit_ns": 713108480530300,
+      "parent_queue_depth": 1,
+      "feature_ready_ns": 713108469898300,
+      "probe_queued_ns": 713108469898300,
+      "probe_queue_depth": 1,
+      "nativeTask": {
+        "task_id": "probe:AAAUSDT:2:19:long",
+        "parent_task_id": "runtime:v2:393:probe:evaluate",
+        "source": {
+          "capture_id": "whole-runtime-offline-v1.jsonl",
+          "symbol": "AAAUSDT",
+          "epoch": 1,
+          "source_sequence": 19,
+          "event_id": "bybit:19"
+        }
+      },
+      "dispatch_ns": 713108480540700,
+      "worker_start_ns": 713108480858800,
+      "prediction_end_ns": 713108481416500,
+      "relay_received_ns": 713108481792500,
+      "relay_enqueued_ns": 713108481802600,
+      "relay_queue_depth": 1,
+      "adapter_receive_ns": 713108496359200,
+      "terminal": "forecast",
+      "adapter_end_ns": 713108496411500
+    },
+    {
+      "identity": [
+        "whole-runtime-offline-v1.jsonl",
+        "AAAUSDT",
+        2,
+        19,
+        "short"
+      ],
+      "available_ns": 713108465698800,
+      "submit_ns": 713108496530600,
+      "parent_queue_depth": 1,
+      "feature_ready_ns": 713108469898300,
+      "probe_queued_ns": 713108469898300,
+      "probe_queue_depth": 0,
+      "nativeTask": {
+        "task_id": "probe:AAAUSDT:2:19:short",
+        "parent_task_id": "runtime:v2:393:probe:evaluate",
+        "source": {
+          "capture_id": "whole-runtime-offline-v1.jsonl",
+          "symbol": "AAAUSDT",
+          "epoch": 1,
+          "source_sequence": 19,
+          "event_id": "bybit:19"
+        }
+      },
+      "dispatch_ns": 713108496539600,
+      "worker_start_ns": 713108496904800,
+      "prediction_end_ns": 713108497458200,
+      "relay_received_ns": 713108497829800,
+      "relay_enqueued_ns": 713108497840400,
+      "relay_queue_depth": 1,
+      "adapter_receive_ns": 713108511984500,
+      "terminal": "forecast",
+      "adapter_end_ns": 713108512027100
+    },
+    {
+      "identity": [
+        "whole-runtime-offline-v1.jsonl",
+        "AAAUSDT",
+        2,
+        98,
+        "long"
+      ],
+      "available_ns": 713118429992500,
+      "submit_ns": 713118434880800,
+      "parent_queue_depth": 1,
+      "feature_ready_ns": 713118434558500,
+      "probe_queued_ns": 713118434558500,
+      "probe_queue_depth": 1,
+      "nativeTask": {
+        "task_id": "probe:AAAUSDT:2:98:long",
+        "parent_task_id": "runtime:v2:1759:probe:evaluate",
+        "source": {
+          "capture_id": "whole-runtime-offline-v1.jsonl",
+          "symbol": "AAAUSDT",
+          "epoch": 1,
+          "source_sequence": 98,
+          "event_id": "bybit:98"
+        }
+      },
+      "dispatch_ns": 713118434893900,
+      "worker_start_ns": 713118436382000,
+      "prediction_end_ns": 713118436910400,
+      "relay_received_ns": 713118437558400,
+      "relay_enqueued_ns": 713118437569700,
+      "relay_queue_depth": 1,
+      "adapter_receive_ns": 713118445207900,
+      "terminal": "forecast",
+      "adapter_end_ns": 713118445247300
+    },
+    {
+      "identity": [
+        "whole-runtime-offline-v1.jsonl",
+        "AAAUSDT",
+        2,
+        98,
+        "short"
+      ],
+      "available_ns": 713118429992500,
+      "submit_ns": 713118445378800,
+      "parent_queue_depth": 1,
+      "feature_ready_ns": 713118434558500,
+      "probe_queued_ns": 713118434558500,
+      "probe_queue_depth": 0,
+      "nativeTask": {
+        "task_id": "probe:AAAUSDT:2:98:short",
+        "parent_task_id": "runtime:v2:1759:probe:evaluate",
+        "source": {
+          "capture_id": "whole-runtime-offline-v1.jsonl",
+          "symbol": "AAAUSDT",
+          "epoch": 1,
+          "source_sequence": 98,
+          "event_id": "bybit:98"
+        }
+      },
+      "dispatch_ns": 713118445392400,
+      "worker_start_ns": 713118445714800,
+      "prediction_end_ns": 713118446202600,
+      "relay_received_ns": 713118446545100,
+      "relay_enqueued_ns": 713118446555200,
+      "relay_queue_depth": 1,
+      "adapter_receive_ns": 713118460610600,
+      "terminal": "forecast",
+      "adapter_end_ns": 713118460656000
+    },
+    {
+      "identity": [
+        "whole-runtime-offline-v1.jsonl",
+        "AAAUSDT",
+        2,
+        180,
+        "long"
+      ],
+      "available_ns": 713128411728300,
+      "submit_ns": 713128423254600,
+      "parent_queue_depth": 1,
+      "feature_ready_ns": 713128422898200,
+      "probe_queued_ns": 713128422898200,
+      "probe_queue_depth": 1,
+      "nativeTask": {
+        "task_id": "probe:AAAUSDT:2:180:long",
+        "parent_task_id": "runtime:v2:3090:probe:evaluate",
+        "source": {
+          "capture_id": "whole-runtime-offline-v1.jsonl",
+          "symbol": "AAAUSDT",
+          "epoch": 1,
+          "source_sequence": 180,
+          "event_id": "bybit:180"
+        }
+      },
+      "dispatch_ns": 713128423263900,
+      "worker_start_ns": 713128424843200,
+      "prediction_end_ns": 713128425428600,
+      "relay_received_ns": 713128425956900,
+      "relay_enqueued_ns": 713128425966300,
+      "relay_queue_depth": 1,
+      "adapter_receive_ns": 713128441883400,
+      "terminal": "forecast",
+      "adapter_end_ns": 713128441933600
+    },
+    {
+      "identity": [
+        "whole-runtime-offline-v1.jsonl",
+        "AAAUSDT",
+        2,
+        180,
+        "short"
+      ],
+      "available_ns": 713128411728300,
+      "submit_ns": 713128442035900,
+      "parent_queue_depth": 1,
+      "feature_ready_ns": 713128422898200,
+      "probe_queued_ns": 713128422898200,
+      "probe_queue_depth": 0,
+      "nativeTask": {
+        "task_id": "probe:AAAUSDT:2:180:short",
+        "parent_task_id": "runtime:v2:3090:probe:evaluate",
+        "source": {
+          "capture_id": "whole-runtime-offline-v1.jsonl",
+          "symbol": "AAAUSDT",
+          "epoch": 1,
+          "source_sequence": 180,
+          "event_id": "bybit:180"
+        }
+      },
+      "dispatch_ns": 713128442045200,
+      "worker_start_ns": 713128442687700,
+      "prediction_end_ns": 713128443192300,
+      "relay_received_ns": 713128443619500,
+      "relay_enqueued_ns": 713128443631800,
+      "relay_queue_depth": 1,
+      "adapter_receive_ns": 713128457297400,
+      "terminal": "forecast",
+      "adapter_end_ns": 713128457356800
+    }
+  ],
+  "joinedSummary": {
+    "stages": {
+      "receive_to_parse": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "parse_to_enqueue": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "market_queue_wait": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "callback": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "book_to_features": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "feature_to_submit": {
+        "count": 8,
+        "p50": 10.7235,
+        "p95": 26.6323,
+        "p99": 26.6323,
+        "max": 26.9194
+      },
+      "probe_queue_wait": {
+        "count": 8,
+        "p50": 10.7235,
+        "p95": 26.6323,
+        "p99": 26.6323,
+        "max": 26.9194
+      },
+      "parent_queue_wait": {
+        "count": 8,
+        "p50": 0.0104,
+        "p95": 0.0136,
+        "p99": 0.0136,
+        "max": 0.0144
+      },
+      "request_ipc": {
+        "count": 8,
+        "p50": 0.3652,
+        "p95": 1.4881,
+        "p99": 1.4881,
+        "max": 1.5793
+      },
+      "prediction": {
+        "count": 8,
+        "p50": 0.5284,
+        "p95": 0.5854,
+        "p99": 0.5854,
+        "max": 1.1763
+      },
+      "reply_ipc": {
+        "count": 8,
+        "p50": 0.3716,
+        "p95": 0.5283,
+        "p99": 0.5283,
+        "max": 0.648
+      },
+      "relay_enqueue_wait": {
+        "count": 8,
+        "p50": 0.0101,
+        "p95": 0.0113,
+        "p99": 0.0113,
+        "max": 0.0123
+      },
+      "relay_queue_wait": {
+        "count": 8,
+        "p50": 14.0554,
+        "p95": 14.5566,
+        "p99": 14.5566,
+        "max": 15.9171
+      },
+      "adapter": {
+        "count": 8,
+        "p50": 0.0483,
+        "p95": 0.0594,
+        "p99": 0.0594,
+        "max": 0.0633
+      },
+      "strategy_to_fire": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "fire_to_order": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "data_to_adapter": {
+        "count": 8,
+        "p50": 30.6635,
+        "p95": 46.0341,
+        "p99": 46.0341,
+        "max": 46.3283
+      }
+    },
+    "queueDepth": {
+      "parent_queue_depth": {
+        "count": 8,
+        "p50": 1,
+        "p95": 1,
+        "p99": 1,
+        "max": 1
+      },
+      "relay_queue_depth": {
+        "count": 8,
+        "p50": 1,
+        "p95": 1,
+        "p99": 1,
+        "max": 1
+      },
+      "probe_queue_depth": {
+        "count": 8,
+        "p50": 0,
+        "p95": 1,
+        "p99": 1,
+        "max": 1
+      }
+    },
+    "terminals": {
+      "forecast": 8
+    },
+    "invalidSpans": [],
+    "clock": "OS perf_counter_ns diagnostic domain, never causal runtime clock",
+    "sampling": false
+  },
+  "nativeWriter": {
+    "accepted": 43888,
+    "rejected": 0,
+    "errorCode": 0,
+    "closed": true,
+    "pendingBytes": 0,
+    "highWaterBytes": 279307,
+    "capacityBytes": 33554432
+  },
+  "recorder": {
+    "background": false,
+    "queuedRows": 10074,
+    "writtenRows": 10074,
+    "pendingRows": 0,
+    "queueDepth": 0,
+    "queueCapacity": 8192,
+    "droppedRows": 0,
+    "droppedBulkRows": 0,
+    "droppedCriticalRows": 0,
+    "writerError": null
+  },
+  "probe": {
+    "submitted": 8,
+    "forecasts": 8,
+    "probability_abstention": 8
+  }
+}

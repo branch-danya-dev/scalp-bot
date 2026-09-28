@@ -1,0 +1,240 @@
+{
+  "scope": "instrumented failed-prefix diagnostic; not latency acceptance",
+  "gc": {
+    "count": 682,
+    "generations": {
+      "0": 621,
+      "1": 56,
+      "2": 5
+    },
+    "pausesMs": {
+      "count": 682,
+      "p50": 0.7929,
+      "p95": 2.4706,
+      "p99": 3.6205,
+      "max": 93.1188
+    },
+    "overlappingCallbacks": 682,
+    "enabledThroughout": true
+  },
+  "allocation": {
+    "netBlockDelta": {
+      "count": 25045,
+      "p50": 87,
+      "p95": 622,
+      "p99": 1542,
+      "max": 16802
+    },
+    "trueAllocationThroughput": "NOT_TESTED; retained-block delta is not allocation rate"
+  },
+  "drain": {
+    "batchCount": 1836,
+    "rows": 445634,
+    "pendingBytes": {
+      "count": 1836,
+      "p50": 250712,
+      "p95": 4379011,
+      "p99": 12717304,
+      "max": 30642785
+    },
+    "codecRoundTrip": {
+      "total_ms": 34051.2337,
+      "count": 1836,
+      "p50": 3.5374,
+      "p95": 87.2315,
+      "p99": 152.5672,
+      "max": 224.4723
+    },
+    "conclusion": "codec service and parent burst/backlog not exonerated; no memory-bound increase"
+  },
+  "clock": {
+    "append": {
+      "total_ms": 1642.4888,
+      "count": 364261,
+      "p50": 0.0038,
+      "p95": 0.0087,
+      "p99": 0.0129,
+      "max": 3.5886
+    },
+    "conclusion": "clock producer cost measured; worker hash/JSON/gzip per-kind attribution remains unmeasured; no clock representation change"
+  },
+  "pipeline": {
+    "stages": {
+      "receive_to_parse": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "parse_to_enqueue": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "market_queue_wait": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "callback": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "book_to_features": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "feature_to_submit": {
+        "count": 1354,
+        "p50": 0.0044,
+        "p95": 0.0093,
+        "p99": 0.0117,
+        "max": 0.0162
+      },
+      "parent_queue_wait": {
+        "count": 1354,
+        "p50": 68.6131,
+        "p95": 207.7643,
+        "p99": 260.9856,
+        "max": 539.1408
+      },
+      "request_ipc": {
+        "count": 1354,
+        "p50": 6.6948,
+        "p95": 27.7436,
+        "p99": 48.3027,
+        "max": 101.3044
+      },
+      "prediction": {
+        "count": 1354,
+        "p50": 0.5399,
+        "p95": 0.7696,
+        "p99": 0.8847,
+        "max": 1.2376
+      },
+      "reply_ipc": {
+        "count": 1354,
+        "p50": 0.463,
+        "p95": 86.5448,
+        "p99": 153.3374,
+        "max": 259.7047
+      },
+      "relay_enqueue_wait": {
+        "count": 1354,
+        "p50": 0.0017,
+        "p95": 0.0027,
+        "p99": 0.004,
+        "max": 0.014
+      },
+      "relay_queue_wait": {
+        "count": 1354,
+        "p50": 9.3945,
+        "p95": 14.8044,
+        "p99": 16.3047,
+        "max": 35.9518
+      },
+      "adapter": {
+        "count": 1354,
+        "p50": 0.0342,
+        "p95": 0.0489,
+        "p99": 0.0661,
+        "max": 1.0799
+      },
+      "strategy_to_fire": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "fire_to_order": {
+        "count": 0,
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "data_to_adapter": {
+        "count": 1354,
+        "p50": 142.0546,
+        "p95": 349.8601,
+        "p99": 659.4312,
+        "max": 766.8066
+      }
+    },
+    "queueDepth": {
+      "parent_queue_depth": {
+        "count": 3561,
+        "p50": 6,
+        "p95": 9,
+        "p99": 9,
+        "max": 9
+      },
+      "relay_queue_depth": {
+        "count": 1354,
+        "p50": 1,
+        "p95": 1,
+        "p99": 1,
+        "max": 1
+      }
+    },
+    "terminals": {
+      "forecast": 1354,
+      "coalesced": 2207
+    },
+    "invalidSpans": [],
+    "clock": "OS perf_counter_ns diagnostic domain, never causal runtime clock",
+    "sampling": false
+  },
+  "writer": {
+    "background": false,
+    "queuedRows": 6225,
+    "writtenRows": 6225,
+    "pendingRows": 0,
+    "queueDepth": 0,
+    "queueCapacity": 8192,
+    "droppedRows": 0,
+    "droppedBulkRows": 0,
+    "droppedCriticalRows": 0,
+    "writerError": null,
+    "inputAccepted": 445634,
+    "inputWritten": 445634,
+    "inputPendingBytes": 0,
+    "inputWriterError": "input recording queue exceeded its byte limit",
+    "inputDiagnostics": {
+      "error": "input recording queue exceeded its byte limit",
+      "accepted": 445634,
+      "written": 445634,
+      "rejected": 21768,
+      "pendingBytes": 0,
+      "highWaterBytes": 33546679,
+      "maxQueueBytes": 33554432,
+      "queueCapacity": 32768,
+      "compressionWrites": 1836,
+      "maxBatchRows": 1024,
+      "maxBatchEncodedBytes": 758154,
+      "closed": true,
+      "writerAlive": false,
+      "codecPid": 30444,
+      "codecAlive": false,
+      "hashedRows": 445634,
+      "codecError": null
+    }
+  },
+  "decisionsHash": "0bc53475c67e0c93636250272f59d8a8ccce965bee5cf7a74dedb4fa7f6a77d8",
+  "portfolioHash": "efade72b47b94d8636890fac3238738f005690496c3a3406cdba6e5fb5cc7b0d",
+  "workloadHash": "0c8036ca7b06406e9d8c2933aa522174f4df87086443e79b9fc71004079c6b85",
+  "completeSixVariantNativeModuleCost": "NOT_TESTED",
+  "performanceOptimizationAccepted": false
+}

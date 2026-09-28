@@ -69,7 +69,8 @@ def breakout_impulse_limit(
 def may_extend_runner(details: dict) -> bool:
     """Legacy R-extension is never part of a frozen routed contract."""
     return not (
-        details.get("scenario")
+        details.get("marketTargetOnly")
+        or details.get("scenario")
         or details.get("targetSource") == "liquidity"
         or isinstance(details.get("liquidityTarget"), dict)
     )

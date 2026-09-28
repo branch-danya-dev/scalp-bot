@@ -1,0 +1,208 @@
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 12%]
+........F............................................................... [ 16%]
+........................................................................ [ 21%]
+........................................................................ [ 25%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 38%]
+........................................................................ [ 42%]
+........................................................................ [ 46%]
+........................................................................ [ 50%]
+........................................................................ [ 54%]
+........................................................................ [ 59%]
+........................................................................ [ 63%]
+...............................................................FFF...... [ 67%]
+........................................................................ [ 71%]
+........................................................................ [ 76%]
+........................................................................ [ 80%]
+........................................................................ [ 84%]
+........................................................................ [ 88%]
+........................................................................ [ 92%]
+........................................................................ [ 97%]
+.................................................                        [100%]
+================================== FAILURES ===================================
+__________________ test_existing_runtime_does_not_import_ml ___________________
+
+    def test_existing_runtime_does_not_import_ml():
+        root = Path(__file__).resolve().parents[2] / "scalp_bot"
+        for path in root.rglob("*.py"):
+            if not {"ml", "demo_paper"}.intersection(path.relative_to(root).parts) and path.name not in {"offline_study.py", "offline_benchmark.py"}:
+                text = path.read_text(encoding="utf-8")
+>               assert "scalp_bot.ml" not in text and "from .ml" not in text
+E               assert ('scalp_bot.ml' not in '"""Offline ...urn result\n'
+E                 
+E                 'scalp_bot.ml' is contained here:
+E                 ? -------
+E                   urn result and 'from .ml' not in '"""Offline ...urn result\n'
+E                 
+E                 'from .ml' is contained here:
+E                   e
+E                           from .ml.prepared_labels import PreparedLabelEngine
+E                 ?         ++++++++
+E                           self.config = Settings(_env_file=None, session_dir="native-v5-fixture", exchange_clock_enabled=False,
+E                               event_driven_evaluation_enabled=False, otel_enabled=False)...
+E                 
+E                 ...Full output truncated (297 lines hidden), use '-vv' to show)
+
+tests\ml\test_foundation.py:120: AssertionError
+____ test_compressed_capture_replays_actual_breakout[False-False-shutdown] ____
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-505/test_compressed_capture_replay0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000016B1BF2C050>
+event_driven = False, beta = False, exit_kind = 'shutdown'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('event_driven,beta,exit_kind', [
+        (False, False, 'shutdown'), (True, True, 'shutdown'), (True, True, 'duration_elapsed')])
+    async def test_compressed_capture_replays_actual_breakout(tmp_path, monkeypatch, event_driven, beta, exit_kind):
+        live, _, _ = await fixture(tmp_path, monkeypatch, production=True, exit_kind=exit_kind,
+            file_capture=True, event_driven=event_driven, beta=beta)
+        assert live.recorder.inputs.error is None
+        assert live.recorder.inputs.closed
+        assert live.recorder.inputs.written == live.recorder.inputs.accepted
+        assert live.recorder.inputs.pending_bytes == 0
+        assert not live.recorder.health()['droppedRows']
+        assert live.broker.total_closed_trades == 1
+        manifest = live.recorder.inputs.manifest
+        metadata = dict(status='sealed', profile='fixture', inputs=live.recorder.inputs.path.name,
+            session=live.recorder.path.name, sourceSha256=manifest['code']['sourceSha256'])
+        (tmp_path / 'capture.json').write_text(json.dumps(metadata), encoding='utf-8')
+        with zipfile.ZipFile(tmp_path / 'source-at-capture.zip', 'w') as archive:
+            archive.writestr('fixture.txt', 'Only the archive hash is checked by baseline replay.')
+        report = await verify_capture(tmp_path)
+        assert report['status'] == 'baseline_replay_matched'
+        assert report['balance'] == live.broker.balance
+        assert report['closedTrades'] == 1
+        assert report['strategyResults']['level_breakout']['tradesClosed'] == 1
+        assert report['strategyResults']['level_breakout']['netPnl'] == pytest.approx(live.broker.total_pnl)
+        assert report['strategyResults']['orderbook_density']['evidenceOnly']
+        assert 'exam' not in report
+        assert not report['isolatedStrategySimulationPerformed']
+        assert report['integrity']['source']['compression'] == 'gzip'
+        assert not (tmp_path / 'replay-index.sqlite').exists()
+        # Exercise the real script entry point, whose sys.path differs from pytest
+        # and from python -m uvicorn. Dependency provenance must remain identical.
+        import subprocess
+        import sys
+        checked = subprocess.run([sys.executable, 'scripts/replay-paper-capture.py', str(tmp_path)],
+            capture_output=True, text=True, timeout=30)
+>       assert checked.returncode == 0, checked.stderr
+E       AssertionError: Capture check failed: ValueError: input journal integrity check failed
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['G:\\scalp-bot\\.venv\\Scripts\\python.exe', 'scripts/replay-paper-capture.py', 'C:\\Users\\wor..._replay0'], returncode=1, stdout='', stderr='Capture check failed: ValueError: input journal integrity check failed\n').returncode
+
+tests\test_paper_capture.py:55: AssertionError
+---------------------------- Captured stdout call -----------------------------
+Input chain checked; indexing the capture on disk...
+Replaying the recorded engine and checking every output...
+_____ test_compressed_capture_replays_actual_breakout[True-True-shutdown] _____
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-505/test_compressed_capture_replay1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000016B1BF2C830>
+event_driven = True, beta = True, exit_kind = 'shutdown'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('event_driven,beta,exit_kind', [
+        (False, False, 'shutdown'), (True, True, 'shutdown'), (True, True, 'duration_elapsed')])
+    async def test_compressed_capture_replays_actual_breakout(tmp_path, monkeypatch, event_driven, beta, exit_kind):
+        live, _, _ = await fixture(tmp_path, monkeypatch, production=True, exit_kind=exit_kind,
+            file_capture=True, event_driven=event_driven, beta=beta)
+        assert live.recorder.inputs.error is None
+        assert live.recorder.inputs.closed
+        assert live.recorder.inputs.written == live.recorder.inputs.accepted
+        assert live.recorder.inputs.pending_bytes == 0
+        assert not live.recorder.health()['droppedRows']
+        assert live.broker.total_closed_trades == 1
+        manifest = live.recorder.inputs.manifest
+        metadata = dict(status='sealed', profile='fixture', inputs=live.recorder.inputs.path.name,
+            session=live.recorder.path.name, sourceSha256=manifest['code']['sourceSha256'])
+        (tmp_path / 'capture.json').write_text(json.dumps(metadata), encoding='utf-8')
+        with zipfile.ZipFile(tmp_path / 'source-at-capture.zip', 'w') as archive:
+            archive.writestr('fixture.txt', 'Only the archive hash is checked by baseline replay.')
+        report = await verify_capture(tmp_path)
+        assert report['status'] == 'baseline_replay_matched'
+        assert report['balance'] == live.broker.balance
+        assert report['closedTrades'] == 1
+        assert report['strategyResults']['level_breakout']['tradesClosed'] == 1
+        assert report['strategyResults']['level_breakout']['netPnl'] == pytest.approx(live.broker.total_pnl)
+        assert report['strategyResults']['orderbook_density']['evidenceOnly']
+        assert 'exam' not in report
+        assert not report['isolatedStrategySimulationPerformed']
+        assert report['integrity']['source']['compression'] == 'gzip'
+        assert not (tmp_path / 'replay-index.sqlite').exists()
+        # Exercise the real script entry point, whose sys.path differs from pytest
+        # and from python -m uvicorn. Dependency provenance must remain identical.
+        import subprocess
+        import sys
+        checked = subprocess.run([sys.executable, 'scripts/replay-paper-capture.py', str(tmp_path)],
+            capture_output=True, text=True, timeout=30)
+>       assert checked.returncode == 0, checked.stderr
+E       AssertionError: Capture check failed: ValueError: input journal integrity check failed
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['G:\\scalp-bot\\.venv\\Scripts\\python.exe', 'scripts/replay-paper-capture.py', 'C:\\Users\\wor..._replay1'], returncode=1, stdout='', stderr='Capture check failed: ValueError: input journal integrity check failed\n').returncode
+
+tests\test_paper_capture.py:55: AssertionError
+---------------------------- Captured stdout call -----------------------------
+Input chain checked; indexing the capture on disk...
+Replaying the recorded engine and checking every output...
+_ test_compressed_capture_replays_actual_breakout[True-True-duration_elapsed] _
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-505/test_compressed_capture_replay2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000016B1BEF6E40>
+event_driven = True, beta = True, exit_kind = 'duration_elapsed'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('event_driven,beta,exit_kind', [
+        (False, False, 'shutdown'), (True, True, 'shutdown'), (True, True, 'duration_elapsed')])
+    async def test_compressed_capture_replays_actual_breakout(tmp_path, monkeypatch, event_driven, beta, exit_kind):
+        live, _, _ = await fixture(tmp_path, monkeypatch, production=True, exit_kind=exit_kind,
+            file_capture=True, event_driven=event_driven, beta=beta)
+        assert live.recorder.inputs.error is None
+        assert live.recorder.inputs.closed
+        assert live.recorder.inputs.written == live.recorder.inputs.accepted
+        assert live.recorder.inputs.pending_bytes == 0
+        assert not live.recorder.health()['droppedRows']
+        assert live.broker.total_closed_trades == 1
+        manifest = live.recorder.inputs.manifest
+        metadata = dict(status='sealed', profile='fixture', inputs=live.recorder.inputs.path.name,
+            session=live.recorder.path.name, sourceSha256=manifest['code']['sourceSha256'])
+        (tmp_path / 'capture.json').write_text(json.dumps(metadata), encoding='utf-8')
+        with zipfile.ZipFile(tmp_path / 'source-at-capture.zip', 'w') as archive:
+            archive.writestr('fixture.txt', 'Only the archive hash is checked by baseline replay.')
+        report = await verify_capture(tmp_path)
+        assert report['status'] == 'baseline_replay_matched'
+        assert report['balance'] == live.broker.balance
+        assert report['closedTrades'] == 1
+        assert report['strategyResults']['level_breakout']['tradesClosed'] == 1
+        assert report['strategyResults']['level_breakout']['netPnl'] == pytest.approx(live.broker.total_pnl)
+        assert report['strategyResults']['orderbook_density']['evidenceOnly']
+        assert 'exam' not in report
+        assert not report['isolatedStrategySimulationPerformed']
+        assert report['integrity']['source']['compression'] == 'gzip'
+        assert not (tmp_path / 'replay-index.sqlite').exists()
+        # Exercise the real script entry point, whose sys.path differs from pytest
+        # and from python -m uvicorn. Dependency provenance must remain identical.
+        import subprocess
+        import sys
+        checked = subprocess.run([sys.executable, 'scripts/replay-paper-capture.py', str(tmp_path)],
+            capture_output=True, text=True, timeout=30)
+>       assert checked.returncode == 0, checked.stderr
+E       AssertionError: Capture check failed: ValueError: input journal integrity check failed
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['G:\\scalp-bot\\.venv\\Scripts\\python.exe', 'scripts/replay-paper-capture.py', 'C:\\Users\\wor..._replay2'], returncode=1, stdout='', stderr='Capture check failed: ValueError: input journal integrity check failed\n').returncode
+
+tests\test_paper_capture.py:55: AssertionError
+---------------------------- Captured stdout call -----------------------------
+Input chain checked; indexing the capture on disk...
+Replaying the recorded engine and checking every output...
+=========================== short test summary info ===========================
+FAILED tests/ml/test_foundation.py::test_existing_runtime_does_not_import_ml
+FAILED tests/test_paper_capture.py::test_compressed_capture_replays_actual_breakout[False-False-shutdown]
+FAILED tests/test_paper_capture.py::test_compressed_capture_replays_actual_breakout[True-True-shutdown]
+FAILED tests/test_paper_capture.py::test_compressed_capture_replays_actual_breakout[True-True-duration_elapsed]
+4 failed, 1701 passed in 222.03s (0:03:42)

@@ -1,0 +1,1274 @@
+{
+  "files": [
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-01\\0\\prepared.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-01\\0\\research.gz",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-01\\0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 489,
+      "sha256": "973f030ac98e7e0e772cddb205d90847820d8c966d68ff7303eaadf6c25e895a"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-01\\tape.sqlite",
+      "bytes": 31727616,
+      "sha256": "3791a46833a55cd93c1c10f869eaf16d1d6361ffdd2a362391535e789add6511"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-02\\0\\external-source.json",
+      "bytes": 3955,
+      "sha256": "9d907ebcf2ee2d37fdc23c8eb0cd6e7165f728762b651ec1f0e3af17c26c334e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-02\\0\\prepared.jsonl",
+      "bytes": 1497,
+      "sha256": "ac1bfc50dd0f14814f589fb9213a6ffb0c5f8592e9d0b7e4572cfd13bf1e383e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-02\\0\\research.gz",
+      "bytes": 1096427,
+      "sha256": "fc81581a1bcf06581dd4d9681c9e1586657750ae2a17855dc3b0b39cd96f9f39"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-02\\0\\source.json",
+      "bytes": 89939,
+      "sha256": "456e284c9a54c4040ef109ed44871ebbc9e8d7bc80842ffa1d0b0305c7ac6848"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-02\\0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 14339050,
+      "sha256": "0d98f4bd2510ca9bcc8f6846f4ff3665a96034e6aff84f2ac3173cba0ea6823d"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-02\\1\\external-source.json",
+      "bytes": 3955,
+      "sha256": "9d907ebcf2ee2d37fdc23c8eb0cd6e7165f728762b651ec1f0e3af17c26c334e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-02\\1\\prepared.jsonl",
+      "bytes": 1497,
+      "sha256": "ac1bfc50dd0f14814f589fb9213a6ffb0c5f8592e9d0b7e4572cfd13bf1e383e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-02\\1\\research.gz",
+      "bytes": 1093204,
+      "sha256": "d3dd7aa7ee586f619a6e0d71c7e4c3fd9aefe7ad322c7a84c157697c23431b82"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-02\\1\\source.json",
+      "bytes": 89939,
+      "sha256": "456e284c9a54c4040ef109ed44871ebbc9e8d7bc80842ffa1d0b0305c7ac6848"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-02\\1\\whole-runtime-offline-v1.jsonl",
+      "bytes": 14339248,
+      "sha256": "3c257f5aa224eef9b78d2d10c51a9b833f5a4a7aca6077715cb9c10f1320dff1"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-02\\2\\external-source.json",
+      "bytes": 3955,
+      "sha256": "9d907ebcf2ee2d37fdc23c8eb0cd6e7165f728762b651ec1f0e3af17c26c334e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-02\\2\\prepared.jsonl",
+      "bytes": 1497,
+      "sha256": "ac1bfc50dd0f14814f589fb9213a6ffb0c5f8592e9d0b7e4572cfd13bf1e383e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-02\\2\\research.gz",
+      "bytes": 1091424,
+      "sha256": "106f27dfd58f7abfaba7b55d564a3fa2a2e2cf193ed8997a0b6eb48878670e2a"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-02\\2\\source.json",
+      "bytes": 89939,
+      "sha256": "456e284c9a54c4040ef109ed44871ebbc9e8d7bc80842ffa1d0b0305c7ac6848"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-02\\2\\whole-runtime-offline-v1.jsonl",
+      "bytes": 14339237,
+      "sha256": "0d6cf4b5f646703aa3c11ee8ec4f79bc929138aeb48368f7329b899ea4d4ba5a"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-02\\tape.sqlite",
+      "bytes": 31727616,
+      "sha256": "3791a46833a55cd93c1c10f869eaf16d1d6361ffdd2a362391535e789add6511"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\0\\external-source.json",
+      "bytes": 3955,
+      "sha256": "9d907ebcf2ee2d37fdc23c8eb0cd6e7165f728762b651ec1f0e3af17c26c334e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\0\\prepared.jsonl",
+      "bytes": 1497,
+      "sha256": "ac1bfc50dd0f14814f589fb9213a6ffb0c5f8592e9d0b7e4572cfd13bf1e383e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\0\\research.gz",
+      "bytes": 1092188,
+      "sha256": "f2b09c73f12527ad89549eb42482623c9f2b02c87fa6b28cebdb6276984f57ae"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\0\\source.json",
+      "bytes": 89939,
+      "sha256": "456e284c9a54c4040ef109ed44871ebbc9e8d7bc80842ffa1d0b0305c7ac6848"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 14339145,
+      "sha256": "8383ccef9043dab97d59505c753a169d796d22ae24e62958bf6a7fd13f498250"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\1\\external-source.json",
+      "bytes": 3955,
+      "sha256": "9d907ebcf2ee2d37fdc23c8eb0cd6e7165f728762b651ec1f0e3af17c26c334e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\1\\prepared.jsonl",
+      "bytes": 1497,
+      "sha256": "ac1bfc50dd0f14814f589fb9213a6ffb0c5f8592e9d0b7e4572cfd13bf1e383e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\1\\research.gz",
+      "bytes": 1092178,
+      "sha256": "36c83bd7c656bd311a43be9bc127a92e67ac08ae101b89835cb993b207e76700"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\1\\source.json",
+      "bytes": 89939,
+      "sha256": "456e284c9a54c4040ef109ed44871ebbc9e8d7bc80842ffa1d0b0305c7ac6848"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\1\\whole-runtime-offline-v1.jsonl",
+      "bytes": 14339179,
+      "sha256": "c2048152cc9d1c5de2d13e48112c6d7a5442827dfc989acba2399c9d62c8de65"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\2\\external-source.json",
+      "bytes": 3955,
+      "sha256": "9d907ebcf2ee2d37fdc23c8eb0cd6e7165f728762b651ec1f0e3af17c26c334e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\2\\prepared.jsonl",
+      "bytes": 1497,
+      "sha256": "ac1bfc50dd0f14814f589fb9213a6ffb0c5f8592e9d0b7e4572cfd13bf1e383e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\2\\research.gz",
+      "bytes": 1095997,
+      "sha256": "16904a3597927904d18de428d5eebeaf19c2b4083606badcb507686d3a7e3373"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\2\\source.json",
+      "bytes": 89939,
+      "sha256": "456e284c9a54c4040ef109ed44871ebbc9e8d7bc80842ffa1d0b0305c7ac6848"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\2\\whole-runtime-offline-v1.jsonl",
+      "bytes": 14339227,
+      "sha256": "245d099c5224e424486ff98b3146887911aaf8c4f24e79541de4638312c96ac8"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\3\\external-source.json",
+      "bytes": 3955,
+      "sha256": "9d907ebcf2ee2d37fdc23c8eb0cd6e7165f728762b651ec1f0e3af17c26c334e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\3\\prepared.jsonl",
+      "bytes": 1497,
+      "sha256": "ac1bfc50dd0f14814f589fb9213a6ffb0c5f8592e9d0b7e4572cfd13bf1e383e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\3\\research.gz",
+      "bytes": 1095503,
+      "sha256": "a395a597ff5f93ca8a4d672f19a19ad78c4029e8a07e7d35b8fc0210b3f84fa4"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\3\\source.json",
+      "bytes": 89939,
+      "sha256": "456e284c9a54c4040ef109ed44871ebbc9e8d7bc80842ffa1d0b0305c7ac6848"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\3\\whole-runtime-offline-v1.jsonl",
+      "bytes": 14339335,
+      "sha256": "af832bee2726b3c1a2d1225ed1f6af6fe1ec2b422858c8b3dcaf5b7207b97f0f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\4\\external-source.json",
+      "bytes": 3955,
+      "sha256": "9d907ebcf2ee2d37fdc23c8eb0cd6e7165f728762b651ec1f0e3af17c26c334e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\4\\prepared.jsonl",
+      "bytes": 1497,
+      "sha256": "ac1bfc50dd0f14814f589fb9213a6ffb0c5f8592e9d0b7e4572cfd13bf1e383e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\4\\research.gz",
+      "bytes": 1092781,
+      "sha256": "a260e55c8875e6943ffc5935b9f78164cfb40e6c810e47d13a61bac8555c0b9f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\4\\source.json",
+      "bytes": 89939,
+      "sha256": "456e284c9a54c4040ef109ed44871ebbc9e8d7bc80842ffa1d0b0305c7ac6848"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\4\\whole-runtime-offline-v1.jsonl",
+      "bytes": 14339292,
+      "sha256": "95427c1bb0c9998d513d6389e677ce8f2095ec20520ead4a149b1bfc309bf44d"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\5\\external-source.json",
+      "bytes": 3955,
+      "sha256": "9d907ebcf2ee2d37fdc23c8eb0cd6e7165f728762b651ec1f0e3af17c26c334e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\5\\prepared.jsonl",
+      "bytes": 1497,
+      "sha256": "ac1bfc50dd0f14814f589fb9213a6ffb0c5f8592e9d0b7e4572cfd13bf1e383e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\5\\research.gz",
+      "bytes": 1092772,
+      "sha256": "f9c2d5353cf41967f600d07f9e9cba8ea077d2fbc8461e07e134f92205866faf"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\5\\source.json",
+      "bytes": 89939,
+      "sha256": "456e284c9a54c4040ef109ed44871ebbc9e8d7bc80842ffa1d0b0305c7ac6848"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\5\\whole-runtime-offline-v1.jsonl",
+      "bytes": 14339351,
+      "sha256": "481c84bf5a73a898660f5e7f98aea4bc0337cf82f811a463d33652d21735f51c"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\cancellation-diagnostic-03\\tape.sqlite",
+      "bytes": 31727616,
+      "sha256": "3791a46833a55cd93c1c10f869eaf16d1d6361ffdd2a362391535e789add6511"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-01\\capture\\prepared.jsonl",
+      "bytes": 1528,
+      "sha256": "c67a2ed3cabb7e3237809d34dc8cfe0aadf790975e7cbeb7e468ace7b9d50249"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-01\\capture\\research.gz",
+      "bytes": 90749,
+      "sha256": "99ec8c66131b9265159d7ebe2a22d7093a0b780c789449318e5b705e9cfa4c18"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-01\\capture\\source.json",
+      "bytes": 91328,
+      "sha256": "c9e5673e5cdb0bcdeb8663fe94c1fa5f30ff01534d1dcc7e3d75e5a9bde19925"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-01\\capture\\whole-runtime-offline-v1.jsonl",
+      "bytes": 7061893,
+      "sha256": "7ebde12acd17eb6c3301d976456438c3f632bcacf0ad46dbe4335738b415d60f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-01\\capture-result.json",
+      "bytes": 835382,
+      "sha256": "166c9d4e4332ebc97eaae3689e97712fb555bb53f9084d8d5c681bf26afada7f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-01\\freeze.json",
+      "bytes": 30110,
+      "sha256": "7b8420df9af2932c2278ff54545d2a9fd21a56dc55ebe62baebab34c249b5975"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-01\\tape.gz",
+      "bytes": 1378003,
+      "sha256": "ea13127255501227b6e2c5260529cb7357b9b00de9b0052f8efa6f96f02fca51"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\capture\\prepared.jsonl",
+      "bytes": 1494,
+      "sha256": "c6bfafe2294d052b3486669c24620cf8d4da54299f0da20e47ad5318b57b78a9"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\capture\\research.gz",
+      "bytes": 956070,
+      "sha256": "ebc5561bc7902781576dab6ee14852482e0bedfc554d8aabbcd2a0921373db20"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\capture\\source.json",
+      "bytes": 89939,
+      "sha256": "f851d097076d2730f4539f9248942da410442ceeefc470ee919d83422eb41eac"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\capture\\whole-runtime-offline-v1.jsonl",
+      "bytes": 13025996,
+      "sha256": "24d76b6eddd3d2a3879b08e0005c5cb015a57c382e2e49c15d2a0c3f8f5a5632"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\capture-result.json",
+      "bytes": 3376963,
+      "sha256": "c4cb7068901d6caee35124f229f23df5cc66a2c32f18704ca5eb891a0d767fbd"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\freeze.json",
+      "bytes": 30110,
+      "sha256": "a4be6dde888a32ef899d0b76bb8c250f4eca62e62f2152de8bc364ac20cd8e7e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\replay-0\\prepared.jsonl",
+      "bytes": 1494,
+      "sha256": "c6bfafe2294d052b3486669c24620cf8d4da54299f0da20e47ad5318b57b78a9"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\replay-0\\research.gz",
+      "bytes": 951979,
+      "sha256": "eb6d712b0a4adbcf1ba658a8ce221bda01182caa9148d8a68c583ec72f91a222"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\replay-0\\source.json",
+      "bytes": 89939,
+      "sha256": "f851d097076d2730f4539f9248942da410442ceeefc470ee919d83422eb41eac"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\replay-0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 13026319,
+      "sha256": "bb428d87556b1552077435a5ea968b5e156b8f5d9e4473727764380a14d7f0ac"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\replay-0-report.json",
+      "bytes": 1089,
+      "sha256": "2ffcb57a3a8b0d76efd53a9dbdb057b76b6e708827b97c7cf48efdcfbef924f3"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\replay-0-result.json",
+      "bytes": 3376963,
+      "sha256": "c4cb7068901d6caee35124f229f23df5cc66a2c32f18704ca5eb891a0d767fbd"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\replay-1\\prepared.jsonl",
+      "bytes": 1494,
+      "sha256": "c6bfafe2294d052b3486669c24620cf8d4da54299f0da20e47ad5318b57b78a9"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\replay-1\\research.gz",
+      "bytes": 952215,
+      "sha256": "e1fc1ec87616630705de6b32bb222758fd547c0d432ef1b3a9b5a089d9e2a028"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\replay-1\\source.json",
+      "bytes": 89939,
+      "sha256": "f851d097076d2730f4539f9248942da410442ceeefc470ee919d83422eb41eac"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\replay-1\\whole-runtime-offline-v1.jsonl",
+      "bytes": 13026250,
+      "sha256": "3d0b265ffce5261987b99a288333fa06e5c3585c1afc67307342f5f58c487bcd"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\replay-1-report.json",
+      "bytes": 1089,
+      "sha256": "2ffcb57a3a8b0d76efd53a9dbdb057b76b6e708827b97c7cf48efdcfbef924f3"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\replay-1-result.json",
+      "bytes": 3376963,
+      "sha256": "c4cb7068901d6caee35124f229f23df5cc66a2c32f18704ca5eb891a0d767fbd"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\population-02\\tape.gz",
+      "bytes": 1411849,
+      "sha256": "3bc99756443249e75faa4be91ddd7e726d90878ddf5329db1de73c502e6eecc3"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\capture\\external-source.json",
+      "bytes": 3955,
+      "sha256": "9b835d177dfcdfe30a715d0ca86b39a45f49ff9a1de0aad11e787f7929d95d49"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\capture\\prepared.jsonl",
+      "bytes": 1497,
+      "sha256": "884d43e0177cc9f2344b35b0777885f0c582a2e96fc393b2696755c344136938"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\capture\\research.gz",
+      "bytes": 945329,
+      "sha256": "154c522b8c2f812fd7ecf4f6011861e4ebbe8afbf44c0a57493fab42e4aad2e9"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\capture\\source.json",
+      "bytes": 89939,
+      "sha256": "b286ab39f83812ed19a28b091ff8f351659ff2e4169f1b9598a05b98a18f7e78"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\capture\\whole-runtime-offline-v1.jsonl",
+      "bytes": 13016892,
+      "sha256": "ee16c24cbd20483bb5c66f54b80302a4a73b28788d48270ed9e7ad593baa1ad5"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\capture-result.json",
+      "bytes": 3349888,
+      "sha256": "1a44f572bc99caebf8d0812891cdca26c86efc0208af4901d78346d21e7f2d77"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\freeze.json",
+      "bytes": 30778,
+      "sha256": "98a0aa9bc600c463014e19cfe0675fa89a8e5b9cf4ad0537d64d58909cd381c2"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\replay-0\\external-source.json",
+      "bytes": 3955,
+      "sha256": "9b835d177dfcdfe30a715d0ca86b39a45f49ff9a1de0aad11e787f7929d95d49"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\replay-0\\prepared.jsonl",
+      "bytes": 1497,
+      "sha256": "884d43e0177cc9f2344b35b0777885f0c582a2e96fc393b2696755c344136938"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\replay-0\\research.gz",
+      "bytes": 944560,
+      "sha256": "43a58609c9878569d11ce7161ed326ddcb5784ecd2b00d34b4027e1b94d9d29a"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\replay-0\\source.json",
+      "bytes": 89939,
+      "sha256": "b286ab39f83812ed19a28b091ff8f351659ff2e4169f1b9598a05b98a18f7e78"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\replay-0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 13017035,
+      "sha256": "048bd9009f0fc0fbcf9159d1a58168937c2a173361b93d0984799cfacf021046"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\replay-0-report.json",
+      "bytes": 1481,
+      "sha256": "9e370aa67d12768cade4f62cdcf2c469be2b66fb84ea8117ab39e899b5e4e910"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\replay-0-result.json",
+      "bytes": 3349888,
+      "sha256": "1a44f572bc99caebf8d0812891cdca26c86efc0208af4901d78346d21e7f2d77"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\replay-1\\external-source.json",
+      "bytes": 3955,
+      "sha256": "9b835d177dfcdfe30a715d0ca86b39a45f49ff9a1de0aad11e787f7929d95d49"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\replay-1\\prepared.jsonl",
+      "bytes": 1497,
+      "sha256": "884d43e0177cc9f2344b35b0777885f0c582a2e96fc393b2696755c344136938"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\replay-1\\research.gz",
+      "bytes": 945769,
+      "sha256": "1b19498f324f32c51de689100a1a7b3cb0670e1335cc8d5dcc73c04f0e730a1a"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\replay-1\\source.json",
+      "bytes": 89939,
+      "sha256": "b286ab39f83812ed19a28b091ff8f351659ff2e4169f1b9598a05b98a18f7e78"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\replay-1\\whole-runtime-offline-v1.jsonl",
+      "bytes": 13016986,
+      "sha256": "af427f2b9619967a0cec0e3dd008d20b8343d3774927e8ce82e2f99b0f0a65d9"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\replay-1-report.json",
+      "bytes": 1480,
+      "sha256": "7f3f59870702f67ae99924239895a4baec40f718e72512a5b9e0bc8c6996130a"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\replay-1-result.json",
+      "bytes": 3349888,
+      "sha256": "1a44f572bc99caebf8d0812891cdca26c86efc0208af4901d78346d21e7f2d77"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-01\\tape.gz",
+      "bytes": 3091202,
+      "sha256": "6f59cc4dd78c599f8aab62ef8fcdb298229aedc157e5c86089806195c0bb2635"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\capture\\external-source.json",
+      "bytes": 3955,
+      "sha256": "0e704b125f524adc933d858a2171509ed125972bb6fec1f6642f6a036223db84"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\capture\\prepared.jsonl",
+      "bytes": 1593,
+      "sha256": "34ef6537db0f17be1bd523fa5c21dc3794b0af439aa8f6520bde5534f7282c0e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\capture\\research.gz",
+      "bytes": 1033510,
+      "sha256": "04297a4c66de847d3a9be9ccb6746b59beb5722ea55bfc060d94903236a78343"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\capture\\source.json",
+      "bytes": 89939,
+      "sha256": "280a01f5d2c9df1d78f53a580651f9718d015160e621cdd266161d73528799eb"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\capture\\whole-runtime-offline-v1.jsonl",
+      "bytes": 14769106,
+      "sha256": "d2bd20c706255202da7aae3a36b5b8f86a77ebeaff68c1290d638d1d2ccf214f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\capture-result.json",
+      "bytes": 3526145,
+      "sha256": "f7febbadd16a395015f0e17683fe87741e0b3ea4ffe6619d0ee197f14a0cf80e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\freeze.json",
+      "bytes": 30777,
+      "sha256": "1adc600955068adb210638734b63f344805a660ef8c7904eb5f28abebaa75ca7"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-A-0\\external-source.json",
+      "bytes": 4,
+      "sha256": "a5338d955b09046ec0b16f3a9625b7955c763aae07dc722e474e6078745f932f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-A-0\\prepared.jsonl",
+      "bytes": 1593,
+      "sha256": "34ef6537db0f17be1bd523fa5c21dc3794b0af439aa8f6520bde5534f7282c0e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-A-0\\research.gz",
+      "bytes": 485,
+      "sha256": "8073458f84eb6a483e2a0875736fd11a9c648cf3325a3ea29a755a87c718c15e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-A-0\\source.json",
+      "bytes": 89939,
+      "sha256": "280a01f5d2c9df1d78f53a580651f9718d015160e621cdd266161d73528799eb"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-A-0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 13734507,
+      "sha256": "e7d6012a3cdffbe94f8168a140ec5544380172e1f846d2e33e09ca9b2da7f27c"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-A-0-report.json",
+      "bytes": 1194,
+      "sha256": "abfa0a78d28bc09fe32100a53de1b3de9c44d6ccd0b17c71b7b1d2a2aebe668d"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-A-0-result.json",
+      "bytes": 2989830,
+      "sha256": "7a65763ec13f408823234a242e3ae18614b6ea124ea2b9a21c53848e0420b685"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-B-0\\external-source.json",
+      "bytes": 4,
+      "sha256": "a5338d955b09046ec0b16f3a9625b7955c763aae07dc722e474e6078745f932f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-B-0\\prepared.jsonl",
+      "bytes": 1593,
+      "sha256": "34ef6537db0f17be1bd523fa5c21dc3794b0af439aa8f6520bde5534f7282c0e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-B-0\\research.gz",
+      "bytes": 1400,
+      "sha256": "df8f4f771a68638473e4f0468680ecf3e990beefcebb5c77e6354522de25d1f1"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-B-0\\source.json",
+      "bytes": 89939,
+      "sha256": "280a01f5d2c9df1d78f53a580651f9718d015160e621cdd266161d73528799eb"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-B-0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 13735767,
+      "sha256": "c6c8b3398aac66d94e94d3f854d4a1cc24a72172178ff934bff8a3b8f96dd3e6"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-B-0-report.json",
+      "bytes": 1178,
+      "sha256": "4c4d4706fceb6d342bbfe21e8273db1d7d554623a6ce46516df44622aec305f4"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-B-0-result.json",
+      "bytes": 2989830,
+      "sha256": "34be6a10f5aa19d95c081a8c4cf8011cebc4d96f2116efc1ad970cc982a04686"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-C-0\\external-source.json",
+      "bytes": 3955,
+      "sha256": "0e704b125f524adc933d858a2171509ed125972bb6fec1f6642f6a036223db84"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-C-0\\prepared.jsonl",
+      "bytes": 1593,
+      "sha256": "34ef6537db0f17be1bd523fa5c21dc3794b0af439aa8f6520bde5534f7282c0e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-C-0\\research.gz",
+      "bytes": 63127,
+      "sha256": "168129dabe35288c6610603f6126f9583ba2a90ce178d6614d3b201f3c441e58"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-C-0\\source.json",
+      "bytes": 89939,
+      "sha256": "280a01f5d2c9df1d78f53a580651f9718d015160e621cdd266161d73528799eb"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-C-0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 14118855,
+      "sha256": "4a4fbe94c3aa9c64000f7316a46f46a073309db9d6e0c14b11151c86805f7b68"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-C-0-report.json",
+      "bytes": 1161,
+      "sha256": "13778e4437104e8adf4becf05c83543471bf9d9df24c6b687ea3dd9602b0ea53"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-C-0-result.json",
+      "bytes": 2989867,
+      "sha256": "ac4e536c3e5ce5019c0d1981d375200ba1ace5496d37939754219b3d11dd4e62"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-D-0\\external-source.json",
+      "bytes": 3955,
+      "sha256": "0e704b125f524adc933d858a2171509ed125972bb6fec1f6642f6a036223db84"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-D-0\\prepared.jsonl",
+      "bytes": 1593,
+      "sha256": "34ef6537db0f17be1bd523fa5c21dc3794b0af439aa8f6520bde5534f7282c0e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-D-0\\research.gz",
+      "bytes": 93096,
+      "sha256": "3b38632aeb71ff59730204e359269c86bb6c4beb048d671bb97d3b865861e545"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-D-0\\source.json",
+      "bytes": 89939,
+      "sha256": "280a01f5d2c9df1d78f53a580651f9718d015160e621cdd266161d73528799eb"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-D-0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 14269946,
+      "sha256": "9cb1f834f6bf6eb5aa383c348bf43c6c211e61c1bdc2d5bfafb47980f05f6566"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-D-0-report.json",
+      "bytes": 1147,
+      "sha256": "094163afa05535ee69226c1cbac75ea72b029915748019a5918dcfa0152707c8"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-D-0-result.json",
+      "bytes": 2989867,
+      "sha256": "85d375e5677f3f5d921a3b6f10f94635dc0d3b65d391b35b28eee9cc67ece4b3"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-E-0\\external-source.json",
+      "bytes": 3955,
+      "sha256": "0e704b125f524adc933d858a2171509ed125972bb6fec1f6642f6a036223db84"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-E-0\\prepared.jsonl",
+      "bytes": 1593,
+      "sha256": "34ef6537db0f17be1bd523fa5c21dc3794b0af439aa8f6520bde5534f7282c0e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-E-0\\research.gz",
+      "bytes": 1030602,
+      "sha256": "414423adc8f7ec7ee3c08f67b83c315fc657db944d87749edc8281250ff3e3c4"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-E-0\\source.json",
+      "bytes": 89939,
+      "sha256": "280a01f5d2c9df1d78f53a580651f9718d015160e621cdd266161d73528799eb"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-E-0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 14749931,
+      "sha256": "4d34385935635fe38960fd1f356cefc46962c33b1e2d58d8abb0e3b3dc014679"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-E-0-report.json",
+      "bytes": 1135,
+      "sha256": "3a6c7586b598580f11291ca6f3ebb2f16b3ec2c6b000fefea6452c9fe0e54cc5"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-E-0-result.json",
+      "bytes": 3525986,
+      "sha256": "45e11a033c202a24dce6586d676159781c1fb11910ed66d8ac9786ccf994e538"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-F-0\\external-source.json",
+      "bytes": 3955,
+      "sha256": "0e704b125f524adc933d858a2171509ed125972bb6fec1f6642f6a036223db84"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-F-0\\prepared.jsonl",
+      "bytes": 1593,
+      "sha256": "34ef6537db0f17be1bd523fa5c21dc3794b0af439aa8f6520bde5534f7282c0e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-F-0\\research.gz",
+      "bytes": 1030961,
+      "sha256": "727094280209ffd388a6a5d545bb8a3c3813f22ec0fbdaf9755158cde24ece72"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-F-0\\source.json",
+      "bytes": 89939,
+      "sha256": "280a01f5d2c9df1d78f53a580651f9718d015160e621cdd266161d73528799eb"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-F-0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 14769346,
+      "sha256": "ab8ea712754c28ec6cb83776cbe8760de0f3e9b5c5446101a8a4663220ee7e99"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-F-0-report.json",
+      "bytes": 1480,
+      "sha256": "64acbb92c72674d0d9fa9c4047ede2f60f5e1aa61aef4ad7af3c29ea29fb0373"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\replay-F-0-result.json",
+      "bytes": 3526145,
+      "sha256": "f7febbadd16a395015f0e17683fe87741e0b3ea4ffe6619d0ee197f14a0cf80e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-02\\tape.gz",
+      "bytes": 3245082,
+      "sha256": "556d47590834156f702f3573a219ad7d0fc5a6b9ff689cef0fb43f374814ea72"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\capture\\external-source.json",
+      "bytes": 3955,
+      "sha256": "9d907ebcf2ee2d37fdc23c8eb0cd6e7165f728762b651ec1f0e3af17c26c334e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\capture\\prepared.jsonl",
+      "bytes": 1497,
+      "sha256": "ac1bfc50dd0f14814f589fb9213a6ffb0c5f8592e9d0b7e4572cfd13bf1e383e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\capture\\research.gz",
+      "bytes": 961517,
+      "sha256": "e4df091bd436aad98404a92712003828da905f0237050727dacf25300f74afd0"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\capture\\source.json",
+      "bytes": 89939,
+      "sha256": "456e284c9a54c4040ef109ed44871ebbc9e8d7bc80842ffa1d0b0305c7ac6848"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\capture\\whole-runtime-offline-v1.jsonl",
+      "bytes": 14339177,
+      "sha256": "522243346257ab24e7cf90dbcdb5c58e57b1ca27c0c96ed7059088656fddabd3"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\capture-diagnostics.json",
+      "bytes": 13447,
+      "sha256": "d671d3ed5f56975be5da4b3ef1817bc3733438132897c2297b618b6614d6735b"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\capture-inventory.json",
+      "bytes": 1258,
+      "sha256": "26d74e2d1c160ee4837b6c4d68b78816b2ea2737d3a997cc32144d5e825a198e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\capture-result.json",
+      "bytes": 3361448,
+      "sha256": "526604ee8fa816673d76fd03b5c9d9e6f2137d467077938f6fc994b625396a78"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\coverage.json",
+      "bytes": 3398,
+      "sha256": "b452b2302f8ec2b42779a93d4d0e1258c221409042d546a34ccf07240c1bd803"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\F-1-report.json",
+      "bytes": 2385,
+      "sha256": "241509601e8f7381a3e7f434f7b74225b4be3c445fc57a0cee6183f85f8991a6"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\F-1-result.json",
+      "bytes": 3361448,
+      "sha256": "526604ee8fa816673d76fd03b5c9d9e6f2137d467077938f6fc994b625396a78"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\failure.json",
+      "bytes": 52,
+      "sha256": "5e994a5156cc738114b2f90801fd6de208db8e9afc4f253fad375155afc0ba44"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\freeze.json",
+      "bytes": 32253,
+      "sha256": "196b0350764eb5be094ac7b95b92fbbc56494ea68e6280a5448f6e463a462be2"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\inventory.json",
+      "bytes": 5686,
+      "sha256": "018ba70ac8079ef507b12cb429bad8cd6f814135d9439a3322788e451fb04d72"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\replay-F-1\\external-source.json",
+      "bytes": 3955,
+      "sha256": "9d907ebcf2ee2d37fdc23c8eb0cd6e7165f728762b651ec1f0e3af17c26c334e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\replay-F-1\\prepared.jsonl",
+      "bytes": 1497,
+      "sha256": "ac1bfc50dd0f14814f589fb9213a6ffb0c5f8592e9d0b7e4572cfd13bf1e383e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\replay-F-1\\research.gz",
+      "bytes": 1093836,
+      "sha256": "1ddc2d69c874001c196d3643d9c8f8c792383bf08f412b4494b9f43ddd72fd28"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\replay-F-1\\source.json",
+      "bytes": 89939,
+      "sha256": "456e284c9a54c4040ef109ed44871ebbc9e8d7bc80842ffa1d0b0305c7ac6848"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\replay-F-1\\whole-runtime-offline-v1.jsonl",
+      "bytes": 14339344,
+      "sha256": "ffba69c39a88b81b1685f052546b70f7f73bafaaff0e283e248afaf6f57869e1"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\replay-F-2\\prepared.jsonl",
+      "bytes": 1497,
+      "sha256": "ac1bfc50dd0f14814f589fb9213a6ffb0c5f8592e9d0b7e4572cfd13bf1e383e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\replay-F-2\\research.gz",
+      "bytes": 1091044,
+      "sha256": "34fdf75a742d035390827279175687901da8102b8e3163d8a0f378626436572d"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\replay-F-2\\whole-runtime-offline-v1.jsonl",
+      "bytes": 13750487,
+      "sha256": "d23e4dce7050f7f85ef4ce947077a9f714fb5ba91ebdfdd6f9c88c3deaf0b89f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\tape.gz",
+      "bytes": 3283087,
+      "sha256": "9f79440645e3597ead66de524bc2a8a3ad3b00775c363f303bdd623b3456995a"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\unified-final-01\\tape.sqlite",
+      "bytes": 31727616,
+      "sha256": "3791a46833a55cd93c1c10f869eaf16d1d6361ffdd2a362391535e789add6511"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-01\\capture\\external-source.json",
+      "bytes": 2081,
+      "sha256": "29343f07d3e4204df9e567d032e504b329f9648417e35b6171a652e988bcda6d"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-01\\capture\\prepared.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-01\\capture\\research.gz",
+      "bytes": 8386,
+      "sha256": "145475cf8a945fce1e189e43b2631b5b89c081309646fbfaaeb0852a55114c02"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-01\\capture\\source.json",
+      "bytes": 4401,
+      "sha256": "d62dfa1d5d109dc3e074333edfd5c98615aa3ee8cc14c9f79f2e5d3ea42d11d9"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-01\\capture\\whole-runtime-offline-v1.jsonl",
+      "bytes": 602440,
+      "sha256": "55b6f4b3fd3a3ff2068471f5e5fe362dfaa95d960222d22f1ac84ef37215c784"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-01\\capture-result.json",
+      "bytes": 200632,
+      "sha256": "16f13fb0226e82ce9e7a7ee1b8ca6cde81a358e26182dd5aaf818c84eba9886b"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-01\\freeze.json",
+      "bytes": 30777,
+      "sha256": "bde17a1d2adf6e80139d2c8dd82d94fb7b3ac08d490a305c8e508f165b30cbd4"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-01\\replay-A-0\\prepared.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-01\\replay-A-0\\research.gz",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-01\\replay-A-0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 27409,
+      "sha256": "d7fcade157af1ffb5007938071d833ea167e6b8175eb6862e44afcd4105a52b0"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-01\\replay-A-0-failure.txt",
+      "bytes": 257,
+      "sha256": "d2aec2beeea5dfc63b0f7111c0ad15aef72a4bb4298b489142b413e9da1f4e6d"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-01\\tape.gz",
+      "bytes": 212730,
+      "sha256": "9c7bd0b7297de99e50fceac0aa1dca76b59ab7d28110526741c98be860b3d12a"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\capture\\external-source.json",
+      "bytes": 2081,
+      "sha256": "0429e366c7c97c8199bd0c38a4560061ae9f81c911a809754f69570a07ca8258"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\capture\\prepared.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\capture\\research.gz",
+      "bytes": 8387,
+      "sha256": "33aa73ef09e270bf3baebaccacb448a8c4198a6d6ae907aebc674cdcc755de67"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\capture\\source.json",
+      "bytes": 4401,
+      "sha256": "78f0ae7c991bede50a54544fcf2c0bd5fd5efa56c08e33c0181f1c40d4f8ad2f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\capture\\whole-runtime-offline-v1.jsonl",
+      "bytes": 602673,
+      "sha256": "6dcaf08b954398c455269aefc3cb0e8981cc14fc9cb65666062e1b20e5829092"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\capture-result.json",
+      "bytes": 200777,
+      "sha256": "230e2fd2649ba69ca275ddee9af41c5c25decde249d719ec0b2d650d0d8f5b29"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\freeze.json",
+      "bytes": 30777,
+      "sha256": "488d048d5e29f003bed739dc1685bf0248dcd52e53181631831f46afcd5d9705"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-A-0\\external-source.json",
+      "bytes": 4,
+      "sha256": "a5338d955b09046ec0b16f3a9625b7955c763aae07dc722e474e6078745f932f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-A-0\\prepared.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-A-0\\research.gz",
+      "bytes": 485,
+      "sha256": "8073458f84eb6a483e2a0875736fd11a9c648cf3325a3ea29a755a87c718c15e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-A-0\\source.json",
+      "bytes": 4401,
+      "sha256": "78f0ae7c991bede50a54544fcf2c0bd5fd5efa56c08e33c0181f1c40d4f8ad2f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-A-0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 502797,
+      "sha256": "cdfdab66b3b936a1bf5e15311ef540f98831daa361313e245ad8544f317cb8b8"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-A-0-report.json",
+      "bytes": 1184,
+      "sha256": "8190d1c1196bb4cec1e8984229b5a143e308e259ca98cadb18efa9167e76aa1a"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-A-0-result.json",
+      "bytes": 200741,
+      "sha256": "757d93bab2961f904129de8b489b8b79c58e350e06cc4474ef8133f443c16494"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-B-0\\external-source.json",
+      "bytes": 4,
+      "sha256": "a5338d955b09046ec0b16f3a9625b7955c763aae07dc722e474e6078745f932f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-B-0\\prepared.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-B-0\\research.gz",
+      "bytes": 485,
+      "sha256": "8073458f84eb6a483e2a0875736fd11a9c648cf3325a3ea29a755a87c718c15e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-B-0\\source.json",
+      "bytes": 4401,
+      "sha256": "78f0ae7c991bede50a54544fcf2c0bd5fd5efa56c08e33c0181f1c40d4f8ad2f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-B-0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 502833,
+      "sha256": "db28096fba105ffd8748efcf5638d1358dc36276385fca8def4da0127b19e5f1"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-B-0-report.json",
+      "bytes": 1168,
+      "sha256": "e43d0381b5ee828f759402ee6c8c2690a4f03ace58cb5bf5f29ed0b2a9cb4c76"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-B-0-result.json",
+      "bytes": 200741,
+      "sha256": "757d93bab2961f904129de8b489b8b79c58e350e06cc4474ef8133f443c16494"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-C-0\\external-source.json",
+      "bytes": 2081,
+      "sha256": "0429e366c7c97c8199bd0c38a4560061ae9f81c911a809754f69570a07ca8258"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-C-0\\prepared.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-C-0\\research.gz",
+      "bytes": 5835,
+      "sha256": "2405018e18328cfd9c6bf6a028df8fd8cc87c5b631e7de442da5ea6df88bc4a8"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-C-0\\source.json",
+      "bytes": 4401,
+      "sha256": "78f0ae7c991bede50a54544fcf2c0bd5fd5efa56c08e33c0181f1c40d4f8ad2f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-C-0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 522702,
+      "sha256": "f7879611227913f89d391cbe3720d3b164758447e94fb8f768866507f5c9f4f9"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-C-0-report.json",
+      "bytes": 1151,
+      "sha256": "1f17edeb6f2833d08c67f79d18828ce5a277ca3b3def40177a72652206701eb5"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-C-0-result.json",
+      "bytes": 200778,
+      "sha256": "be07cfd732ac668bdd71694f37836677ce5a61a1963d81685120b2df7a0bb98f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-D-0\\external-source.json",
+      "bytes": 2081,
+      "sha256": "0429e366c7c97c8199bd0c38a4560061ae9f81c911a809754f69570a07ca8258"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-D-0\\prepared.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-D-0\\research.gz",
+      "bytes": 8412,
+      "sha256": "99ea24b9a277ee419e0cc6e1d1159a797ca43a2feae84cc55a744a282544854e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-D-0\\source.json",
+      "bytes": 4401,
+      "sha256": "78f0ae7c991bede50a54544fcf2c0bd5fd5efa56c08e33c0181f1c40d4f8ad2f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-D-0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 553729,
+      "sha256": "ef16e060ac68abd5b9e989ef69cefdb7b28736ce7ec256a45e51b1635ab7b093"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-D-0-report.json",
+      "bytes": 1138,
+      "sha256": "c068e4c38804fdd12651182bd4d75b29b62c267ac62fcede268d1a7aa3cde15c"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-D-0-result.json",
+      "bytes": 200778,
+      "sha256": "31f9e36914b2ff7d3a57908d69b0c6290da24c444f9db2957aaa7f451286df3d"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-E-0\\external-source.json",
+      "bytes": 2081,
+      "sha256": "0429e366c7c97c8199bd0c38a4560061ae9f81c911a809754f69570a07ca8258"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-E-0\\prepared.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-E-0\\research.gz",
+      "bytes": 8208,
+      "sha256": "8726e6d0d966fb2d4176e62390b2a5143aca3764d3378391ecc7b1c51630197a"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-E-0\\source.json",
+      "bytes": 4401,
+      "sha256": "78f0ae7c991bede50a54544fcf2c0bd5fd5efa56c08e33c0181f1c40d4f8ad2f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-E-0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 602810,
+      "sha256": "407a1cc520196be272df87f79d643f0f3bb9b61a61497ea04f32ae070ba23029"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-E-0-report.json",
+      "bytes": 1127,
+      "sha256": "76b93ce78e8fb3e9119fcf293fb418ec0a533a409149af6d969564ffeef307d8"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-E-0-result.json",
+      "bytes": 200778,
+      "sha256": "de7699a72f02107a099c83f42c538e7d7128dd9bae36cbaf0458bab630fadc66"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-F-0\\external-source.json",
+      "bytes": 2081,
+      "sha256": "0429e366c7c97c8199bd0c38a4560061ae9f81c911a809754f69570a07ca8258"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-F-0\\prepared.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-F-0\\research.gz",
+      "bytes": 8208,
+      "sha256": "8726e6d0d966fb2d4176e62390b2a5143aca3764d3378391ecc7b1c51630197a"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-F-0\\source.json",
+      "bytes": 4401,
+      "sha256": "78f0ae7c991bede50a54544fcf2c0bd5fd5efa56c08e33c0181f1c40d4f8ad2f"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-F-0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 602849,
+      "sha256": "df85d03f8e0045d0f7f91e2228fa1ec43440722eeec680627f1c750161e950ba"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-F-0-report.json",
+      "bytes": 1472,
+      "sha256": "a8c248ee98b08fb7005b0874b0152d1850d309f82a98c2b0d36069748ba1cb71"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\replay-F-0-result.json",
+      "bytes": 200777,
+      "sha256": "230e2fd2649ba69ca275ddee9af41c5c25decde249d719ec0b2d650d0d8f5b29"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\variants-fast-03\\tape.gz",
+      "bytes": 211713,
+      "sha256": "2e5bf81db80a63e32a418669a373d2279cd31a0ef2e457f90aae789e40cce03c"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\capture\\prepared.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\capture\\research.gz",
+      "bytes": 6485,
+      "sha256": "a958cdacc1fd52aa6fb19aba3a0fad3d8009556867e2bc4ef517cd5feda6e5c5"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\capture\\source.json",
+      "bytes": 4401,
+      "sha256": "b5138f16a33fc5e12a7700861ada5de5da14032a00f3d1a75a8d51633b678a84"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\capture\\whole-runtime-offline-v1.jsonl",
+      "bytes": 510131,
+      "sha256": "e4a63775e6bc62b7e8fe75d1fe454c8316bbca31952e32264b7b3ebd98b36938"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\capture-result.json",
+      "bytes": 200288,
+      "sha256": "fe5e4cfc5c803cd0366868b568e7a340cbb85e90c1d404d76011e5d128355609"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\freeze.json",
+      "bytes": 30778,
+      "sha256": "cbadfd4c868f52111365f9e8e61ad2c1c4297ddf2c4dc3f3870482dff9e9c0d1"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\replay-0\\prepared.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\replay-0\\research.gz",
+      "bytes": 6313,
+      "sha256": "d466a2902026334676fae2fd8f6bbc6ae4741140e72b4faaa7a95ffaae1c671a"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\replay-0\\source.json",
+      "bytes": 4401,
+      "sha256": "b5138f16a33fc5e12a7700861ada5de5da14032a00f3d1a75a8d51633b678a84"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\replay-0\\whole-runtime-offline-v1.jsonl",
+      "bytes": 510157,
+      "sha256": "d5d7624f57ba36cd2df25612587e1ef48a88b29adfb905b7d4d2972c3b7306b1"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\replay-0-report.json",
+      "bytes": 1471,
+      "sha256": "10eb0e2821f7e85cbabe4a0d7aba3a1d6122df2c88f82a3295cd05ef670cc7ae"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\replay-0-result.json",
+      "bytes": 200288,
+      "sha256": "fe5e4cfc5c803cd0366868b568e7a340cbb85e90c1d404d76011e5d128355609"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\replay-1\\prepared.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\replay-1\\research.gz",
+      "bytes": 6485,
+      "sha256": "a958cdacc1fd52aa6fb19aba3a0fad3d8009556867e2bc4ef517cd5feda6e5c5"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\replay-1\\source.json",
+      "bytes": 4401,
+      "sha256": "b5138f16a33fc5e12a7700861ada5de5da14032a00f3d1a75a8d51633b678a84"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\replay-1\\whole-runtime-offline-v1.jsonl",
+      "bytes": 510197,
+      "sha256": "3a870cd57a4972dac190f2f3fd6bfd8d9583f299aa46a7a6608570b655a55e2a"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\replay-1-report.json",
+      "bytes": 1472,
+      "sha256": "40292601569ada94219fb6da800b4a0a88e7089042ca5c2ca04bfe7354a98bfd"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\replay-1-result.json",
+      "bytes": 200288,
+      "sha256": "fe5e4cfc5c803cd0366868b568e7a340cbb85e90c1d404d76011e5d128355609"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-7\\work\\worker-runtime-01\\tape.gz",
+      "bytes": 186942,
+      "sha256": "162b2d52c354dfd3431c586143ca243660dadb8fad665b84261bd39741c95994"
+    }
+  ]
+}

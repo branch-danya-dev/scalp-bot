@@ -1,0 +1,57 @@
+{
+  "sourceSha256": "7c3134f1f94b790769c8757d93fa6caa5a7e2033f031b660eccc085b9a25a7fc",
+  "ordinaryHashes": {
+    "decision": "8dd0efda932d12487d149a8804f5f5ad4d9b2781c707d75c780852ba59a52814",
+    "admission": "0959145966baa84e5b5393f9888d4aaf91fa4d116f7d18c3c2485a5c2fb4432b",
+    "execution": "62fc12b7c0f6e25552c74eb868f8a0fe5ac61b03d984711c7710281abadce0ce",
+    "portfolio": "f8d3f7286b5f678e0bd5912a25043fdc02b747a947d6dc75cb7e06171304e23b"
+  },
+  "labelSha256": "5d5e21acc2223bc0478ab250e23fbca933b34a196e39f7a19928e796250a9de5",
+  "eventCounts": {
+    "symbol_activated": 1,
+    "scanner_update": 1,
+    "transport_diagnostics": 8,
+    "market_context_changed": 106,
+    "strategy_state_transition": 12,
+    "decision": 12,
+    "scenario_transition": 12,
+    "research_frame": 25,
+    "market_frame": 25,
+    "bot_started": 1,
+    "entry_freshness_changed": 1,
+    "admission_fire": 1,
+    "trade_opened": 1,
+    "setup_consumed": 1,
+    "trade_closed": 1,
+    "run_summary": 1,
+    "bot_stopped": 1
+  },
+  "researchFailure": null,
+  "writer": {
+    "background": false,
+    "queuedRows": 7537,
+    "writtenRows": 7537,
+    "pendingRows": 0,
+    "queueDepth": 0,
+    "queueCapacity": 8192,
+    "droppedRows": 0,
+    "droppedBulkRows": 0,
+    "droppedCriticalRows": 0,
+    "writerError": null
+  },
+  "closedTrades": 1,
+  "prepared": 1,
+  "executableLabels": 1,
+  "labels": [
+    {
+      "identity": "b1ee14b59878c78ddd38926223202fe7f9d8813a1d4c7348654b4d6233b1abb0",
+      "planHash": "c53d26d64a090e04dc7c3e7a7024072ff508d84f1bbc46c37eb21d738764cbc4",
+      "sourcePlanIdentity": "cbab6c554324196f03a6d8ebca65b2cd87c8602ad0b67f2d701a4cae1bf9e199",
+      "executable": true,
+      "censor_reason": null,
+      "exit_reason": "stop",
+      "policyHash": "7629a46a022b04a1a5b8e798c0acb88b476f019e9abdf032add3d7e989af347d"
+    }
+  ],
+  "zeroResidualExposure": true
+}

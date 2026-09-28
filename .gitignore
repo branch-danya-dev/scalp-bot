@@ -29,3 +29,5 @@ data/pr58-*
 
 # Dedicated local Demo secret profile (never captured).
 .env.demo-paper.local
+data/trading-24h-v1/
+data/scalping-active-v1/

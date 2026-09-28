@@ -8,8 +8,13 @@ import re
 from .manifest_schema import PUBLIC_CONFIG_FIELDS, SECRET_CONFIG_FIELDS, LEGACY_PUBLIC_CONFIG_FIELDS, V3_PUBLIC_CONFIG_FIELDS, V4_PUBLIC_CONFIG_FIELDS, V5_PUBLIC_CONFIG_FIELDS
 
 
+# The stdlib encoder has no per-encode mutable state. Reuse the exact canonical
+# settings rather than allocate an encoder for every captured clock observation.
+_CANONICAL_ENCODER = json.JSONEncoder(sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
 def fingerprint(value: object) -> str:
-    raw = json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    raw = _CANONICAL_ENCODER.encode(value)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 

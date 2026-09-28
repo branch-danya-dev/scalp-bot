@@ -15,6 +15,12 @@ def preparation_plan(strategy, scenario, decision, book, candles, structure):
     price = book.executable_entry(action)
     if not price:
         return None
+    # Preparation must use the same causal anchor/budget as the eventual FIRE.
+    # Without an arm event there is no executable preview to manufacture.
+    causal_quality = strategy.causal_trading_quality
+    original = decision.details.get("opportunityTrigger") or decision.details.get("opportunityArm") or {}
+    if causal_quality and (not original.get("price") or not original.get("observedAtMs")):
+        return None
     span = typical_range_abs(candles)
     zone = decision.details.get("zone") or scenario.level
     stop = None
@@ -38,10 +44,21 @@ def preparation_plan(strategy, scenario, decision, book, candles, structure):
     if stop is None:
         return None
     target, _, source = structural_target(price, action,
-        find_liquidity_targets(candles, price, action, min_distance_pct=0, structure=structure),
+        find_liquidity_targets(candles, price, action, min_distance_pct=0, structure=structure,
+            unconsumed_swings_only=causal_quality),
         movement=movement_budget(candles))
+    view = scenario.public()
+    view["preparation"] = None  # Never recursively embed the previous preview plan.
+    details = dict(decision.details) if causal_quality else {}
+    details.update(scenario=view, expectedImpulsePct=movement_budget(candles)/price,
+        targetSource=source, riskScale=.65, preparationOnly=True)
+    if causal_quality:
+        budget = 2 * scenario.range_abs
+        if original.get("expectedImpulsePct"):
+            budget = min(budget, original["price"] * original["expectedImpulsePct"])
+        details.update(opportunityTrigger=dict(price=original["price"],
+            observedAtMs=original["observedAtMs"], expectedImpulsePct=budget/original["price"],
+            source="scenario_prepared_budget"), expectedImpulsePct=budget/original["price"])
     return StrategyDecision(strategy.key, action, ["owner preparation; entry event still required"],
         entry=price, stop=stop, target=target, setup_id=scenario.scenario_id,
-        details={"scenario": scenario.public(),
-                 "expectedImpulsePct":movement_budget(candles)/price, "targetSource":source,
-                 "riskScale":.65, "preparationOnly":True})
+        details=details)

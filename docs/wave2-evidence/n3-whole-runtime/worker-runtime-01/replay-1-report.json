@@ -1,0 +1,44 @@
+{
+  "schema": "whole-runtime-v5-report",
+  "variant": "F",
+  "populationSha256": "c95e337ef26ec0b63ba6b74c293167723440c5949ce7d32771498ba6d1611f8c",
+  "provenance": {
+    "sourceSha256": "39b9cd9104db64ca06edf1f52b967cc890ee34688748d0f38803ef4ae8de8645",
+    "configSha256": "7fcbaa0539984bfbe8bf45b69b4442d697ce244584edf4f4efeaa7403e9b7c43",
+    "runtimeSha256": "985d0d78c69938527e37a534fc04afd97cb0b440a5b47a367bd9bad0e27ae29c",
+    "schemaSha256": "e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c"
+  },
+  "consumed": 2191,
+  "counts": {
+    "task_open": 336,
+    "task_start": 336,
+    "boundary": 577,
+    "clock": 606,
+    "task_end": 336
+  },
+  "excludedOwnedTokens": 0,
+  "excludedModules": [],
+  "leftovers": 0,
+  "accountingComplete": true,
+  "semanticReplay": "MET",
+  "productionCoverage": false,
+  "controlledW20": "NOT_MET",
+  "timingScope": "owned coroutine replay; coordination time is not production incremental cost",
+  "replayIPCReceipts": [
+    {
+      "pid": 15476,
+      "exitCode": 0,
+      "joined": true,
+      "relayJoined": true,
+      "remoteTokensConsumed": 6,
+      "modelHashes": {
+        "model.cbm": "a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2",
+        "manifest.json": "15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3"
+      }
+    }
+  ],
+  "ordinaryParity": true,
+  "sourceParity": true,
+  "labelParity": true,
+  "forecastParity": true
+}

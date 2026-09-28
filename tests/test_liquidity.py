@@ -1,10 +1,29 @@
 from scalp_bot.domain import Action, Candle
-from scalp_bot.strategy.liquidity import find_liquidity_target
+from scalp_bot.strategy.liquidity import find_liquidity_target, find_liquidity_targets
 from scalp_bot.strategy.structure import MarketStructure, StructuralLevel
 
 
 def candle(i: int, o: float, h: float, l: float, c: float) -> Candle:
     return Candle(i * 60_000, o, h, l, c, 100, 10_000)
+
+
+def test_consumed_isolated_swings_are_not_untouched_liquidity_in_trading_profile():
+    for side in (Action.LONG, Action.SHORT):
+        rows = [candle(i, 100, 102 if i == 5 else 103 if i == 15 else 100.1, 99.9, 100)
+                for i in range(30)]
+        if side == Action.SHORT:
+            rows = [candle(i, 100, 200-c.low, 200-c.high, 100) for i, c in enumerate(rows)]
+        entry, old, fresh = (101.5, 102, 103) if side == Action.LONG else (98.5, 98, 97)
+        historical = find_liquidity_targets(rows, entry, side, min_distance_pct=0)
+        assert historical[0].price == old
+        causal = find_liquidity_targets(rows, entry, side, min_distance_pct=0, unconsumed_swings_only=True)
+        assert causal[0].price == fresh
+        # A confirmed structural zone is still an obstacle even if traversed.
+        structure = MarketStructure(levels=[StructuralLevel(kind="resistance" if side == Action.LONG else "support",
+            low=old, high=old, touches=4, timeframe="1m", score=.8)])
+        protected = find_liquidity_targets(rows, entry, side, min_distance_pct=0,
+            unconsumed_swings_only=True, structure=structure)
+        assert protected[0].price == old and protected[0].touches == 4
 
 
 def test_isolated_external_high_can_be_liquidity_target() -> None:

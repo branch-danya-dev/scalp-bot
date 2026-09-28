@@ -1,0 +1,123 @@
+{
+  "summary": {
+    "candidates": 4490,
+    "filledCandidates": 808,
+    "fillRate": 0.1799554565701559,
+    "partialRate": 0.013585746102449888,
+    "captures": {
+      "session-20260928T004746Z.jsonl": 2214,
+      "session-20260928T092647Z.jsonl": 2276
+    },
+    "windows": {
+      "100": {
+        "fragments": 2027,
+        "complete": 2017,
+        "censored": 10,
+        "metrics": {
+          "markoutBps": {
+            "count": 2017,
+            "mean": -3.878453137010184
+          },
+          "grossLiquidationPnl": {
+            "count": 2017,
+            "mean": -0.013557873078830034
+          },
+          "grossSpreadCapture": {
+            "count": 0,
+            "mean": null
+          },
+          "fees": {
+            "count": 2017,
+            "mean": 0.0274281058465073
+          },
+          "netAfterCosts": {
+            "count": 2017,
+            "mean": -0.04464304447194083
+          },
+          "adverseSelection": {
+            "count": 2017,
+            "mean": 0.834407535944472
+          }
+        },
+        "censorReasons": {
+          "markout_window_gap": 10
+        }
+      },
+      "500": {
+        "fragments": 2027,
+        "complete": 2009,
+        "censored": 18,
+        "metrics": {
+          "markoutBps": {
+            "count": 2009,
+            "mean": -5.551257333058479
+          },
+          "grossLiquidationPnl": {
+            "count": 2009,
+            "mean": -0.01882243653558976
+          },
+          "grossSpreadCapture": {
+            "count": 0,
+            "mean": null
+          },
+          "fees": {
+            "count": 2009,
+            "mean": 0.02734946957222912
+          },
+          "netAfterCosts": {
+            "count": 2009,
+            "mean": -0.04981848182658389
+          },
+          "adverseSelection": {
+            "count": 2009,
+            "mean": 0.8770532603285216
+          }
+        },
+        "censorReasons": {
+          "missing_depth": 1,
+          "markout_window_gap": 14,
+          "transport_cancelled": 3
+        }
+      },
+      "1000": {
+        "fragments": 2027,
+        "complete": 2007,
+        "censored": 20,
+        "metrics": {
+          "markoutBps": {
+            "count": 2007,
+            "mean": -4.7249241524834495
+          },
+          "grossLiquidationPnl": {
+            "count": 2007,
+            "mean": -0.016934459392127524
+          },
+          "grossSpreadCapture": {
+            "count": 0,
+            "mean": null
+          },
+          "fees": {
+            "count": 2007,
+            "mean": 0.027367562720032122
+          },
+          "netAfterCosts": {
+            "count": 2007,
+            "mean": -0.04795105494349943
+          },
+          "adverseSelection": {
+            "count": 2007,
+            "mean": 0.8061783756851021
+          }
+        },
+        "censorReasons": {
+          "missing_depth": 1,
+          "markout_window_gap": 16,
+          "transport_cancelled": 3
+        }
+      }
+    },
+    "portfolioPnl": null
+  },
+  "hypothesisStatus": "NO_SUPPORTED_POSITIVE_SEGMENT",
+  "independentValidation": "NOT_TESTED"
+}

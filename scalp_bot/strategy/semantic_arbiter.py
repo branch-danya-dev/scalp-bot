@@ -247,6 +247,7 @@ def assess_structural_path(
     *,
     partial_take_at_r: float = 1.0,
     partial_take_enabled: bool = True,
+    skip_accepted_breakout_level: bool = False,
 ) -> StructuralPathAssessment:
     planned_partial = (
         (decision.details or {}).get(
@@ -330,6 +331,8 @@ def assess_structural_path(
             if (
                 level.high >= entry
                 and _mature_obstacle(level)
+                and not (skip_accepted_breakout_level and decision.strategy == "level_breakout"
+                         and _decision_owns_level(decision, level))
             )
         ]
         obstacle = (
@@ -361,6 +364,8 @@ def assess_structural_path(
             if (
                 level.low <= entry
                 and _mature_obstacle(level)
+                and not (skip_accepted_breakout_level and decision.strategy == "level_breakout"
+                         and _decision_owns_level(decision, level))
             )
         ]
         obstacle = (

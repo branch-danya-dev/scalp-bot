@@ -1,0 +1,69 @@
+{
+  "rows": 488,
+  "above250ms": 8,
+  "p99Item": {
+    "capture": "session-20260928T092647Z.jsonl",
+    "modelCapture": "technical-smoke-v2-shadow",
+    "symbol": "SOLUSDT",
+    "epoch": 2,
+    "sourceSequence": 1670724,
+    "side": "short",
+    "eventId": "m77922",
+    "sourceJoin": "MET",
+    "featureJoin": "MET",
+    "availableNs": 695007369895000,
+    "predictionEndNs": 695007658380000,
+    "adapterReceiveNs": 695007678125700,
+    "adapterEndNs": 695007678138300,
+    "featureReadyNs": 695007385787000,
+    "durationsMs": {
+      "receive_to_parse": 0.0067,
+      "parse_to_callback": 8.3339,
+      "data_to_adapter": 308.2433,
+      "data_to_features": 15.892,
+      "features_to_prediction_end": 272.593,
+      "prediction_end_to_receipt": 19.7457,
+      "adapter": 0.0126
+    },
+    "criticalPathNs": [
+      15892000,
+      272593000,
+      19745700,
+      12600
+    ],
+    "criticalPathExact": true
+  },
+  "maximumItem": {
+    "capture": "session-20260928T092647Z.jsonl",
+    "modelCapture": "technical-smoke-v2-shadow",
+    "symbol": "ONDOUSDT",
+    "epoch": 2,
+    "sourceSequence": 1765629,
+    "side": "short",
+    "eventId": "m82356",
+    "sourceJoin": "MET",
+    "featureJoin": "MET",
+    "availableNs": 695017419214500,
+    "predictionEndNs": 695017761147000,
+    "adapterReceiveNs": 695017796711700,
+    "adapterEndNs": 695017796725300,
+    "featureReadyNs": 695017425413000,
+    "durationsMs": {
+      "receive_to_parse": 0.0018,
+      "parse_to_callback": 2.1662,
+      "data_to_adapter": 377.5108,
+      "data_to_features": 6.1985,
+      "features_to_prediction_end": 335.734,
+      "prediction_end_to_receipt": 35.5647,
+      "adapter": 0.0136
+    },
+    "criticalPathNs": [
+      6198500,
+      335734000,
+      35564700,
+      13600
+    ],
+    "criticalPathExact": true
+  },
+  "scope": "individual contiguous native paths; never sum independent p99 values"
+}

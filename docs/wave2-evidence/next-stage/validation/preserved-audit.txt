@@ -1,0 +1,158 @@
+Checking pr60-natural
+Checking w20-load
+Checking w20-callback
+{
+  "pr60-natural": {
+    "data_to_adapter": {
+      "count": 538,
+      "p50": 50.6907,
+      "p95": 484.6965,
+      "p99": 823.336,
+      "max": 993.3625
+    },
+    "prediction_end_to_adapter_receive": {
+      "count": 538,
+      "p50": 10.7033,
+      "p95": 57.8724,
+      "p99": 75.6455,
+      "max": 265.4352
+    },
+    "adapter": {
+      "count": 538,
+      "p50": 0.0134,
+      "p95": 0.0173,
+      "p99": 0.0186,
+      "max": 0.0534
+    },
+    "data_to_features": {
+      "count": 538,
+      "p50": 10.1605,
+      "p95": 49.1191,
+      "p99": 64.7816,
+      "max": 236.5682
+    },
+    "features_to_prediction_end": {
+      "count": 538,
+      "p50": 26.9266,
+      "p95": 401.179,
+      "p99": 646.3409,
+      "max": 874.0581
+    },
+    "side_long_data_to_adapter": {
+      "count": 269,
+      "p50": 42.2826,
+      "p95": 458.3422,
+      "p99": 681.9901,
+      "max": 933.5783
+    },
+    "side_short_data_to_adapter": {
+      "count": 269,
+      "p50": 57.3423,
+      "p95": 492.9554,
+      "p99": 823.336,
+      "max": 993.3625
+    }
+  },
+  "w20-load": {
+    "data_to_adapter": {
+      "count": 476,
+      "p50": 25.0327,
+      "p95": 85.1382,
+      "p99": 109.0299,
+      "max": 124.6696
+    },
+    "prediction_end_to_adapter_receive": {
+      "count": 476,
+      "p50": 5.8186,
+      "p95": 14.9622,
+      "p99": 28.7188,
+      "max": 91.839
+    },
+    "adapter": {
+      "count": 476,
+      "p50": 0.012,
+      "p95": 0.0168,
+      "p99": 0.0244,
+      "max": 0.0332
+    },
+    "data_to_features": {
+      "count": 476,
+      "p50": 6.1587,
+      "p95": 18.3682,
+      "p99": 31.2566,
+      "max": 69.6099
+    },
+    "features_to_prediction_end": {
+      "count": 476,
+      "p50": 10.3709,
+      "p95": 60.028,
+      "p99": 88.8441,
+      "max": 104.3648
+    },
+    "side_long_data_to_adapter": {
+      "count": 238,
+      "p50": 19.8491,
+      "p95": 77.954,
+      "p99": 97.7363,
+      "max": 115.8486
+    },
+    "side_short_data_to_adapter": {
+      "count": 238,
+      "p50": 28.6923,
+      "p95": 94.3249,
+      "p99": 109.9264,
+      "max": 124.6696
+    }
+  },
+  "w20-callback": {
+    "data_to_adapter": {
+      "count": 488,
+      "p50": 44.6248,
+      "p95": 157.6321,
+      "p99": 308.2433,
+      "max": 377.5108
+    },
+    "prediction_end_to_adapter_receive": {
+      "count": 488,
+      "p50": 6.6515,
+      "p95": 27.0525,
+      "p99": 44.1362,
+      "max": 215.5485
+    },
+    "adapter": {
+      "count": 488,
+      "p50": 0.0137,
+      "p95": 0.0197,
+      "p99": 0.0251,
+      "max": 0.0343
+    },
+    "data_to_features": {
+      "count": 488,
+      "p50": 7.5473,
+      "p95": 27.7819,
+      "p99": 56.3704,
+      "max": 139.5616
+    },
+    "features_to_prediction_end": {
+      "count": 488,
+      "p50": 21.557,
+      "p95": 123.9015,
+      "p99": 244.647,
+      "max": 335.734
+    },
+    "side_long_data_to_adapter": {
+      "count": 244,
+      "p50": 38.6936,
+      "p95": 146.2198,
+      "p99": 235.8052,
+      "max": 341.1837
+    },
+    "side_short_data_to_adapter": {
+      "count": 244,
+      "p50": 50.7184,
+      "p95": 158.09,
+      "p99": 308.2433,
+      "max": 377.5108
+    }
+  }
+}

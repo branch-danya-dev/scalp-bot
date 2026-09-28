@@ -441,6 +441,11 @@ class ScenarioRouter:
         low, high = s.frozen["entryArea"]
         if executable is None or not low<=executable<=high:
             return reject("price left frozen entry area; no chase after risk refusal")
+        if decision.details.get("sweepStopEnabled"):
+            # A further sweep in this same episode widens invalidation only.
+            # Final RiskEngine sizing must account for this real boundary.
+            s.frozen["stop"] = (min(s.frozen["stop"], decision.stop) if s.side == "long"
+                                else max(s.frozen["stop"], decision.stop))
         for key in ("entry","stop","target","watched_level"):
             setattr(decision,key,s.frozen[key])
         decision.setup_id=s.setup_id

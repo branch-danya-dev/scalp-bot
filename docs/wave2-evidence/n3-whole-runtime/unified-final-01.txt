@@ -1,0 +1,102 @@
+{"capture": "MET", "populationSha256": "8592e27eb7fe1b35f1925c80a2a68ba9e2bc4b3fffe39678fdafe262c961d129", "tokens": 43888}
+{"replay": "F-1", "consumed": 43888, "excluded": 0, "parity": true}
+Traceback (most recent call last):
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\input_scope.py", line 56, in scope
+    yield
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\input_scope.py", line 67, in wrapped
+    return await fn(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+GeneratorExit
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 203, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\ml\whole_runtime_acceptance.py", line 214, in <module>
+    main()
+    ~~~~^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\ml\whole_runtime_acceptance.py", line 209, in main
+    result = asyncio.run(execute(args.output,args.model))
+  File "C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 196, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 726, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\ml\native_runtime.py", line 102, in _observe
+    value = await self.coordinator.consume(task,kind,data,
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        producer=producer,clock_method=method)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 312, in consume
+    raise self.poison(exc)
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 307, in consume
+    result = self._consume(payload, clock_method)
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 208, in _consume
+    raise self.failure
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\ml\whole_runtime_acceptance.py", line 170, in execute
+    report = await coordinator.run(replay.run)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 101, in run
+    return await _stackful(awaitable, self.coordinator)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 61, in _stackful
+    result = stack.throw(exc)
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 39, in execute
+    yielded = iterator.throw(error) if error is not None else iterator.send(value)
+              ~~~~~~~~~~~~~~^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 193, in run
+    return await stepped()
+           ^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 128, in _terminal
+    native.end(reason=reason)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 221, in end
+    return self.emit("task_end", dict(reason=reason, outputs={} if outputs is None else outputs))
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 215, in emit
+    return self.endpoint.ring.put([self.endpoint.module_id, self.endpoint.producer,
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.task_id, self.parent_task_id, self.source, kind, data], observation)[0]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 77, in put
+    return self.coordinator.observe(payload, observation[0] if observation is not None else None)
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 256, in observe
+    raise self.poison(exc)
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 248, in observe
+    result = self._consume(payload, method)
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 208, in _consume
+    raise self.failure
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 156, in stepped
+    native.boundary("dispatch_resume", dict(index=serial,
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        outcome=type(error).__name__ if error is not None else "ready"))
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 219, in boundary
+    def boundary(self, name, value=None): return self.emit("boundary", dict(name=name, value={} if value is None else value))
+                                                 ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 215, in emit
+    return self.endpoint.ring.put([self.endpoint.module_id, self.endpoint.producer,
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.task_id, self.parent_task_id, self.source, kind, data], observation)[0]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 77, in put
+    return self.coordinator.observe(payload, observation[0] if observation is not None else None)
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 256, in observe
+    raise self.poison(exc)
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 248, in observe
+    result = self._consume(payload, method)
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 208, in _consume
+    raise self.failure
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 165, in stepped
+    value = yield yielded
+            ^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\whole_runtime_replay.py", line 43, in execute
+    value = host.switch(_Suspension(yielded))
+asyncio.exceptions.CancelledError

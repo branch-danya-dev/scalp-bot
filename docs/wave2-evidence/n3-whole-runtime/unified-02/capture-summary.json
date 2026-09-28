@@ -1,0 +1,75 @@
+{
+  "sourceSha256": "2e81084814b557812271c65766549a698d00ad1160ab9398e268d162929c0fc9",
+  "externalSourceSha256": "b2ebcfd70af3f893e85cbf1b73df78da3a8d0c0d556743c8f7f4bd3a8a1b8913",
+  "externalConnections": {
+    "binance": 3,
+    "okx": 2
+  },
+  "ordinaryHashes": {
+    "decision": "b3ad28e5d60bddac2c07812b338128bb7854f15547a36526bbe7b6bbc9eb0305",
+    "admission": "9d34fad3302328f09eb0ab283d2ebd041460bf8e0d0f8009238486c5bd11b3e7",
+    "execution": "606e472f13b68e82cc35362d46017b46ac2e2870b93e0f94f9b71ea2fa14260b",
+    "portfolio": "dc80c081b29695169e6f705d67b642b77470a50b2ca9e25bd3f826d0f801b09c"
+  },
+  "labelSha256": "0562cc5bc3cea90cf420daf887f7e32ba019a202c9dd6a8e116a423a75b5b729",
+  "eventCounts": {
+    "clock_sync": 2,
+    "symbol_activated": 1,
+    "scanner_update": 1,
+    "transport_diagnostics": 8,
+    "market_context_changed": 105,
+    "strategy_state_transition": 12,
+    "decision": 12,
+    "scenario_transition": 12,
+    "research_frame": 25,
+    "market_frame": 25,
+    "clock_admission_changed": 10,
+    "bot_started": 1,
+    "shadow_features": 4,
+    "pipeline_worker": 8,
+    "shadow_forecast": 8,
+    "entry_freshness_changed": 1,
+    "admission_fire": 1,
+    "trade_opened": 1,
+    "setup_consumed": 1,
+    "trade_closed": 1,
+    "run_summary": 1,
+    "bot_stopped": 1
+  },
+  "researchFailure": null,
+  "writer": {
+    "background": false,
+    "queuedRows": 10041,
+    "writtenRows": 10041,
+    "pendingRows": 0,
+    "queueDepth": 0,
+    "queueCapacity": 8192,
+    "droppedRows": 0,
+    "droppedBulkRows": 0,
+    "droppedCriticalRows": 0,
+    "writerError": null
+  },
+  "probeCounts": {
+    "submitted": 8,
+    "forecasts": 8,
+    "probability_abstention": 8
+  },
+  "forecastSha256": "8211264955019c14491f9257a5394e89daaf7f2f4ca773de831986f5d5387be0",
+  "workerFailure": null,
+  "workerExchangeImported": false,
+  "closedTrades": 1,
+  "prepared": 1,
+  "executableLabels": 1,
+  "labels": [
+    {
+      "identity": "a01e0bf39592ca813d92570c4acdff080ebd541f803d8fa17602bad3c807d9f8",
+      "planHash": "db923e031dd8d4334055898e2beb2ee5d095a39cc96a3af623edade46875697f",
+      "sourcePlanIdentity": "073606fdd05f2311f2e0434bf12f10652f7978b007676e3efc9d8c2bc6e09af9",
+      "executable": true,
+      "censor_reason": null,
+      "exit_reason": "stop",
+      "policyHash": "7629a46a022b04a1a5b8e798c0acb88b476f019e9abdf032add3d7e989af347d"
+    }
+  ],
+  "zeroResidualExposure": true
+}

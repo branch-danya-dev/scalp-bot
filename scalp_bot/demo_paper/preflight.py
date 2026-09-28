@@ -97,6 +97,16 @@ def local_preflight(passport_path,model_dir,output):
         raise SafetyError("V2 artifact/schema mismatch")
     cfg=settings(output)
     clean=cfg.model_dump(mode="json");clean.pop("bybit_api_key");clean.pop("bybit_api_secret")
+    # The historical 1h passport predates the opt-in trading-v1 fields. Verify
+    # they are inert and hash its original schema without rewriting evidence.
+    new_fields = ("trading_quality_enabled", "participation_min_notional_ratio",
+        "participation_min_trade_rate_ratio", "participation_min_volume_pace",
+        "participation_min_response_bps", "countertrend_reaction_budget_fraction",
+        "countertrend_no_follow_through_seconds", "countertrend_failure_seconds", "cross_venue_min_move_bps")
+    for name in new_fields:
+        if clean[name] != Settings.model_fields[name].default:
+            raise SafetyError("historical passport cannot enable trading-v1 policy")
+        clean.pop(name)
     config_hash=digest({k:v for k,v in clean.items() if k not in ("session_dir",)})
     if passport["config_sha256"]!=config_hash:raise SafetyError("frozen profile mismatch")
     return dict(protocol=PROTOCOL,status="LOCAL_PREFLIGHT_ONLY",passport_sha256=digest(passport),

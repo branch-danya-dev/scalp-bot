@@ -1,0 +1,43 @@
+{
+  "baseline": {
+    "rows": 467402,
+    "finalHash": "a2e18972d74d2d3e1b84ff0fd3fd0410059dd58eba24eb0fe1a23d5a6ad26af1",
+    "kinds": {
+      "header": 1,
+      "scope": 62886,
+      "callback": 3793,
+      "clock_read": 364261,
+      "market_message": 25016,
+      "scheduler": 11429,
+      "clock_sample": 4,
+      "rest_context": 6,
+      "bootstrap": 3,
+      "symbol_lifecycle": 3
+    },
+    "hashSequenceChain": "MET",
+    "footer": false,
+    "trainingReady": false,
+    "nativeReplayParity": false
+  },
+  "fixed": {
+    "rows": 467402,
+    "finalHash": "a2e18972d74d2d3e1b84ff0fd3fd0410059dd58eba24eb0fe1a23d5a6ad26af1",
+    "kinds": {
+      "header": 1,
+      "scope": 62886,
+      "callback": 3793,
+      "clock_read": 364261,
+      "market_message": 25016,
+      "scheduler": 11429,
+      "clock_sample": 4,
+      "rest_context": 6,
+      "bootstrap": 3,
+      "symbol_lifecycle": 3
+    },
+    "hashSequenceChain": "MET",
+    "footer": false,
+    "trainingReady": false,
+    "nativeReplayParity": false
+  },
+  "identicalFinalChainHash": true
+}

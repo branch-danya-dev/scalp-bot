@@ -1,0 +1,1642 @@
+{
+  "schema": "wave2-evidence-v1",
+  "baseline": {
+    "source": {
+      "sourceSha256": "feced7f2ce49d673dd9ab08747ebf64dfd60db85f9f57aeaf855a625438c9f91",
+      "fileHashes": {
+        "scalp_bot/__init__.py": "d03eacad88bd7a33d49f0a635660e8241fa832e06a3d288fe742cf46833c1b42",
+        "scalp_bot/activity.py": "7210a1826445cb59d278a722ea7a133d7a0271eb44f8f79ca322cd100c8dedb8",
+        "scalp_bot/admission.py": "9d0a7595677ed8ac37a92c6c65c705293cc38747721251d65505f29760dd53e2",
+        "scalp_bot/analysis_pack.py": "af9e607a96e3fd4a57853df9e317f20263488437f15728b2a86bb081ebe85eed",
+        "scalp_bot/app.py": "02761d1da665081f0236367d7dd003a3a414ecc89b55325d72912dd79fe10b9e",
+        "scalp_bot/bybit.py": "3a8ef3e92d258ddd07e6055ad65777f57ef8aeb3694ea92eae89532ca2e55925",
+        "scalp_bot/capture.py": "e83484d969f7918272cb0da9687f8bc692a2960709da7fe3f8fb523fb349a2ce",
+        "scalp_bot/capture_replay.py": "074ad553b753f90e82ffcd650976764c524e0338135ca9eb0ab890eb064dd4a3",
+        "scalp_bot/config.py": "293ceb49b53f2178a0860dbcc0f53818b5288b69798fa935ec13c5e882c17ac4",
+        "scalp_bot/demo_paper/__init__.py": "02702e8a3b04f1cae207806a204e1fac1ffb8820b35946eeadc470fd9c00e069",
+        "scalp_bot/demo_paper/__main__.py": "821fa18ab26c5920ad3f3716e7fe75cb86c103de769c67d5c3a108b26d8a2893",
+        "scalp_bot/demo_paper/contracts.py": "ff5bbaaaac8e31e28f29410032b6b90eeb1fad1fda97d5cb31cccb07009102b0",
+        "scalp_bot/demo_paper/engine.py": "c321607d0c66c77c7773dc112ac9f2f6f213e7331d6ae049f2c1d4c972a5d9a8",
+        "scalp_bot/demo_paper/ml_adapter.py": "2256117379620a9430adda4a41c072b04dc5210f57a27d50fefc2ebcc9e375f1",
+        "scalp_bot/demo_paper/portfolio.py": "3733be3a065e848b05c5b34a1a4fc9fd054ec30c7b0e46e5d984a656e56ea1d4",
+        "scalp_bot/demo_paper/preflight.py": "edd4500e947480e0d9a0639ebca3d9ca2117fc93deab73f0d185905750176b36",
+        "scalp_bot/demo_paper/report.py": "202f1eb095c56b743c4d03f648e1e4d2daeef9b3c5d89a5afab5fbc21a961fb8",
+        "scalp_bot/demo_paper/runtime.py": "d388588d8ec19c1fe84a1329abe64fadbfad588a6c244770da1a3f148331b611",
+        "scalp_bot/demo_paper/transport.py": "028bcfa4b4c6150c2e30d8fac1a245f76b3b4a9b177b969bc3e75c0a10019d7c",
+        "scalp_bot/demo_paper/venues.py": "8157d673b7c2f54cdba40047cacbbde32253d7e4c1dca7a0622a9c012a608e32",
+        "scalp_bot/domain.py": "d7e88696e91522775b3c7a1c391dd3c3220affb107855f24b7417de1ffad4d31",
+        "scalp_bot/e01_comparison.py": "0543974cd9db151a187c389177c6bab5de75ec28db9999ee0cc78fbf8a7f4248",
+        "scalp_bot/e01_feed.py": "a0f410b2b6d14e46b56cbe3e9a27d638aee4d068e109bee74c254d279aa6de83",
+        "scalp_bot/e01_live.py": "11d7de3497ac7becabe0e0fb06830d0c72db6e4bf0b45957fe5b3480623a1300",
+        "scalp_bot/e06_capture.py": "a377b631ac878d2fa90f2dd87780638aafc165b2fd181616682a9d51b2cc3778",
+        "scalp_bot/economic_calibration.py": "1f72293a0d28cd8c786f90843501cf2aab883ee31582e8e044fba53ce7794ede",
+        "scalp_bot/engine.py": "9c4659f93a8d0cc0e78cf00cffe901eec0217c96c1a2c68bafa3eadce6ab5b82",
+        "scalp_bot/execution.py": "a7dba54da70a91cf7e720f7c33076c0bb3d386a430358c8ff0bdb37e3a339105",
+        "scalp_bot/execution_book.py": "affaaf7a8929077ca7c29dd205b8c30c5fbbda567c16587fea2074d5ff8dde27",
+        "scalp_bot/expectancy.py": "45b19b73087888ef45f0cb258e11202a92ddb0915232cc991b728e91130171a4",
+        "scalp_bot/git_session_export.py": "3562a66357f4fc7c414c85bf6f00883202403b15c21054dbfa6d023aeb781196",
+        "scalp_bot/hindsight_review.py": "881155e64c894f71ff4d9401736bfde7966b807a36c47e2c22ef41fdda13700f",
+        "scalp_bot/input_journal.py": "042c0ac93be5fb4cb53a5d188e9fb3da35594fc53b50b5c9eb7dd4d7dad69a03",
+        "scalp_bot/input_scope.py": "e9d6780d53293998818ce53a1e6483544fb7ae5fdc0a895ebddf37487e37c8f1",
+        "scalp_bot/instrument.py": "baa0dec23dab7765479ff21ec88c780b09593b62d71b42e024eff7276687c25a",
+        "scalp_bot/latency_observability.py": "af438842381a121ea0accfa2178194096beccd2ce7259bc02d95fe8e756325fa",
+        "scalp_bot/long_run_pack.py": "ef7e865f872437446e0c0bcc77b7f5053a144c2aec420b5008a88efb1ca7b6d4",
+        "scalp_bot/manifest_schema.py": "b9a2787886c5d22f0cef2d8faef62ada641fdcaa15538be7e9986387aaff889e",
+        "scalp_bot/manifest_validation.py": "a3fec0b6ed3eae6150e23a80e9d7bda41c36d6f762146cd6a626e4751b6fc1e8",
+        "scalp_bot/market_clock.py": "7d578181249e8f9e777a55c86ee7cb7fb22a1d069339087870f599d69e661f9f",
+        "scalp_bot/market_interaction_review.py": "5bcbc03c386e6f1aab0d1b136ee261c3e25849e240ae50d14c4187091f4aba1f",
+        "scalp_bot/market_runtime.py": "2e86b3068bb65f3d680bcfb0ab1ec2ac010f0ab968e8683bfa3a1b0f9ff6b820",
+        "scalp_bot/ml/__init__.py": "f8e84cafb0793674c0d0069a9c4f3ca3213f23390d0f5c2d0d15f8e79ab32e22",
+        "scalp_bot/ml/__main__.py": "86702260b28fb49e9161ef7a5eb66fa3e9af2c08e5e487b0dde1b3dc8e5c934d",
+        "scalp_bot/ml/arbitration.py": "9267bcfbcdd161e856ab521ee95d082a7cd8a3d4a4a83b5d3d41892c71f1641e",
+        "scalp_bot/ml/capture_context.py": "4b3135cd108eee0a88191eb3d695131c24f697c7b63a7a268cac206a47f09091",
+        "scalp_bot/ml/combine_periods.py": "d24dd795a6cdb640c0ec735075c97ebbf60f79fc91f5945cb6ee5b6df60e23ba",
+        "scalp_bot/ml/context_audit.py": "a06e4e49c32dbc332817d8161ad313797cd8bc2633b96743b38a3d743c468542",
+        "scalp_bot/ml/contracts.py": "20b8aa774f7dc5d3e83018c95b502bc53fea84d2525c054b26c2e4e22a548a84",
+        "scalp_bot/ml/dataset.py": "267e58836c756beeb65305806889f1c8770ae9c60e17faf993c0dd8968a76896",
+        "scalp_bot/ml/diagnostics.py": "ae8ab6fc6154510ead8a061f67e8a81f1ee3d69c0b8956fd7665e10a01fb05c2",
+        "scalp_bot/ml/engine_dataset.py": "020aca312a945c8633428b8a32781df9053a04bce471df6c75630018937eaa0d",
+        "scalp_bot/ml/features.py": "712bf1c8ee851429bd85b16ed729dd1d0c9c8cfd2d2161d1b4f7f98a2eb6eaa2",
+        "scalp_bot/ml/history/__init__.py": "2a6860a47041816f15fe30a75e37788383bce122b2c2c5dcf609adbe5d23f076",
+        "scalp_bot/ml/history/__main__.py": "b992bfa9b385eadbe926f5d374c2f6717a9092e99166bbc48a92ee3da184b10a",
+        "scalp_bot/ml/history/adapters.py": "b7201c9ed7a7ccff0bc4f27c7bd36c7dcb7cad5272650f87140d57dabbba8f66",
+        "scalp_bot/ml/history/alignment.py": "ca546a99c76ea070e8faabe51454cf1151169f09985f44d1cb96429bb31e785d",
+        "scalp_bot/ml/history/book.py": "75d82bee9c234d4aa40bf8b726d0f368be2f7906f1888d2ea93fc8377772ed23",
+        "scalp_bot/ml/history/importer.py": "8db4d1cc467660e8aa70b20fd53cbf972d5af090af1f59777047edfc0de86758",
+        "scalp_bot/ml/history/samples.py": "cd0d263632d14752ead7b17bf7d414a789158b4f5b0f514511b65b868bdbf4ea",
+        "scalp_bot/ml/history/sources.py": "5c1eb7e17352db9b5f6fff99f03e0367deb12acdc749d8834b812a2af880e682",
+        "scalp_bot/ml/learning.py": "35790522eee8bf600c03d63aa59882ca6f89c329dcfc0493c8fa872eefe98b46",
+        "scalp_bot/ml/plan_diagnosis.py": "a5e37e0b1302ba3de645cb127a54747246f06e472be84ca68ee50ce72a1ed8f2",
+        "scalp_bot/ml/plan_paths.py": "03dc0690588c8ee1cac00c8b6bfb513c5a9fc0335d58c2cdb6ede0c2dc1f3df9",
+        "scalp_bot/ml/prepared_dataset.py": "2f3ab0a5bca42d7a47e22d53373784ab42d545a203cc37f1cd420bf61fcdabbe",
+        "scalp_bot/ml/process_stats.py": "55cb308d2a46edac5f4053dfc9a7c7c9ed0b11af601195e421fb0cabe939e419",
+        "scalp_bot/ml/shadow.py": "2a2b192594404a275548f976f711380a564c675e9f80fd8a3ad746157df69ca7",
+        "scalp_bot/ml/worker.py": "9adaec5b4a17794660dbab8c67c2627e3dcd283b21649d338765d6eda93dacef",
+        "scalp_bot/observability.py": "34691a18e3853124908d43add19530791e8468c433a3522d8931c0af20221eca",
+        "scalp_bot/offline_benchmark.py": "62d614904ef9ba1349307f8bdf681c868447454b8b93becd3973864973bf7b4a",
+        "scalp_bot/offline_benchmark_trace.py": "7d823c53d8fde3946ee1e61f65691d9e9e605bb0f01c0c09ea1afc5504b796c3",
+        "scalp_bot/offline_bootstrap.py": "21b62dc8bcf2704fe2de6cf9f2820cf8b3e3d3801a96d44236901ce520d9c18f",
+        "scalp_bot/offline_comparison.py": "23c4bb0b043d30dbabdfe394219c82c9f9644f9d6ef9dee8804db612788871eb",
+        "scalp_bot/offline_index.py": "e3bbcbbfb3398c39d36349fc828c5fd3fca3e2e3704435801e329a563939e22b",
+        "scalp_bot/offline_market_index.py": "bd9c4be92ee65c2b853abbf8e365079937b41406993da6429dbbf6f7563e82e9",
+        "scalp_bot/offline_scheduler.py": "53586cf5483dd679fe40f5ce0e5f96febdc241cd209e1084000435c567ff7afe",
+        "scalp_bot/offline_segment.py": "9ef8302884af94faf1c92d994ca06e9c76bffc53a9f8aa925af0d37bdec48b25",
+        "scalp_bot/offline_study.py": "df4d9152265493f495e0854075848a43fe275cc379449914ec1d72106fff5cd7",
+        "scalp_bot/offline_trade_diagnosis.py": "6a9b8a01a740cc36aaa566c8a1614f7d759edc0c119737fc8d4938ed5e93e6fa",
+        "scalp_bot/offline_transport.py": "15bafda4fbaea59c513dfd57055f3df05ddfd7124b6db856a8251276790ba74c",
+        "scalp_bot/opportunity_review.py": "3900c23cee6a53406731726824e5632a6bbd00d94357b8b6fa6a85647e04329e",
+        "scalp_bot/paper.py": "f4b092b956a8b68b736b3a11ecee25f9f2f72df3a6f9c0d2c192abb2836f2c56",
+        "scalp_bot/parallel_scenarios.py": "db4b4f00330885e0c664ad59ec1d2a82b5e69f4646ad2972a7f262d986d9d2dd",
+        "scalp_bot/performance_matrix.py": "04f490bb29defa1bb7947e26c6204388447ceb5d9a7cc0f721ab9c64735a7aec",
+        "scalp_bot/preflight.py": "70bcd4e1a2c327d180617adfb1ad72e6645b4d2aa3f84dd67ad0c7a1d1bfc172",
+        "scalp_bot/raw_session_archive.py": "bf5def2861b15c0900dcaa195022b2a9d8cfced7da1a0e5eb8f794dac5ef0bb1",
+        "scalp_bot/recorder.py": "3af3b9b1c9b479b5d1eb665dd7596708839c09d99b9027c3ecf36d5e9d208017",
+        "scalp_bot/research.py": "55e9863d238cb5e73441d1e085b29f61582fb1526368b36b06789c35e4272e97",
+        "scalp_bot/research_dataset.py": "f5935d6c7eabaee92036cb3afbe8470be8770df2b02f273fd96ad6b25d43ec62",
+        "scalp_bot/research_policy.py": "f6f661e96e8b82000701e73ac34ecb378f15924da11c1db5ac0ce386bddbf2d2",
+        "scalp_bot/risk.py": "baa387c93c52e5d02bcb3006bfa704476e44eb9f2b118da4c26d34b7ba991f3d",
+        "scalp_bot/run_manifest.py": "d8f413520dde7b1759de40240245c53b6b73ec1f7318d433090a6c94b1a88d5c",
+        "scalp_bot/runtime_clock.py": "0180be929aa96ee3d12061a0954d00045746a0d839d57aa13d9966654d720023",
+        "scalp_bot/scenario.py": "f24f4b2f79cdf40861761fe22e8c8866d875981e85b0fcfc3af6677910db0242",
+        "scalp_bot/scenario_episodes.py": "04d1e182cf1e42954c0d620598bf000e362370cd295fbeee56ca1f728d9d7dbc",
+        "scalp_bot/scenario_identity.py": "14f0d7cfcc7eca07f9f4ce8b39e01309d1f18ba5136e2f16bfb8d33c5e0bfee3",
+        "scalp_bot/scenario_runtime.py": "ddf288d96a245bc1be43717d7a2e494f4cf7e1a9a6369bd6a29e90aa76ff5e33",
+        "scalp_bot/session_validation.py": "9f680b77bc29efbbfa4fde26a3ac58b0c6ab81433a24ba736114e7a8985b8c8e",
+        "scalp_bot/setup_segments.py": "7ad47c51e9956d3895f5d0883c016f14fbdf3eae2f506b1e2a2927b0022be897",
+        "scalp_bot/source_await.py": "4744b8197fdeeb3b4247d86c7aa2d7fa2ef8212afdf12ff741912267d863b986",
+        "scalp_bot/source_failure.py": "17090aa96b985f694b1b8412edab4cae9d2e20943f7183fff9db5367f10ffc84",
+        "scalp_bot/stability_validation.py": "64ce9f403b83e2555b70b40ef4679a4e422a6a7910206bbbd943e1e20bcce651",
+        "scalp_bot/strategies.py": "f2006cd88ce36fe9095e071ec25dc0c2786c3c9468cdaacc85275ca90493e24a",
+        "scalp_bot/strategy/__init__.py": "78a1c72f81e3b663fb2a9b638533305257aeb805b42402d3298e167ae25f0632",
+        "scalp_bot/strategy/base.py": "b72aa2880b537102f81aa36f89eea077fa28706d0fb35d476ac57fe2197d376b",
+        "scalp_bot/strategy/breakout.py": "1243af3f74bcf0772ed27c0b8c7079c6f7dff47dd7fd0aef79ff3378e8a535cb",
+        "scalp_bot/strategy/common.py": "ddb4ca925ab38ae6e68bb749bd5abc87b74753ad17c434fec65f04545f45e3c5",
+        "scalp_bot/strategy/density.py": "b6c33e4cccd13a5b3496d470245854186f07c79a6e86a466963236779ee365b4",
+        "scalp_bot/strategy/flow.py": "2fc7cf0fdc59a1f59b64b971ae5ca73d728912462a156cb806a7055b0313d558",
+        "scalp_bot/strategy/flow_context.py": "674d76947e54d7e73acd1d97300c84287e9ecafd89f7a0a43b500317d43949e8",
+        "scalp_bot/strategy/freshness.py": "a4b8823fa94b6fdfb75d4586e3647e80c7db3b211c969d396586f4a64c0b6ec0",
+        "scalp_bot/strategy/lifecycle.py": "b03bf8b5264ff01c3528d10a622a76079596eb8fd5840b3914ae27d2ca18cf19",
+        "scalp_bot/strategy/liquidity.py": "1d78af5587b27d62524d956abcef4e95b58cb734aa621b20f310fb0584ca9ab0",
+        "scalp_bot/strategy/liquidity_evidence.py": "b1b841a9f84e5e1d08d66763443f9949b3f8ba4145e2be827a61e1a23c8d85a3",
+        "scalp_bot/strategy/market_context.py": "470045f08d1877d488b8df2dc2aff6f9b4ac16352ffed1ad1828446ae80c2198",
+        "scalp_bot/strategy/playbook_context.py": "d3b3387534a022e155324f1c77e57114c8d3432b280e7c61f500e5500de8f341",
+        "scalp_bot/strategy/position_policy.py": "3efd9e3e5190fa40b124933f39ca9deaecbb0c2fd4d381ebddb403bead031a0f",
+        "scalp_bot/strategy/pre_state.py": "8f2119a7bd465a58f6c365f0bdd72b9df882c2ba24f054adf9407093a9eed563",
+        "scalp_bot/strategy/preparation.py": "ccde5fef3de808facf1b076e768d4ccf75caebefa401fe3a4a618ed3fc6f3378",
+        "scalp_bot/strategy/price_action_hypothesis.py": "f61c77847c3347bf59d421eef92dcfd9b4079140abc0350ca8d787df081fa83b",
+        "scalp_bot/strategy/regime.py": "74ff66b4970f8884cab5eae930e38e5f685024131e5536c286a8a08c9f862ff5",
+        "scalp_bot/strategy/rejection_response.py": "6c018c3186ffd1b6458473104d4e313013085a4bdc735ce25d57705a96fcd464",
+        "scalp_bot/strategy/semantic_arbiter.py": "3f33cb2a7e023ec3d29adedbda4a96fd308088562af2739e293a5b610abd9a4f",
+        "scalp_bot/strategy/structure.py": "f465e1ce3573a82f5bddaf1327a1392860a1985a3201c1619bb3d01b799061ff",
+        "scalp_bot/strategy/targets.py": "8ba08b7a4aea71aff6b398680374856c0d3eeb6f1b705c0c7d9dd40aaa50f641",
+        "scalp_bot/strategy/trend_structure.py": "75927f5764c8b3a497265cc5c817af59c9239f2cb6ef82e741fc98cf383771fe",
+        "scalp_bot/strategy/weak_level_rejection.py": "8e6c8cc8b215b7f8f8238386923274785b32415e85c1c1e1f5b31d00517a6f0f",
+        "scalp_bot/strategy_policy.py": "a7be435589e39bdd5bd1331e1fa30164896e3dcf130190653bded1d3fe80bf6d",
+        "pyproject.toml": "8203eeba9b205144d525c52805d80774c638e338e876a6e802a10a2d2c12dead"
+      },
+      "gitHead": "1a2d0f67da0331df7d2d134bffde6f64141c7898",
+      "trackedDirty": false,
+      "scope": "source_on_disk_at_run_start_not_loaded_bytecode"
+    },
+    "startedWall": 1790549621.9885652,
+    "launchedWall": 1790549638.7989697,
+    "endedWall": 1790549940.931576,
+    "seconds": 300,
+    "error": null,
+    "naturalFills": 0,
+    "prepared": 0,
+    "closedTrades": [],
+    "latencyMs": {
+      "event_loop_lateness": {
+        "n": 30784,
+        "p50": 1.9143,
+        "p95": 25.0136,
+        "p99": 64.0391,
+        "max": 316.5756
+      },
+      "receive_to_parse": {
+        "n": 141971,
+        "p50": 0.0036,
+        "p95": 0.018199999999999997,
+        "p99": 0.07200000000000001,
+        "max": 11.300899999999999
+      },
+      "exchange_to_receive": {
+        "n": 141971,
+        "p50": -330.07097244262695,
+        "p95": 9809.01026725769,
+        "p99": 15409.97290611267,
+        "max": 18658.58507156372
+      },
+      "parse_to_processor": {
+        "n": 141971,
+        "p50": 0.0776,
+        "p95": 6.9127,
+        "p99": 30.0335,
+        "max": 255.37349999999998
+      },
+      "capture_market_detach_enqueue": {
+        "n": 141971,
+        "p50": 0.0233,
+        "p95": 0.102,
+        "p99": 0.3403,
+        "max": 7.9096
+      },
+      "processor_to_book": {
+        "n": 100492,
+        "p50": 0.09809999999999999,
+        "p95": 0.4845,
+        "p99": 0.9687,
+        "max": 8.5723
+      },
+      "strategy_function": {
+        "n": 29244,
+        "p50": 0.5814,
+        "p95": 4.0062,
+        "p99": 14.0215,
+        "max": 36.865700000000004
+      },
+      "parse_to_features": {
+        "n": 8390,
+        "p50": 15.7455,
+        "p95": 67.3498,
+        "p99": 90.8759,
+        "max": 314.59
+      },
+      "parse_to_strategy": {
+        "n": 8390,
+        "p50": 15.765500000000001,
+        "p95": 67.37700000000001,
+        "p99": 90.89880000000001,
+        "max": 314.6068
+      },
+      "strategy_evaluation": {
+        "n": 8390,
+        "p50": 1.6766,
+        "p95": 8.4464,
+        "p99": 15.273800000000001,
+        "max": 108.1037
+      },
+      "book_to_features": {
+        "n": 5412,
+        "p50": 12.3433,
+        "p95": 56.5515,
+        "p99": 77.2279,
+        "max": 306.84869999999995
+      },
+      "features": {
+        "n": 267,
+        "p50": 0.0603,
+        "p95": 0.0836,
+        "p99": 0.1568,
+        "max": 0.253
+      },
+      "data_to_features": {
+        "n": 267,
+        "p50": 6.5198,
+        "p95": 56.9131,
+        "p99": 86.7174,
+        "max": 164.8143
+      },
+      "prediction": {
+        "n": 533,
+        "p50": 0.5362,
+        "p95": 0.7361,
+        "p99": 1.0625,
+        "max": 1.2966
+      },
+      "data_to_adapter": {
+        "n": 533,
+        "p50": 50.4836,
+        "p95": 633.6965,
+        "p99": 894.1426,
+        "max": 1057.7569
+      }
+    },
+    "writerHealth": {
+      "background": false,
+      "queuedRows": 19072,
+      "writtenRows": 19072,
+      "pendingRows": 0,
+      "queueDepth": 0,
+      "queueCapacity": 8192,
+      "droppedRows": 0,
+      "droppedBulkRows": 0,
+      "droppedCriticalRows": 0,
+      "writerError": null,
+      "inputWriterError": "input recording queue exceeded its byte limit",
+      "inputAccepted": 663738,
+      "inputWritten": 663738
+    },
+    "researchHealth": null,
+    "integrity": {
+      "schema": "replay-input-v4",
+      "structuralStatus": "incomplete",
+      "parityReady": false,
+      "coverage": "experimental_partial",
+      "missingCoverage": [
+        "offline_replay_parity",
+        "capture_load_validation"
+      ],
+      "captureManifestChecked": true,
+      "policySnapshotChecked": true,
+      "boundRuns": 1,
+      "headerPresent": true,
+      "footerPresent": false,
+      "missingReceiptCount": 0,
+      "counts": {
+        "header": 1,
+        "manifest": 2,
+        "policy_snapshot": 1,
+        "service": 1,
+        "scope": 96574,
+        "source_await": 40,
+        "clock_sample": 9,
+        "clock_read": 499713,
+        "scanner_result": 2,
+        "bootstrap": 9,
+        "symbol_lifecycle": 9,
+        "transport": 36,
+        "market_message": 39485,
+        "callback": 5377,
+        "dispatch": 825,
+        "scheduler": 21639,
+        "control": 1,
+        "context_await": 8,
+        "rest_context": 6
+      },
+      "issues": {},
+      "source": {
+        "file": "session-20260927T225341Z.inputs.jsonl.gz",
+        "snapshotBytes": 64660435,
+        "bytesRead": 327578379,
+        "snapshotSha256": "93f4581050cbd6c899904ba1ce26c065c6f93cbd894de4fff359d11a1d852f40",
+        "compression": "gzip",
+        "hashBasis": "decoded_jsonl"
+      }
+    },
+    "eventCounts": {
+      "clock_sync": 26,
+      "symbol_activated": 10,
+      "clock_admission_changed": 211,
+      "scanner_update": 5,
+      "market_context_changed": 14915,
+      "strategy_state_transition": 697,
+      "decision": 910,
+      "scenario_transition": 67,
+      "bot_started": 1,
+      "run_summary": 1,
+      "bot_stopped": 1
+    },
+    "rawFiles": {
+      "prepared-intents.jsonl": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "result.json": {
+        "bytes": 32987,
+        "sha256": "053db492736c4eace8ce39c1d804be8285d7414790611558a07df88314a3bb06"
+      },
+      "session-20260927T225341Z.inputs.jsonl.gz": {
+        "bytes": 64660435,
+        "sha256": "e74cd466289d9d7411dc7d45020f605f555c912fad419234b36e6ea0021ca607"
+      },
+      "session-20260927T225341Z.jsonl": {
+        "bytes": 144507812,
+        "sha256": "028be8a44f02e2bc20bf274fc8197a9830e1e08ab3628cd675fcf7dc0c056c0a"
+      }
+    },
+    "configHash": "fd4445eea185e4f5c6285d86e82de94e066d32eb92c0289d2b6be91e73b4452c",
+    "runtime": {
+      "python": "3.13.15",
+      "implementation": "CPython",
+      "system": "Windows",
+      "machine": "AMD64",
+      "packages": [
+        {
+          "name": "annotated-doc",
+          "version": "0.0.5"
+        },
+        {
+          "name": "annotated-types",
+          "version": "0.8.0"
+        },
+        {
+          "name": "anyio",
+          "version": "4.15.1"
+        },
+        {
+          "name": "catboost",
+          "version": "1.2.10"
+        },
+        {
+          "name": "certifi",
+          "version": "2026.7.22"
+        },
+        {
+          "name": "charset-normalizer",
+          "version": "3.5.1"
+        },
+        {
+          "name": "click",
+          "version": "8.5.0"
+        },
+        {
+          "name": "cloudpickle",
+          "version": "3.1.2"
+        },
+        {
+          "name": "colorama",
+          "version": "0.4.6"
+        },
+        {
+          "name": "contourpy",
+          "version": "1.4.0"
+        },
+        {
+          "name": "cycler",
+          "version": "0.12.1"
+        },
+        {
+          "name": "fastapi",
+          "version": "0.141.1"
+        },
+        {
+          "name": "fonttools",
+          "version": "4.66.0"
+        },
+        {
+          "name": "googleapis-common-protos",
+          "version": "1.75.3"
+        },
+        {
+          "name": "graphviz",
+          "version": "0.21"
+        },
+        {
+          "name": "h11",
+          "version": "0.16.0"
+        },
+        {
+          "name": "httpcore",
+          "version": "1.0.9"
+        },
+        {
+          "name": "httptools",
+          "version": "0.8.0"
+        },
+        {
+          "name": "httpx",
+          "version": "0.28.1"
+        },
+        {
+          "name": "idna",
+          "version": "3.20"
+        },
+        {
+          "name": "iniconfig",
+          "version": "2.3.0"
+        },
+        {
+          "name": "joblib",
+          "version": "1.6.0"
+        },
+        {
+          "name": "kiwisolver",
+          "version": "1.5.1"
+        },
+        {
+          "name": "matplotlib",
+          "version": "3.11.2"
+        },
+        {
+          "name": "msgspec",
+          "version": "0.21.1"
+        },
+        {
+          "name": "narwhals",
+          "version": "2.26.0"
+        },
+        {
+          "name": "numpy",
+          "version": "2.2.6"
+        },
+        {
+          "name": "opentelemetry-api",
+          "version": "1.44.0"
+        },
+        {
+          "name": "opentelemetry-exporter-otlp-proto-common",
+          "version": "1.44.0"
+        },
+        {
+          "name": "opentelemetry-exporter-otlp-proto-http",
+          "version": "1.44.0"
+        },
+        {
+          "name": "opentelemetry-proto",
+          "version": "1.44.0"
+        },
+        {
+          "name": "opentelemetry-sdk",
+          "version": "1.44.0"
+        },
+        {
+          "name": "opentelemetry-semantic-conventions",
+          "version": "0.65b0"
+        },
+        {
+          "name": "packaging",
+          "version": "26.3"
+        },
+        {
+          "name": "pandas",
+          "version": "3.0.6"
+        },
+        {
+          "name": "pillow",
+          "version": "12.3.0"
+        },
+        {
+          "name": "pip",
+          "version": "26.2.1"
+        },
+        {
+          "name": "plotly",
+          "version": "7.1.0"
+        },
+        {
+          "name": "pluggy",
+          "version": "1.6.0"
+        },
+        {
+          "name": "prometheus_client",
+          "version": "0.26.0"
+        },
+        {
+          "name": "protobuf",
+          "version": "7.36.2"
+        },
+        {
+          "name": "pydantic",
+          "version": "2.13.5"
+        },
+        {
+          "name": "pydantic-settings",
+          "version": "2.15.0"
+        },
+        {
+          "name": "pydantic_core",
+          "version": "2.46.5"
+        },
+        {
+          "name": "Pygments",
+          "version": "2.21.0"
+        },
+        {
+          "name": "pyparsing",
+          "version": "3.3.3"
+        },
+        {
+          "name": "pytest",
+          "version": "8.4.2"
+        },
+        {
+          "name": "pytest-asyncio",
+          "version": "1.4.0"
+        },
+        {
+          "name": "python-dateutil",
+          "version": "2.9.0.post0"
+        },
+        {
+          "name": "python-dotenv",
+          "version": "1.2.3"
+        },
+        {
+          "name": "PyYAML",
+          "version": "6.0.3"
+        },
+        {
+          "name": "requests",
+          "version": "2.34.2"
+        },
+        {
+          "name": "scalp-bot",
+          "version": "0.2.0"
+        },
+        {
+          "name": "scikit-learn",
+          "version": "1.8.0"
+        },
+        {
+          "name": "scipy",
+          "version": "1.18.1"
+        },
+        {
+          "name": "six",
+          "version": "1.17.0"
+        },
+        {
+          "name": "starlette",
+          "version": "1.6.0"
+        },
+        {
+          "name": "threadpoolctl",
+          "version": "3.7.0"
+        },
+        {
+          "name": "typing-inspection",
+          "version": "0.4.4"
+        },
+        {
+          "name": "typing_extensions",
+          "version": "4.16.0"
+        },
+        {
+          "name": "tzdata",
+          "version": "2026.4"
+        },
+        {
+          "name": "urllib3",
+          "version": "2.8.0"
+        },
+        {
+          "name": "uvicorn",
+          "version": "0.53.0"
+        },
+        {
+          "name": "watchfiles",
+          "version": "1.3.0"
+        },
+        {
+          "name": "websockets",
+          "version": "15.0.1"
+        },
+        {
+          "name": "zstandard",
+          "version": "0.25.0"
+        }
+      ]
+    }
+  },
+  "integration": {
+    "source": {
+      "sourceSha256": "5445b6e58e42a66fa9c05793ce27f51ddaea1004249149e19032576f847ad691",
+      "fileHashes": {
+        "scalp_bot/__init__.py": "d03eacad88bd7a33d49f0a635660e8241fa832e06a3d288fe742cf46833c1b42",
+        "scalp_bot/activity.py": "7210a1826445cb59d278a722ea7a133d7a0271eb44f8f79ca322cd100c8dedb8",
+        "scalp_bot/admission.py": "3cedbe3738baeaf2c12a57ea8e60e2eaac12eb8cfe5f42fbad758a0e676e5f68",
+        "scalp_bot/analysis_pack.py": "af9e607a96e3fd4a57853df9e317f20263488437f15728b2a86bb081ebe85eed",
+        "scalp_bot/app.py": "02761d1da665081f0236367d7dd003a3a414ecc89b55325d72912dd79fe10b9e",
+        "scalp_bot/bybit.py": "fc4f73acdbd0638fe12225ed269939cc89b4699906a7abb3f3ffebfd0dcb3cad",
+        "scalp_bot/capture.py": "abd473c3b45cbf19debdd5d471017c1fc546db4dae59a75ffa6c46a0052f84fd",
+        "scalp_bot/capture_replay.py": "074ad553b753f90e82ffcd650976764c524e0338135ca9eb0ab890eb064dd4a3",
+        "scalp_bot/config.py": "6c81126c9482f2881362265b431c5f5c1ed5e7edbad16473885855cb48c8edeb",
+        "scalp_bot/cross_venue.py": "bcf37723c3271f12ba4e13e8b0d922edb6ca074fc65e222fd1770035b45f515f",
+        "scalp_bot/cross_venue_public.py": "837ce896350fd892c1b5a656c99a1a542797ff90bcb60ff15c3619e2c9e7f3c5",
+        "scalp_bot/demo_paper/__init__.py": "02702e8a3b04f1cae207806a204e1fac1ffb8820b35946eeadc470fd9c00e069",
+        "scalp_bot/demo_paper/__main__.py": "821fa18ab26c5920ad3f3716e7fe75cb86c103de769c67d5c3a108b26d8a2893",
+        "scalp_bot/demo_paper/contracts.py": "ff5bbaaaac8e31e28f29410032b6b90eeb1fad1fda97d5cb31cccb07009102b0",
+        "scalp_bot/demo_paper/engine.py": "201f1fae1467b21915e3e0823afee7abc7161a5e94ee1fc406978adc75fab7a7",
+        "scalp_bot/demo_paper/ml_adapter.py": "2256117379620a9430adda4a41c072b04dc5210f57a27d50fefc2ebcc9e375f1",
+        "scalp_bot/demo_paper/portfolio.py": "3733be3a065e848b05c5b34a1a4fc9fd054ec30c7b0e46e5d984a656e56ea1d4",
+        "scalp_bot/demo_paper/preflight.py": "edd4500e947480e0d9a0639ebca3d9ca2117fc93deab73f0d185905750176b36",
+        "scalp_bot/demo_paper/report.py": "202f1eb095c56b743c4d03f648e1e4d2daeef9b3c5d89a5afab5fbc21a961fb8",
+        "scalp_bot/demo_paper/runtime.py": "d388588d8ec19c1fe84a1329abe64fadbfad588a6c244770da1a3f148331b611",
+        "scalp_bot/demo_paper/transport.py": "028bcfa4b4c6150c2e30d8fac1a245f76b3b4a9b177b969bc3e75c0a10019d7c",
+        "scalp_bot/demo_paper/venues.py": "8157d673b7c2f54cdba40047cacbbde32253d7e4c1dca7a0622a9c012a608e32",
+        "scalp_bot/domain.py": "b87157d0c40105438a3846814265a7bf7f0e0a635250d2936e110cd1873aa64d",
+        "scalp_bot/e01_comparison.py": "0543974cd9db151a187c389177c6bab5de75ec28db9999ee0cc78fbf8a7f4248",
+        "scalp_bot/e01_feed.py": "a0f410b2b6d14e46b56cbe3e9a27d638aee4d068e109bee74c254d279aa6de83",
+        "scalp_bot/e01_live.py": "11d7de3497ac7becabe0e0fb06830d0c72db6e4bf0b45957fe5b3480623a1300",
+        "scalp_bot/e06_capture.py": "a377b631ac878d2fa90f2dd87780638aafc165b2fd181616682a9d51b2cc3778",
+        "scalp_bot/economic_calibration.py": "1f72293a0d28cd8c786f90843501cf2aab883ee31582e8e044fba53ce7794ede",
+        "scalp_bot/engine.py": "cf3e4b733692e5b5cfbcd4b681380c77db205be9ef9397138c91e604ef03efb1",
+        "scalp_bot/execution.py": "a7dba54da70a91cf7e720f7c33076c0bb3d386a430358c8ff0bdb37e3a339105",
+        "scalp_bot/execution_book.py": "affaaf7a8929077ca7c29dd205b8c30c5fbbda567c16587fea2074d5ff8dde27",
+        "scalp_bot/expectancy.py": "6df05b5706426b082a96781278d33a679ccb55cba2f1320ddf8f9de55ef0d99b",
+        "scalp_bot/experiment_controller.py": "f2689fa15aa82cc0ea17ba8e19f61d1ea78922cb2a0ec9b60e94fe0b0782a614",
+        "scalp_bot/git_session_export.py": "3562a66357f4fc7c414c85bf6f00883202403b15c21054dbfa6d023aeb781196",
+        "scalp_bot/hindsight_review.py": "881155e64c894f71ff4d9401736bfde7966b807a36c47e2c22ef41fdda13700f",
+        "scalp_bot/input_journal.py": "c68980559f0fc12ac7f063b49260f6ea92b0cb8019a47fcec45ea3f65fe4e2b3",
+        "scalp_bot/input_scope.py": "e9d6780d53293998818ce53a1e6483544fb7ae5fdc0a895ebddf37487e37c8f1",
+        "scalp_bot/instrument.py": "baa0dec23dab7765479ff21ec88c780b09593b62d71b42e024eff7276687c25a",
+        "scalp_bot/latency_observability.py": "af438842381a121ea0accfa2178194096beccd2ce7259bc02d95fe8e756325fa",
+        "scalp_bot/long_run_pack.py": "ef7e865f872437446e0c0bcc77b7f5053a144c2aec420b5008a88efb1ca7b6d4",
+        "scalp_bot/maker_shadow.py": "236b43e32c7fe5188115da68f2795c9a8caea1e88cea201adfdb06abb9bc07cd",
+        "scalp_bot/manifest_schema.py": "5085a568beddf8ba2bc4a8f0e6c88ae93e9f5bc91e545f9cb625115204d82dc5",
+        "scalp_bot/manifest_validation.py": "878f30a4cbd2a68aee09b456472a9f6db764ba8f9aba206c5f54fb59918d10f5",
+        "scalp_bot/market_clock.py": "7d578181249e8f9e777a55c86ee7cb7fb22a1d069339087870f599d69e661f9f",
+        "scalp_bot/market_interaction_review.py": "5bcbc03c386e6f1aab0d1b136ee261c3e25849e240ae50d14c4187091f4aba1f",
+        "scalp_bot/market_runtime.py": "5f339833df3351c277d42c628c0e9c98a659a9c7216539c64a2860a805a2e781",
+        "scalp_bot/ml/__init__.py": "f8e84cafb0793674c0d0069a9c4f3ca3213f23390d0f5c2d0d15f8e79ab32e22",
+        "scalp_bot/ml/__main__.py": "86702260b28fb49e9161ef7a5eb66fa3e9af2c08e5e487b0dde1b3dc8e5c934d",
+        "scalp_bot/ml/arbitration.py": "9267bcfbcdd161e856ab521ee95d082a7cd8a3d4a4a83b5d3d41892c71f1641e",
+        "scalp_bot/ml/capture_context.py": "4b3135cd108eee0a88191eb3d695131c24f697c7b63a7a268cac206a47f09091",
+        "scalp_bot/ml/combine_periods.py": "d24dd795a6cdb640c0ec735075c97ebbf60f79fc91f5945cb6ee5b6df60e23ba",
+        "scalp_bot/ml/context_audit.py": "a06e4e49c32dbc332817d8161ad313797cd8bc2633b96743b38a3d743c468542",
+        "scalp_bot/ml/contracts.py": "20b8aa774f7dc5d3e83018c95b502bc53fea84d2525c054b26c2e4e22a548a84",
+        "scalp_bot/ml/cross_venue_study.py": "e61e606fa56d655a180b7c4ad11d9e872ff93097c7011fbdc7f17418b4e7c9ea",
+        "scalp_bot/ml/dataset.py": "267e58836c756beeb65305806889f1c8770ae9c60e17faf993c0dd8968a76896",
+        "scalp_bot/ml/diagnostics.py": "ae8ab6fc6154510ead8a061f67e8a81f1ee3d69c0b8956fd7665e10a01fb05c2",
+        "scalp_bot/ml/engine_dataset.py": "020aca312a945c8633428b8a32781df9053a04bce471df6c75630018937eaa0d",
+        "scalp_bot/ml/features.py": "712bf1c8ee851429bd85b16ed729dd1d0c9c8cfd2d2161d1b4f7f98a2eb6eaa2",
+        "scalp_bot/ml/history/__init__.py": "2a6860a47041816f15fe30a75e37788383bce122b2c2c5dcf609adbe5d23f076",
+        "scalp_bot/ml/history/__main__.py": "b992bfa9b385eadbe926f5d374c2f6717a9092e99166bbc48a92ee3da184b10a",
+        "scalp_bot/ml/history/adapters.py": "b7201c9ed7a7ccff0bc4f27c7bd36c7dcb7cad5272650f87140d57dabbba8f66",
+        "scalp_bot/ml/history/alignment.py": "ca546a99c76ea070e8faabe51454cf1151169f09985f44d1cb96429bb31e785d",
+        "scalp_bot/ml/history/book.py": "75d82bee9c234d4aa40bf8b726d0f368be2f7906f1888d2ea93fc8377772ed23",
+        "scalp_bot/ml/history/importer.py": "8db4d1cc467660e8aa70b20fd53cbf972d5af090af1f59777047edfc0de86758",
+        "scalp_bot/ml/history/samples.py": "cd0d263632d14752ead7b17bf7d414a789158b4f5b0f514511b65b868bdbf4ea",
+        "scalp_bot/ml/history/sources.py": "5c1eb7e17352db9b5f6fff99f03e0367deb12acdc749d8834b812a2af880e682",
+        "scalp_bot/ml/learning.py": "35790522eee8bf600c03d63aa59882ca6f89c329dcfc0493c8fa872eefe98b46",
+        "scalp_bot/ml/plan_diagnosis.py": "a5e37e0b1302ba3de645cb127a54747246f06e472be84ca68ee50ce72a1ed8f2",
+        "scalp_bot/ml/plan_paths.py": "03dc0690588c8ee1cac00c8b6bfb513c5a9fc0335d58c2cdb6ede0c2dc1f3df9",
+        "scalp_bot/ml/prepared_adapter.py": "332d3c6d42957415a7107080e759934133ff8ef75756612c3b2de34536d4e624",
+        "scalp_bot/ml/prepared_dataset.py": "a7fa5dafec473010e91e66a554fb35fad036a1ef1e4476650a28baca91936159",
+        "scalp_bot/ml/prepared_labels.py": "af22e9fa704b4a92ec9da3e124c7f7b44b867728e2cae77364142505ce44849d",
+        "scalp_bot/ml/prepared_learning.py": "e4a84d37ea9bc4edbb4c492bf0ccc769e6b95881ac705b1916f8e52366bfa51f",
+        "scalp_bot/ml/process_stats.py": "55cb308d2a46edac5f4053dfc9a7c7c9ed0b11af601195e421fb0cabe939e419",
+        "scalp_bot/ml/shadow.py": "2a2b192594404a275548f976f711380a564c675e9f80fd8a3ad746157df69ca7",
+        "scalp_bot/ml/wave2.py": "15b1aa711ada2f65463eb7838e58f0905403351dcfa90eff408731a71b962d48",
+        "scalp_bot/ml/wave2_replay.py": "d5fa55e3be84563ef9b9e538e36e8affd1473e5ff711b0fbba7ecbb205673dcc",
+        "scalp_bot/ml/worker.py": "2cdd4348a9fb4a4a9e8c3c4c0bcf504dab1fcdba23d9575c22ec171b2f11fc38",
+        "scalp_bot/observability.py": "34691a18e3853124908d43add19530791e8468c433a3522d8931c0af20221eca",
+        "scalp_bot/offline_benchmark.py": "0b6c88af43062d92a08e3fa4e272f95dcb14c43356624ca73982041ad83de460",
+        "scalp_bot/offline_benchmark_trace.py": "7d823c53d8fde3946ee1e61f65691d9e9e605bb0f01c0c09ea1afc5504b796c3",
+        "scalp_bot/offline_bootstrap.py": "c0537b698bb032b0d233ad4f5df1fdc49d64ed86fe41657871a68a080112f309",
+        "scalp_bot/offline_comparison.py": "23c4bb0b043d30dbabdfe394219c82c9f9644f9d6ef9dee8804db612788871eb",
+        "scalp_bot/offline_index.py": "e3bbcbbfb3398c39d36349fc828c5fd3fca3e2e3704435801e329a563939e22b",
+        "scalp_bot/offline_market_index.py": "bd9c4be92ee65c2b853abbf8e365079937b41406993da6429dbbf6f7563e82e9",
+        "scalp_bot/offline_scheduler.py": "59482640fd6e779b33207318ab83984b11deba50fd978cb326784836883b2952",
+        "scalp_bot/offline_segment.py": "9ef8302884af94faf1c92d994ca06e9c76bffc53a9f8aa925af0d37bdec48b25",
+        "scalp_bot/offline_study.py": "df4d9152265493f495e0854075848a43fe275cc379449914ec1d72106fff5cd7",
+        "scalp_bot/offline_trade_diagnosis.py": "6a9b8a01a740cc36aaa566c8a1614f7d759edc0c119737fc8d4938ed5e93e6fa",
+        "scalp_bot/offline_transport.py": "15bafda4fbaea59c513dfd57055f3df05ddfd7124b6db856a8251276790ba74c",
+        "scalp_bot/opportunity_review.py": "3900c23cee6a53406731726824e5632a6bbd00d94357b8b6fa6a85647e04329e",
+        "scalp_bot/paper.py": "f4b092b956a8b68b736b3a11ecee25f9f2f72df3a6f9c0d2c192abb2836f2c56",
+        "scalp_bot/parallel_scenarios.py": "db4b4f00330885e0c664ad59ec1d2a82b5e69f4646ad2972a7f262d986d9d2dd",
+        "scalp_bot/performance_matrix.py": "04f490bb29defa1bb7947e26c6204388447ceb5d9a7cc0f721ab9c64735a7aec",
+        "scalp_bot/preflight.py": "70bcd4e1a2c327d180617adfb1ad72e6645b4d2aa3f84dd67ad0c7a1d1bfc172",
+        "scalp_bot/raw_session_archive.py": "bf5def2861b15c0900dcaa195022b2a9d8cfced7da1a0e5eb8f794dac5ef0bb1",
+        "scalp_bot/recorder.py": "70f2d9914042fe1bf431a9ad4dcaef2b8d6f79a2299f235a4b13571789365f54",
+        "scalp_bot/research.py": "55e9863d238cb5e73441d1e085b29f61582fb1526368b36b06789c35e4272e97",
+        "scalp_bot/research_dataset.py": "f5935d6c7eabaee92036cb3afbe8470be8770df2b02f273fd96ad6b25d43ec62",
+        "scalp_bot/research_journal.py": "ce950e541b8ae202aec11985db0bbfa6ad09e6f48319fdf735143e86d51469d0",
+        "scalp_bot/research_policy.py": "f6f661e96e8b82000701e73ac34ecb378f15924da11c1db5ac0ce386bddbf2d2",
+        "scalp_bot/risk.py": "baa387c93c52e5d02bcb3006bfa704476e44eb9f2b118da4c26d34b7ba991f3d",
+        "scalp_bot/run_manifest.py": "ab9b283b836a08ab3998140d0fadaba1a2c1ebf327a6df2efd1250539a861391",
+        "scalp_bot/runtime_clock.py": "0180be929aa96ee3d12061a0954d00045746a0d839d57aa13d9966654d720023",
+        "scalp_bot/scenario.py": "fde0d0416e98ac4a88ba7b105fa1db27392d84c1486068638047192aaa4dbdb3",
+        "scalp_bot/scenario_episodes.py": "04d1e182cf1e42954c0d620598bf000e362370cd295fbeee56ca1f728d9d7dbc",
+        "scalp_bot/scenario_identity.py": "14f0d7cfcc7eca07f9f4ce8b39e01309d1f18ba5136e2f16bfb8d33c5e0bfee3",
+        "scalp_bot/scenario_runtime.py": "8bd631fc15c22ad7e2e7bf1198d558135a7cf7417fd53f4c69a1035bcd891c64",
+        "scalp_bot/segment_registry.py": "9f60ddf028f1a656f9036f2ae5a828bf659a6772c9ba8e6e7aa944bebe68479e",
+        "scalp_bot/session_validation.py": "9f680b77bc29efbbfa4fde26a3ac58b0c6ab81433a24ba736114e7a8985b8c8e",
+        "scalp_bot/setup_segments.py": "7435bf6a49fe9bc551bde5e9b34262f531cbc1d4e1192eba4961e7e942da151b",
+        "scalp_bot/source_await.py": "4744b8197fdeeb3b4247d86c7aa2d7fa2ef8212afdf12ff741912267d863b986",
+        "scalp_bot/source_failure.py": "17090aa96b985f694b1b8412edab4cae9d2e20943f7183fff9db5367f10ffc84",
+        "scalp_bot/stability_validation.py": "64ce9f403b83e2555b70b40ef4679a4e422a6a7910206bbbd943e1e20bcce651",
+        "scalp_bot/strategies.py": "f2006cd88ce36fe9095e071ec25dc0c2786c3c9468cdaacc85275ca90493e24a",
+        "scalp_bot/strategy/__init__.py": "78a1c72f81e3b663fb2a9b638533305257aeb805b42402d3298e167ae25f0632",
+        "scalp_bot/strategy/base.py": "b72aa2880b537102f81aa36f89eea077fa28706d0fb35d476ac57fe2197d376b",
+        "scalp_bot/strategy/breakout.py": "b5e8a4e37426bc37a38e42b19d8c7f8ba08b04718e92b6712c98e723e8970f44",
+        "scalp_bot/strategy/common.py": "ddb4ca925ab38ae6e68bb749bd5abc87b74753ad17c434fec65f04545f45e3c5",
+        "scalp_bot/strategy/density.py": "b6c33e4cccd13a5b3496d470245854186f07c79a6e86a466963236779ee365b4",
+        "scalp_bot/strategy/flow.py": "2fc7cf0fdc59a1f59b64b971ae5ca73d728912462a156cb806a7055b0313d558",
+        "scalp_bot/strategy/flow_context.py": "674d76947e54d7e73acd1d97300c84287e9ecafd89f7a0a43b500317d43949e8",
+        "scalp_bot/strategy/freshness.py": "a4b8823fa94b6fdfb75d4586e3647e80c7db3b211c969d396586f4a64c0b6ec0",
+        "scalp_bot/strategy/lifecycle.py": "b03bf8b5264ff01c3528d10a622a76079596eb8fd5840b3914ae27d2ca18cf19",
+        "scalp_bot/strategy/liquidity.py": "1d78af5587b27d62524d956abcef4e95b58cb734aa621b20f310fb0584ca9ab0",
+        "scalp_bot/strategy/liquidity_evidence.py": "b1b841a9f84e5e1d08d66763443f9949b3f8ba4145e2be827a61e1a23c8d85a3",
+        "scalp_bot/strategy/market_context.py": "470045f08d1877d488b8df2dc2aff6f9b4ac16352ffed1ad1828446ae80c2198",
+        "scalp_bot/strategy/playbook_context.py": "daa3abca32949404ed003c157567517a8fdb33741b7958b7f37a2aec612a6fc5",
+        "scalp_bot/strategy/position_policy.py": "3efd9e3e5190fa40b124933f39ca9deaecbb0c2fd4d381ebddb403bead031a0f",
+        "scalp_bot/strategy/pre_state.py": "8f2119a7bd465a58f6c365f0bdd72b9df882c2ba24f054adf9407093a9eed563",
+        "scalp_bot/strategy/preparation.py": "ccde5fef3de808facf1b076e768d4ccf75caebefa401fe3a4a618ed3fc6f3378",
+        "scalp_bot/strategy/price_action_hypothesis.py": "f61c77847c3347bf59d421eef92dcfd9b4079140abc0350ca8d787df081fa83b",
+        "scalp_bot/strategy/regime.py": "74ff66b4970f8884cab5eae930e38e5f685024131e5536c286a8a08c9f862ff5",
+        "scalp_bot/strategy/rejection_response.py": "6c018c3186ffd1b6458473104d4e313013085a4bdc735ce25d57705a96fcd464",
+        "scalp_bot/strategy/semantic_arbiter.py": "3f33cb2a7e023ec3d29adedbda4a96fd308088562af2739e293a5b610abd9a4f",
+        "scalp_bot/strategy/structure.py": "f465e1ce3573a82f5bddaf1327a1392860a1985a3201c1619bb3d01b799061ff",
+        "scalp_bot/strategy/targets.py": "8ba08b7a4aea71aff6b398680374856c0d3eeb6f1b705c0c7d9dd40aaa50f641",
+        "scalp_bot/strategy/trend_structure.py": "75927f5764c8b3a497265cc5c817af59c9239f2cb6ef82e741fc98cf383771fe",
+        "scalp_bot/strategy/weak_level_rejection.py": "b29cb9105a5d757b37764df96f68261477fefbc1889b4b54f7c3d3783ac19172",
+        "scalp_bot/strategy_policy.py": "a7be435589e39bdd5bd1331e1fa30164896e3dcf130190653bded1d3fe80bf6d",
+        "pyproject.toml": "8203eeba9b205144d525c52805d80774c638e338e876a6e802a10a2d2c12dead"
+      },
+      "gitHead": "56c2583c6eef6a4d872f3eb21a6299c9ee511ae4",
+      "trackedDirty": false,
+      "scope": "source_on_disk_at_run_start_not_loaded_bytecode"
+    },
+    "startedWall": 1790551854.6472151,
+    "launchedWall": 1790551871.8632529,
+    "endedWall": 1790551935.9941812,
+    "seconds": 60,
+    "error": null,
+    "naturalFills": 0,
+    "prepared": 0,
+    "closedTrades": [],
+    "latencyMs": {
+      "event_loop_lateness": {
+        "n": 9248,
+        "p50": 2.1875,
+        "p95": 10.4669,
+        "p99": 12.9586,
+        "max": 155.1164
+      },
+      "receive_to_parse": {
+        "n": 16932,
+        "p50": 0.0045000000000000005,
+        "p95": 0.0183,
+        "p99": 0.0592,
+        "max": 1.7049999999999998
+      },
+      "exchange_to_receive": {
+        "n": 16932,
+        "p50": -360.4695796966553,
+        "p95": -345.5164432525635,
+        "p99": -291.6138172149658,
+        "max": 3196.564197540283
+      },
+      "parse_to_processor": {
+        "n": 16932,
+        "p50": 0.06559999999999999,
+        "p95": 0.9002,
+        "p99": 5.7311000000000005,
+        "max": 25.9302
+      },
+      "capture_market_detach_enqueue": {
+        "n": 16932,
+        "p50": 0.0334,
+        "p95": 0.1018,
+        "p99": 0.2735,
+        "max": 24.8375
+      },
+      "processor_to_book": {
+        "n": 15198,
+        "p50": 0.1252,
+        "p95": 0.49549999999999994,
+        "p99": 0.8066,
+        "max": 25.4429
+      },
+      "strategy_function": {
+        "n": 5852,
+        "p50": 0.2529,
+        "p95": 1.132,
+        "p99": 1.6925,
+        "max": 10.2986
+      },
+      "parse_to_features": {
+        "n": 1349,
+        "p50": 7.5949,
+        "p95": 44.871500000000005,
+        "p99": 50.134,
+        "max": 187.4673
+      },
+      "book_to_features": {
+        "n": 1068,
+        "p50": 10.6545,
+        "p95": 44.8416,
+        "p99": 49.978500000000004,
+        "max": 187.2537
+      },
+      "parse_to_strategy": {
+        "n": 1349,
+        "p50": 7.6304,
+        "p95": 44.9002,
+        "p99": 50.162600000000005,
+        "max": 187.4991
+      },
+      "strategy_evaluation": {
+        "n": 1349,
+        "p50": 2.5924,
+        "p95": 4.1156,
+        "p99": 6.939,
+        "max": 10.6823
+      },
+      "features": {
+        "n": 42,
+        "p50": 0.0629,
+        "p95": 0.0899,
+        "p99": 0.1037,
+        "max": 0.1111
+      },
+      "data_to_features": {
+        "n": 42,
+        "p50": 6.3341,
+        "p95": 20.8281,
+        "p99": 35.303,
+        "max": 188.8165
+      },
+      "prediction": {
+        "n": 84,
+        "p50": 0.5149,
+        "p95": 0.7529,
+        "p99": 0.9179,
+        "max": 1.5713
+      },
+      "data_to_adapter": {
+        "n": 84,
+        "p50": 31.3189,
+        "p95": 118.8569,
+        "p99": 224.7352,
+        "max": 236.6595
+      }
+    },
+    "writerHealth": {
+      "background": false,
+      "queuedRows": 3046,
+      "writtenRows": 3046,
+      "pendingRows": 0,
+      "queueDepth": 0,
+      "queueCapacity": 8192,
+      "droppedRows": 0,
+      "droppedBulkRows": 0,
+      "droppedCriticalRows": 0,
+      "writerError": null,
+      "inputWriterError": null,
+      "inputAccepted": 327573,
+      "inputWritten": 327573
+    },
+    "researchHealth": {
+      "failure": null,
+      "writer": {
+        "error": null,
+        "accepted": 34849,
+        "written": 34849,
+        "pendingBytes": 0,
+        "complete": true
+      },
+      "mode": "shadow_only"
+    },
+    "integrity": {
+      "schema": "replay-input-v4",
+      "structuralStatus": "checks_passed",
+      "parityReady": false,
+      "coverage": "experimental_partial",
+      "missingCoverage": [
+        "offline_replay_parity",
+        "capture_load_validation"
+      ],
+      "captureManifestChecked": true,
+      "policySnapshotChecked": true,
+      "boundRuns": 1,
+      "headerPresent": true,
+      "footerPresent": true,
+      "missingReceiptCount": 0,
+      "counts": {
+        "header": 1,
+        "manifest": 2,
+        "policy_snapshot": 1,
+        "service": 2,
+        "scope": 41794,
+        "source_await": 28,
+        "clock_sample": 6,
+        "clock_read": 259331,
+        "scanner_result": 1,
+        "bootstrap": 6,
+        "symbol_lifecycle": 6,
+        "transport": 48,
+        "market_message": 16932,
+        "callback": 2543,
+        "dispatch": 516,
+        "scheduler": 6344,
+        "control": 2,
+        "context_await": 8,
+        "run_end": 1,
+        "footer": 1
+      },
+      "issues": {},
+      "source": {
+        "file": "session-20260927T233053Z.inputs.jsonl.gz",
+        "snapshotBytes": 30558657,
+        "bytesRead": 156997587,
+        "snapshotSha256": "004fe5d9a7e34beccee9cadd50cf04f390bd539ac1e0eb85aef7dd35e46e0569",
+        "compression": "gzip",
+        "hashBasis": "decoded_jsonl"
+      }
+    },
+    "eventCounts": {
+      "clock_sync": 6,
+      "symbol_activated": 6,
+      "clock_admission_changed": 25,
+      "scanner_update": 1,
+      "market_context_changed": 2271,
+      "strategy_state_transition": 133,
+      "decision": 188,
+      "scenario_transition": 30,
+      "bot_started": 1,
+      "run_summary": 1,
+      "bot_stopped": 1
+    },
+    "rawFiles": {
+      "prepared-intents.jsonl": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "result.json": {
+        "bytes": 34599,
+        "sha256": "b9e892d8801696227449eee4709f28deedcaa6572a4b3d531414bb74719b8ad9"
+      },
+      "session-20260927T233053Z.inputs.jsonl.gz": {
+        "bytes": 30558657,
+        "sha256": "bbdc71d3ec5d363de0d24ae999ac435175f54cff67fdd413b6613a9af6109fc4"
+      },
+      "session-20260927T233053Z.jsonl": {
+        "bytes": 21806007,
+        "sha256": "2ee8f8e3b4fe0045cdd23edd265e67b20a116094107df4018c8a727b285f32ba"
+      },
+      "wave2-research.jsonl.gz": {
+        "bytes": 4941863,
+        "sha256": "3acf08f47324314ad7d59db1fb550a7983e41f86d2cbd6437a1c2a2ad7a5f4f8"
+      }
+    },
+    "configHash": "56d205362c71968f35d08847c0727662cd3b5ae4873830722933c6d11fab14fd",
+    "runtime": {
+      "python": "3.13.15",
+      "implementation": "CPython",
+      "system": "Windows",
+      "machine": "AMD64",
+      "packages": [
+        {
+          "name": "annotated-doc",
+          "version": "0.0.5"
+        },
+        {
+          "name": "annotated-types",
+          "version": "0.8.0"
+        },
+        {
+          "name": "anyio",
+          "version": "4.15.1"
+        },
+        {
+          "name": "catboost",
+          "version": "1.2.10"
+        },
+        {
+          "name": "certifi",
+          "version": "2026.7.22"
+        },
+        {
+          "name": "charset-normalizer",
+          "version": "3.5.1"
+        },
+        {
+          "name": "click",
+          "version": "8.5.0"
+        },
+        {
+          "name": "cloudpickle",
+          "version": "3.1.2"
+        },
+        {
+          "name": "colorama",
+          "version": "0.4.6"
+        },
+        {
+          "name": "contourpy",
+          "version": "1.4.0"
+        },
+        {
+          "name": "cycler",
+          "version": "0.12.1"
+        },
+        {
+          "name": "fastapi",
+          "version": "0.141.1"
+        },
+        {
+          "name": "fonttools",
+          "version": "4.66.0"
+        },
+        {
+          "name": "googleapis-common-protos",
+          "version": "1.75.3"
+        },
+        {
+          "name": "graphviz",
+          "version": "0.21"
+        },
+        {
+          "name": "h11",
+          "version": "0.16.0"
+        },
+        {
+          "name": "httpcore",
+          "version": "1.0.9"
+        },
+        {
+          "name": "httptools",
+          "version": "0.8.0"
+        },
+        {
+          "name": "httpx",
+          "version": "0.28.1"
+        },
+        {
+          "name": "idna",
+          "version": "3.20"
+        },
+        {
+          "name": "iniconfig",
+          "version": "2.3.0"
+        },
+        {
+          "name": "joblib",
+          "version": "1.6.0"
+        },
+        {
+          "name": "kiwisolver",
+          "version": "1.5.1"
+        },
+        {
+          "name": "matplotlib",
+          "version": "3.11.2"
+        },
+        {
+          "name": "msgspec",
+          "version": "0.21.1"
+        },
+        {
+          "name": "narwhals",
+          "version": "2.26.0"
+        },
+        {
+          "name": "numpy",
+          "version": "2.2.6"
+        },
+        {
+          "name": "opentelemetry-api",
+          "version": "1.44.0"
+        },
+        {
+          "name": "opentelemetry-exporter-otlp-proto-common",
+          "version": "1.44.0"
+        },
+        {
+          "name": "opentelemetry-exporter-otlp-proto-http",
+          "version": "1.44.0"
+        },
+        {
+          "name": "opentelemetry-proto",
+          "version": "1.44.0"
+        },
+        {
+          "name": "opentelemetry-sdk",
+          "version": "1.44.0"
+        },
+        {
+          "name": "opentelemetry-semantic-conventions",
+          "version": "0.65b0"
+        },
+        {
+          "name": "packaging",
+          "version": "26.3"
+        },
+        {
+          "name": "pandas",
+          "version": "3.0.6"
+        },
+        {
+          "name": "pillow",
+          "version": "12.3.0"
+        },
+        {
+          "name": "pip",
+          "version": "26.2.1"
+        },
+        {
+          "name": "plotly",
+          "version": "7.1.0"
+        },
+        {
+          "name": "pluggy",
+          "version": "1.6.0"
+        },
+        {
+          "name": "prometheus_client",
+          "version": "0.26.0"
+        },
+        {
+          "name": "protobuf",
+          "version": "7.36.2"
+        },
+        {
+          "name": "pydantic",
+          "version": "2.13.5"
+        },
+        {
+          "name": "pydantic-settings",
+          "version": "2.15.0"
+        },
+        {
+          "name": "pydantic_core",
+          "version": "2.46.5"
+        },
+        {
+          "name": "Pygments",
+          "version": "2.21.0"
+        },
+        {
+          "name": "pyparsing",
+          "version": "3.3.3"
+        },
+        {
+          "name": "pytest",
+          "version": "8.4.2"
+        },
+        {
+          "name": "pytest-asyncio",
+          "version": "1.4.0"
+        },
+        {
+          "name": "python-dateutil",
+          "version": "2.9.0.post0"
+        },
+        {
+          "name": "python-dotenv",
+          "version": "1.2.3"
+        },
+        {
+          "name": "PyYAML",
+          "version": "6.0.3"
+        },
+        {
+          "name": "requests",
+          "version": "2.34.2"
+        },
+        {
+          "name": "scalp-bot",
+          "version": "0.2.0"
+        },
+        {
+          "name": "scikit-learn",
+          "version": "1.8.0"
+        },
+        {
+          "name": "scipy",
+          "version": "1.18.1"
+        },
+        {
+          "name": "six",
+          "version": "1.17.0"
+        },
+        {
+          "name": "starlette",
+          "version": "1.6.0"
+        },
+        {
+          "name": "threadpoolctl",
+          "version": "3.7.0"
+        },
+        {
+          "name": "typing-inspection",
+          "version": "0.4.4"
+        },
+        {
+          "name": "typing_extensions",
+          "version": "4.16.0"
+        },
+        {
+          "name": "tzdata",
+          "version": "2026.4"
+        },
+        {
+          "name": "urllib3",
+          "version": "2.8.0"
+        },
+        {
+          "name": "uvicorn",
+          "version": "0.53.0"
+        },
+        {
+          "name": "watchfiles",
+          "version": "1.3.0"
+        },
+        {
+          "name": "websockets",
+          "version": "15.0.1"
+        },
+        {
+          "name": "zstandard",
+          "version": "0.25.0"
+        }
+      ]
+    }
+  },
+  "maker": {
+    "candidates": 377,
+    "candidatesWithAnyFill": 64,
+    "fullyFilled": 59,
+    "fillFragments": 133,
+    "symbols": {
+      "QNTUSDT": 64,
+      "NEARUSDT": 65,
+      "ZECUSDT": 63,
+      "SOLUSDT": 63,
+      "BTCUSDT": 62,
+      "XRPUSDT": 60
+    },
+    "cancelReasons": {
+      "ttl": 305,
+      "null": 58,
+      "missing_depth": 2,
+      "transport_cancelled": 12
+    },
+    "markouts": {
+      "100": {
+        "observations": 133,
+        "complete": 133,
+        "censored": {},
+        "meanNetUsd": -0.053827372243083545,
+        "meanMarkoutBps": -3.533692886178174,
+        "adverseFraction": 0.7969924812030075
+      },
+      "500": {
+        "observations": 133,
+        "complete": 133,
+        "censored": {},
+        "meanNetUsd": -0.06176446894673849,
+        "meanMarkoutBps": -6.672614002086665,
+        "adverseFraction": 0.7969924812030075
+      },
+      "1000": {
+        "observations": 132,
+        "complete": 131,
+        "censored": {
+          "markout_window_gap": 1
+        },
+        "meanNetUsd": -0.057100721921140817,
+        "meanMarkoutBps": -5.152690525966549,
+        "adverseFraction": 0.732824427480916
+      }
+    },
+    "portfolioPnl": null,
+    "promotionAuthorized": false,
+    "scope": "single 60s development capture; virtual queue model, not independent positive edge"
+  },
+  "externalGaps": {
+    "connecting": 12,
+    "transport_connecting": 12,
+    "transport_cancelled": 12,
+    "cancelled": 12
+  },
+  "crossVenueProbe": {
+    "counts": {
+      "header": 1,
+      "venue_instruments": 2,
+      "venue_gap": 8,
+      "venue_raw": 720,
+      "venue_event": 716,
+      "footer": 1
+    },
+    "errors": [
+      {
+        "venue": "binance",
+        "symbol": "ETHUSDT",
+        "epoch": 1,
+        "reason": "connecting"
+      },
+      {
+        "venue": "okx",
+        "symbol": "ETHUSDT",
+        "epoch": 1,
+        "reason": "connecting"
+      },
+      {
+        "venue": "okx",
+        "symbol": "BTCUSDT",
+        "epoch": 1,
+        "reason": "connecting"
+      },
+      {
+        "venue": "binance",
+        "symbol": "BTCUSDT",
+        "epoch": 1,
+        "reason": "connecting"
+      },
+      {
+        "venue": "okx",
+        "symbol": "ETHUSDT",
+        "epoch": 1,
+        "reason": "cancelled"
+      },
+      {
+        "venue": "okx",
+        "symbol": "BTCUSDT",
+        "epoch": 1,
+        "reason": "cancelled"
+      },
+      {
+        "venue": "binance",
+        "symbol": "ETHUSDT",
+        "epoch": 1,
+        "reason": "cancelled"
+      },
+      {
+        "venue": "binance",
+        "symbol": "BTCUSDT",
+        "epoch": 1,
+        "reason": "cancelled"
+      }
+    ],
+    "snapshots": [
+      {
+        "schema": "cross-venue-v1",
+        "captureId": "public-probe",
+        "asOfMonoNs": 658934320369900,
+        "symbol": "BTCUSDT",
+        "venues": {
+          "bybit": {
+            "available": false,
+            "reason": "missing"
+          },
+          "binance": {
+            "available": true,
+            "reason": "available",
+            "mid": 84375.25,
+            "ageMs": 13.3309,
+            "returnsBps": {
+              "500": 0.6637457901037536,
+              "1000": 1.6239625753677878
+            },
+            "baselineSequences": {
+              "500": 11673690555532,
+              "1000": 11673690422334
+            },
+            "source": {
+              "capture_id": "public-probe",
+              "venue": "binance",
+              "symbol": "BTCUSDT",
+              "epoch": 1,
+              "kind": "quote",
+              "exchange_ms": 1790551766342,
+              "receipt_wall_ms": 1790551766021,
+              "receipt_mono_ns": 658934307039000,
+              "processing_mono_ns": 658934307057300,
+              "sequence": 11673690685849,
+              "bid": 84375.2,
+              "ask": 84375.3,
+              "bid_qty": 19.38,
+              "ask_qty": 0.818,
+              "price": 0,
+              "quantity": 0,
+              "side": "",
+              "units_verified": true,
+              "previous_sequence": 11673690659991
+            },
+            "clockQuality": {
+              "receiptMinusExchangeMs": -321,
+              "exchangeClockAligned": false,
+              "windowDomain": "local_processing_availability"
+            },
+            "ofiUsd": 4143701.0012999997,
+            "ofiScope": "best_level_snapshot_proxy",
+            "tradeImpulse": null,
+            "tradeVolumeUsd": null
+          },
+          "okx": {
+            "available": true,
+            "reason": "available",
+            "mid": 84385.05,
+            "ageMs": 48.0601,
+            "returnsBps": {
+              "500": 0.0,
+              "1000": 1.766027439800144
+            },
+            "baselineSequences": {
+              "500": 342372129144,
+              "1000": 342372119485
+            },
+            "source": {
+              "capture_id": "public-probe",
+              "venue": "okx",
+              "symbol": "BTCUSDT",
+              "epoch": 1,
+              "kind": "quote",
+              "exchange_ms": 1790551766308,
+              "receipt_wall_ms": 1790551765986,
+              "receipt_mono_ns": 658934272309800,
+              "processing_mono_ns": 658934272323400,
+              "sequence": 342372131542,
+              "bid": 84385.0,
+              "ask": 84385.1,
+              "bid_qty": 7.9765999999999995,
+              "ask_qty": 0.22870000000000001,
+              "price": 0,
+              "quantity": 0,
+              "side": "",
+              "units_verified": true,
+              "previous_sequence": null
+            },
+            "clockQuality": {
+              "receiptMinusExchangeMs": -322,
+              "exchangeClockAligned": false,
+              "windowDomain": "local_processing_availability"
+            },
+            "ofiUsd": 1186390.88732,
+            "ofiScope": "best_level_snapshot_proxy",
+            "tradeImpulse": 0.18753632847780138,
+            "tradeVolumeUsd": 155522.24018
+          }
+        },
+        "coverage": 2,
+        "consensusDirection": 1,
+        "consensusStrength": 0.5,
+        "divergenceBps": {
+          "binance": null,
+          "okx": null
+        },
+        "leaderVenue": "binance",
+        "leaderMoveBps": 0.6637457901037536,
+        "leaderAgeMs": 13.3309,
+        "leaderMeaning": "largest_observed_500ms_move_not_exchange_lead_lag",
+        "ofiConsensus": 1.0,
+        "tradeImpulseConsensus": 1.0,
+        "disagreement": false,
+        "mode": "telemetry_only"
+      },
+      {
+        "schema": "cross-venue-v1",
+        "captureId": "public-probe",
+        "asOfMonoNs": 658934320527100,
+        "symbol": "ETHUSDT",
+        "venues": {
+          "bybit": {
+            "available": false,
+            "reason": "missing"
+          },
+          "binance": {
+            "available": true,
+            "reason": "available",
+            "mid": 2684.575,
+            "ageMs": 70.5478,
+            "returnsBps": {
+              "500": 1.3039145377158334,
+              "1000": 2.1236920199463327
+            },
+            "baselineSequences": {
+              "500": 11673690543231,
+              "1000": 11673690417260
+            },
+            "source": {
+              "capture_id": "public-probe",
+              "venue": "binance",
+              "symbol": "ETHUSDT",
+              "epoch": 1,
+              "kind": "quote",
+              "exchange_ms": 1790551766286,
+              "receipt_wall_ms": 1790551765964,
+              "receipt_mono_ns": 658934249979300,
+              "processing_mono_ns": 658934249997600,
+              "sequence": 11673690675740,
+              "bid": 2684.57,
+              "ask": 2684.58,
+              "bid_qty": 122.047,
+              "ask_qty": 22.969,
+              "price": 0,
+              "quantity": 0,
+              "side": "",
+              "units_verified": true,
+              "previous_sequence": 11673690630932
+            },
+            "clockQuality": {
+              "receiptMinusExchangeMs": -322,
+              "exchangeClockAligned": false,
+              "windowDomain": "local_processing_availability"
+            },
+            "ofiUsd": 2448900.8978599994,
+            "ofiScope": "best_level_snapshot_proxy",
+            "tradeImpulse": null,
+            "tradeVolumeUsd": null
+          },
+          "okx": {
+            "available": true,
+            "reason": "available",
+            "mid": 2684.755,
+            "ageMs": 55.767,
+            "returnsBps": {
+              "500": 1.4901158751357002,
+              "1000": 3.0924858183434267
+            },
+            "baselineSequences": {
+              "500": 340417290316,
+              "1000": 340417285305
+            },
+            "source": {
+              "capture_id": "public-probe",
+              "venue": "okx",
+              "symbol": "ETHUSDT",
+              "epoch": 1,
+              "kind": "quote",
+              "exchange_ms": 1790551766302,
+              "receipt_wall_ms": 1790551765978,
+              "receipt_mono_ns": 658934264760100,
+              "processing_mono_ns": 658934264773400,
+              "sequence": 340417293991,
+              "bid": 2684.75,
+              "ask": 2684.76,
+              "bid_qty": 54.167,
+              "ask_qty": 75.64500000000001,
+              "price": 0,
+              "quantity": 0,
+              "side": "",
+              "units_verified": true,
+              "previous_sequence": null
+            },
+            "clockQuality": {
+              "receiptMinusExchangeMs": -324,
+              "exchangeClockAligned": false,
+              "windowDomain": "local_processing_availability"
+            },
+            "ofiUsd": 583573.50728,
+            "ofiScope": "best_level_snapshot_proxy",
+            "tradeImpulse": 0.860100922268449,
+            "tradeVolumeUsd": 81654.27439
+          }
+        },
+        "coverage": 2,
+        "consensusDirection": 1,
+        "consensusStrength": 1.0,
+        "divergenceBps": {
+          "binance": null,
+          "okx": null
+        },
+        "leaderVenue": "okx",
+        "leaderMoveBps": 1.4901158751357002,
+        "leaderAgeMs": 55.767,
+        "leaderMeaning": "largest_observed_500ms_move_not_exchange_lead_lag",
+        "ofiConsensus": 1.0,
+        "tradeImpulseConsensus": 1.0,
+        "disagreement": false,
+        "mode": "telemetry_only"
+      }
+    ],
+    "writer": {
+      "error": null,
+      "accepted": 1448,
+      "written": 1448,
+      "pendingBytes": 0,
+      "complete": true
+    }
+  },
+  "gates": {
+    "W20": "NOT_MET: baseline writer overflow, latency fail, zero fills",
+    "W21": "SHADOW_IMPLEMENTED; no valid lifecycle sample population yet",
+    "W22": "PUBLIC_CAPTURE_AND_CONTEXT_REPLAY_CHECKED; no trading influence",
+    "W23": "INCONCLUSIVE: no causal prepared observations in W2 capture",
+    "W24": "SHADOW_IMPLEMENTED; single short development capture, no promotion evidence",
+    "W25": "PIPELINE_AND_CONTRACTS_IMPLEMENTED; trained V3/untouched test/native label replay missing",
+    "W26": "BLOCKED_INDEPENDENT_MAKER_ECONOMICS",
+    "W27": "BLOCKED_DETERMINISTIC_MAKER_BASELINE",
+    "W28": "BLOCKED_INDEPENDENT_SEGMENT_EVIDENCE",
+    "W29": "CONTROLLER_CONTRACT_TESTED; live paired adapter/model/30-60m technical run missing"
+  },
+  "launch8hAuthorized": false,
+  "mainChanged": false,
+  "demoOrMainnetOrders": 0,
+  "sourceNote": "Capture source commits are frozen. Later offline/control fixes have separate source hashes; no unrecorded replay or restart."
+}

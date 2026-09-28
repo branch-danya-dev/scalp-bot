@@ -1,0 +1,65 @@
+{
+  "files": [
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\child-fixture-01\\freeze.json",
+      "bytes": 30611,
+      "sha256": "8888c4a9cc46509fad35e6f2875ee18e175c7886f86c5b32ac70f28fc5d3d39b"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\child-fixture-01\\native-v5.gz",
+      "bytes": 45506,
+      "sha256": "a65127441e4f2bcb4dd54a599e2271952f903d3f2997ceef95cbd955f2a31ad6"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\child-fixture-01\\report.json",
+      "bytes": 23460,
+      "sha256": "d745895d4e1f5362675fe9eda0e52bddd85eede3e903096721512207733d0e01"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\child-fixture-final\\freeze.json",
+      "bytes": 30611,
+      "sha256": "69c6fe75558f8f88a4f4ae5724d8e03f282f97ff17b08b37b2a263156cfb1440"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\child-fixture-final\\native-v5.gz",
+      "bytes": 44927,
+      "sha256": "b39894ef3148450c340cac780528aaac562481ad7690903c4e4ec1fc3980f247"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\child-fixture-final\\report.json",
+      "bytes": 23461,
+      "sha256": "687c3df2b424dc9f9b0d2c8cf7f7bca2e33963e51ffcc3027e7e469e09359134"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\child-fixture-source-final\\freeze.json",
+      "bytes": 30612,
+      "sha256": "37ea08ad76be13ebff256acf5ebd36d8d3d8bd7ae5cfd843d5b26be14d406b6e"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\child-fixture-source-final\\native-v5.gz",
+      "bytes": 44885,
+      "sha256": "c2a8fa742d70cc23aae270a5e690eab8a39466bf730f1f4431f4bb8cb45fe007"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\child-fixture-source-final\\report.json",
+      "bytes": 23461,
+      "sha256": "7a514f34cbe94dc72e804105c0efd49b7b38680c0dba4f99d4e22212128a5c41"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\child-fixture-model-bound\\freeze.json",
+      "bytes": 30612,
+      "sha256": "4c7dcbb73b53a087fd4687f2383709545433d393e7c86fa98f4083ebe34064e9"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\child-fixture-model-bound\\native-v5.gz",
+      "bytes": 45267,
+      "sha256": "bf9c956c09d9f6cd6cb3a0f641acbbfc5338506dff98ceea5cb7f6aace773e18"
+    },
+    {
+      "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\child-fixture-model-bound\\report.json",
+      "bytes": 24390,
+      "sha256": "562299faffb2ec4f7d4ca3114deed9a742ae73dfebb3b29f97d2e8f7505ec136"
+    }
+  ],
+  "sha256": "12d219489eda72c6732587682bb55712b21bbe419694566e9ae6f91845cc29cb"
+}

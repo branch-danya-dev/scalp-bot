@@ -23,6 +23,13 @@ class SegmentMismatch(RuntimeError):
     pass
 
 
+class ReplayDivergence(SegmentMismatch):
+    """The first causal mismatch, retained even when scope cleanup also fails."""
+    def __init__(self, message, receipt):
+        super().__init__(message)
+        self.receipt = receipt
+
+
 ROOT_INPUTS = {'bootstrap_apply': {'bootstrap'}, 'rest_context_apply': {'rest_context'},
                'start_request': {'control'}, 'toggle_strategy': {'control'}, 'stop': {'control'},
                'scan': {'scanner_result'},
@@ -58,14 +65,30 @@ class _Cursor:
         self.rows = rows
         self.index = 0
         self.scopes = None
+        self.first_error = None
+
+    def _mismatch(self, actual):
+        if self.first_error is None:
+            row = self.rows[self.index] if self.index < len(self.rows) else None
+            expected = None if row is None else {k: row[k] for k in ('kind', 'symbol')}
+            if row is not None:
+                expected['body'] = (deepcopy(row['body']) if row['kind'] in ('scope', 'clock_read', 'scheduler')
+                                    else {'sha256': fingerprint(row['body'])})
+            sequence = row['sequence'] if row is not None else None
+            self.first_error = ReplayDivergence(
+                f'input mismatch at sequence {sequence}: expected {expected}, actual {actual}',
+                dict(sequence=sequence, index=self.index, expected=expected, actual=actual))
+        raise self.first_error
 
     @property
     def sequence(self):
         return self.peek()["sequence"] - 1
 
     def peek(self):
+        if self.first_error is not None:
+            raise self.first_error
         if self.index >= len(self.rows):
-            raise SegmentMismatch("unexpected call after segment end")
+            self._mismatch({'kind': 'read_after_end'})
         return self.rows[self.index]
 
     def close(self):
@@ -75,14 +98,17 @@ class _Cursor:
     def append(self, kind, symbol, body):
         row = self.peek()
         if (kind, symbol, body) != (row['kind'], row['symbol'], row['body']):
-            raise SegmentMismatch(f"input mismatch at sequence {row['sequence']}: {kind}")
+            self._mismatch(dict(kind=kind, symbol=symbol, bodySha256=fingerprint(body)))
         self.index += 1
 
     def read(self, method):
         row = self.peek()
-        if row['kind'] != 'clock_read':
-            raise SegmentMismatch(f"unexpected clock call at sequence {row['sequence']}")
-        value = getattr(ClockTape([row['body']]), method)()
+        if row['kind'] != 'clock_read' or row['body'].get('method') != method:
+            self._mismatch(dict(kind='clock_read', method=method))
+        try:
+            value = getattr(ClockTape([row['body']]), method)()
+        except ValueError:
+            self._mismatch(dict(kind='clock_read', method=method, error='invalid_clock_value'))
         self.append('clock_read', None, dict(method=method, value=value,
                     scopeId=self.scopes.current.get()))
         return value

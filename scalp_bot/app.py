@@ -3,22 +3,19 @@ from __future__ import annotations
 import asyncio
 import os
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from prometheus_client import make_asgi_app
 
 from .config import settings
 from .engine import TradingEngine
 from .capture import from_environment
+from .ui import mount_trading_ui
 
 
 capture = from_environment(settings, os.environ)
 engine = capture.engine if capture is not None else TradingEngine(settings)
-STATIC_DIR = Path(__file__).parent / "static"
 
 
 @asynccontextmanager
@@ -40,7 +37,6 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Scalp Bot", version="0.2.0", lifespan=lifespan)
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 if settings.prometheus_enabled:
     app.mount("/metrics", make_asgi_app())
 
@@ -49,17 +45,6 @@ class ToggleBody(BaseModel):
     enabled: bool
 
 
-@app.get("/")
-async def index() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
-
-
-@app.get("/replay")
-async def replay() -> FileResponse:
-    return FileResponse(STATIC_DIR / "replay.html")
-
-
-@app.get("/api/state")
 async def state(symbol: str | None = Query(default=None)) -> dict:
     result = capture.state(symbol) if capture is not None else engine.public_state(symbol)
     if capture is not None:
@@ -67,81 +52,7 @@ async def state(symbol: str | None = Query(default=None)) -> dict:
     return result
 
 
-@app.get("/api/replay/sessions")
-async def replay_sessions() -> dict:
-    sessions = await asyncio.to_thread(
-        engine.recorder.list_sessions
-    )
-    return {"sessions": sessions}
-
-
-@app.get("/api/reviews/opportunities")
-async def opportunity_analysis(
-    session: str | None = Query(default=None),
-    horizon: float = Query(default=120.0, ge=10.0, le=900.0),
-) -> dict:
-    try:
-        return await asyncio.to_thread(
-            engine.recorder.opportunity_analysis,
-            session,
-            horizon_seconds=horizon,
-        )
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail="Session not found") from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail="Invalid session name") from exc
-
-
-@app.get("/api/reviews/trades")
-async def trade_review_summaries(
-    session: str | None = Query(default=None),
-) -> dict:
-    try:
-        reviews = await asyncio.to_thread(
-            engine.recorder.trade_review_summaries,
-            session,
-        )
-        return {
-            "session": session or engine.recorder.path.name,
-            "reviews": reviews,
-        }
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail="Session not found") from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail="Invalid session name") from exc
-
-
-@app.get("/api/reviews/trades/{review_id}")
-async def trade_review(
-    review_id: str,
-    session: str | None = Query(default=None),
-) -> dict:
-    try:
-        return await asyncio.to_thread(
-            engine.recorder.trade_review,
-            review_id,
-            session,
-        )
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail="Trade review not found") from exc
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail="Session not found") from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail="Invalid session name") from exc
-
-
-@app.get("/api/replay/session/{name}")
-async def replay_session(name: str, symbol: str | None = Query(default=None)) -> dict:
-    try:
-        return await asyncio.to_thread(
-            engine.recorder.replay_bundle,
-            name,
-            symbol,
-        )
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail="Session not found") from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail="Invalid session name") from exc
+mount_trading_ui(app, lambda: engine, state)
 
 
 @app.post("/api/bot/start")

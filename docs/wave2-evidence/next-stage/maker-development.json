@@ -1,0 +1,4333 @@
+{
+  "schema": "maker-segment-development-v1",
+  "summary": {
+    "candidates": 4490,
+    "filledCandidates": 808,
+    "fillRate": 0.1799554565701559,
+    "partialRate": 0.013585746102449888,
+    "captures": {
+      "session-20260928T004746Z.jsonl": 2214,
+      "session-20260928T092647Z.jsonl": 2276
+    },
+    "windows": {
+      "100": {
+        "fragments": 2027,
+        "complete": 2017,
+        "censored": 10,
+        "metrics": {
+          "markoutBps": {
+            "count": 2017,
+            "mean": -3.878453137010184
+          },
+          "grossLiquidationPnl": {
+            "count": 2017,
+            "mean": -0.013557873078830034
+          },
+          "grossSpreadCapture": {
+            "count": 0,
+            "mean": null
+          },
+          "fees": {
+            "count": 2017,
+            "mean": 0.0274281058465073
+          },
+          "netAfterCosts": {
+            "count": 2017,
+            "mean": -0.04464304447194083
+          },
+          "adverseSelection": {
+            "count": 2017,
+            "mean": 0.834407535944472
+          }
+        },
+        "censorReasons": {
+          "markout_window_gap": 10
+        }
+      },
+      "500": {
+        "fragments": 2027,
+        "complete": 2009,
+        "censored": 18,
+        "metrics": {
+          "markoutBps": {
+            "count": 2009,
+            "mean": -5.551257333058479
+          },
+          "grossLiquidationPnl": {
+            "count": 2009,
+            "mean": -0.01882243653558976
+          },
+          "grossSpreadCapture": {
+            "count": 0,
+            "mean": null
+          },
+          "fees": {
+            "count": 2009,
+            "mean": 0.02734946957222912
+          },
+          "netAfterCosts": {
+            "count": 2009,
+            "mean": -0.04981848182658389
+          },
+          "adverseSelection": {
+            "count": 2009,
+            "mean": 0.8770532603285216
+          }
+        },
+        "censorReasons": {
+          "missing_depth": 1,
+          "markout_window_gap": 14,
+          "transport_cancelled": 3
+        }
+      },
+      "1000": {
+        "fragments": 2027,
+        "complete": 2007,
+        "censored": 20,
+        "metrics": {
+          "markoutBps": {
+            "count": 2007,
+            "mean": -4.7249241524834495
+          },
+          "grossLiquidationPnl": {
+            "count": 2007,
+            "mean": -0.016934459392127524
+          },
+          "grossSpreadCapture": {
+            "count": 0,
+            "mean": null
+          },
+          "fees": {
+            "count": 2007,
+            "mean": 0.027367562720032122
+          },
+          "netAfterCosts": {
+            "count": 2007,
+            "mean": -0.04795105494349943
+          },
+          "adverseSelection": {
+            "count": 2007,
+            "mean": 0.8061783756851021
+          }
+        },
+        "censorReasons": {
+          "missing_depth": 1,
+          "markout_window_gap": 16,
+          "transport_cancelled": 3
+        }
+      }
+    },
+    "portfolioPnl": null
+  },
+  "groups": [
+    {
+      "dimension": "crossVenue",
+      "value": "unavailable",
+      "candidates": 4490,
+      "filledCandidates": 808,
+      "fillRate": 0.1799554565701559,
+      "partialRate": 0.013585746102449888,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 2214,
+        "session-20260928T092647Z.jsonl": 2276
+      },
+      "windows": {
+        "100": {
+          "fragments": 2027,
+          "complete": 2017,
+          "censored": 10,
+          "metrics": {
+            "markoutBps": {
+              "count": 2017,
+              "mean": -3.878453137010184
+            },
+            "grossLiquidationPnl": {
+              "count": 2017,
+              "mean": -0.013557873078830034
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2017,
+              "mean": 0.0274281058465073
+            },
+            "netAfterCosts": {
+              "count": 2017,
+              "mean": -0.04464304447194083
+            },
+            "adverseSelection": {
+              "count": 2017,
+              "mean": 0.834407535944472
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 10
+          }
+        },
+        "500": {
+          "fragments": 2027,
+          "complete": 2009,
+          "censored": 18,
+          "metrics": {
+            "markoutBps": {
+              "count": 2009,
+              "mean": -5.551257333058479
+            },
+            "grossLiquidationPnl": {
+              "count": 2009,
+              "mean": -0.01882243653558976
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2009,
+              "mean": 0.02734946957222912
+            },
+            "netAfterCosts": {
+              "count": 2009,
+              "mean": -0.04981848182658389
+            },
+            "adverseSelection": {
+              "count": 2009,
+              "mean": 0.8770532603285216
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 14,
+            "transport_cancelled": 3
+          }
+        },
+        "1000": {
+          "fragments": 2027,
+          "complete": 2007,
+          "censored": 20,
+          "metrics": {
+            "markoutBps": {
+              "count": 2007,
+              "mean": -4.7249241524834495
+            },
+            "grossLiquidationPnl": {
+              "count": 2007,
+              "mean": -0.016934459392127524
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2007,
+              "mean": 0.027367562720032122
+            },
+            "netAfterCosts": {
+              "count": 2007,
+              "mean": -0.04795105494349943
+            },
+            "adverseSelection": {
+              "count": 2007,
+              "mean": 0.8061783756851021
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 16,
+            "transport_cancelled": 3
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "depthQuality",
+      "value": "unavailable",
+      "candidates": 4490,
+      "filledCandidates": 808,
+      "fillRate": 0.1799554565701559,
+      "partialRate": 0.013585746102449888,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 2214,
+        "session-20260928T092647Z.jsonl": 2276
+      },
+      "windows": {
+        "100": {
+          "fragments": 2027,
+          "complete": 2017,
+          "censored": 10,
+          "metrics": {
+            "markoutBps": {
+              "count": 2017,
+              "mean": -3.878453137010184
+            },
+            "grossLiquidationPnl": {
+              "count": 2017,
+              "mean": -0.013557873078830034
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2017,
+              "mean": 0.0274281058465073
+            },
+            "netAfterCosts": {
+              "count": 2017,
+              "mean": -0.04464304447194083
+            },
+            "adverseSelection": {
+              "count": 2017,
+              "mean": 0.834407535944472
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 10
+          }
+        },
+        "500": {
+          "fragments": 2027,
+          "complete": 2009,
+          "censored": 18,
+          "metrics": {
+            "markoutBps": {
+              "count": 2009,
+              "mean": -5.551257333058479
+            },
+            "grossLiquidationPnl": {
+              "count": 2009,
+              "mean": -0.01882243653558976
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2009,
+              "mean": 0.02734946957222912
+            },
+            "netAfterCosts": {
+              "count": 2009,
+              "mean": -0.04981848182658389
+            },
+            "adverseSelection": {
+              "count": 2009,
+              "mean": 0.8770532603285216
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 14,
+            "transport_cancelled": 3
+          }
+        },
+        "1000": {
+          "fragments": 2027,
+          "complete": 2007,
+          "censored": 20,
+          "metrics": {
+            "markoutBps": {
+              "count": 2007,
+              "mean": -4.7249241524834495
+            },
+            "grossLiquidationPnl": {
+              "count": 2007,
+              "mean": -0.016934459392127524
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2007,
+              "mean": 0.027367562720032122
+            },
+            "netAfterCosts": {
+              "count": 2007,
+              "mean": -0.04795105494349943
+            },
+            "adverseSelection": {
+              "count": 2007,
+              "mean": 0.8061783756851021
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 16,
+            "transport_cancelled": 3
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "imbalance",
+      "value": "unknown",
+      "candidates": 4490,
+      "filledCandidates": 808,
+      "fillRate": 0.1799554565701559,
+      "partialRate": 0.013585746102449888,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 2214,
+        "session-20260928T092647Z.jsonl": 2276
+      },
+      "windows": {
+        "100": {
+          "fragments": 2027,
+          "complete": 2017,
+          "censored": 10,
+          "metrics": {
+            "markoutBps": {
+              "count": 2017,
+              "mean": -3.878453137010184
+            },
+            "grossLiquidationPnl": {
+              "count": 2017,
+              "mean": -0.013557873078830034
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2017,
+              "mean": 0.0274281058465073
+            },
+            "netAfterCosts": {
+              "count": 2017,
+              "mean": -0.04464304447194083
+            },
+            "adverseSelection": {
+              "count": 2017,
+              "mean": 0.834407535944472
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 10
+          }
+        },
+        "500": {
+          "fragments": 2027,
+          "complete": 2009,
+          "censored": 18,
+          "metrics": {
+            "markoutBps": {
+              "count": 2009,
+              "mean": -5.551257333058479
+            },
+            "grossLiquidationPnl": {
+              "count": 2009,
+              "mean": -0.01882243653558976
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2009,
+              "mean": 0.02734946957222912
+            },
+            "netAfterCosts": {
+              "count": 2009,
+              "mean": -0.04981848182658389
+            },
+            "adverseSelection": {
+              "count": 2009,
+              "mean": 0.8770532603285216
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 14,
+            "transport_cancelled": 3
+          }
+        },
+        "1000": {
+          "fragments": 2027,
+          "complete": 2007,
+          "censored": 20,
+          "metrics": {
+            "markoutBps": {
+              "count": 2007,
+              "mean": -4.7249241524834495
+            },
+            "grossLiquidationPnl": {
+              "count": 2007,
+              "mean": -0.016934459392127524
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2007,
+              "mean": 0.027367562720032122
+            },
+            "netAfterCosts": {
+              "count": 2007,
+              "mean": -0.04795105494349943
+            },
+            "adverseSelection": {
+              "count": 2007,
+              "mean": 0.8061783756851021
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 16,
+            "transport_cancelled": 3
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "ofi",
+      "value": "unknown",
+      "candidates": 4490,
+      "filledCandidates": 808,
+      "fillRate": 0.1799554565701559,
+      "partialRate": 0.013585746102449888,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 2214,
+        "session-20260928T092647Z.jsonl": 2276
+      },
+      "windows": {
+        "100": {
+          "fragments": 2027,
+          "complete": 2017,
+          "censored": 10,
+          "metrics": {
+            "markoutBps": {
+              "count": 2017,
+              "mean": -3.878453137010184
+            },
+            "grossLiquidationPnl": {
+              "count": 2017,
+              "mean": -0.013557873078830034
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2017,
+              "mean": 0.0274281058465073
+            },
+            "netAfterCosts": {
+              "count": 2017,
+              "mean": -0.04464304447194083
+            },
+            "adverseSelection": {
+              "count": 2017,
+              "mean": 0.834407535944472
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 10
+          }
+        },
+        "500": {
+          "fragments": 2027,
+          "complete": 2009,
+          "censored": 18,
+          "metrics": {
+            "markoutBps": {
+              "count": 2009,
+              "mean": -5.551257333058479
+            },
+            "grossLiquidationPnl": {
+              "count": 2009,
+              "mean": -0.01882243653558976
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2009,
+              "mean": 0.02734946957222912
+            },
+            "netAfterCosts": {
+              "count": 2009,
+              "mean": -0.04981848182658389
+            },
+            "adverseSelection": {
+              "count": 2009,
+              "mean": 0.8770532603285216
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 14,
+            "transport_cancelled": 3
+          }
+        },
+        "1000": {
+          "fragments": 2027,
+          "complete": 2007,
+          "censored": 20,
+          "metrics": {
+            "markoutBps": {
+              "count": 2007,
+              "mean": -4.7249241524834495
+            },
+            "grossLiquidationPnl": {
+              "count": 2007,
+              "mean": -0.016934459392127524
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2007,
+              "mean": 0.027367562720032122
+            },
+            "netAfterCosts": {
+              "count": 2007,
+              "mean": -0.04795105494349943
+            },
+            "adverseSelection": {
+              "count": 2007,
+              "mean": 0.8061783756851021
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 16,
+            "transport_cancelled": 3
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "queueAhead",
+      "value": "ge_1000",
+      "candidates": 646,
+      "filledCandidates": 7,
+      "fillRate": 0.010835913312693499,
+      "partialRate": 0.0,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 183,
+        "session-20260928T092647Z.jsonl": 463
+      },
+      "windows": {
+        "100": {
+          "fragments": 7,
+          "complete": 7,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 7,
+              "mean": -0.6562596455350622
+            },
+            "grossLiquidationPnl": {
+              "count": 7,
+              "mean": -0.005371428571426415
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 7,
+              "mean": 0.060798244718357146
+            },
+            "netAfterCosts": {
+              "count": 7,
+              "mean": -0.07427565471835197
+            },
+            "adverseSelection": {
+              "count": 7,
+              "mean": 0.5714285714285714
+            }
+          },
+          "censorReasons": {}
+        },
+        "500": {
+          "fragments": 7,
+          "complete": 7,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 7,
+              "mean": -1.3107617447061237
+            },
+            "grossLiquidationPnl": {
+              "count": 7,
+              "mean": -0.010642857142855325
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 7,
+              "mean": 0.060801144294
+            },
+            "netAfterCosts": {
+              "count": 7,
+              "mean": -0.07955051000828213
+            },
+            "adverseSelection": {
+              "count": 7,
+              "mean": 1.0
+            }
+          },
+          "censorReasons": {}
+        },
+        "1000": {
+          "fragments": 7,
+          "complete": 7,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 7,
+              "mean": -1.0807571193928642
+            },
+            "grossLiquidationPnl": {
+              "count": 7,
+              "mean": -0.008799999999996934
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 7,
+              "mean": 0.06080013062121429
+            },
+            "netAfterCosts": {
+              "count": 7,
+              "mean": -0.07770645490692565
+            },
+            "adverseSelection": {
+              "count": 7,
+              "mean": 1.0
+            }
+          },
+          "censorReasons": {}
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "queueAhead",
+      "value": "lt_1",
+      "candidates": 516,
+      "filledCandidates": 281,
+      "fillRate": 0.5445736434108527,
+      "partialRate": 0.07364341085271318,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 311,
+        "session-20260928T092647Z.jsonl": 205
+      },
+      "windows": {
+        "100": {
+          "fragments": 1020,
+          "complete": 1015,
+          "censored": 5,
+          "metrics": {
+            "markoutBps": {
+              "count": 1015,
+              "mean": -3.4980330990719746
+            },
+            "grossLiquidationPnl": {
+              "count": 1015,
+              "mean": -0.009314866995074035
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 1015,
+              "mean": 0.01833443906683249
+            },
+            "netAfterCosts": {
+              "count": 1015,
+              "mean": -0.030093879110674782
+            },
+            "adverseSelection": {
+              "count": 1015,
+              "mean": 0.8334975369458129
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 5
+          }
+        },
+        "500": {
+          "fragments": 1020,
+          "complete": 1011,
+          "censored": 9,
+          "metrics": {
+            "markoutBps": {
+              "count": 1011,
+              "mean": -5.038666067493826
+            },
+            "grossLiquidationPnl": {
+              "count": 1011,
+              "mean": -0.013454851632047567
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 1011,
+              "mean": 0.018316744906585115
+            },
+            "netAfterCosts": {
+              "count": 1011,
+              "mean": -0.034213828904606586
+            },
+            "adverseSelection": {
+              "count": 1011,
+              "mean": 0.897131552917903
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 9
+          }
+        },
+        "1000": {
+          "fragments": 1020,
+          "complete": 1011,
+          "censored": 9,
+          "metrics": {
+            "markoutBps": {
+              "count": 1011,
+              "mean": -4.329352467140236
+            },
+            "grossLiquidationPnl": {
+              "count": 1011,
+              "mean": -0.01163812067260149
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 1011,
+              "mean": 0.01842514122018321
+            },
+            "netAfterCosts": {
+              "count": 1011,
+              "mean": -0.03251997634530659
+            },
+            "adverseSelection": {
+              "count": 1011,
+              "mean": 0.8298714144411474
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 9
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "queueAhead",
+      "value": "lt_10",
+      "candidates": 933,
+      "filledCandidates": 359,
+      "fillRate": 0.38478027867095393,
+      "partialRate": 0.020364415862808145,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 545,
+        "session-20260928T092647Z.jsonl": 388
+      },
+      "windows": {
+        "100": {
+          "fragments": 809,
+          "complete": 805,
+          "censored": 4,
+          "metrics": {
+            "markoutBps": {
+              "count": 805,
+              "mean": -4.737668867376411
+            },
+            "grossLiquidationPnl": {
+              "count": 805,
+              "mean": -0.017779664596273392
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 805,
+              "mean": 0.031225126366283603
+            },
+            "netAfterCosts": {
+              "count": 805,
+              "mean": -0.053168116314109386
+            },
+            "adverseSelection": {
+              "count": 805,
+              "mean": 0.8236024844720496
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 4
+          }
+        },
+        "500": {
+          "fragments": 809,
+          "complete": 801,
+          "censored": 8,
+          "metrics": {
+            "markoutBps": {
+              "count": 801,
+              "mean": -6.858421683107218
+            },
+            "grossLiquidationPnl": {
+              "count": 801,
+              "mean": -0.024421061173532915
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 801,
+              "mean": 0.031023688344272285
+            },
+            "netAfterCosts": {
+              "count": 801,
+              "mean": -0.059581180636406314
+            },
+            "adverseSelection": {
+              "count": 801,
+              "mean": 0.8352059925093633
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 4,
+            "transport_cancelled": 3
+          }
+        },
+        "1000": {
+          "fragments": 809,
+          "complete": 800,
+          "censored": 9,
+          "metrics": {
+            "markoutBps": {
+              "count": 800,
+              "mean": -5.689533164350433
+            },
+            "grossLiquidationPnl": {
+              "count": 800,
+              "mean": -0.02204373749999999
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 800,
+              "mean": 0.030981862588053376
+            },
+            "netAfterCosts": {
+              "count": 800,
+              "mean": -0.057156535033052805
+            },
+            "adverseSelection": {
+              "count": 800,
+              "mean": 0.75125
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 5,
+            "transport_cancelled": 3
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "queueAhead",
+      "value": "lt_100",
+      "candidates": 1311,
+      "filledCandidates": 115,
+      "fillRate": 0.08771929824561403,
+      "partialRate": 0.0030511060259344014,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 687,
+        "session-20260928T092647Z.jsonl": 624
+      },
+      "windows": {
+        "100": {
+          "fragments": 145,
+          "complete": 144,
+          "censored": 1,
+          "metrics": {
+            "markoutBps": {
+              "count": 144,
+              "mean": -2.471919435168827
+            },
+            "grossLiquidationPnl": {
+              "count": 144,
+              "mean": -0.018083819444444274
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 144,
+              "mean": 0.054956466339658665
+            },
+            "netAfterCosts": {
+              "count": 144,
+              "mean": -0.0803678610827133
+            },
+            "adverseSelection": {
+              "count": 144,
+              "mean": 0.8888888888888888
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 1
+          }
+        },
+        "500": {
+          "fragments": 145,
+          "complete": 144,
+          "censored": 1,
+          "metrics": {
+            "markoutBps": {
+              "count": 144,
+              "mean": -3.0708259850255555
+            },
+            "grossLiquidationPnl": {
+              "count": 144,
+              "mean": -0.024264791666665838
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 144,
+              "mean": 0.054957224760612135
+            },
+            "netAfterCosts": {
+              "count": 144,
+              "mean": -0.08654970393422116
+            },
+            "adverseSelection": {
+              "count": 144,
+              "mean": 0.9305555555555556
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 1
+          }
+        },
+        "1000": {
+          "fragments": 145,
+          "complete": 144,
+          "censored": 1,
+          "metrics": {
+            "markoutBps": {
+              "count": 144,
+              "mean": -3.0504356052760446
+            },
+            "grossLiquidationPnl": {
+              "count": 144,
+              "mean": -0.02429944444444355
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 144,
+              "mean": 0.05495639327139304
+            },
+            "netAfterCosts": {
+              "count": 144,
+              "mean": -0.08658338845194619
+            },
+            "adverseSelection": {
+              "count": 144,
+              "mean": 0.8888888888888888
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 1
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "queueAhead",
+      "value": "lt_1000",
+      "candidates": 1084,
+      "filledCandidates": 46,
+      "fillRate": 0.042435424354243544,
+      "partialRate": 0.0,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 488,
+        "session-20260928T092647Z.jsonl": 596
+      },
+      "windows": {
+        "100": {
+          "fragments": 46,
+          "complete": 46,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 46,
+              "mean": -2.1296245080526037
+            },
+            "grossLiquidationPnl": {
+              "count": 46,
+              "mean": -0.02037695652173897
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 46,
+              "mean": 0.07038017932114349
+            },
+            "netAfterCosts": {
+              "count": 46,
+              "mean": -0.10014126501679377
+            },
+            "adverseSelection": {
+              "count": 46,
+              "mean": 0.9130434782608695
+            }
+          },
+          "censorReasons": {}
+        },
+        "500": {
+          "fragments": 46,
+          "complete": 46,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 46,
+              "mean": -2.4655336011461646
+            },
+            "grossLiquidationPnl": {
+              "count": 46,
+              "mean": -0.023511304347826247
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 46,
+              "mean": 0.07037896805875
+            },
+            "netAfterCosts": {
+              "count": 46,
+              "mean": -0.10327418131961948
+            },
+            "adverseSelection": {
+              "count": 46,
+              "mean": 0.9782608695652174
+            }
+          },
+          "censorReasons": {}
+        },
+        "1000": {
+          "fragments": 46,
+          "complete": 45,
+          "censored": 1,
+          "metrics": {
+            "markoutBps": {
+              "count": 45,
+              "mean": -2.3887304728812766
+            },
+            "grossLiquidationPnl": {
+              "count": 45,
+              "mean": -0.022791333333333167
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 45,
+              "mean": 0.07053486643616556
+            },
+            "netAfterCosts": {
+              "count": 45,
+              "mean": -0.10273088974727625
+            },
+            "adverseSelection": {
+              "count": 45,
+              "mean": 0.9555555555555556
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 1
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "regime",
+      "value": "unavailable",
+      "candidates": 4490,
+      "filledCandidates": 808,
+      "fillRate": 0.1799554565701559,
+      "partialRate": 0.013585746102449888,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 2214,
+        "session-20260928T092647Z.jsonl": 2276
+      },
+      "windows": {
+        "100": {
+          "fragments": 2027,
+          "complete": 2017,
+          "censored": 10,
+          "metrics": {
+            "markoutBps": {
+              "count": 2017,
+              "mean": -3.878453137010184
+            },
+            "grossLiquidationPnl": {
+              "count": 2017,
+              "mean": -0.013557873078830034
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2017,
+              "mean": 0.0274281058465073
+            },
+            "netAfterCosts": {
+              "count": 2017,
+              "mean": -0.04464304447194083
+            },
+            "adverseSelection": {
+              "count": 2017,
+              "mean": 0.834407535944472
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 10
+          }
+        },
+        "500": {
+          "fragments": 2027,
+          "complete": 2009,
+          "censored": 18,
+          "metrics": {
+            "markoutBps": {
+              "count": 2009,
+              "mean": -5.551257333058479
+            },
+            "grossLiquidationPnl": {
+              "count": 2009,
+              "mean": -0.01882243653558976
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2009,
+              "mean": 0.02734946957222912
+            },
+            "netAfterCosts": {
+              "count": 2009,
+              "mean": -0.04981848182658389
+            },
+            "adverseSelection": {
+              "count": 2009,
+              "mean": 0.8770532603285216
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 14,
+            "transport_cancelled": 3
+          }
+        },
+        "1000": {
+          "fragments": 2027,
+          "complete": 2007,
+          "censored": 20,
+          "metrics": {
+            "markoutBps": {
+              "count": 2007,
+              "mean": -4.7249241524834495
+            },
+            "grossLiquidationPnl": {
+              "count": 2007,
+              "mean": -0.016934459392127524
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2007,
+              "mean": 0.027367562720032122
+            },
+            "netAfterCosts": {
+              "count": 2007,
+              "mean": -0.04795105494349943
+            },
+            "adverseSelection": {
+              "count": 2007,
+              "mean": 0.8061783756851021
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 16,
+            "transport_cancelled": 3
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "side",
+      "value": "long",
+      "candidates": 2251,
+      "filledCandidates": 376,
+      "fillRate": 0.16703687250111063,
+      "partialRate": 0.014660151043980453,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 1111,
+        "session-20260928T092647Z.jsonl": 1140
+      },
+      "windows": {
+        "100": {
+          "fragments": 1073,
+          "complete": 1070,
+          "censored": 3,
+          "metrics": {
+            "markoutBps": {
+              "count": 1070,
+              "mean": -3.941327433874407
+            },
+            "grossLiquidationPnl": {
+              "count": 1070,
+              "mean": -0.012653014018691584
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 1070,
+              "mean": 0.024041380467986494
+            },
+            "netAfterCosts": {
+              "count": 1070,
+              "mean": -0.03989980953247217
+            },
+            "adverseSelection": {
+              "count": 1070,
+              "mean": 0.8448598130841122
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 3
+          }
+        },
+        "500": {
+          "fragments": 1073,
+          "complete": 1069,
+          "censored": 4,
+          "metrics": {
+            "markoutBps": {
+              "count": 1069,
+              "mean": -5.867002587624035
+            },
+            "grossLiquidationPnl": {
+              "count": 1069,
+              "mean": -0.017763283442469524
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 1069,
+              "mean": 0.023966082622435853
+            },
+            "netAfterCosts": {
+              "count": 1069,
+              "mean": -0.04492460437781421
+            },
+            "adverseSelection": {
+              "count": 1069,
+              "mean": 0.8971000935453695
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 4
+          }
+        },
+        "1000": {
+          "fragments": 1073,
+          "complete": 1062,
+          "censored": 11,
+          "metrics": {
+            "markoutBps": {
+              "count": 1062,
+              "mean": -4.441693942899247
+            },
+            "grossLiquidationPnl": {
+              "count": 1062,
+              "mean": -0.014465042372881253
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 1062,
+              "mean": 0.024035269798711675
+            },
+            "netAfterCosts": {
+              "count": 1062,
+              "mean": -0.041704864077430424
+            },
+            "adverseSelection": {
+              "count": 1062,
+              "mean": 0.803201506591337
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 11
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "side",
+      "value": "short",
+      "candidates": 2239,
+      "filledCandidates": 432,
+      "fillRate": 0.1929432782492184,
+      "partialRate": 0.012505582849486378,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 1103,
+        "session-20260928T092647Z.jsonl": 1136
+      },
+      "windows": {
+        "100": {
+          "fragments": 954,
+          "complete": 947,
+          "censored": 7,
+          "metrics": {
+            "markoutBps": {
+              "count": 947,
+              "mean": -3.8074124847982325
+            },
+            "grossLiquidationPnl": {
+              "count": 947,
+              "mean": -0.01458025871172142
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 947,
+              "mean": 0.031254712134804304
+            },
+            "netAfterCosts": {
+              "count": 947,
+              "mean": -0.050002348997000456
+            },
+            "adverseSelection": {
+              "count": 947,
+              "mean": 0.82259767687434
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 7
+          }
+        },
+        "500": {
+          "fragments": 954,
+          "complete": 940,
+          "censored": 14,
+          "metrics": {
+            "markoutBps": {
+              "count": 940,
+              "mean": -5.192181080791906
+            },
+            "grossLiquidationPnl": {
+              "count": 940,
+              "mean": -0.020026941489361606
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 940,
+              "mean": 0.03119717239066423
+            },
+            "netAfterCosts": {
+              "count": 940,
+              "mean": -0.05538396586140813
+            },
+            "adverseSelection": {
+              "count": 940,
+              "mean": 0.8542553191489362
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 10,
+            "transport_cancelled": 3
+          }
+        },
+        "1000": {
+          "fragments": 954,
+          "complete": 945,
+          "censored": 9,
+          "metrics": {
+            "markoutBps": {
+              "count": 945,
+              "mean": -5.043220959444743
+            },
+            "grossLiquidationPnl": {
+              "count": 945,
+              "mean": -0.01970961375661381
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 945,
+              "mean": 0.031112425241135108
+            },
+            "netAfterCosts": {
+              "count": 945,
+              "mean": -0.05497058372631985
+            },
+            "adverseSelection": {
+              "count": 945,
+              "mean": 0.8095238095238095
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 5,
+            "transport_cancelled": 3
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "spread",
+      "value": "ge_5",
+      "candidates": 170,
+      "filledCandidates": 117,
+      "fillRate": 0.6882352941176471,
+      "partialRate": 0.03529411764705882,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 119,
+        "session-20260928T092647Z.jsonl": 51
+      },
+      "windows": {
+        "100": {
+          "fragments": 314,
+          "complete": 312,
+          "censored": 2,
+          "metrics": {
+            "markoutBps": {
+              "count": 312,
+              "mean": -5.183709976738878
+            },
+            "grossLiquidationPnl": {
+              "count": 312,
+              "mean": -0.017167467948718016
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 312,
+              "mean": 0.026668719896808496
+            },
+            "netAfterCosts": {
+              "count": 312,
+              "mean": -0.047391967637193146
+            },
+            "adverseSelection": {
+              "count": 312,
+              "mean": 0.7724358974358975
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 2
+          }
+        },
+        "500": {
+          "fragments": 314,
+          "complete": 314,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 314,
+              "mean": -9.298420350897409
+            },
+            "grossLiquidationPnl": {
+              "count": 314,
+              "mean": -0.029391242038216515
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 314,
+              "mean": 0.026736905469991242
+            },
+            "netAfterCosts": {
+              "count": 314,
+              "mean": -0.059693046727952406
+            },
+            "adverseSelection": {
+              "count": 314,
+              "mean": 0.7738853503184714
+            }
+          },
+          "censorReasons": {}
+        },
+        "1000": {
+          "fragments": 314,
+          "complete": 312,
+          "censored": 2,
+          "metrics": {
+            "markoutBps": {
+              "count": 312,
+              "mean": -6.576800919027648
+            },
+            "grossLiquidationPnl": {
+              "count": 312,
+              "mean": -0.023279647435897527
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 312,
+              "mean": 0.0266735255217524
+            },
+            "netAfterCosts": {
+              "count": 312,
+              "mean": -0.053509759768546876
+            },
+            "adverseSelection": {
+              "count": 312,
+              "mean": 0.7019230769230769
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 2
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "spread",
+      "value": "lt_0.5",
+      "candidates": 1738,
+      "filledCandidates": 198,
+      "fillRate": 0.11392405063291139,
+      "partialRate": 0.010356731875719217,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 842,
+        "session-20260928T092647Z.jsonl": 896
+      },
+      "windows": {
+        "100": {
+          "fragments": 577,
+          "complete": 575,
+          "censored": 2,
+          "metrics": {
+            "markoutBps": {
+              "count": 575,
+              "mean": -2.50602714962036
+            },
+            "grossLiquidationPnl": {
+              "count": 575,
+              "mean": -0.007272034782608554
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 575,
+              "mean": 0.0222190014290153
+            },
+            "netAfterCosts": {
+              "count": 575,
+              "mean": -0.032453569152493124
+            },
+            "adverseSelection": {
+              "count": 575,
+              "mean": 0.8626086956521739
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 2
+          }
+        },
+        "500": {
+          "fragments": 577,
+          "complete": 571,
+          "censored": 6,
+          "metrics": {
+            "markoutBps": {
+              "count": 571,
+              "mean": -3.4311826905997465
+            },
+            "grossLiquidationPnl": {
+              "count": 571,
+              "mean": -0.009556182136602302
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 571,
+              "mean": 0.02204284023104045
+            },
+            "netAfterCosts": {
+              "count": 571,
+              "mean": -0.03453803566186319
+            },
+            "adverseSelection": {
+              "count": 571,
+              "mean": 0.9316987740805605
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 5,
+            "transport_cancelled": 1
+          }
+        },
+        "1000": {
+          "fragments": 577,
+          "complete": 570,
+          "censored": 7,
+          "metrics": {
+            "markoutBps": {
+              "count": 570,
+              "mean": -3.5620298205868504
+            },
+            "grossLiquidationPnl": {
+              "count": 570,
+              "mean": -0.01018626315789453
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 570,
+              "mean": 0.021903567930886925
+            },
+            "netAfterCosts": {
+              "count": 570,
+              "mean": -0.03501026886421978
+            },
+            "adverseSelection": {
+              "count": 570,
+              "mean": 0.8912280701754386
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 6,
+            "transport_cancelled": 1
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "spread",
+      "value": "lt_1",
+      "candidates": 1496,
+      "filledCandidates": 180,
+      "fillRate": 0.12032085561497326,
+      "partialRate": 0.014705882352941176,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 802,
+        "session-20260928T092647Z.jsonl": 694
+      },
+      "windows": {
+        "100": {
+          "fragments": 415,
+          "complete": 413,
+          "censored": 2,
+          "metrics": {
+            "markoutBps": {
+              "count": 413,
+              "mean": -2.1505437998069135
+            },
+            "grossLiquidationPnl": {
+              "count": 413,
+              "mean": -0.007509273607748326
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 413,
+              "mean": 0.02853658145464486
+            },
+            "netAfterCosts": {
+              "count": 413,
+              "mean": -0.03985076422098836
+            },
+            "adverseSelection": {
+              "count": 413,
+              "mean": 0.8087167070217918
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 2
+          }
+        },
+        "500": {
+          "fragments": 415,
+          "complete": 413,
+          "censored": 2,
+          "metrics": {
+            "markoutBps": {
+              "count": 413,
+              "mean": -3.1488445208594515
+            },
+            "grossLiquidationPnl": {
+              "count": 413,
+              "mean": -0.010350278450363211
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 413,
+              "mean": 0.02838130968504661
+            },
+            "netAfterCosts": {
+              "count": 413,
+              "mean": -0.04251576234122039
+            },
+            "adverseSelection": {
+              "count": 413,
+              "mean": 0.9297820823244553
+            }
+          },
+          "censorReasons": {
+            "transport_cancelled": 1,
+            "markout_window_gap": 1
+          }
+        },
+        "1000": {
+          "fragments": 415,
+          "complete": 406,
+          "censored": 9,
+          "metrics": {
+            "markoutBps": {
+              "count": 406,
+              "mean": -3.080822215824006
+            },
+            "grossLiquidationPnl": {
+              "count": 406,
+              "mean": -0.010183645320196966
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 406,
+              "mean": 0.02872574662855536
+            },
+            "netAfterCosts": {
+              "count": 406,
+              "mean": -0.04273951000170728
+            },
+            "adverseSelection": {
+              "count": 406,
+              "mean": 0.8793103448275862
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 8,
+            "transport_cancelled": 1
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "spread",
+      "value": "lt_2",
+      "candidates": 816,
+      "filledCandidates": 132,
+      "fillRate": 0.16176470588235295,
+      "partialRate": 0.00980392156862745,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 329,
+        "session-20260928T092647Z.jsonl": 487
+      },
+      "windows": {
+        "100": {
+          "fragments": 271,
+          "complete": 270,
+          "censored": 1,
+          "metrics": {
+            "markoutBps": {
+              "count": 270,
+              "mean": -4.372448687150353
+            },
+            "grossLiquidationPnl": {
+              "count": 270,
+              "mean": -0.01873418518518599
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 270,
+              "mean": 0.03495877363932352
+            },
+            "netAfterCosts": {
+              "count": 270,
+              "mean": -0.058354091080064396
+            },
+            "adverseSelection": {
+              "count": 270,
+              "mean": 0.8407407407407408
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 1
+          }
+        },
+        "500": {
+          "fragments": 271,
+          "complete": 263,
+          "censored": 8,
+          "metrics": {
+            "markoutBps": {
+              "count": 263,
+              "mean": -5.514774130794807
+            },
+            "grossLiquidationPnl": {
+              "count": 263,
+              "mean": -0.023901064638783453
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 263,
+              "mean": 0.03497668194671179
+            },
+            "netAfterCosts": {
+              "count": 263,
+              "mean": -0.06354111504937261
+            },
+            "adverseSelection": {
+              "count": 263,
+              "mean": 0.8517110266159695
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 7,
+            "transport_cancelled": 1
+          }
+        },
+        "1000": {
+          "fragments": 271,
+          "complete": 270,
+          "censored": 1,
+          "metrics": {
+            "markoutBps": {
+              "count": 270,
+              "mean": -5.9000307497805204
+            },
+            "grossLiquidationPnl": {
+              "count": 270,
+              "mean": -0.02528251851851905
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 270,
+              "mean": 0.03482919323939333
+            },
+            "netAfterCosts": {
+              "count": 270,
+              "mean": -0.0647553889653189
+            },
+            "adverseSelection": {
+              "count": 270,
+              "mean": 0.8185185185185185
+            }
+          },
+          "censorReasons": {
+            "transport_cancelled": 1
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "spread",
+      "value": "lt_5",
+      "candidates": 270,
+      "filledCandidates": 181,
+      "fillRate": 0.6703703703703704,
+      "partialRate": 0.025925925925925925,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 122,
+        "session-20260928T092647Z.jsonl": 148
+      },
+      "windows": {
+        "100": {
+          "fragments": 450,
+          "complete": 447,
+          "censored": 3,
+          "metrics": {
+            "markoutBps": {
+              "count": 447,
+              "mean": -6.030919728690054
+            },
+            "grossLiquidationPnl": {
+              "count": 447,
+              "mean": -0.02158612975391491
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 447,
+              "mean": 0.029086009036983225
+            },
+            "netAfterCosts": {
+              "count": 447,
+              "mean": -0.05455023337702744
+            },
+            "adverseSelection": {
+              "count": 447,
+              "mean": 0.8612975391498882
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 3
+          }
+        },
+        "500": {
+          "fragments": 450,
+          "complete": 448,
+          "censored": 2,
+          "metrics": {
+            "markoutBps": {
+              "count": 448,
+              "mean": -7.8631881519782505
+            },
+            "grossLiquidationPnl": {
+              "count": 448,
+              "mean": -0.028054017857142587
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 448,
+              "mean": 0.029113584886601564
+            },
+            "netAfterCosts": {
+              "count": 448,
+              "mean": -0.06104949073481491
+            },
+            "adverseSelection": {
+              "count": 448,
+              "mean": 0.8459821428571429
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 1
+          }
+        },
+        "1000": {
+          "fragments": 450,
+          "complete": 449,
+          "censored": 1,
+          "metrics": {
+            "markoutBps": {
+              "count": 449,
+              "mean": -5.694391464360499
+            },
+            "grossLiquidationPnl": {
+              "count": 449,
+              "mean": -0.022176391982182443
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 449,
+              "mean": 0.029071245857199335
+            },
+            "netAfterCosts": {
+              "count": 449,
+              "mean": -0.0551239930732343
+            },
+            "adverseSelection": {
+              "count": 449,
+              "mean": 0.6971046770601337
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "symbol",
+      "value": "BTCUSDT",
+      "candidates": 328,
+      "filledCandidates": 16,
+      "fillRate": 0.04878048780487805,
+      "partialRate": 0.0,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 34,
+        "session-20260928T092647Z.jsonl": 294
+      },
+      "windows": {
+        "100": {
+          "fragments": 16,
+          "complete": 16,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 16,
+              "mean": -0.8374091425061153
+            },
+            "grossLiquidationPnl": {
+              "count": 16,
+              "mean": -0.006943749999997636
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 16,
+              "mean": 0.06223884310262501
+            },
+            "netAfterCosts": {
+              "count": 16,
+              "mean": -0.0774809793526213
+            },
+            "adverseSelection": {
+              "count": 16,
+              "mean": 0.875
+            }
+          },
+          "censorReasons": {}
+        },
+        "500": {
+          "fragments": 16,
+          "complete": 16,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 16,
+              "mean": -0.9647308335073573
+            },
+            "grossLiquidationPnl": {
+              "count": 16,
+              "mean": -0.008006249999997635
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 16,
+              "mean": 0.062238850036062505
+            },
+            "netAfterCosts": {
+              "count": 16,
+              "mean": -0.07854348753606014
+            },
+            "adverseSelection": {
+              "count": 16,
+              "mean": 1.0
+            }
+          },
+          "censorReasons": {}
+        },
+        "1000": {
+          "fragments": 16,
+          "complete": 15,
+          "censored": 1,
+          "metrics": {
+            "markoutBps": {
+              "count": 15,
+              "mean": -0.7875176109013449
+            },
+            "grossLiquidationPnl": {
+              "count": 15,
+              "mean": -0.006526666666664338
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 15,
+              "mean": 0.06216308642773334
+            },
+            "netAfterCosts": {
+              "count": 15,
+              "mean": -0.07697797309439793
+            },
+            "adverseSelection": {
+              "count": 15,
+              "mean": 0.8666666666666667
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 1
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "symbol",
+      "value": "DOGEUSDT",
+      "candidates": 224,
+      "filledCandidates": 2,
+      "fillRate": 0.008928571428571428,
+      "partialRate": 0.0,
+      "captures": {
+        "session-20260928T092647Z.jsonl": 224
+      },
+      "windows": {
+        "100": {
+          "fragments": 2,
+          "complete": 2,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 2,
+              "mean": -1.0792143319665604
+            },
+            "grossLiquidationPnl": {
+              "count": 2,
+              "mean": -0.010790000000003304
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2,
+              "mean": 0.07496463502755
+            },
+            "netAfterCosts": {
+              "count": 2,
+              "mean": -0.09574963202755335
+            },
+            "adverseSelection": {
+              "count": 2,
+              "mean": 0.5
+            }
+          },
+          "censorReasons": {}
+        },
+        "500": {
+          "fragments": 2,
+          "complete": 1,
+          "censored": 1,
+          "metrics": {
+            "markoutBps": {
+              "count": 1,
+              "mean": -2.1584286639331207
+            },
+            "grossLiquidationPnl": {
+              "count": 1,
+              "mean": -0.021580000000006608
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 1,
+              "mean": 0.0749677382792
+            },
+            "netAfterCosts": {
+              "count": 1,
+              "mean": -0.10654359427920115
+            },
+            "adverseSelection": {
+              "count": 1,
+              "mean": 1.0
+            }
+          },
+          "censorReasons": {
+            "transport_cancelled": 1
+          }
+        },
+        "1000": {
+          "fragments": 2,
+          "complete": 1,
+          "censored": 1,
+          "metrics": {
+            "markoutBps": {
+              "count": 1,
+              "mean": -2.1584286639331207
+            },
+            "grossLiquidationPnl": {
+              "count": 1,
+              "mean": -0.021580000000006608
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 1,
+              "mean": 0.0749677382792
+            },
+            "netAfterCosts": {
+              "count": 1,
+              "mean": -0.10654359427920115
+            },
+            "adverseSelection": {
+              "count": 1,
+              "mean": 1.0
+            }
+          },
+          "censorReasons": {
+            "transport_cancelled": 1
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "symbol",
+      "value": "ENAUSDT",
+      "candidates": 219,
+      "filledCandidates": 46,
+      "fillRate": 0.2100456621004566,
+      "partialRate": 0.0365296803652968,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 219
+      },
+      "windows": {
+        "100": {
+          "fragments": 287,
+          "complete": 287,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 287,
+              "mean": -2.7517761410296346
+            },
+            "grossLiquidationPnl": {
+              "count": 287,
+              "mean": -0.003762961672473796
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 287,
+              "mean": 0.010646557476529792
+            },
+            "netAfterCosts": {
+              "count": 287,
+              "mean": -0.015829052793602832
+            },
+            "adverseSelection": {
+              "count": 287,
+              "mean": 0.8501742160278746
+            }
+          },
+          "censorReasons": {}
+        },
+        "500": {
+          "fragments": 287,
+          "complete": 286,
+          "censored": 1,
+          "metrics": {
+            "markoutBps": {
+              "count": 286,
+              "mean": -3.7895332729007385
+            },
+            "grossLiquidationPnl": {
+              "count": 286,
+              "mean": -0.005341888111888069
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 286,
+              "mean": 0.010422151407119232
+            },
+            "netAfterCosts": {
+              "count": 286,
+              "mean": -0.017153663123902367
+            },
+            "adverseSelection": {
+              "count": 286,
+              "mean": 0.9055944055944056
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 1
+          }
+        },
+        "1000": {
+          "fragments": 287,
+          "complete": 287,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 287,
+              "mean": -3.964563771630752
+            },
+            "grossLiquidationPnl": {
+              "count": 287,
+              "mean": -0.005253205574912895
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 287,
+              "mean": 0.010646817342465332
+            },
+            "netAfterCosts": {
+              "count": 287,
+              "mean": -0.01731960379542696
+            },
+            "adverseSelection": {
+              "count": 287,
+              "mean": 0.9059233449477352
+            }
+          },
+          "censorReasons": {}
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "symbol",
+      "value": "ETHUSDT",
+      "candidates": 587,
+      "filledCandidates": 38,
+      "fillRate": 0.06473594548551959,
+      "partialRate": 0.0034071550255536627,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 294,
+        "session-20260928T092647Z.jsonl": 293
+      },
+      "windows": {
+        "100": {
+          "fragments": 64,
+          "complete": 64,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 64,
+              "mean": -1.1193672299511168
+            },
+            "grossLiquidationPnl": {
+              "count": 64,
+              "mean": -0.005419531249999062
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 64,
+              "mean": 0.034875978299199174
+            },
+            "netAfterCosts": {
+              "count": 64,
+              "mean": -0.04494560009607212
+            },
+            "adverseSelection": {
+              "count": 64,
+              "mean": 0.9375
+            }
+          },
+          "censorReasons": {}
+        },
+        "500": {
+          "fragments": 64,
+          "complete": 64,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 64,
+              "mean": -1.453851185132197
+            },
+            "grossLiquidationPnl": {
+              "count": 64,
+              "mean": -0.0070289062499996535
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 64,
+              "mean": 0.0348765782314648
+            },
+            "netAfterCosts": {
+              "count": 64,
+              "mean": -0.04655568409083888
+            },
+            "adverseSelection": {
+              "count": 64,
+              "mean": 0.984375
+            }
+          },
+          "censorReasons": {}
+        },
+        "1000": {
+          "fragments": 64,
+          "complete": 64,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 64,
+              "mean": -1.4890098379573626
+            },
+            "grossLiquidationPnl": {
+              "count": 64,
+              "mean": -0.007450781249998914
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 64,
+              "mean": 0.03487642700466792
+            },
+            "netAfterCosts": {
+              "count": 64,
+              "mean": -0.04697738036404119
+            },
+            "adverseSelection": {
+              "count": 64,
+              "mean": 0.921875
+            }
+          },
+          "censorReasons": {}
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "symbol",
+      "value": "NEARUSDT",
+      "candidates": 291,
+      "filledCandidates": 34,
+      "fillRate": 0.11683848797250859,
+      "partialRate": 0.003436426116838488,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 291
+      },
+      "windows": {
+        "100": {
+          "fragments": 47,
+          "complete": 47,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 47,
+              "mean": -3.4118558032198227
+            },
+            "grossLiquidationPnl": {
+              "count": 47,
+              "mean": -0.024538297872341044
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 47,
+              "mean": 0.0530855864451383
+            },
+            "netAfterCosts": {
+              "count": 47,
+              "mean": -0.08470199091322227
+            },
+            "adverseSelection": {
+              "count": 47,
+              "mean": 0.8085106382978723
+            }
+          },
+          "censorReasons": {}
+        },
+        "500": {
+          "fragments": 47,
+          "complete": 43,
+          "censored": 4,
+          "metrics": {
+            "markoutBps": {
+              "count": 43,
+              "mean": -4.684916049454191
+            },
+            "grossLiquidationPnl": {
+              "count": 43,
+              "mean": -0.036063953488372144
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 43,
+              "mean": 0.054542566734494195
+            },
+            "netAfterCosts": {
+              "count": 43,
+              "mean": -0.09787886708332952
+            },
+            "adverseSelection": {
+              "count": 43,
+              "mean": 0.9767441860465116
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 4
+          }
+        },
+        "1000": {
+          "fragments": 47,
+          "complete": 47,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 47,
+              "mean": -4.951409059938677
+            },
+            "grossLiquidationPnl": {
+              "count": 47,
+              "mean": -0.03592978723404273
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 47,
+              "mean": 0.053085853880180854
+            },
+            "netAfterCosts": {
+              "count": 47,
+              "mean": -0.09609379622060499
+            },
+            "adverseSelection": {
+              "count": 47,
+              "mean": 0.9574468085106383
+            }
+          },
+          "censorReasons": {}
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "symbol",
+      "value": "ONDOUSDT",
+      "candidates": 216,
+      "filledCandidates": 38,
+      "fillRate": 0.17592592592592593,
+      "partialRate": 0.027777777777777776,
+      "captures": {
+        "session-20260928T092647Z.jsonl": 216
+      },
+      "windows": {
+        "100": {
+          "fragments": 79,
+          "complete": 78,
+          "censored": 1,
+          "metrics": {
+            "markoutBps": {
+              "count": 78,
+              "mean": -4.096676336616996
+            },
+            "grossLiquidationPnl": {
+              "count": 78,
+              "mean": -0.014308974358975083
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 78,
+              "mean": 0.03228326538349359
+            },
+            "netAfterCosts": {
+              "count": 78,
+              "mean": -0.050896758332211904
+            },
+            "adverseSelection": {
+              "count": 78,
+              "mean": 0.8846153846153846
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 1
+          }
+        },
+        "500": {
+          "fragments": 79,
+          "complete": 79,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 79,
+              "mean": -4.320100266916351
+            },
+            "grossLiquidationPnl": {
+              "count": 79,
+              "mean": -0.017200000000000337
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 79,
+              "mean": 0.0323913623077595
+            },
+            "netAfterCosts": {
+              "count": 79,
+              "mean": -0.05391019699130346
+            },
+            "adverseSelection": {
+              "count": 79,
+              "mean": 0.8607594936708861
+            }
+          },
+          "censorReasons": {}
+        },
+        "1000": {
+          "fragments": 79,
+          "complete": 79,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 79,
+              "mean": -4.247228475320977
+            },
+            "grossLiquidationPnl": {
+              "count": 79,
+              "mean": -0.01706708860759541
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 79,
+              "mean": 0.03238918249032279
+            },
+            "netAfterCosts": {
+              "count": 79,
+              "mean": -0.05377470945234846
+            },
+            "adverseSelection": {
+              "count": 79,
+              "mean": 0.8354430379746836
+            }
+          },
+          "censorReasons": {}
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "symbol",
+      "value": "QNTUSDT",
+      "candidates": 564,
+      "filledCandidates": 387,
+      "fillRate": 0.6861702127659575,
+      "partialRate": 0.026595744680851064,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 288,
+        "session-20260928T092647Z.jsonl": 276
+      },
+      "windows": {
+        "100": {
+          "fragments": 971,
+          "complete": 964,
+          "censored": 7,
+          "metrics": {
+            "markoutBps": {
+              "count": 964,
+              "mean": -5.5924151764821195
+            },
+            "grossLiquidationPnl": {
+              "count": 964,
+              "mean": -0.020282780082987638
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 964,
+              "mean": 0.028832205890855812
+            },
+            "netAfterCosts": {
+              "count": 964,
+              "mean": -0.05295923043442407
+            },
+            "adverseSelection": {
+              "count": 964,
+              "mean": 0.8340248962655602
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 7
+          }
+        },
+        "500": {
+          "fragments": 971,
+          "complete": 963,
+          "censored": 8,
+          "metrics": {
+            "markoutBps": {
+              "count": 963,
+              "mean": -8.068875612535352
+            },
+            "grossLiquidationPnl": {
+              "count": 963,
+              "mean": -0.02809807892004139
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 963,
+              "mean": 0.0288469943941176
+            },
+            "netAfterCosts": {
+              "count": 963,
+              "mean": -0.06079129510543563
+            },
+            "adverseSelection": {
+              "count": 963,
+              "mean": 0.8130841121495327
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 6,
+            "transport_cancelled": 1
+          }
+        },
+        "1000": {
+          "fragments": 971,
+          "complete": 967,
+          "censored": 4,
+          "metrics": {
+            "markoutBps": {
+              "count": 967,
+              "mean": -6.298279433610537
+            },
+            "grossLiquidationPnl": {
+              "count": 967,
+              "mean": -0.02397264736297825
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 967,
+              "mean": 0.02879692407457317
+            },
+            "netAfterCosts": {
+              "count": 967,
+              "mean": -0.05660921831966047
+            },
+            "adverseSelection": {
+              "count": 967,
+              "mean": 0.7083764219234746
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 2,
+            "transport_cancelled": 1
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "symbol",
+      "value": "SOLUSDT",
+      "candidates": 593,
+      "filledCandidates": 51,
+      "fillRate": 0.08600337268128162,
+      "partialRate": 0.006745362563237774,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 296,
+        "session-20260928T092647Z.jsonl": 297
+      },
+      "windows": {
+        "100": {
+          "fragments": 59,
+          "complete": 59,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 59,
+              "mean": -1.5576301603700404
+            },
+            "grossLiquidationPnl": {
+              "count": 59,
+              "mean": -0.012610169491526385
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 59,
+              "mean": 0.05985139589855934
+            },
+            "netAfterCosts": {
+              "count": 59,
+              "mean": -0.08044177386466088
+            },
+            "adverseSelection": {
+              "count": 59,
+              "mean": 0.864406779661017
+            }
+          },
+          "censorReasons": {}
+        },
+        "500": {
+          "fragments": 59,
+          "complete": 58,
+          "censored": 1,
+          "metrics": {
+            "markoutBps": {
+              "count": 58,
+              "mean": -1.9770066634516474
+            },
+            "grossLiquidationPnl": {
+              "count": 58,
+              "mean": -0.016534482758621113
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 58,
+              "mean": 0.05966089510758622
+            },
+            "netAfterCosts": {
+              "count": 58,
+              "mean": -0.08415013648689645
+            },
+            "adverseSelection": {
+              "count": 58,
+              "mean": 0.9310344827586207
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 1
+          }
+        },
+        "1000": {
+          "fragments": 59,
+          "complete": 59,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 59,
+              "mean": -1.9987605121518648
+            },
+            "grossLiquidationPnl": {
+              "count": 59,
+              "mean": -0.016593220338983763
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 59,
+              "mean": 0.059850920693898316
+            },
+            "netAfterCosts": {
+              "count": 59,
+              "mean": -0.08442426306677948
+            },
+            "adverseSelection": {
+              "count": 59,
+              "mean": 0.9152542372881356
+            }
+          },
+          "censorReasons": {}
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "symbol",
+      "value": "SUIUSDT",
+      "candidates": 374,
+      "filledCandidates": 80,
+      "fillRate": 0.21390374331550802,
+      "partialRate": 0.0374331550802139,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 282,
+        "session-20260928T092647Z.jsonl": 92
+      },
+      "windows": {
+        "100": {
+          "fragments": 261,
+          "complete": 261,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 261,
+              "mean": -2.4097821846760312
+            },
+            "grossLiquidationPnl": {
+              "count": 261,
+              "mean": -0.005898467432950138
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 261,
+              "mean": 0.018584627759463603
+            },
+            "netAfterCosts": {
+              "count": 261,
+              "mean": -0.026961081016168103
+            },
+            "adverseSelection": {
+              "count": 261,
+              "mean": 0.8122605363984674
+            }
+          },
+          "censorReasons": {}
+        },
+        "500": {
+          "fragments": 261,
+          "complete": 260,
+          "censored": 1,
+          "metrics": {
+            "markoutBps": {
+              "count": 260,
+              "mean": -3.8653379553565617
+            },
+            "grossLiquidationPnl": {
+              "count": 260,
+              "mean": -0.008998076923076739
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 260,
+              "mean": 0.01839714737898077
+            },
+            "netAfterCosts": {
+              "count": 260,
+              "mean": -0.029848173532826133
+            },
+            "adverseSelection": {
+              "count": 260,
+              "mean": 0.95
+            }
+          },
+          "censorReasons": {
+            "transport_cancelled": 1
+          }
+        },
+        "1000": {
+          "fragments": 261,
+          "complete": 252,
+          "censored": 9,
+          "metrics": {
+            "markoutBps": {
+              "count": 252,
+              "mean": -3.6902129926425076
+            },
+            "grossLiquidationPnl": {
+              "count": 252,
+              "mean": -0.008964285714285564
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 252,
+              "mean": 0.018466015360049604
+            },
+            "netAfterCosts": {
+              "count": 252,
+              "mean": -0.029892433415604297
+            },
+            "adverseSelection": {
+              "count": 252,
+              "mean": 0.9325396825396826
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 8,
+            "transport_cancelled": 1
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "symbol",
+      "value": "XRPUSDT",
+      "candidates": 519,
+      "filledCandidates": 43,
+      "fillRate": 0.08285163776493257,
+      "partialRate": 0.007707129094412331,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 224,
+        "session-20260928T092647Z.jsonl": 295
+      },
+      "windows": {
+        "100": {
+          "fragments": 85,
+          "complete": 85,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 85,
+              "mean": -1.3010069267637996
+            },
+            "grossLiquidationPnl": {
+              "count": 85,
+              "mean": -0.006870941176470737
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 85,
+              "mean": 0.035613852885880294
+            },
+            "netAfterCosts": {
+              "count": 85,
+              "mean": -0.04723331773882139
+            },
+            "adverseSelection": {
+              "count": 85,
+              "mean": 0.7411764705882353
+            }
+          },
+          "censorReasons": {}
+        },
+        "500": {
+          "fragments": 85,
+          "complete": 85,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 85,
+              "mean": -1.5582889440359402
+            },
+            "grossLiquidationPnl": {
+              "count": 85,
+              "mean": -0.008206647058823499
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 85,
+              "mean": 0.035614044132873536
+            },
+            "netAfterCosts": {
+              "count": 85,
+              "mean": -0.04856924962699057
+            },
+            "adverseSelection": {
+              "count": 85,
+              "mean": 0.8823529411764706
+            }
+          },
+          "censorReasons": {}
+        },
+        "1000": {
+          "fragments": 85,
+          "complete": 85,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 85,
+              "mean": -1.6911777449841214
+            },
+            "grossLiquidationPnl": {
+              "count": 85,
+              "mean": -0.008928352941176255
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 85,
+              "mean": 0.03561398706962618
+            },
+            "netAfterCosts": {
+              "count": 85,
+              "mean": -0.049290888063743134
+            },
+            "adverseSelection": {
+              "count": 85,
+              "mean": 0.7647058823529411
+            }
+          },
+          "censorReasons": {}
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "symbol",
+      "value": "ZECUSDT",
+      "candidates": 575,
+      "filledCandidates": 73,
+      "fillRate": 0.12695652173913044,
+      "partialRate": 0.01217391304347826,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 286,
+        "session-20260928T092647Z.jsonl": 289
+      },
+      "windows": {
+        "100": {
+          "fragments": 156,
+          "complete": 154,
+          "censored": 2,
+          "metrics": {
+            "markoutBps": {
+              "count": 154,
+              "mean": -1.5809001405176226
+            },
+            "grossLiquidationPnl": {
+              "count": 154,
+              "mean": -0.007124675324675754
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 154,
+              "mean": 0.030342549906762988
+            },
+            "netAfterCosts": {
+              "count": 154,
+              "mean": -0.04151293204962022
+            },
+            "adverseSelection": {
+              "count": 154,
+              "mean": 0.8246753246753247
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 2
+          }
+        },
+        "500": {
+          "fragments": 156,
+          "complete": 154,
+          "censored": 2,
+          "metrics": {
+            "markoutBps": {
+              "count": 154,
+              "mean": -2.5509969286749388
+            },
+            "grossLiquidationPnl": {
+              "count": 154,
+              "mean": -0.01118766233766257
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 154,
+              "mean": 0.030563448980529224
+            },
+            "netAfterCosts": {
+              "count": 154,
+              "mean": -0.04582627190260693
+            },
+            "adverseSelection": {
+              "count": 154,
+              "mean": 1.0
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 2
+          }
+        },
+        "1000": {
+          "fragments": 156,
+          "complete": 151,
+          "censored": 5,
+          "metrics": {
+            "markoutBps": {
+              "count": 151,
+              "mean": -2.553185488504279
+            },
+            "grossLiquidationPnl": {
+              "count": 151,
+              "mean": -0.011046357615894278
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 151,
+              "mean": 0.029929279582887415
+            },
+            "netAfterCosts": {
+              "count": 151,
+              "mean": -0.04496622938421158
+            },
+            "adverseSelection": {
+              "count": 151,
+              "mean": 0.8940397350993378
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 5
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "timeToFill",
+      "value": "lt_100",
+      "candidates": 45,
+      "filledCandidates": 45,
+      "fillRate": 1.0,
+      "partialRate": 0.06666666666666667,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 35,
+        "session-20260928T092647Z.jsonl": 10
+      },
+      "windows": {
+        "100": {
+          "fragments": 118,
+          "complete": 118,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 118,
+              "mean": -4.973987051752442
+            },
+            "grossLiquidationPnl": {
+              "count": 118,
+              "mean": -0.015129067796609191
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 118,
+              "mean": 0.027305237681233472
+            },
+            "netAfterCosts": {
+              "count": 118,
+              "mean": -0.046074986571062744
+            },
+            "adverseSelection": {
+              "count": 118,
+              "mean": 0.8305084745762712
+            }
+          },
+          "censorReasons": {}
+        },
+        "500": {
+          "fragments": 118,
+          "complete": 118,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 118,
+              "mean": -5.476296217035282
+            },
+            "grossLiquidationPnl": {
+              "count": 118,
+              "mean": -0.018487288135593825
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 118,
+              "mean": 0.027304804997291526
+            },
+            "netAfterCosts": {
+              "count": 118,
+              "mean": -0.049432695522715446
+            },
+            "adverseSelection": {
+              "count": 118,
+              "mean": 0.864406779661017
+            }
+          },
+          "censorReasons": {}
+        },
+        "1000": {
+          "fragments": 118,
+          "complete": 118,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 118,
+              "mean": -2.260515116872756
+            },
+            "grossLiquidationPnl": {
+              "count": 118,
+              "mean": -0.009722033898305076
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 118,
+              "mean": 0.027304374303338135
+            },
+            "netAfterCosts": {
+              "count": 118,
+              "mean": -0.04066693237113437
+            },
+            "adverseSelection": {
+              "count": 118,
+              "mean": 0.6440677966101694
+            }
+          },
+          "censorReasons": {}
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "timeToFill",
+      "value": "lt_1000",
+      "candidates": 203,
+      "filledCandidates": 203,
+      "fillRate": 1.0,
+      "partialRate": 0.06403940886699508,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 118,
+        "session-20260928T092647Z.jsonl": 85
+      },
+      "windows": {
+        "100": {
+          "fragments": 488,
+          "complete": 487,
+          "censored": 1,
+          "metrics": {
+            "markoutBps": {
+              "count": 487,
+              "mean": -4.2202113577302605
+            },
+            "grossLiquidationPnl": {
+              "count": 487,
+              "mean": -0.014667535934291834
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 487,
+              "mean": 0.0289241429776326
+            },
+            "netAfterCosts": {
+              "count": 487,
+              "mean": -0.04744822919221146
+            },
+            "adverseSelection": {
+              "count": 487,
+              "mean": 0.8624229979466119
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 1
+          }
+        },
+        "500": {
+          "fragments": 488,
+          "complete": 485,
+          "censored": 3,
+          "metrics": {
+            "markoutBps": {
+              "count": 485,
+              "mean": -5.678187687938335
+            },
+            "grossLiquidationPnl": {
+              "count": 485,
+              "mean": -0.02032224742268018
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 485,
+              "mean": 0.02907157332213727
+            },
+            "netAfterCosts": {
+              "count": 485,
+              "mean": -0.05326998773141484
+            },
+            "adverseSelection": {
+              "count": 485,
+              "mean": 0.8948453608247423
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 3
+          }
+        },
+        "1000": {
+          "fragments": 488,
+          "complete": 484,
+          "censored": 4,
+          "metrics": {
+            "markoutBps": {
+              "count": 484,
+              "mean": -4.514280779146511
+            },
+            "grossLiquidationPnl": {
+              "count": 484,
+              "mean": -0.01781568181818164
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 484,
+              "mean": 0.02873301655653218
+            },
+            "netAfterCosts": {
+              "count": 484,
+              "mean": -0.050379730689795885
+            },
+            "adverseSelection": {
+              "count": 484,
+              "mean": 0.8491735537190083
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 4
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "timeToFill",
+      "value": "lt_2000",
+      "candidates": 269,
+      "filledCandidates": 269,
+      "fillRate": 1.0,
+      "partialRate": 0.11524163568773234,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 148,
+        "session-20260928T092647Z.jsonl": 121
+      },
+      "windows": {
+        "100": {
+          "fragments": 646,
+          "complete": 642,
+          "censored": 4,
+          "metrics": {
+            "markoutBps": {
+              "count": 642,
+              "mean": -3.5100795016526587
+            },
+            "grossLiquidationPnl": {
+              "count": 642,
+              "mean": -0.012566923676012481
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 642,
+              "mean": 0.02760908199052589
+            },
+            "netAfterCosts": {
+              "count": 642,
+              "mean": -0.043857202393173304
+            },
+            "adverseSelection": {
+              "count": 642,
+              "mean": 0.8644859813084113
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 4
+          }
+        },
+        "500": {
+          "fragments": 646,
+          "complete": 636,
+          "censored": 10,
+          "metrics": {
+            "markoutBps": {
+              "count": 636,
+              "mean": -5.333378922045224
+            },
+            "grossLiquidationPnl": {
+              "count": 636,
+              "mean": -0.01753785377358476
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 636,
+              "mean": 0.02735885871931725
+            },
+            "netAfterCosts": {
+              "count": 636,
+              "mean": -0.048544548036140424
+            },
+            "adverseSelection": {
+              "count": 636,
+              "mean": 0.8710691823899371
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 7,
+            "transport_cancelled": 3
+          }
+        },
+        "1000": {
+          "fragments": 646,
+          "complete": 639,
+          "censored": 7,
+          "metrics": {
+            "markoutBps": {
+              "count": 639,
+              "mean": -5.171345536903335
+            },
+            "grossLiquidationPnl": {
+              "count": 639,
+              "mean": -0.017452316118935864
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 639,
+              "mean": 0.027459154464787635
+            },
+            "netAfterCosts": {
+              "count": 639,
+              "mean": -0.04857275292488101
+            },
+            "adverseSelection": {
+              "count": 639,
+              "mean": 0.8028169014084507
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 4,
+            "transport_cancelled": 3
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "timeToFill",
+      "value": "lt_50",
+      "candidates": 45,
+      "filledCandidates": 45,
+      "fillRate": 1.0,
+      "partialRate": 0.0,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 26,
+        "session-20260928T092647Z.jsonl": 19
+      },
+      "windows": {
+        "100": {
+          "fragments": 116,
+          "complete": 111,
+          "censored": 5,
+          "metrics": {
+            "markoutBps": {
+              "count": 111,
+              "mean": -3.4139686992201863
+            },
+            "grossLiquidationPnl": {
+              "count": 111,
+              "mean": -0.014645585585585541
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 111,
+              "mean": 0.02782179576368018
+            },
+            "netAfterCosts": {
+              "count": 111,
+              "mean": -0.04617678035827445
+            },
+            "adverseSelection": {
+              "count": 111,
+              "mean": 0.7657657657657657
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 5
+          }
+        },
+        "500": {
+          "fragments": 116,
+          "complete": 114,
+          "censored": 2,
+          "metrics": {
+            "markoutBps": {
+              "count": 114,
+              "mean": -5.8588805689233325
+            },
+            "grossLiquidationPnl": {
+              "count": 114,
+              "mean": -0.017936403508772465
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 114,
+              "mean": 0.028101214414109215
+            },
+            "netAfterCosts": {
+              "count": 114,
+              "mean": -0.04978444273867047
+            },
+            "adverseSelection": {
+              "count": 114,
+              "mean": 0.7719298245614035
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 1
+          }
+        },
+        "1000": {
+          "fragments": 116,
+          "complete": 115,
+          "censored": 1,
+          "metrics": {
+            "markoutBps": {
+              "count": 115,
+              "mean": -3.712311690282719
+            },
+            "grossLiquidationPnl": {
+              "count": 115,
+              "mean": -0.013720956521739372
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 115,
+              "mean": 0.02793446543323696
+            },
+            "netAfterCosts": {
+              "count": 115,
+              "mean": -0.045379956346280344
+            },
+            "adverseSelection": {
+              "count": 115,
+              "mean": 0.7565217391304347
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "timeToFill",
+      "value": "lt_500",
+      "candidates": 246,
+      "filledCandidates": 246,
+      "fillRate": 1.0,
+      "partialRate": 0.056910569105691054,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 156,
+        "session-20260928T092647Z.jsonl": 90
+      },
+      "windows": {
+        "100": {
+          "fragments": 659,
+          "complete": 659,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 659,
+              "mean": -3.8668361280025327
+            },
+            "grossLiquidationPnl": {
+              "count": 659,
+              "mean": -0.013238672230652752
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 659,
+              "mean": 0.026101917827354288
+            },
+            "netAfterCosts": {
+              "count": 659,
+              "mean": -0.04282084690702056
+            },
+            "adverseSelection": {
+              "count": 659,
+              "mean": 0.7966616084977238
+            }
+          },
+          "censorReasons": {}
+        },
+        "500": {
+          "fragments": 659,
+          "complete": 656,
+          "censored": 3,
+          "metrics": {
+            "markoutBps": {
+              "count": 656,
+              "mean": -5.6286747264881205
+            },
+            "grossLiquidationPnl": {
+              "count": 656,
+              "mean": -0.019173262195121808
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 656,
+              "mean": 0.025944560565544363
+            },
+            "netAfterCosts": {
+              "count": 656,
+              "mean": -0.04857708665395833
+            },
+            "adverseSelection": {
+              "count": 656,
+              "mean": 0.8902439024390244
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 3
+          }
+        },
+        "1000": {
+          "fragments": 659,
+          "complete": 651,
+          "censored": 8,
+          "metrics": {
+            "markoutBps": {
+              "count": 651,
+              "mean": -5.068916206870419
+            },
+            "grossLiquidationPnl": {
+              "count": 651,
+              "mean": -0.01764597542242701
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 651,
+              "mean": 0.026173792580840936
+            },
+            "netAfterCosts": {
+              "count": 651,
+              "mean": -0.047309670505571576
+            },
+            "adverseSelection": {
+              "count": 651,
+              "mean": 0.815668202764977
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 8
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "timeToFill",
+      "value": "unknown",
+      "candidates": 3682,
+      "filledCandidates": 0,
+      "fillRate": 0.0,
+      "partialRate": 0.0,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 1731,
+        "session-20260928T092647Z.jsonl": 1951
+      },
+      "windows": {
+        "100": {
+          "fragments": 0,
+          "complete": 0,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 0,
+              "mean": null
+            },
+            "grossLiquidationPnl": {
+              "count": 0,
+              "mean": null
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 0,
+              "mean": null
+            },
+            "netAfterCosts": {
+              "count": 0,
+              "mean": null
+            },
+            "adverseSelection": {
+              "count": 0,
+              "mean": null
+            }
+          },
+          "censorReasons": {}
+        },
+        "500": {
+          "fragments": 0,
+          "complete": 0,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 0,
+              "mean": null
+            },
+            "grossLiquidationPnl": {
+              "count": 0,
+              "mean": null
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 0,
+              "mean": null
+            },
+            "netAfterCosts": {
+              "count": 0,
+              "mean": null
+            },
+            "adverseSelection": {
+              "count": 0,
+              "mean": null
+            }
+          },
+          "censorReasons": {}
+        },
+        "1000": {
+          "fragments": 0,
+          "complete": 0,
+          "censored": 0,
+          "metrics": {
+            "markoutBps": {
+              "count": 0,
+              "mean": null
+            },
+            "grossLiquidationPnl": {
+              "count": 0,
+              "mean": null
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 0,
+              "mean": null
+            },
+            "netAfterCosts": {
+              "count": 0,
+              "mean": null
+            },
+            "adverseSelection": {
+              "count": 0,
+              "mean": null
+            }
+          },
+          "censorReasons": {}
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "tradeImpulse",
+      "value": "unknown",
+      "candidates": 4490,
+      "filledCandidates": 808,
+      "fillRate": 0.1799554565701559,
+      "partialRate": 0.013585746102449888,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 2214,
+        "session-20260928T092647Z.jsonl": 2276
+      },
+      "windows": {
+        "100": {
+          "fragments": 2027,
+          "complete": 2017,
+          "censored": 10,
+          "metrics": {
+            "markoutBps": {
+              "count": 2017,
+              "mean": -3.878453137010184
+            },
+            "grossLiquidationPnl": {
+              "count": 2017,
+              "mean": -0.013557873078830034
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2017,
+              "mean": 0.0274281058465073
+            },
+            "netAfterCosts": {
+              "count": 2017,
+              "mean": -0.04464304447194083
+            },
+            "adverseSelection": {
+              "count": 2017,
+              "mean": 0.834407535944472
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 10
+          }
+        },
+        "500": {
+          "fragments": 2027,
+          "complete": 2009,
+          "censored": 18,
+          "metrics": {
+            "markoutBps": {
+              "count": 2009,
+              "mean": -5.551257333058479
+            },
+            "grossLiquidationPnl": {
+              "count": 2009,
+              "mean": -0.01882243653558976
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2009,
+              "mean": 0.02734946957222912
+            },
+            "netAfterCosts": {
+              "count": 2009,
+              "mean": -0.04981848182658389
+            },
+            "adverseSelection": {
+              "count": 2009,
+              "mean": 0.8770532603285216
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 14,
+            "transport_cancelled": 3
+          }
+        },
+        "1000": {
+          "fragments": 2027,
+          "complete": 2007,
+          "censored": 20,
+          "metrics": {
+            "markoutBps": {
+              "count": 2007,
+              "mean": -4.7249241524834495
+            },
+            "grossLiquidationPnl": {
+              "count": 2007,
+              "mean": -0.016934459392127524
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2007,
+              "mean": 0.027367562720032122
+            },
+            "netAfterCosts": {
+              "count": 2007,
+              "mean": -0.04795105494349943
+            },
+            "adverseSelection": {
+              "count": 2007,
+              "mean": 0.8061783756851021
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 16,
+            "transport_cancelled": 3
+          }
+        }
+      },
+      "portfolioPnl": null
+    },
+    {
+      "dimension": "volatility",
+      "value": "unknown",
+      "candidates": 4490,
+      "filledCandidates": 808,
+      "fillRate": 0.1799554565701559,
+      "partialRate": 0.013585746102449888,
+      "captures": {
+        "session-20260928T004746Z.jsonl": 2214,
+        "session-20260928T092647Z.jsonl": 2276
+      },
+      "windows": {
+        "100": {
+          "fragments": 2027,
+          "complete": 2017,
+          "censored": 10,
+          "metrics": {
+            "markoutBps": {
+              "count": 2017,
+              "mean": -3.878453137010184
+            },
+            "grossLiquidationPnl": {
+              "count": 2017,
+              "mean": -0.013557873078830034
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2017,
+              "mean": 0.0274281058465073
+            },
+            "netAfterCosts": {
+              "count": 2017,
+              "mean": -0.04464304447194083
+            },
+            "adverseSelection": {
+              "count": 2017,
+              "mean": 0.834407535944472
+            }
+          },
+          "censorReasons": {
+            "markout_window_gap": 10
+          }
+        },
+        "500": {
+          "fragments": 2027,
+          "complete": 2009,
+          "censored": 18,
+          "metrics": {
+            "markoutBps": {
+              "count": 2009,
+              "mean": -5.551257333058479
+            },
+            "grossLiquidationPnl": {
+              "count": 2009,
+              "mean": -0.01882243653558976
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2009,
+              "mean": 0.02734946957222912
+            },
+            "netAfterCosts": {
+              "count": 2009,
+              "mean": -0.04981848182658389
+            },
+            "adverseSelection": {
+              "count": 2009,
+              "mean": 0.8770532603285216
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 14,
+            "transport_cancelled": 3
+          }
+        },
+        "1000": {
+          "fragments": 2027,
+          "complete": 2007,
+          "censored": 20,
+          "metrics": {
+            "markoutBps": {
+              "count": 2007,
+              "mean": -4.7249241524834495
+            },
+            "grossLiquidationPnl": {
+              "count": 2007,
+              "mean": -0.016934459392127524
+            },
+            "grossSpreadCapture": {
+              "count": 0,
+              "mean": null
+            },
+            "fees": {
+              "count": 2007,
+              "mean": 0.027367562720032122
+            },
+            "netAfterCosts": {
+              "count": 2007,
+              "mean": -0.04795105494349943
+            },
+            "adverseSelection": {
+              "count": 2007,
+              "mean": 0.8061783756851021
+            }
+          },
+          "censorReasons": {
+            "missing_depth": 1,
+            "markout_window_gap": 16,
+            "transport_cancelled": 3
+          }
+        }
+      },
+      "portfolioPnl": null
+    }
+  ],
+  "missingFinalOutcomes": 0,
+  "hypothesis": null,
+  "hypothesisStatus": "NO_SUPPORTED_POSITIVE_SEGMENT",
+  "independentValidation": "NOT_TESTED",
+  "executionGate": "NOT_MET",
+  "promotionAuthorized": false,
+  "scope": "development diagnostics; overlapping fragments are not independent portfolio returns",
+  "limitations": [
+    "historical_unrecorded_covariates_remain_unavailable",
+    "time_to_fill_is_outcome_not_admission_feature",
+    "minimum_support_not_proof_of_edge",
+    "one_marginal_group_not_a_joint_executable_rule"
+  ]
+}

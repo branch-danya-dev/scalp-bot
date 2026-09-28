@@ -1,0 +1,81 @@
+{
+  "localImplementationHead": "9552ae8dc300549084bfc0342574fa20a963e58f",
+  "publishedImplementationHead": "780b59294806c2991a0e489bcb5d9812fef33d51",
+  "fullWindows": {
+    "passed": 1723,
+    "seconds": 231.73,
+    "receipt": "full-preflight-final.txt"
+  },
+  "expandedWindows": {
+    "passed": 622,
+    "seconds": 74.72,
+    "receipt": "windows-expanded-final.txt"
+  },
+  "js": {
+    "appJsExitCode": 0,
+    "replayJsExitCode": 0
+  },
+  "actorFixture": {
+    "tokens": 284,
+    "repeats": 2,
+    "variants": "ABCDEF",
+    "populationSha256": "8e027832c166052f551dcfaadcc85b6fe5e00ccb01dc5051bcfa38785a7d4049",
+    "fullTokenAccounting": true,
+    "realReplayIPC": [
+      [
+        {
+          "pid": 32496,
+          "exitCode": 0,
+          "joined": true,
+          "relayJoined": true,
+          "remoteTokensConsumed": 10,
+          "modelHashes": {
+            "model.cbm": "a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2",
+            "manifest.json": "15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3"
+          }
+        },
+        {
+          "pid": 8364,
+          "exitCode": 0,
+          "joined": true,
+          "relayJoined": true,
+          "remoteTokensConsumed": 10,
+          "modelHashes": {
+            "model.cbm": "a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2",
+            "manifest.json": "15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3"
+          }
+        }
+      ],
+      [
+        {
+          "pid": 25192,
+          "exitCode": 0,
+          "joined": true,
+          "relayJoined": true,
+          "remoteTokensConsumed": 10,
+          "modelHashes": {
+            "model.cbm": "a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2",
+            "manifest.json": "15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3"
+          }
+        },
+        {
+          "pid": 13080,
+          "exitCode": 0,
+          "joined": true,
+          "relayJoined": true,
+          "remoteTokensConsumed": 10,
+          "modelHashes": {
+            "model.cbm": "a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2",
+            "manifest.json": "15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3"
+          }
+        }
+      ]
+    ]
+  },
+  "productionCoverage": false,
+  "productionN30": "NOT_MET",
+  "productionAtoFCost": "NOT_TESTED",
+  "controlledW20": "NOT_MET",
+  "marketAttemptStarted": false,
+  "exactHeadCI": "pending final evidence head"
+}

@@ -1,0 +1,53 @@
+{
+  "sourceSha256": "7e26090c4c7490bb20d93962850ccec5272f35dd24317ab7aebaf6fa28ffa862",
+  "externalSourceSha256": "d118a4f1bf78e4038b23eb9ad5c1aa2ef2197ea92ce3b6ed6030fe6df7eec5ad",
+  "externalConnections": {
+    "binance": 1,
+    "okx": 1
+  },
+  "ordinaryHashes": {
+    "decision": "05a75fb1c56d9deea267686d5409b30b020e8ed5ee31f3898d1afded68b4b781",
+    "admission": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "execution": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "portfolio": "12f0506429059af8723b397671771c68c4d60d1d6600accffcb069e84c69b918"
+  },
+  "labelSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "eventCounts": {
+    "clock_sync": 1,
+    "symbol_activated": 1,
+    "scanner_update": 1,
+    "transport_diagnostics": 8,
+    "market_context_changed": 2,
+    "strategy_state_transition": 6,
+    "decision": 6,
+    "scenario_transition": 6,
+    "research_frame": 1,
+    "market_frame": 1,
+    "clock_admission_changed": 2,
+    "bot_started": 1,
+    "run_summary": 1,
+    "bot_stopped": 1
+  },
+  "researchFailure": null,
+  "writer": {
+    "background": false,
+    "queuedRows": 622,
+    "writtenRows": 622,
+    "pendingRows": 0,
+    "queueDepth": 0,
+    "queueCapacity": 8192,
+    "droppedRows": 0,
+    "droppedBulkRows": 0,
+    "droppedCriticalRows": 0,
+    "writerError": null
+  },
+  "probeCounts": {},
+  "forecastSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "workerFailure": null,
+  "workerExchangeImported": false,
+  "closedTrades": 0,
+  "prepared": 0,
+  "executableLabels": 0,
+  "labels": [],
+  "zeroResidualExposure": true
+}

@@ -1,0 +1,36 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+________ test_divergent_suspend_closes_coroutine_before_owner_is_reset ________
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-540/test_divergent_suspend_closes_0')
+
+    async def test_divergent_suspend_closes_coroutine_before_owner_is_reset(tmp_path):
+        from scalp_bot.whole_runtime_replay import WholeRuntimeReplayCoordinator
+        async def captured(dispatch, output):
+            dispatch.clock().time()
+        tape, _ = await record(tmp_path,captured)
+        cleaned = []
+        async def divergent(dispatch):
+            try:
+                await asyncio.sleep(0)
+            finally:
+                cleaned.append(dispatch.owner().task_id)
+        replay = WholeRuntimeReplayCoordinator(tape)
+        with pytest.raises(NativeTapeError,match='first divergence'):
+            await replay.run(divergent)
+>       assert cleaned == ['runtime:core:1:session']
+E       AssertionError: assert [] == ['runtime:core:1:session']
+E         
+E         Right contains one more item: 'runtime:core:1:session'
+E         Use -v to get more diff
+
+tests\test_whole_runtime_replay.py:151: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_whole_runtime_replay.py::test_divergent_suspend_closes_coroutine_before_owner_is_reset
+1 failed, 5 deselected in 0.21s
+Exception ignored in: <coroutine object test_divergent_suspend_closes_coroutine_before_owner_is_reset.<locals>.divergent at 0x000001DE8229D0E0>
+Traceback (most recent call last):
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\tests\test_whole_runtime_replay.py", line 147, in divergent
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 82, in owner
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 75, in fail
+scalp_bot.native_v5.NativeTapeError: unknown or inherited native task/clock ownership

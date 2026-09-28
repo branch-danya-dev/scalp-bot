@@ -60,7 +60,9 @@ class ParallelScenarioRouter(ScenarioRouter):
             if execution is not None and execution.owner == key:
                 continue
             observed = child.observe(symbol, context, candles, structure, enabled, now,
-                assessment=(deepcopy(assessment[0]), [c for c in assessment[1] if c["owner"] == key]))
+                # Children only replace top-level status/reason. Nested market
+                # evidence is read-only; public() still detaches it for callers.
+                assessment=(dict(assessment[0]), [c for c in assessment[1] if c["owner"] == key]))
         active = [s for child in self.children.values()
                   if (s := child.scenarios.get(symbol)) is not None and s.state not in TERMINAL]
         # Compatibility summary only. This representative grants no exclusivity.
@@ -73,7 +75,8 @@ class ParallelScenarioRouter(ScenarioRouter):
 
     def context_for(self, context, symbol, strategy):
         s = self.scenario_for(symbol, strategy)
-        return replace(context, scenario=deepcopy(s.public()) if s and s.state not in TERMINAL else None) if context else None
+        # Scenario.public already detaches every mutable field from its owner.
+        return replace(context, scenario=s.public() if s and s.state not in TERMINAL else None) if context else None
 
     def accept_decision(self, symbol, decision, now, book):
         child = self.children[decision.strategy]

@@ -1,0 +1,288 @@
+..........FFFFFFFFF                                                      [100%]
+================================== FAILURES ===================================
+_________________ test_writer_loss_has_priority_over_no_fills _________________
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-513/test_writer_loss_has_priority_0')
+
+    def test_writer_loss_has_priority_over_no_fills(tmp_path):
+        spec = importlib.util.spec_from_file_location("smoke", Path(__file__).parents[1]/"scripts/smoke-trading-model.py")
+        smoke = importlib.util.module_from_spec(spec)
+>       spec.loader.exec_module(smoke)
+
+tests\test_wave2_smoke_gate.py:12: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<frozen importlib._bootstrap_external>:1019: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1157: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1087: in source_to_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+f = <built-in function compile>
+args = (b'"""Bounded public-data paper smoke. No private client or real order API."""\r\nimport os\r\nfor key in list(os.envi...x\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\scalp-bot\\scripts\\smoke-trading-model.py', 'exec')
+kwds = {'dont_inherit': True, 'optimize': -1}
+
+>   ???
+E     File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scripts\smoke-trading-model.py", line 21
+E       def poll(self):
+E                      ^
+E   IndentationError: unindent does not match any outer indentation level
+
+<frozen importlib._bootstrap>:488: IndentationError
+_______ test_capture_failure_stops_new_activity_before_deadline[input] ________
+
+failure = 'input'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('failure', ['input', 'session', 'drops', 'research', 'transport'])
+    async def test_capture_failure_stops_new_activity_before_deadline(failure):
+        spec = importlib.util.spec_from_file_location("smoke_monitor", Path(__file__).parents[1]/"scripts/smoke-trading-model.py")
+        smoke = importlib.util.module_from_spec(spec)
+>       spec.loader.exec_module(smoke)
+
+tests\test_wave2_smoke_gate.py:28: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<frozen importlib._bootstrap_external>:1019: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1157: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1087: in source_to_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+f = <built-in function compile>
+args = (b'"""Bounded public-data paper smoke. No private client or real order API."""\r\nimport os\r\nfor key in list(os.envi...x\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\scalp-bot\\scripts\\smoke-trading-model.py', 'exec')
+kwds = {'dont_inherit': True, 'optimize': -1}
+
+>   ???
+E     File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scripts\smoke-trading-model.py", line 21
+E       def poll(self):
+E                      ^
+E   IndentationError: unindent does not match any outer indentation level
+
+<frozen importlib._bootstrap>:488: IndentationError
+______ test_capture_failure_stops_new_activity_before_deadline[session] _______
+
+failure = 'session'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('failure', ['input', 'session', 'drops', 'research', 'transport'])
+    async def test_capture_failure_stops_new_activity_before_deadline(failure):
+        spec = importlib.util.spec_from_file_location("smoke_monitor", Path(__file__).parents[1]/"scripts/smoke-trading-model.py")
+        smoke = importlib.util.module_from_spec(spec)
+>       spec.loader.exec_module(smoke)
+
+tests\test_wave2_smoke_gate.py:28: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<frozen importlib._bootstrap_external>:1019: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1157: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1087: in source_to_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+f = <built-in function compile>
+args = (b'"""Bounded public-data paper smoke. No private client or real order API."""\r\nimport os\r\nfor key in list(os.envi...x\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\scalp-bot\\scripts\\smoke-trading-model.py', 'exec')
+kwds = {'dont_inherit': True, 'optimize': -1}
+
+>   ???
+E     File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scripts\smoke-trading-model.py", line 21
+E       def poll(self):
+E                      ^
+E   IndentationError: unindent does not match any outer indentation level
+
+<frozen importlib._bootstrap>:488: IndentationError
+_______ test_capture_failure_stops_new_activity_before_deadline[drops] ________
+
+failure = 'drops'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('failure', ['input', 'session', 'drops', 'research', 'transport'])
+    async def test_capture_failure_stops_new_activity_before_deadline(failure):
+        spec = importlib.util.spec_from_file_location("smoke_monitor", Path(__file__).parents[1]/"scripts/smoke-trading-model.py")
+        smoke = importlib.util.module_from_spec(spec)
+>       spec.loader.exec_module(smoke)
+
+tests\test_wave2_smoke_gate.py:28: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<frozen importlib._bootstrap_external>:1019: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1157: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1087: in source_to_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+f = <built-in function compile>
+args = (b'"""Bounded public-data paper smoke. No private client or real order API."""\r\nimport os\r\nfor key in list(os.envi...x\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\scalp-bot\\scripts\\smoke-trading-model.py', 'exec')
+kwds = {'dont_inherit': True, 'optimize': -1}
+
+>   ???
+E     File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scripts\smoke-trading-model.py", line 21
+E       def poll(self):
+E                      ^
+E   IndentationError: unindent does not match any outer indentation level
+
+<frozen importlib._bootstrap>:488: IndentationError
+______ test_capture_failure_stops_new_activity_before_deadline[research] ______
+
+failure = 'research'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('failure', ['input', 'session', 'drops', 'research', 'transport'])
+    async def test_capture_failure_stops_new_activity_before_deadline(failure):
+        spec = importlib.util.spec_from_file_location("smoke_monitor", Path(__file__).parents[1]/"scripts/smoke-trading-model.py")
+        smoke = importlib.util.module_from_spec(spec)
+>       spec.loader.exec_module(smoke)
+
+tests\test_wave2_smoke_gate.py:28: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<frozen importlib._bootstrap_external>:1019: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1157: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1087: in source_to_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+f = <built-in function compile>
+args = (b'"""Bounded public-data paper smoke. No private client or real order API."""\r\nimport os\r\nfor key in list(os.envi...x\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\scalp-bot\\scripts\\smoke-trading-model.py', 'exec')
+kwds = {'dont_inherit': True, 'optimize': -1}
+
+>   ???
+E     File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scripts\smoke-trading-model.py", line 21
+E       def poll(self):
+E                      ^
+E   IndentationError: unindent does not match any outer indentation level
+
+<frozen importlib._bootstrap>:488: IndentationError
+_____ test_capture_failure_stops_new_activity_before_deadline[transport] ______
+
+failure = 'transport'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('failure', ['input', 'session', 'drops', 'research', 'transport'])
+    async def test_capture_failure_stops_new_activity_before_deadline(failure):
+        spec = importlib.util.spec_from_file_location("smoke_monitor", Path(__file__).parents[1]/"scripts/smoke-trading-model.py")
+        smoke = importlib.util.module_from_spec(spec)
+>       spec.loader.exec_module(smoke)
+
+tests\test_wave2_smoke_gate.py:28: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<frozen importlib._bootstrap_external>:1019: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1157: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1087: in source_to_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+f = <built-in function compile>
+args = (b'"""Bounded public-data paper smoke. No private client or real order API."""\r\nimport os\r\nfor key in list(os.envi...x\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\scalp-bot\\scripts\\smoke-trading-model.py', 'exec')
+kwds = {'dont_inherit': True, 'optimize': -1}
+
+>   ???
+E     File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scripts\smoke-trading-model.py", line 21
+E       def poll(self):
+E                      ^
+E   IndentationError: unindent does not match any outer indentation level
+
+<frozen importlib._bootstrap>:488: IndentationError
+____________ test_healthy_capture_finishes_without_stopping_early _____________
+
+    @pytest.mark.asyncio
+    async def test_healthy_capture_finishes_without_stopping_early():
+        spec = importlib.util.spec_from_file_location("smoke_monitor", Path(__file__).parents[1]/"scripts/smoke-trading-model.py")
+        smoke = importlib.util.module_from_spec(spec)
+>       spec.loader.exec_module(smoke)
+
+tests\test_wave2_smoke_gate.py:45: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<frozen importlib._bootstrap_external>:1019: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1157: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1087: in source_to_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+f = <built-in function compile>
+args = (b'"""Bounded public-data paper smoke. No private client or real order API."""\r\nimport os\r\nfor key in list(os.envi...x\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\scalp-bot\\scripts\\smoke-trading-model.py', 'exec')
+kwds = {'dont_inherit': True, 'optimize': -1}
+
+>   ???
+E     File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scripts\smoke-trading-model.py", line 21
+E       def poll(self):
+E                      ^
+E   IndentationError: unindent does not match any outer indentation level
+
+<frozen importlib._bootstrap>:488: IndentationError
+_____ test_backpressure_report_invalidates_smoke_even_without_writer_loss _____
+
+    def test_backpressure_report_invalidates_smoke_even_without_writer_loss():
+        spec = importlib.util.spec_from_file_location("smoke_gate", Path(__file__).parents[1]/"scripts/smoke-trading-model.py")
+        smoke = importlib.util.module_from_spec(spec)
+>       spec.loader.exec_module(smoke)
+
+tests\test_wave2_smoke_gate.py:56: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<frozen importlib._bootstrap_external>:1019: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1157: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1087: in source_to_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+f = <built-in function compile>
+args = (b'"""Bounded public-data paper smoke. No private client or real order API."""\r\nimport os\r\nfor key in list(os.envi...x\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\scalp-bot\\scripts\\smoke-trading-model.py', 'exec')
+kwds = {'dont_inherit': True, 'optimize': -1}
+
+>   ???
+E     File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scripts\smoke-trading-model.py", line 21
+E       def poll(self):
+E                      ^
+E   IndentationError: unindent does not match any outer indentation level
+
+<frozen importlib._bootstrap>:488: IndentationError
+___ test_transport_monitor_observes_direct_journal_events_and_retains_rows ____
+
+    def test_transport_monitor_observes_direct_journal_events_and_retains_rows():
+        spec = importlib.util.spec_from_file_location("smoke_transport", Path(__file__).parents[1]/"scripts/smoke-trading-model.py")
+        smoke = importlib.util.module_from_spec(spec)
+>       spec.loader.exec_module(smoke)
+
+tests\test_wave2_smoke_gate.py:66: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<frozen importlib._bootstrap_external>:1019: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1157: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1087: in source_to_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+f = <built-in function compile>
+args = (b'"""Bounded public-data paper smoke. No private client or real order API."""\r\nimport os\r\nfor key in list(os.envi...x\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-6\\work\\scalp-bot\\scripts\\smoke-trading-model.py', 'exec')
+kwds = {'dont_inherit': True, 'optimize': -1}
+
+>   ???
+E     File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scripts\smoke-trading-model.py", line 21
+E       def poll(self):
+E                      ^
+E   IndentationError: unindent does not match any outer indentation level
+
+<frozen importlib._bootstrap>:488: IndentationError
+=========================== short test summary info ===========================
+FAILED tests/test_wave2_smoke_gate.py::test_writer_loss_has_priority_over_no_fills
+FAILED tests/test_wave2_smoke_gate.py::test_capture_failure_stops_new_activity_before_deadline[input]
+FAILED tests/test_wave2_smoke_gate.py::test_capture_failure_stops_new_activity_before_deadline[session]
+FAILED tests/test_wave2_smoke_gate.py::test_capture_failure_stops_new_activity_before_deadline[drops]
+FAILED tests/test_wave2_smoke_gate.py::test_capture_failure_stops_new_activity_before_deadline[research]
+FAILED tests/test_wave2_smoke_gate.py::test_capture_failure_stops_new_activity_before_deadline[transport]
+FAILED tests/test_wave2_smoke_gate.py::test_healthy_capture_finishes_without_stopping_early
+FAILED tests/test_wave2_smoke_gate.py::test_backpressure_report_invalidates_smoke_even_without_writer_loss
+FAILED tests/test_wave2_smoke_gate.py::test_transport_monitor_observes_direct_journal_events_and_retains_rows
+9 failed, 10 passed in 3.13s

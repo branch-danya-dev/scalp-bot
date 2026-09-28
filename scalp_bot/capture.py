@@ -16,12 +16,11 @@ import shutil
 from threading import Lock, Thread
 import zipfile
 
-import msgspec
-
 from .engine import TradingEngine
 from .recorder import SessionRecorder
-from .input_journal import DeferredJournalRow, detach_json, resolve_journal_row
+from .input_journal import DEFERRED_ROWS, detach_json
 from .run_manifest import code_provenance
+from .capture_codec import CaptureCodec
 
 
 PROFILES = {
@@ -50,6 +49,24 @@ def validate_profile(config, profile):
     return spec
 
 
+class _BatchQueue(Queue):
+    def get_batch(self, limit, max_bytes):
+        # Queue's protected hooks run under its one condition lock. Pop a
+        # bounded ready prefix, then notify producers once for the whole batch.
+        with self.not_empty:
+            while not self._qsize():
+                self.not_empty.wait()
+            batch, retained = [], 0
+            while self._qsize() and len(batch) < limit and retained < max_bytes:
+                item = self._get()
+                batch.append(item)
+                if item is _STOP:
+                    break
+                retained += item[1]
+            self.not_full.notify_all()
+            return batch
+
+
 class InputWriter:
     """Compressed, bounded, append-only stream; loss invalidates the capture."""
 
@@ -58,25 +75,38 @@ class InputWriter:
         self.max_queue_bytes = max_queue_bytes
         self.pending_bytes = 0
         self.lock = Lock()
-        self.queue = Queue(maxsize=32768)
+        self.queue = _BatchQueue(maxsize=32768)
         self.error = None
         self.accepted = self.written = 0
+        self.rejected = 0
+        self.high_water_bytes = 0
+        self.compression_writes = 0
+        self.hashed_rows = 0
+        self.max_batch_rows = self.max_batch_encoded_bytes = 0
         self.closed = False
         self.manifest = None
-        self.encoder = msgspec.json.Encoder()
         # Reserve the filename before starting the writer: never append old data.
         self.stream = self.path.open("xb")
+        try:
+            self.codec = CaptureCodec()
+        except BaseException:
+            self.stream.close()
+            raise
         self.thread = Thread(target=self._run, name="paper-input-writer", daemon=True)
         self.thread.start()
 
     def record(self, event, symbol, payload):
         if self.error or self.closed:
             self.error = self.error or "input writer already closed"
+            self.rejected += 1
             return
-        body = payload.row if isinstance(payload, DeferredJournalRow) else payload
-        if body["kind"] == "manifest" and body["body"]["phase"] == "capture":
-            self.manifest = deepcopy(body["body"]["manifest"])
-        if isinstance(payload, DeferredJournalRow):
+        deferred = isinstance(payload, DEFERRED_ROWS)
+        kind = payload.kind if deferred else payload['kind']
+        if kind == "manifest":
+            body = payload.row if deferred else payload
+            if body["body"]["phase"] == "capture":
+                self.manifest = deepcopy(body["body"]["manifest"])
+        if deferred:
             size = payload.retained_bytes
         else:
             payload, size = detach_json(payload)
@@ -85,33 +115,65 @@ class InputWriter:
         with self.lock:
             if self.pending_bytes + size > self.max_queue_bytes:
                 self.error = "input recording queue exceeded its byte limit"
+                self.rejected += 1
                 return
             self.pending_bytes += size
+            self.high_water_bytes = max(self.high_water_bytes, self.pending_bytes)
         try:
             self.queue.put_nowait((data, size))
         except Full:
             with self.lock:
                 self.pending_bytes -= size
             self.error = "input recording queue is full"
+            self.rejected += 1
             return
         self.accepted += 1
 
     def _run(self):
         try:
-            with self.stream, gzip.GzipFile(fileobj=self.stream, mode="wb", compresslevel=1, mtime=0) as output:
+            with self.stream as output:
                 while True:
-                    item = self.queue.get()
-                    if item is _STOP:
-                        return
-                    row, size = item
+                    # One codec request at a time, <=1024 ready rows and
+                    # <=4MiB retained plus one complete row. All remain charged
+                    # against the original 32MiB queue until file write succeeds.
+                    items = self.queue.get_batch(1024, 4 * 1024**2)
+                    retained = sum(item[1] for item in items if item is not _STOP)
+                    rows = [item[0] for item in items if item is not _STOP]
+                    stopping = items[-1] is _STOP
                     try:
-                        output.write(self.encoder.encode(resolve_journal_row(row)) + b"\n")
-                        self.written += 1
+                        if rows:
+                            self._write_batch(output, rows)
                     finally:
                         with self.lock:
-                            self.pending_bytes -= size
+                            self.pending_bytes -= retained
+                    if stopping:
+                        return
         except BaseException as exc:
-            self.error = f"input writer failed: {type(exc).__name__}"
+            self.error = self.error or f"input writer failed: {type(exc).__name__}"
+        finally:
+            self.codec.close()
+
+    def _write_batch(self, output, rows):
+        result = self.codec.encode(rows)
+        output.write(result['data'])
+        count = len(rows)
+        self.compression_writes += 1
+        self.hashed_rows += result['hashedRows']
+        self.max_batch_rows = max(self.max_batch_rows, count)
+        self.max_batch_encoded_bytes = max(self.max_batch_encoded_bytes, result['encodedBytes'])
+        self.written += count
+
+    def health(self):
+        with self.lock:
+            pending, high_water = self.pending_bytes, self.high_water_bytes
+        return dict(error=self.error, accepted=self.accepted, written=self.written,
+            rejected=self.rejected, pendingBytes=pending, highWaterBytes=high_water,
+            maxQueueBytes=self.max_queue_bytes, queueCapacity=self.queue.maxsize,
+            compressionWrites=self.compression_writes, maxBatchRows=self.max_batch_rows,
+            maxBatchEncodedBytes=self.max_batch_encoded_bytes, closed=self.closed,
+            writerAlive=self.thread.is_alive(), codecPid=self.codec.pid,
+            codecAlive=self.codec.process.is_alive(), hashedRows=self.hashed_rows,
+            codecError=self.codec.error)
 
     def close(self):
         if self.closed:
@@ -125,6 +187,9 @@ class InputWriter:
                 self.error = self.error or "input writer shutdown queue timeout"
         if self.thread.is_alive():
             self.error = self.error or "input writer shutdown timeout"
+            # A blocked pipe must not leave a child running after finalization.
+            self.codec.abort()
+            self.thread.join(2)
         if self.written != self.accepted:
             self.error = self.error or "input writer did not finish all accepted rows"
 

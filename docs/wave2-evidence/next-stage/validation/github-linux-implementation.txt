@@ -1,0 +1,367 @@
+﻿2026-09-28T10:38:32.0083256Z Current runner version: '2.337.0'
+2026-09-28T10:38:32.0110682Z ##[group]Runner Image Provisioner
+2026-09-28T10:38:32.0111720Z Hosted Compute Agent
+2026-09-28T10:38:32.0112719Z Version: 20260828.587
+2026-09-28T10:38:32.0113453Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-09-28T10:38:32.0114227Z Build Date: 2026-08-28T16:44:25Z
+2026-09-28T10:38:32.0114913Z Worker ID: {5242cadd-0abc-4357-a2d5-0f64a801b289}
+2026-09-28T10:38:32.0115799Z Azure Region: northcentralus
+2026-09-28T10:38:32.0116481Z ##[endgroup]
+2026-09-28T10:38:32.0118058Z ##[group]Operating System
+2026-09-28T10:38:32.0118846Z Ubuntu
+2026-09-28T10:38:32.0119365Z 24.04.5
+2026-09-28T10:38:32.0119958Z LTS
+2026-09-28T10:38:32.0120471Z ##[endgroup]
+2026-09-28T10:38:32.0121011Z ##[group]Runner Image
+2026-09-28T10:38:32.0121679Z Image: ubuntu-24.04
+2026-09-28T10:38:32.0122643Z Version: 20260920.314.1
+2026-09-28T10:38:32.0124081Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260920.314/images/ubuntu/Ubuntu2404-Readme.md
+2026-09-28T10:38:32.0125677Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260920.314
+2026-09-28T10:38:32.0126747Z ##[endgroup]
+2026-09-28T10:38:32.0129438Z ##[group]GITHUB_TOKEN Permissions
+2026-09-28T10:38:32.0132658Z Contents: read
+2026-09-28T10:38:32.0133705Z Metadata: read
+2026-09-28T10:38:32.0134792Z Packages: read
+2026-09-28T10:38:32.0135904Z ##[endgroup]
+2026-09-28T10:38:32.0138837Z Secret source: Actions
+2026-09-28T10:38:32.0140589Z Cache mode: write
+2026-09-28T10:38:32.0142358Z Prepare workflow directory
+2026-09-28T10:38:32.0658519Z Prepare all required actions
+2026-09-28T10:38:32.0733744Z Getting action download info
+2026-09-28T10:38:32.3301342Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-09-28T10:38:32.4306157Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-09-28T10:38:32.6234497Z Complete job name: test
+2026-09-28T10:38:32.7051314Z ##[group]Run actions/checkout@v4
+2026-09-28T10:38:32.7052555Z with:
+2026-09-28T10:38:32.7053080Z   repository: branch-danya-dev/scalp-bot
+2026-09-28T10:38:32.7057067Z   token: ***
+2026-09-28T10:38:32.7057568Z   ssh-strict: true
+2026-09-28T10:38:32.7058076Z   ssh-user: git
+2026-09-28T10:38:32.7058590Z   persist-credentials: true
+2026-09-28T10:38:32.7059141Z   clean: true
+2026-09-28T10:38:32.7059657Z   sparse-checkout-cone-mode: true
+2026-09-28T10:38:32.7060247Z   fetch-depth: 1
+2026-09-28T10:38:32.7060743Z   fetch-tags: false
+2026-09-28T10:38:32.7061246Z   show-progress: true
+2026-09-28T10:38:32.7061749Z   lfs: false
+2026-09-28T10:38:32.7062380Z   submodules: false
+2026-09-28T10:38:32.7062896Z   set-safe-directory: true
+2026-09-28T10:38:32.7063471Z   allow-unsafe-pr-checkout: false
+2026-09-28T10:38:32.7064338Z ##[endgroup]
+2026-09-28T10:38:32.8168426Z Syncing repository: branch-danya-dev/scalp-bot
+2026-09-28T10:38:32.8171224Z ##[group]Getting Git version info
+2026-09-28T10:38:32.8172998Z Working directory is '/home/runner/work/scalp-bot/scalp-bot'
+2026-09-28T10:38:32.8174716Z [command]/usr/bin/git version
+2026-09-28T10:38:32.8250542Z git version 2.55.0
+2026-09-28T10:38:32.8274812Z ##[endgroup]
+2026-09-28T10:38:32.8291090Z Temporarily overriding HOME='/home/runner/work/_temp/e191b769-bfe5-412c-a939-691f947cac59' before making global git config changes
+2026-09-28T10:38:32.8293846Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-28T10:38:32.8297281Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/scalp-bot/scalp-bot
+2026-09-28T10:38:32.8358049Z Deleting the contents of '/home/runner/work/scalp-bot/scalp-bot'
+2026-09-28T10:38:32.8368455Z ##[group]Initializing the repository
+2026-09-28T10:38:32.8373130Z [command]/usr/bin/git init /home/runner/work/scalp-bot/scalp-bot
+2026-09-28T10:38:32.8506557Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-09-28T10:38:32.8519003Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-09-28T10:38:32.8521677Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-09-28T10:38:32.8523543Z hint: call:
+2026-09-28T10:38:32.8524513Z hint:
+2026-09-28T10:38:32.8525767Z hint: 	git config --global init.defaultBranch <name>
+2026-09-28T10:38:32.8527363Z hint:
+2026-09-28T10:38:32.8528644Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-09-28T10:38:32.8530239Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-09-28T10:38:32.8531501Z hint:
+2026-09-28T10:38:32.8532399Z hint: 	git branch -m <name>
+2026-09-28T10:38:32.8533183Z hint:
+2026-09-28T10:38:32.8534187Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-09-28T10:38:32.8535883Z Initialized empty Git repository in /home/runner/work/scalp-bot/scalp-bot/.git/
+2026-09-28T10:38:32.8538771Z [command]/usr/bin/git remote add origin https://github.com/branch-danya-dev/scalp-bot
+2026-09-28T10:38:32.8584561Z ##[endgroup]
+2026-09-28T10:38:32.8585910Z ##[group]Disabling automatic garbage collection
+2026-09-28T10:38:32.8590151Z [command]/usr/bin/git config --local gc.auto 0
+2026-09-28T10:38:32.8635831Z ##[endgroup]
+2026-09-28T10:38:32.8637221Z ##[group]Setting up auth
+2026-09-28T10:38:32.8641770Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-28T10:38:32.8682833Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-28T10:38:32.9136878Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-28T10:38:32.9176984Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-28T10:38:32.9414929Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-28T10:38:32.9455209Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-28T10:38:32.9698858Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-09-28T10:38:32.9748299Z ##[endgroup]
+2026-09-28T10:38:32.9749865Z ##[group]Fetching the repository
+2026-09-28T10:38:32.9761316Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +fc06cc70ea362bc3b16978d14ceb7276113f4d7b:refs/remotes/pull/61/merge
+2026-09-28T10:38:33.9586103Z From https://github.com/branch-danya-dev/scalp-bot
+2026-09-28T10:38:33.9589473Z  * [new ref]         fc06cc70ea362bc3b16978d14ceb7276113f4d7b -> pull/61/merge
+2026-09-28T10:38:33.9595471Z ##[endgroup]
+2026-09-28T10:38:33.9597497Z ##[group]Determining the checkout info
+2026-09-28T10:38:33.9599777Z ##[endgroup]
+2026-09-28T10:38:33.9601034Z [command]/usr/bin/git sparse-checkout disable
+2026-09-28T10:38:33.9657143Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-09-28T10:38:33.9703751Z ##[group]Checking out the ref
+2026-09-28T10:38:33.9707052Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/61/merge
+2026-09-28T10:38:34.0432779Z Note: switching to 'refs/remotes/pull/61/merge'.
+2026-09-28T10:38:34.0434438Z 
+2026-09-28T10:38:34.0435674Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-09-28T10:38:34.0437853Z changes and commit them, and you can discard any commits you make in this
+2026-09-28T10:38:34.0440804Z state without impacting any branches by switching back to a branch.
+2026-09-28T10:38:34.0442845Z 
+2026-09-28T10:38:34.0443923Z If you want to create a new branch to retain commits you create, you may
+2026-09-28T10:38:34.0446599Z do so (now or later) by using -c with the switch command. Example:
+2026-09-28T10:38:34.0448090Z 
+2026-09-28T10:38:34.0448784Z   git switch -c <new-branch-name>
+2026-09-28T10:38:34.0450376Z 
+2026-09-28T10:38:34.0451219Z Or undo this operation with:
+2026-09-28T10:38:34.0452771Z 
+2026-09-28T10:38:34.0453523Z   git switch -
+2026-09-28T10:38:34.0454499Z 
+2026-09-28T10:38:34.0455883Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-09-28T10:38:34.0457930Z 
+2026-09-28T10:38:34.0460260Z HEAD is now at fc06cc7 Merge b163f785ed4a85deede118e03a57fecf7633c039 into 1a2d0f67da0331df7d2d134bffde6f64141c7898
+2026-09-28T10:38:34.0467204Z ##[endgroup]
+2026-09-28T10:38:34.0501601Z [command]/usr/bin/git log -1 --format=%H
+2026-09-28T10:38:34.0533835Z fc06cc70ea362bc3b16978d14ceb7276113f4d7b
+2026-09-28T10:38:34.0957812Z ##[group]Run actions/setup-python@v5
+2026-09-28T10:38:34.0959135Z with:
+2026-09-28T10:38:34.0960061Z   python-version: 3.12
+2026-09-28T10:38:34.0961122Z   check-latest: false
+2026-09-28T10:38:34.0971579Z   token: ***
+2026-09-28T10:38:34.0972714Z   update-environment: true
+2026-09-28T10:38:34.0973857Z   allow-prereleases: false
+2026-09-28T10:38:34.0975011Z   freethreaded: false
+2026-09-28T10:38:34.0976029Z ##[endgroup]
+2026-09-28T10:38:34.2504587Z ##[group]Installed versions
+2026-09-28T10:38:34.2634941Z (node:2246) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-28T10:38:34.2640066Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-28T10:38:34.2643164Z Successfully set up CPython (3.12.14)
+2026-09-28T10:38:34.2646271Z ##[endgroup]
+2026-09-28T10:38:34.2944265Z ##[group]Run python -m pip install --upgrade pip
+2026-09-28T10:38:34.2946042Z [36;1mpython -m pip install --upgrade pip[0m
+2026-09-28T10:38:34.2947507Z [36;1mpython -m pip install -e ".[dev]"[0m
+2026-09-28T10:38:34.3260568Z shell: /usr/bin/bash -e {0}
+2026-09-28T10:38:34.3261855Z env:
+2026-09-28T10:38:34.3263333Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-28T10:38:34.3265370Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-28T10:38:34.3267427Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-28T10:38:34.3269229Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-28T10:38:34.3271048Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-28T10:38:34.3272974Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-28T10:38:34.3274490Z ##[endgroup]
+2026-09-28T10:38:35.4183858Z Requirement already satisfied: pip in /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages (26.2.1)
+2026-09-28T10:38:36.4615284Z Obtaining file:///home/runner/work/scalp-bot/scalp-bot
+2026-09-28T10:38:36.4632367Z   Installing build dependencies: started
+2026-09-28T10:38:37.4449241Z   Installing build dependencies: finished with status 'done'
+2026-09-28T10:38:37.4457276Z   Checking if build backend supports build_editable: started
+2026-09-28T10:38:37.8495764Z   Checking if build backend supports build_editable: finished with status 'done'
+2026-09-28T10:38:37.8504919Z   Getting requirements to build editable: started
+2026-09-28T10:38:38.2436928Z   Getting requirements to build editable: finished with status 'done'
+2026-09-28T10:38:38.2463297Z   Preparing editable metadata (pyproject.toml): started
+2026-09-28T10:38:38.4725629Z   Preparing editable metadata (pyproject.toml): finished with status 'done'
+2026-09-28T10:38:38.5852421Z Collecting fastapi<1,>=0.116 (from scalp-bot==0.2.0)
+2026-09-28T10:38:38.6327360Z   Downloading fastapi-0.141.1-py3-none-any.whl.metadata (27 kB)
+2026-09-28T10:38:38.6688143Z Collecting uvicorn<1,>=0.35 (from uvicorn[standard]<1,>=0.35->scalp-bot==0.2.0)
+2026-09-28T10:38:38.6727370Z   Downloading uvicorn-0.54.0-py3-none-any.whl.metadata (6.6 kB)
+2026-09-28T10:38:38.6911106Z Collecting httpx<1,>=0.28 (from scalp-bot==0.2.0)
+2026-09-28T10:38:38.6957837Z   Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+2026-09-28T10:38:38.8285375Z Collecting websockets<16,>=15 (from scalp-bot==0.2.0)
+2026-09-28T10:38:38.8324197Z   Downloading websockets-15.0.1-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.8 kB)
+2026-09-28T10:38:38.8875853Z Collecting msgspec<1,>=0.19 (from scalp-bot==0.2.0)
+2026-09-28T10:38:38.8918221Z   Downloading msgspec-0.21.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (5.8 kB)
+2026-09-28T10:38:38.9592989Z Collecting zstandard<1,>=0.23 (from scalp-bot==0.2.0)
+2026-09-28T10:38:38.9633762Z   Downloading zstandard-0.25.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (3.3 kB)
+2026-09-28T10:38:38.9843707Z Collecting prometheus-client<1,>=0.22 (from scalp-bot==0.2.0)
+2026-09-28T10:38:38.9883032Z   Downloading prometheus_client-0.26.0-py3-none-any.whl.metadata (2.1 kB)
+2026-09-28T10:38:39.0081558Z Collecting opentelemetry-api<2,>=1.30 (from scalp-bot==0.2.0)
+2026-09-28T10:38:39.0119361Z   Downloading opentelemetry_api-1.45.0-py3-none-any.whl.metadata (1.4 kB)
+2026-09-28T10:38:39.0307058Z Collecting opentelemetry-sdk<2,>=1.30 (from scalp-bot==0.2.0)
+2026-09-28T10:38:39.0348077Z   Downloading opentelemetry_sdk-1.45.0-py3-none-any.whl.metadata (1.6 kB)
+2026-09-28T10:38:39.0530592Z Collecting opentelemetry-exporter-otlp-proto-http<2,>=1.30 (from scalp-bot==0.2.0)
+2026-09-28T10:38:39.0585142Z   Downloading opentelemetry_exporter_otlp_proto_http-1.45.0-py3-none-any.whl.metadata (3.1 kB)
+2026-09-28T10:38:39.0757900Z Collecting pydantic-settings<3,>=2.10 (from scalp-bot==0.2.0)
+2026-09-28T10:38:39.0796634Z   Downloading pydantic_settings-2.15.0-py3-none-any.whl.metadata (3.9 kB)
+2026-09-28T10:38:39.1093967Z Collecting pytest<9,>=8.4 (from scalp-bot==0.2.0)
+2026-09-28T10:38:39.1135323Z   Downloading pytest-8.4.2-py3-none-any.whl.metadata (7.7 kB)
+2026-09-28T10:38:39.1327506Z Collecting pytest-asyncio<2,>=1.1 (from scalp-bot==0.2.0)
+2026-09-28T10:38:39.1366071Z   Downloading pytest_asyncio-1.4.0-py3-none-any.whl.metadata (4.1 kB)
+2026-09-28T10:38:39.1613569Z Collecting starlette>=0.46.0 (from fastapi<1,>=0.116->scalp-bot==0.2.0)
+2026-09-28T10:38:39.1652253Z   Downloading starlette-1.7.0-py3-none-any.whl.metadata (6.6 kB)
+2026-09-28T10:38:39.2697879Z Collecting pydantic>=2.9.0 (from fastapi<1,>=0.116->scalp-bot==0.2.0)
+2026-09-28T10:38:39.2739803Z   Downloading pydantic-2.13.5-py3-none-any.whl.metadata (110 kB)
+2026-09-28T10:38:39.2975128Z Collecting typing-extensions>=4.8.0 (from fastapi<1,>=0.116->scalp-bot==0.2.0)
+2026-09-28T10:38:39.3018408Z   Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+2026-09-28T10:38:39.3136867Z Collecting typing-inspection>=0.4.2 (from fastapi<1,>=0.116->scalp-bot==0.2.0)
+2026-09-28T10:38:39.3203211Z   Downloading typing_inspection-0.4.4-py3-none-any.whl.metadata (2.6 kB)
+2026-09-28T10:38:39.3317533Z Collecting annotated-doc>=0.0.2 (from fastapi<1,>=0.116->scalp-bot==0.2.0)
+2026-09-28T10:38:39.3354490Z   Downloading annotated_doc-0.0.5-py3-none-any.whl.metadata (6.5 kB)
+2026-09-28T10:38:39.3557043Z Collecting anyio (from httpx<1,>=0.28->scalp-bot==0.2.0)
+2026-09-28T10:38:39.3595593Z   Downloading anyio-4.15.1-py3-none-any.whl.metadata (4.7 kB)
+2026-09-28T10:38:39.3803577Z Collecting certifi (from httpx<1,>=0.28->scalp-bot==0.2.0)
+2026-09-28T10:38:39.3841441Z   Downloading certifi-2026.7.22-py3-none-any.whl.metadata (2.5 kB)
+2026-09-28T10:38:39.4005011Z Collecting httpcore==1.* (from httpx<1,>=0.28->scalp-bot==0.2.0)
+2026-09-28T10:38:39.4043676Z   Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+2026-09-28T10:38:39.4205241Z Collecting idna (from httpx<1,>=0.28->scalp-bot==0.2.0)
+2026-09-28T10:38:39.4244409Z   Downloading idna-3.20-py3-none-any.whl.metadata (7.2 kB)
+2026-09-28T10:38:39.4375222Z Collecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.28->scalp-bot==0.2.0)
+2026-09-28T10:38:39.4413856Z   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+2026-09-28T10:38:39.4632901Z Collecting googleapis-common-protos~=1.52 (from opentelemetry-exporter-otlp-proto-http<2,>=1.30->scalp-bot==0.2.0)
+2026-09-28T10:38:39.4673279Z   Downloading googleapis_common_protos-1.75.4-py3-none-any.whl.metadata (8.5 kB)
+2026-09-28T10:38:39.4811799Z Collecting opentelemetry-exporter-http-transport==0.66b0 (from opentelemetry-exporter-http-transport[urllib3]==0.66b0->opentelemetry-exporter-otlp-proto-http<2,>=1.30->scalp-bot==0.2.0)
+2026-09-28T10:38:39.4847216Z   Downloading opentelemetry_exporter_http_transport-0.66b0-py3-none-any.whl.metadata (2.3 kB)
+2026-09-28T10:38:39.4956999Z Collecting opentelemetry-exporter-otlp-common==0.66b0 (from opentelemetry-exporter-otlp-proto-http<2,>=1.30->scalp-bot==0.2.0)
+2026-09-28T10:38:39.4993589Z   Downloading opentelemetry_exporter_otlp_common-0.66b0-py3-none-any.whl.metadata (1.9 kB)
+2026-09-28T10:38:39.5131233Z Collecting opentelemetry-exporter-otlp-proto-common==1.45.0 (from opentelemetry-exporter-otlp-proto-http<2,>=1.30->scalp-bot==0.2.0)
+2026-09-28T10:38:39.5167416Z   Downloading opentelemetry_exporter_otlp_proto_common-1.45.0-py3-none-any.whl.metadata (1.8 kB)
+2026-09-28T10:38:39.5361219Z Collecting opentelemetry-proto==1.45.0 (from opentelemetry-exporter-otlp-proto-http<2,>=1.30->scalp-bot==0.2.0)
+2026-09-28T10:38:39.5411047Z   Downloading opentelemetry_proto-1.45.0-py3-none-any.whl.metadata (2.3 kB)
+2026-09-28T10:38:39.5658117Z Collecting urllib3>=1.26 (from opentelemetry-exporter-http-transport[urllib3]==0.66b0->opentelemetry-exporter-otlp-proto-http<2,>=1.30->scalp-bot==0.2.0)
+2026-09-28T10:38:39.5696832Z   Downloading urllib3-2.8.0-py3-none-any.whl.metadata (7.4 kB)
+2026-09-28T10:38:39.7214635Z Collecting protobuf<8.0,>=5.0 (from opentelemetry-proto==1.45.0->opentelemetry-exporter-otlp-proto-http<2,>=1.30->scalp-bot==0.2.0)
+2026-09-28T10:38:39.7252981Z   Downloading protobuf-7.36.2-cp310-abi3-manylinux2014_x86_64.whl.metadata (595 bytes)
+2026-09-28T10:38:39.7477816Z Collecting opentelemetry-semantic-conventions==0.66b0 (from opentelemetry-sdk<2,>=1.30->scalp-bot==0.2.0)
+2026-09-28T10:38:39.7516070Z   Downloading opentelemetry_semantic_conventions-0.66b0-py3-none-any.whl.metadata (2.4 kB)
+2026-09-28T10:38:39.7731167Z Collecting python-dotenv>=0.21.0 (from pydantic-settings<3,>=2.10->scalp-bot==0.2.0)
+2026-09-28T10:38:39.8072952Z   Downloading python_dotenv-1.2.3-py3-none-any.whl.metadata (29 kB)
+2026-09-28T10:38:39.8224551Z Collecting iniconfig>=1 (from pytest<9,>=8.4->scalp-bot==0.2.0)
+2026-09-28T10:38:39.8261899Z   Downloading iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)
+2026-09-28T10:38:39.8423761Z Collecting packaging>=20 (from pytest<9,>=8.4->scalp-bot==0.2.0)
+2026-09-28T10:38:39.8481298Z   Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+2026-09-28T10:38:39.8610903Z Collecting pluggy<2,>=1.5 (from pytest<9,>=8.4->scalp-bot==0.2.0)
+2026-09-28T10:38:39.8648047Z   Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+2026-09-28T10:38:39.8838641Z Collecting pygments>=2.7.2 (from pytest<9,>=8.4->scalp-bot==0.2.0)
+2026-09-28T10:38:39.8879463Z   Downloading pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+2026-09-28T10:38:39.9107462Z Collecting click>=7.0 (from uvicorn<1,>=0.35->uvicorn[standard]<1,>=0.35->scalp-bot==0.2.0)
+2026-09-28T10:38:39.9147546Z   Downloading click-8.5.0-py3-none-any.whl.metadata (2.6 kB)
+2026-09-28T10:38:39.9478712Z Collecting httptools>=0.8.0 (from uvicorn[standard]<1,>=0.35->scalp-bot==0.2.0)
+2026-09-28T10:38:39.9517574Z   Downloading httptools-0.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (3.5 kB)
+2026-09-28T10:38:39.9894418Z Collecting pyyaml>=5.1 (from uvicorn[standard]<1,>=0.35->scalp-bot==0.2.0)
+2026-09-28T10:38:39.9935454Z   Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+2026-09-28T10:38:40.0314027Z Collecting uvloop>=0.15.1 (from uvicorn[standard]<1,>=0.35->scalp-bot==0.2.0)
+2026-09-28T10:38:40.0353215Z   Downloading uvloop-0.22.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (4.9 kB)
+2026-09-28T10:38:40.1111522Z Collecting watchfiles>=0.20 (from uvicorn[standard]<1,>=0.35->scalp-bot==0.2.0)
+2026-09-28T10:38:40.1152810Z   Downloading watchfiles-1.3.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.9 kB)
+2026-09-28T10:38:40.1328950Z Collecting annotated-types>=0.6.0 (from pydantic>=2.9.0->fastapi<1,>=0.116->scalp-bot==0.2.0)
+2026-09-28T10:38:40.1367372Z   Downloading annotated_types-0.8.0-py3-none-any.whl.metadata (15 kB)
+2026-09-28T10:38:40.8218933Z Collecting pydantic-core==2.46.5 (from pydantic>=2.9.0->fastapi<1,>=0.116->scalp-bot==0.2.0)
+2026-09-28T10:38:40.8257500Z   Downloading pydantic_core-2.46.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)
+2026-09-28T10:38:40.8512718Z Downloading fastapi-0.141.1-py3-none-any.whl (131 kB)
+2026-09-28T10:38:40.8591445Z Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+2026-09-28T10:38:40.8651757Z Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+2026-09-28T10:38:40.8713376Z Downloading msgspec-0.21.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (225 kB)
+2026-09-28T10:38:40.8790009Z Downloading opentelemetry_api-1.45.0-py3-none-any.whl (60 kB)
+2026-09-28T10:38:40.8846966Z Downloading opentelemetry_exporter_otlp_proto_http-1.45.0-py3-none-any.whl (22 kB)
+2026-09-28T10:38:40.8904238Z Downloading opentelemetry_exporter_http_transport-0.66b0-py3-none-any.whl (12 kB)
+2026-09-28T10:38:40.8960621Z Downloading opentelemetry_exporter_otlp_common-0.66b0-py3-none-any.whl (12 kB)
+2026-09-28T10:38:40.9018240Z Downloading opentelemetry_exporter_otlp_proto_common-1.45.0-py3-none-any.whl (15 kB)
+2026-09-28T10:38:40.9074829Z Downloading opentelemetry_proto-1.45.0-py3-none-any.whl (72 kB)
+2026-09-28T10:38:40.9133309Z Downloading googleapis_common_protos-1.75.4-py3-none-any.whl (307 kB)
+2026-09-28T10:38:40.9198672Z Downloading opentelemetry_sdk-1.45.0-py3-none-any.whl (140 kB)
+2026-09-28T10:38:40.9262029Z Downloading opentelemetry_semantic_conventions-0.66b0-py3-none-any.whl (206 kB)
+2026-09-28T10:38:40.9331029Z Downloading prometheus_client-0.26.0-py3-none-any.whl (64 kB)
+2026-09-28T10:38:40.9392092Z Downloading protobuf-7.36.2-cp310-abi3-manylinux2014_x86_64.whl (343 kB)
+2026-09-28T10:38:40.9459430Z Downloading pydantic_settings-2.15.0-py3-none-any.whl (69 kB)
+2026-09-28T10:38:40.9544636Z Downloading pytest-8.4.2-py3-none-any.whl (365 kB)
+2026-09-28T10:38:40.9612679Z Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)
+2026-09-28T10:38:40.9672227Z Downloading pytest_asyncio-1.4.0-py3-none-any.whl (16 kB)
+2026-09-28T10:38:40.9729325Z Downloading uvicorn-0.54.0-py3-none-any.whl (87 kB)
+2026-09-28T10:38:40.9789016Z Downloading websockets-15.0.1-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (182 kB)
+2026-09-28T10:38:40.9853454Z Downloading zstandard-0.25.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (5.5 MB)
+2026-09-28T10:38:41.0085055Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.5/5.5 MB 263.4 MB/s  0:00:00
+2026-09-28T10:38:41.0123567Z Downloading annotated_doc-0.0.5-py3-none-any.whl (5.3 kB)
+2026-09-28T10:38:41.0181092Z Downloading click-8.5.0-py3-none-any.whl (125 kB)
+2026-09-28T10:38:41.0241413Z Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+2026-09-28T10:38:41.0312657Z Downloading httptools-0.8.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (523 kB)
+2026-09-28T10:38:41.0389590Z Downloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)
+2026-09-28T10:38:41.0453876Z Downloading packaging-26.3-py3-none-any.whl (129 kB)
+2026-09-28T10:38:41.0518528Z Downloading pydantic-2.13.5-py3-none-any.whl (472 kB)
+2026-09-28T10:38:41.0590293Z Downloading pydantic_core-2.46.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
+2026-09-28T10:38:41.0698751Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 229.2 MB/s  0:00:00
+2026-09-28T10:38:41.0737676Z Downloading annotated_types-0.8.0-py3-none-any.whl (13 kB)
+2026-09-28T10:38:41.0798310Z Downloading pygments-2.21.0-py3-none-any.whl (1.3 MB)
+2026-09-28T10:38:41.0873152Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 208.3 MB/s  0:00:00
+2026-09-28T10:38:41.0911729Z Downloading python_dotenv-1.2.3-py3-none-any.whl (22 kB)
+2026-09-28T10:38:41.0975553Z Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)
+2026-09-28T10:38:41.1036940Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 148.3 MB/s  0:00:00
+2026-09-28T10:38:41.1073344Z Downloading starlette-1.7.0-py3-none-any.whl (78 kB)
+2026-09-28T10:38:41.1135020Z Downloading anyio-4.15.1-py3-none-any.whl (132 kB)
+2026-09-28T10:38:41.1198416Z Downloading idna-3.20-py3-none-any.whl (69 kB)
+2026-09-28T10:38:41.1256620Z Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+2026-09-28T10:38:41.1313133Z Downloading typing_inspection-0.4.4-py3-none-any.whl (14 kB)
+2026-09-28T10:38:41.1376265Z Downloading urllib3-2.8.0-py3-none-any.whl (135 kB)
+2026-09-28T10:38:41.1439269Z Downloading uvloop-0.22.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (4.4 MB)
+2026-09-28T10:38:41.1616063Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.4/4.4 MB 287.3 MB/s  0:00:00
+2026-09-28T10:38:41.1657241Z Downloading watchfiles-1.3.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (458 kB)
+2026-09-28T10:38:41.1739816Z Downloading certifi-2026.7.22-py3-none-any.whl (136 kB)
+2026-09-28T10:38:41.2899128Z Building wheels for collected packages: scalp-bot
+2026-09-28T10:38:41.2908129Z   Building editable for scalp-bot (pyproject.toml): started
+2026-09-28T10:38:41.5557161Z   Building editable for scalp-bot (pyproject.toml): finished with status 'done'
+2026-09-28T10:38:41.5564608Z   Created wheel for scalp-bot: filename=scalp_bot-0.2.0-0.editable-py3-none-any.whl size=2965 sha256=483655b239eee850f46c80eea311d9b4c8d5fcf65ff4ffcedb4f8f6411cd4c21
+2026-09-28T10:38:41.5566122Z   Stored in directory: /tmp/pip-ephem-wheel-cache-4d_tkvum/wheels/91/73/ad/ceb72e37a3e8ed46a742d5ca225276518e86bba19dfb3ab3cd
+2026-09-28T10:38:41.5582892Z Successfully built scalp-bot
+2026-09-28T10:38:41.6346123Z Installing collected packages: zstandard, websockets, uvloop, urllib3, typing-extensions, pyyaml, python-dotenv, pygments, protobuf, prometheus-client, pluggy, packaging, msgspec, iniconfig, idna, httptools, h11, click, certifi, annotated-types, annotated-doc, uvicorn, typing-inspection, pytest, pydantic-core, opentelemetry-proto, opentelemetry-api, httpcore, googleapis-common-protos, anyio, watchfiles, starlette, pytest-asyncio, pydantic, opentelemetry-semantic-conventions, opentelemetry-exporter-otlp-proto-common, opentelemetry-exporter-http-transport, httpx, pydantic-settings, opentelemetry-sdk, fastapi, opentelemetry-exporter-otlp-common, opentelemetry-exporter-otlp-proto-http, scalp-bot
+2026-09-28T10:38:45.1469765Z 
+2026-09-28T10:38:45.1513970Z Successfully installed annotated-doc-0.0.5 annotated-types-0.8.0 anyio-4.15.1 certifi-2026.7.22 click-8.5.0 fastapi-0.141.1 googleapis-common-protos-1.75.4 h11-0.16.0 httpcore-1.0.9 httptools-0.8.0 httpx-0.28.1 idna-3.20 iniconfig-2.3.0 msgspec-0.21.1 opentelemetry-api-1.45.0 opentelemetry-exporter-http-transport-0.66b0 opentelemetry-exporter-otlp-common-0.66b0 opentelemetry-exporter-otlp-proto-common-1.45.0 opentelemetry-exporter-otlp-proto-http-1.45.0 opentelemetry-proto-1.45.0 opentelemetry-sdk-1.45.0 opentelemetry-semantic-conventions-0.66b0 packaging-26.3 pluggy-1.6.0 prometheus-client-0.26.0 protobuf-7.36.2 pydantic-2.13.5 pydantic-core-2.46.5 pydantic-settings-2.15.0 pygments-2.21.0 pytest-8.4.2 pytest-asyncio-1.4.0 python-dotenv-1.2.3 pyyaml-6.0.3 scalp-bot-0.2.0 starlette-1.7.0 typing-extensions-4.16.0 typing-inspection-0.4.4 urllib3-2.8.0 uvicorn-0.54.0 uvloop-0.22.1 watchfiles-1.3.0 websockets-15.0.1 zstandard-0.25.0
+2026-09-28T10:38:45.3549986Z ##[group]Run python scripts/test_preflight.py
+2026-09-28T10:38:45.3550389Z [36;1mpython scripts/test_preflight.py[0m
+2026-09-28T10:38:45.3618453Z shell: /usr/bin/bash -e {0}
+2026-09-28T10:38:45.3618758Z env:
+2026-09-28T10:38:45.3619084Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-28T10:38:45.3619612Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-28T10:38:45.3620362Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-28T10:38:45.3620827Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-28T10:38:45.3621285Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-28T10:38:45.3621751Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-28T10:38:45.3622407Z ##[endgroup]
+2026-09-28T10:38:55.5694746Z ........................................................................ [  4%]
+2026-09-28T10:38:55.9088967Z .......................................s.s.............................. [  8%]
+2026-09-28T10:38:55.9623292Z ........................................................................ [ 13%]
+2026-09-28T10:38:57.1410796Z ........................................................................ [ 17%]
+2026-09-28T10:39:00.7208156Z ...........s..s......................................................... [ 21%]
+2026-09-28T10:39:03.9661765Z ........................................................................ [ 26%]
+2026-09-28T10:39:41.6026161Z ........................................................................ [ 30%]
+2026-09-28T10:39:58.3509286Z ........................................................................ [ 34%]
+2026-09-28T10:39:59.6501905Z ........................................................................ [ 39%]
+2026-09-28T10:39:59.9037547Z ........................................................................ [ 43%]
+2026-09-28T10:40:02.0531998Z ........................................................................ [ 47%]
+2026-09-28T10:40:03.4677044Z ........................................................................ [ 52%]
+2026-09-28T10:40:18.7606229Z ........................................................................ [ 56%]
+2026-09-28T10:40:28.1428706Z ........................................................................ [ 60%]
+2026-09-28T10:40:28.5631618Z ........................................................................ [ 65%]
+2026-09-28T10:40:52.2930310Z ........................................................................ [ 69%]
+2026-09-28T10:40:53.0463770Z ........................................................................ [ 73%]
+2026-09-28T10:40:53.6520573Z ........................................................................ [ 78%]
+2026-09-28T10:40:54.2283594Z ........................................................................ [ 82%]
+2026-09-28T10:40:54.5321930Z ........................................................................ [ 86%]
+2026-09-28T10:40:54.6676296Z ........................................................................ [ 91%]
+2026-09-28T10:40:54.8293154Z ........................................................................ [ 95%]
+2026-09-28T10:40:57.6645203Z ........................................................................ [100%]
+2026-09-28T10:40:57.6646301Z 1652 passed, 6 skipped in 131.09s (0:02:11)
+2026-09-28T10:40:58.0551449Z ##[group]Run node --check scalp_bot/static/app.js
+2026-09-28T10:40:58.0551905Z [36;1mnode --check scalp_bot/static/app.js[0m
+2026-09-28T10:40:58.0552526Z [36;1mnode --check scalp_bot/static/replay.js[0m
+2026-09-28T10:40:58.0617544Z shell: /usr/bin/bash -e {0}
+2026-09-28T10:40:58.0617844Z env:
+2026-09-28T10:40:58.0618146Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-28T10:40:58.0618635Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-28T10:40:58.0619117Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-28T10:40:58.0619543Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-28T10:40:58.0619986Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-28T10:40:58.0620422Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-28T10:40:58.0620790Z ##[endgroup]
+2026-09-28T10:40:58.1402989Z Post job cleanup.
+2026-09-28T10:40:58.2905731Z (node:3532) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-28T10:40:58.2907760Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-28T10:40:58.3176561Z Post job cleanup.
+2026-09-28T10:40:58.4177665Z [command]/usr/bin/git version
+2026-09-28T10:40:58.4235373Z git version 2.55.0
+2026-09-28T10:40:58.4287939Z Temporarily overriding HOME='/home/runner/work/_temp/857650a3-621b-4935-8ebc-df61c237218c' before making global git config changes
+2026-09-28T10:40:58.4289507Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-28T10:40:58.4295938Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/scalp-bot/scalp-bot
+2026-09-28T10:40:58.4351924Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-28T10:40:58.4407168Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-28T10:40:58.4693128Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-28T10:40:58.4743479Z http.https://github.com/.extraheader
+2026-09-28T10:40:58.4746775Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-09-28T10:40:58.4800725Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-28T10:40:58.5095749Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-28T10:40:58.5150034Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-28T10:40:58.5567343Z Cleaning up orphan processes
+2026-09-28T10:40:58.5877992Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

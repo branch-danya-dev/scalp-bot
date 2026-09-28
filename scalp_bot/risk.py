@@ -164,6 +164,12 @@ class RiskEngine:
         best_raw_entry = raw_market_entry
         stop = float(decision.stop)
         target = float(decision.target)
+        if self.config.trading_quality_enabled:
+            from .trading_policy import reachable_target
+            target, reason = reachable_target(decision, market_entry, target,
+                tick_size=instrument.tick_size if instrument else 0.0)
+            if reason:
+                return RiskResult(False, reason, diagnostics=dict(decision.details))
         if instrument is not None:
             stop = instrument.stop_price(stop, side)
             target = instrument.target_price(target, side)
@@ -630,6 +636,55 @@ class RiskEngine:
                 "normalizedNotionalUsd": notional,
             }
 
+        if self.config.trading_quality_enabled:
+            # The exchange accepts base quantity, not the earlier quote-notional
+            # estimate. Reprice the FINAL (possibly step-rounded) quantity and
+            # enforce exact cash risk; never retain VWAP from a larger order.
+            sign = 1 if side == Side.LONG else -1
+            for _ in range(4):
+                if entry_mode != "maker_limit":
+                    raw_depth_entry, filled_quantity, visible_entry_depth = depth.entry_vwap_quantity(side, quantity)
+                    if raw_depth_entry is None or filled_quantity + 1e-12 < quantity:
+                        return RiskResult(False, "insufficient visible depth for final quantity")
+                market_entry = apply_entry_slippage(float(raw_depth_entry), side, entry_slippage_rate)
+                notional = quantity * market_entry
+                entry_drift = sign * (market_entry - setup_entry) / setup_entry
+                if sign * (market_entry-stop) <= 0 or entry_drift > max_drift:
+                    return RiskResult(False, "setup invalidated after final quantity pricing")
+                stop_pct = abs(market_entry-stop)/market_entry
+                target_pct = sign*(target-market_entry)/market_entry
+                (stop_depth_stress_rate, stop_depth_impact_rate, visible_stop_depth,
+                 raw_stop_exit_vwap, stop_depth_model) = self._stop_depth_stress(depth, side, notional, stop)
+                if raw_stop_exit_vwap is None or visible_stop_depth <= 0:
+                    return RiskResult(False, "insufficient stop-side depth for final quantity")
+                stressed_fill = apply_exit_slippage(stop, side, stop_exit_slippage_rate) * (1-sign*stop_depth_stress_rate)
+                exact_structural = quantity*abs(market_entry-stop)
+                exact_loss = quantity*(sign*(market_entry-stressed_fill)
+                    + market_entry*entry_fee_rate + stressed_fill*stop_exit_fee_rate)
+                if exact_loss <= 0:
+                    return RiskResult(False, "invalid final cash risk")
+                ratio = min(1., structural_risk_budget/exact_structural,
+                    trade_all_in_cap_usd/exact_loss, max(available_risk_usd,0)/exact_loss,
+                    max(available_notional,0)/notional, position_exposure_cap/notional,
+                    visible_stop_depth/notional)
+                if ratio >= 1-1e-10:
+                    break
+                quantity *= max(0., ratio)*(1-1e-10)
+                if instrument:
+                    normalized = instrument.normalize_quantity(entry_price=market_entry,
+                        requested_notional=quantity*market_entry, market_order=entry_mode != "maker_limit")
+                    if normalized is None:
+                        return RiskResult(False, "instrument minimum after final cash risk sizing")
+                    quantity, _ = normalized
+                if quantity <= 0:
+                    return RiskResult(False, "final cash risk budget exhausted")
+            else:
+                return RiskResult(False, "final quantity risk sizing did not converge")
+            if instrument:
+                if quantity < instrument.min_order_qty or notional < instrument.min_notional_value:
+                    return RiskResult(False, "instrument minimum after final quantity pricing")
+                instrument_diagnostics.update(normalizedQuantity=quantity, normalizedNotionalUsd=notional)
+
         entry_depth_impact_bps = (
             max(
                 0.0,
@@ -714,6 +769,16 @@ class RiskEngine:
         stop_cost_pct = stressed_stop_cost_pct
         round_trip_cost_pct = stressed_stop_cost_pct
 
+        if self.config.trading_quality_enabled:
+            from .trading_policy import reachable_target
+            target, reason = reachable_target(decision, market_entry, target,
+                tick_size=instrument.tick_size if instrument else 0.0)
+            if instrument is not None:
+                target = instrument.target_price(target, side)
+            target_pct = direction * (target - market_entry) / market_entry
+            decision.details["remainingMove"]["reachableTarget"] = target
+            if reason or target_pct <= 0:
+                return RiskResult(False, reason or "reachable_target_exhausted", diagnostics=dict(decision.details))
         full_target_fill = apply_exit_slippage(
             target,
             side,
@@ -856,6 +921,7 @@ class RiskEngine:
             * runner_target_pct
         )
 
+        exit_plan_selection = None
         if partial_enabled:
             runner_fraction = 1.0 - partial_fraction
             runner_quantity = quantity * runner_fraction
@@ -891,7 +957,45 @@ class RiskEngine:
                 partial_slippage_cost
                 + runner_slippage_cost
             )
-        else:
+            if self.config.trading_quality_enabled:
+                # A positive first leg does not qualify the complete lifecycle.
+                # Prefer the configured partial only when the whole plan passes;
+                # otherwise consider full closure at the SAME reachable target.
+                # Entry, structural stop, size and all admission limits stay fixed.
+                def exit_policy(gross, costs, first_move):
+                    net = gross - costs
+                    rr = net / all_in_net_loss if all_in_net_loss > 0 else 0.0
+                    share = ((costs + embedded_entry_slippage_usd)
+                             / (gross + embedded_entry_slippage_usd)
+                             if gross + embedded_entry_slippage_usd > 0 else float("inf"))
+                    failures = []
+                    if net <= 0:
+                        failures.append("nonpositive_net_payout")
+                    if rr < self.config.absolute_min_net_reward_risk:
+                        failures.append("absolute_net_reward_risk")
+                    if self.config.enforce_net_reward_risk_gate and rr < self.config.min_net_reward_risk:
+                        failures.append("net_reward_risk")
+                    if self.config.enforce_winner_cost_share_gate and share > self.config.max_winner_cost_share:
+                        failures.append("winner_cost_share")
+                    if self.config.enforce_min_net_profit_gate and net < required_net_profit:
+                        failures.append("minimum_net_profit")
+                    if self.config.enforce_min_first_take_move_gate and first_move < self.config.min_first_take_move_pct:
+                        failures.append("first_take_move")
+                    return dict(netAtTargetUsd=net, netRewardRisk=rr, winnerCostShare=share, blockers=failures)
+
+                partial_policy = exit_policy(gross_profit,
+                    lifecycle_fee_cost + lifecycle_slippage_cost, partial_move_pct)
+                full_policy = exit_policy(direction * (target - market_entry) * quantity,
+                    target_fee_cost + target_slippage_cost, target_pct)
+                use_single = bool(partial_policy["blockers"] and not full_policy["blockers"])
+                exit_plan_selection = dict(
+                    selected="single_reachable_target" if use_single else "partial_and_target",
+                    partial=partial_policy, singleTarget=full_policy, reachableTarget=target,
+                    policy="prefer_qualified_partial_else_qualified_full_target; conditional_payout_not_expectancy")
+                if use_single:
+                    partial_enabled = False
+                    runner_target_pct = target_pct
+        if not partial_enabled:
             runner_fraction = 1.0
             runner_quantity = quantity
             runner_raw_price = target
@@ -1019,6 +1123,10 @@ class RiskEngine:
             binding = "depth_stress_or_quantity_rounding"
         economic_diagnostics = {
             "payoutMeaning": "conditional_on_targets_not_expected_value",
+            "breakEvenWinRateTargetOrStop": (all_in_net_loss / (all_in_net_loss + expected_net)
+                if expected_net > 0 and all_in_net_loss > 0 else None),
+            "breakEvenWinRateMeaning": "binary target-or-stop illustration; partial/failure/time exits require observed outcome distribution",
+            "liquidityMeaning": "current executable depth and structural references; future stop liquidity is stressed estimation",
             "conditionalTargetNetUsd": expected_net,
             "executionBook": dict(depth.execution),
             "sizing": {"initialRiskNotionalUsd": initial_risk_notional,
@@ -1105,6 +1213,7 @@ class RiskEngine:
             "firstTakePrice": partial_raw_price if partial_enabled else target,
             "partialCandidate": partial_candidate,
             "partialPlanned": partial_enabled,
+            "exitPlanSelection": exit_plan_selection,
             "configuredPartialFraction": partial_fraction,
             "partialFraction": (
                 partial_fraction

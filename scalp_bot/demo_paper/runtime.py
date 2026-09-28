@@ -39,7 +39,7 @@ def install_stop_signals(stop):
 
 
 class Session:
-    def __init__(self,config,metadata,model_dir,credentials,preflight,output):
+    def __init__(self,config,metadata,model_dir,credentials,preflight,output,*,rule_only=False,engine_class=PairedEngine):
         self.output=Path(output);self.output.mkdir(parents=True,exist_ok=False)
         self.config=config;self.preflight=preflight;self.run=uuid.uuid4().hex
         self.clock=SystemRuntimeClock();self.recorder=SessionRecorder(str(self.output/"capture"),clock=self.clock,
@@ -47,15 +47,15 @@ class Session:
         self.recorder.start_background_writer()
         self.events=[];self.stop=asyncio.Event();self.private_ready=asyncio.Event();self.finished=False
         self.credentials=credentials;self.rest=DemoRest(credentials,enabled=True);self.public=PublicRest(config)
-        self.worker=InferenceWorker(model_dir);self.tasks=[];self.start_ns=None;self.start_ms=None;self.funding_seen=set();self.loop_lateness_ms=[];self.adapter_ms=[];self.opened_pairs=set();self.expected_funding=set();self.observed_funding=set()
+        self.worker=None if rule_only else InferenceWorker(model_dir);self.tasks=[];self.start_ns=None;self.start_ms=None;self.funding_seen=set();self.loop_lateness_ms=[];self.adapter_ms=[];self.opened_pairs=set();self.expected_funding=set();self.observed_funding=set()
         self.arms={n:Arm(n,config,self.clock,self.emit) for n in ("demo","paper")}
         self.arms["demo"].venue=DemoVenue(self.rest,lambda e,p:self.emit(e,dict(arm="demo",**p)),self.arms["demo"].fill)
         self.arms["paper"].venue=PaperVenue(config,lambda e,p:self.emit(e,dict(arm="paper",**p)),self.arms["paper"].fill)
         self.arms["paper"].venue.remaining=self.arms["paper"].remaining
         self.portfolio=PairedPortfolio(self.run,config,self.arms,self.emit)
-        self.adapter=ResearchMLAdapter(metadata,self.portfolio,self.emit)
-        self.engine=PairedEngine(config,self.portfolio,self.worker,self.adapter,rest_client=self.public,
-            recorder=self.recorder,capture_inputs=True,configure_observability=False)
+        self.adapter=None if rule_only else ResearchMLAdapter(metadata,self.portfolio,self.emit)
+        self.engine=engine_class(config,self.portfolio,self.worker,self.adapter,rest_client=self.public,
+            recorder=self.recorder,capture_inputs=not rule_only,configure_observability=False)
         self.rest.before_write=self.before_write
         self._entry_readiness_key=None;self.account_task=None
 

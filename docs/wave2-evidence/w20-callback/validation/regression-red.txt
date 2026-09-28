@@ -1,0 +1,37 @@
+FF........................................................               [100%]
+================================== FAILURES ===================================
+___________ test_forming_timestamp_work_is_bounded_on_a_dense_tape ____________
+
+    def test_forming_timestamp_work_is_bounded_on_a_dense_tape():
+        tape = [CountedTick(99_000 + i) for i in range(1000)]
+        result = build_forming_candle_context(
+            forming(), [], observed_at_ms=100_000, recent_trades=tape,
+        )
+        assert result.current_minute_trade_count == len(tape)
+        # Selection plus one sort key and the narrower window; no repeated sorting
+        # or re-filtering of the full minute. Deterministic work, not wall time.
+>       assert sum(t.reads for t in tape) <= 3 * len(tape)
+E       assert 7001 <= (3 * 1000)
+E        +  where 7001 = sum(<generator object test_forming_timestamp_work_is_bounded_on_a_dense_tape.<locals>.<genexpr> at 0x000002420F35C1C0>)
+E        +  and   1000 = len([<test_tape_window_work.CountedTick object at 0x000002420F042510>, <test_tape_window_work.CountedTick object at 0x0000..._work.CountedTick object at 0x000002420F2C6B10>, <test_tape_window_work.CountedTick object at 0x000002420F361130>, ...])
+
+tests\test_tape_window_work.py:37: AssertionError
+________________ test_book_flow_reads_each_retained_event_once ________________
+
+    def test_book_flow_reads_each_retained_event_once():
+        session = ActiveSymbolSession("TESTUSDT")
+        session.book_flow = CountedDeque((99_000 + i, float(i)) for i in range(1000))
+        result = session.book_flow_snapshot(100_000)
+        assert result["eventCount60s"] == 1000
+>       assert session.book_flow.visited <= len(session.book_flow)
+E       AssertionError: assert 3000 <= 1000
+E        +  where 3000 = CountedDeque([(99000, 0.0), (99001, 1.0), (99002, 2.0), (99003, 3.0), (99004, 4.0), (99005, 5.0), (99006, 6.0), (99007...92.0), (99993, 993.0), (99994, 994.0), (99995, 995.0), (99996, 996.0), (99997, 997.0), (99998, 998.0), (99999, 999.0)]).visited
+E        +    where CountedDeque([(99000, 0.0), (99001, 1.0), (99002, 2.0), (99003, 3.0), (99004, 4.0), (99005, 5.0), (99006, 6.0), (99007...92.0), (99993, 993.0), (99994, 994.0), (99995, 995.0), (99996, 996.0), (99997, 997.0), (99998, 998.0), (99999, 999.0)]) = ActiveSymbolSession(symbol='TESTUSDT', candles=[], instrument=None, fee_schedule=None, mark_price=0.0, funding_rate=No...ast_economic_shadow_fingerprint=None, arbiter_block_fingerprints={}, research_policy_fingerprints={}, scenario_view={}).book_flow
+E        +  and   1000 = len(CountedDeque([(99000, 0.0), (99001, 1.0), (99002, 2.0), (99003, 3.0), (99004, 4.0), (99005, 5.0), (99006, 6.0), (99007...92.0), (99993, 993.0), (99994, 994.0), (99995, 995.0), (99996, 996.0), (99997, 997.0), (99998, 998.0), (99999, 999.0)]))
+E        +    where CountedDeque([(99000, 0.0), (99001, 1.0), (99002, 2.0), (99003, 3.0), (99004, 4.0), (99005, 5.0), (99006, 6.0), (99007...92.0), (99993, 993.0), (99994, 994.0), (99995, 995.0), (99996, 996.0), (99997, 997.0), (99998, 998.0), (99999, 999.0)]) = ActiveSymbolSession(symbol='TESTUSDT', candles=[], instrument=None, fee_schedule=None, mark_price=0.0, funding_rate=No...ast_economic_shadow_fingerprint=None, arbiter_block_fingerprints={}, research_policy_fingerprints={}, scenario_view={}).book_flow
+
+tests\test_tape_window_work.py:54: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_tape_window_work.py::test_forming_timestamp_work_is_bounded_on_a_dense_tape
+FAILED tests/test_tape_window_work.py::test_book_flow_reads_each_retained_event_once
+2 failed, 56 passed in 0.57s

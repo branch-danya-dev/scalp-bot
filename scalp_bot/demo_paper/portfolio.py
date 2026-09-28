@@ -150,6 +150,7 @@ class PairedPortfolio:
         self.reservations={};self.by_symbol={};self.completed=set();self.accepting=False
         self.stop_reason=None;self.tasks=[];self.books={};self.dirty=asyncio.Event()
         self.started_ns=None;self.last_health_ns=0;self.cancel_entries=set();self.exit_reasons={};self.dispatching=set()
+        self.skipped_entries=set()
 
     @property
     def has_execution_work(self):
@@ -233,6 +234,7 @@ class PairedPortfolio:
             plan=intent.plan()
             self.dispatching.add((name,intent.pair_id))
             if not self.accepting:
+                self.skipped_entries.add((name,intent.pair_id))
                 self.emit("entry_not_sent",dict(arm=name,pair_id=intent.pair_id,reason=self.stop_reason));self.dispatching.discard((name,intent.pair_id));continue
             c=arm.command(self.run,intent,qty=plan.quantity,mode="PostOnly" if plan.entry_mode=="maker_limit" else "Market",
                           price=plan.market_entry if plan.entry_mode=="maker_limit" else None)
@@ -294,6 +296,7 @@ class PairedPortfolio:
             if any(any(not arm.venue.orders[k].confirmed for k in arm.orders_by_pair[pair]) for arm in self.arms.values()):continue
             if any(not self.queues[name].empty() for name in self.arms):continue
             # Entries still in a queue or a dispatch await are not terminal.
-            if any(not arm.orders_by_pair[pair] for arm in self.arms.values()) and not self.stop_reason:continue
+            if any(not arm.orders_by_pair[pair] and (name,pair) not in self.skipped_entries
+                   for name,arm in self.arms.items()) and not self.stop_reason:continue
             self.completed.add(pair);del self.reservations[pair];del self.by_symbol[symbol]
             self.emit("pair_reconciled",dict(pair_id=pair))
