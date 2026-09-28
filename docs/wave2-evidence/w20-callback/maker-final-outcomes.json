@@ -1,0 +1,16 @@
+{
+  "100": {
+    "complete": 738,
+    "markout_window_gap": 6
+  },
+  "500": {
+    "complete": 738,
+    "markout_window_gap": 4,
+    "transport_cancelled": 2
+  },
+  "1000": {
+    "complete": 738,
+    "markout_window_gap": 4,
+    "transport_cancelled": 2
+  }
+}

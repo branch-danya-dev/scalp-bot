@@ -143,3 +143,11 @@ Raw and failed attempts remain under this chat's `work/`: `baseline-300s`,
 test logs. The 60s capture source remains frozen separately from subsequent
 offline/control fixes. No mainnet/Demo order, 8h run, merge, fee/risk relaxation,
 V2 weight or .55 threshold change occurred.
+
+## W2.0 callback continuation — 28 September 2026
+
+Plan `8c96db4` preceded implementation `523b16a`. Forming context sorts only the causal micro window once; book-flow windows use one traversal with unchanged sums. Red regressions preceded fixes; full preflight 1633 passed. Identical historical populations/clock tape end at the same chain hash, but loop/adapter p99 31.3096/291.1001ms still fail and writer headroom is narrow.
+
+Exactly one new 300s unified paper capture retained 2429150 primary and 252573 supplemental rows, complete chains, normalized cross-venue replay, zero losses/backpressure. Native loop/adapter p99 24.4621/308.2433ms fail. Zero prepared/fills/closed trades remains INCONCLUSIVE; no executable labels or native parity. Maker markouts remain negative. Source/config/runtime/model match pre-Start freeze. No retry/extension or gate relaxation.
+
+[Detailed evidence and hashes](w20-callback-evidence.md). W2.0 remains open; investigate callback duration, adapter queue age and codec drain headroom before another chosen bounded market interval. Existing W2.6–W2.9 promotion/execution gates remain unchanged.
