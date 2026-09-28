@@ -706,6 +706,23 @@ def test_market_context_minor_churn_is_throttled_and_compact(
         close_engine(engine)
 
 
+def test_internal_preliminary_context_does_not_manufacture_external_transitions(tmp_path):
+    engine = TradingEngine(Settings(session_dir=str(tmp_path), confirmed_candle_stale_seconds=0))
+    try:
+        session = ActiveSymbolSession(symbol="AAAUSDT", last_price=100, trend=Trend.UP)
+        engine._commit_market_context(session, observed_at_ms=100000)
+        previous = session.market_context_fingerprint
+        session.trend = Trend.FLAT
+        engine._commit_market_context(session, observed_at_ms=100100, emit=False)
+        assert session.market_context.legacy_trend == Trend.FLAT
+        assert session.market_context_fingerprint == previous
+        session.trend = Trend.UP
+        engine._commit_market_context(session, observed_at_ms=100100)
+        assert len([r for r in engine.events if r["event"] == "market_context_changed"]) == 1
+    finally:
+        close_engine(engine)
+
+
 def test_market_context_semantic_change_bypasses_throttle(
     tmp_path,
 ) -> None:

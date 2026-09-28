@@ -106,6 +106,7 @@ def prepare(engine, session, decision):
     quality = participation_quality(flow, list(session.candles), context.forming_candle if context else None, side, config)
     details["participationQuality"] = quality
     counter = False
+    preview = details.get("preparationOnly") is True
     if decision.strategy == "weak_level_rejection":
         kind = rejection_classification(context, side)
         details["rejectionClass"] = kind
@@ -119,9 +120,9 @@ def prepare(engine, session, decision):
             budget = number(anchor.get("expectedImpulsePct")) * number(anchor.get("price"))
             # Scenario budget is two typical ranges; reaction uses at most one.
             details["reactionBudget"] = budget * config.countertrend_reaction_budget_fraction
-            if not details.get("attackAbsorbed") or not details.get("microResponseReady"):
+            if not preview and not episode_absorption_confirmed(details, stamp):
                 return "countertrend_requires_absorption_and_immediate_response"
-            if broader_continuation_opposed(context, side):
+            if not preview and broader_continuation_opposed(context, side):
                 return "countertrend_flow_continues_against_reaction"
     if decision.strategy == "trend_structure" and not aligned:
         return "trend_structure_requires_parent_trend_alignment"
@@ -136,12 +137,29 @@ def prepare(engine, session, decision):
                                               if path.obstacle and not path.own_breakout_level_exempted else None)
         if path.obstacle_before_first_take and not path.own_breakout_level_exempted:
             return "strong_obstacle_before_first_take"
-    if decision.strategy == "level_breakout" or counter:
+    if not preview and (decision.strategy == "level_breakout" or counter):
         if not quality["confirmed"]:
             return "participation_quality:" + ",".join(quality["reasons"])
         if cross == "opposed":
             return "fresh_cross_venue_continuation_opposed"
     return None
+
+
+def episode_absorption_confirmed(details, observed_at_ms):
+    """Absorption precedes response; its instantaneous flow flag may turn off."""
+    if not details.get("microResponseReady"):
+        return False
+    if details.get("attackAbsorbed"):
+        return True
+    evidence = details.get("absorptionEvidence") or {}
+    episode = (details.get("scenario") or {}).get("episodeKey")
+    generation = details.get("levelGeneration")
+    if (not episode or evidence.get("episodeKey") != episode
+            or not generation or evidence.get("generation") != generation):
+        return False
+    age = (observed_at_ms - number(evidence.get("observedAtMs"))) / 1000
+    return (number(evidence.get("observedAtMs")) > 0
+            and 0 <= age <= number(evidence.get("responseWindowSeconds")))
 
 
 def broader_continuation_opposed(context, side):

@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 class Strategy:
     key: str
     label: str
+    causal_trading_quality = False
 
     def prepare_plan(self, scenario, decision, book, candles, structure):
         from .preparation import preparation_plan

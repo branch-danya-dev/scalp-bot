@@ -1421,6 +1421,7 @@ class LevelBreakoutStrategy(Strategy):
             min_distance_pct=0.0,
             max_distance_pct=0.06,
             structure=structure,
+            unconsumed_swings_only=self.causal_trading_quality,
         )
         (
             target,

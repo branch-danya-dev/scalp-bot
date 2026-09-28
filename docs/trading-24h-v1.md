@@ -118,12 +118,13 @@ or training is needed to run this profile. `.env.demo-paper.local` uses the exis
 ```powershell
 # PAPER CHECK
 .\scripts\run-trading-24h.ps1 -Mode Paper -Check
-# PAPER START (86400 seconds)
-.\scripts\run-trading-24h.ps1 -Mode Paper -Action Start -Output data\trading-24h-v1\paper-run -Port 8000
+# PAPER START (86400 seconds; retain the printed output directory)
+$paperRun = "data\trading-24h-v1\paper-$(Get-Date -Format yyyyMMdd-HHmmss)"
+.\scripts\run-trading-24h.ps1 -Mode Paper -Action Start -Output $paperRun -Port 8000
 # DEMO CHECK / connected NO-ORDER preflight
 .\scripts\run-trading-24h.ps1 -Mode Demo -Action ConnectedCheck -Output data\trading-24h-v1\demo-check
 # DEMO START, with the existing independent comparison Paper ledger
-.\scripts\run-trading-24h.ps1 -Mode Demo -Action Start -Output data\trading-24h-v1\demo-run -Port 8011
+.\scripts\run-trading-24h.ps1 -Mode Demo -Action Start -Port 8011
 # Graceful STOP from another terminal (or Ctrl+C in the run terminal)
 .\scripts\run-trading-24h.ps1 -Action Stop -Output data\trading-24h-v1\paper-run
 .\scripts\run-trading-24h.ps1 -Mode Demo -Action Stop -Output data\trading-24h-v1\demo-run
@@ -133,6 +134,10 @@ or training is needed to run this profile. `.env.demo-paper.local` uses the exis
 ```
 
 Use a new output folder for every start. No auto-restart loop is installed.
+The Stop/Archive examples above require the exact output directory printed by
+your run in place of `paper-run` / `demo-run`. Ctrl+C in the run's own terminal
+requests graceful finalization without selecting a directory. Omitting `-Output`
+on Start generates a fresh timestamped directory automatically.
 The original Scalp Bot terminal is shared with the ordinary app: charts, order book,
 scanner, strategies, decisions, positions, trade history and existing session/review APIs.
 Paper defaults to `http://127.0.0.1:8000/`; Demo to `http://127.0.0.1:8011/`.
@@ -152,6 +157,36 @@ Regression suite includes 24h deadline, operator stop, queued-not-sent recovery,
 private/public gaps, clock pause/resume, empty-universe rescan, REST read retry,
 independent Demo/Paper fills and reconciliation. A short live smoke proves startup
 and stream health; it does not prove 24-hour uptime or profitability.
+
+## Repairs from the stopped 28 September run
+
+The complete operator-stopped Paper/Demo captures (83.38/82.88 minutes) contain
+32/25 long-or-short decision records and 35/29 risk-refusal records, with zero
+fills. These are event counts, not independent setups. Of 39 complete economic
+plans, 30 had negative conditional net payout; the best net RR was 0.5425.
+Removing cost gates would not make those plans satisfy the hard 1.0 RR floor.
+
+The trading-quality profile now excludes isolated swing liquidity already crossed
+by a later closed candle. Confirmed structural zones are retained. Thirteen of
+sixteen captured nearest-swing records had this defect; a causal PUMPFUN fixture
+from the stopped run covers it. Targets remain capped by the original budget.
+Absorption can precede the immediate response: a saved observation is accepted
+only within the owner's existing response window and matching episode/generation.
+Participation, opposing flow and final admission checks remain mandatory.
+
+Preparation previews retain the owner's real causal arm and frozen scenario
+budget instead of failing for a missing anchor. They remain unreserved economic
+previews, not entry confirmation. Historical profiles keep their prior policy.
+
+Idle Demo symbols no longer rebuild full execution depth on every quote. Current
+depth is primed synchronously before reservation; owned pending orders and positions
+continue receiving every event. Preliminary context construction no longer replaces
+the last completed observation's telemetry fingerprint, so internal density stages
+cannot manufacture context transitions on every evaluation. Shared observation
+evidence also avoids redundant deep copies; public results remain detached.
+
+These corrections do not establish a quota of 5–15 trades per hour. Frequency and
+economics must be measured on the corrected live profile without forcing entries.
 
 Public-data backlog recovery also checks the exchange event timestamp: a freshly
 received frame may already be old in upstream buffers. With a valid bounded clock,

@@ -788,6 +788,7 @@ class WeakLevelRejectionStrategy(Strategy):
             action,
             min_distance_pct=0.0,
             structure=structure,
+            unconsumed_swings_only=self.causal_trading_quality,
         )
         nearest_obstacle = (
             liquidity_ladder[0]
@@ -967,6 +968,12 @@ class WeakLevelRejectionStrategy(Strategy):
                 },
                 "attackAbsorbed": attack_absorbed,
                 "flowReversed": flow_reversed,
+                "absorptionEvidence": {
+                    "episodeKey": state.confirmation_episode,
+                    "generation": generation_id,
+                    "observedAtMs": int(state.absorption_at * 1000),
+                    "responseWindowSeconds": self.micro_response_max_seconds,
+                } if state.absorption_at > 0 else None,
                 "absorptionObservedAt": (
                     state.absorption_at or None
                 ),

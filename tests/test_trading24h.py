@@ -503,6 +503,21 @@ async def test_demo_reuses_unchanged_execution_depth_but_delivers_every_trade(tm
     monkeypatch.setattr(depth, "coherent_execution_book", merge)
     owner.arms["paper"].venue.market = lambda symbol, book, **kw: tape.append((kw["trade_price"], book))
     try:
+        # Idle symbols never merge execution depth; reservation primes it once.
+        owner.engine._market_for_pair(market)
+        assert not calls and not tape and "AAA" not in owner.portfolio.books
+        from scalp_bot.demo_paper.engine import PairedEngine
+        admitted = []
+        def admit(engine, best):
+            assert "AAA" in owner.portfolio.books
+            admitted.append(best)
+            owner.portfolio.by_symbol["AAA"] = "owned-test"
+            return True
+        monkeypatch.setattr(PairedEngine, "_submit_research_opportunity", admit)
+        proposal = NS(session=market, decision=decision())
+        assert owner.engine._submit_research_opportunity(proposal)
+        assert admitted == [proposal] and len(calls) == 1
+        tape.clear()
         for tick in range(100):
             owner.engine._market_for_pair(market, trade_price=100 + tick / 100, trade_notional_usd=10, trade_side="Buy")
         assert len(calls) == 1 and [r[0] for r in tape] == [100 + i / 100 for i in range(100)]
@@ -517,6 +532,7 @@ async def test_demo_reuses_unchanged_execution_depth_but_delivers_every_trade(tm
         owner.engine._market_for_pair(market)
         assert len(tape) == 102 and "AAA" not in owner.portfolio.books
     finally:
+        owner.portfolio.by_symbol.clear()
         await owner.engine.close(); await owner.rest.close()
 
 
@@ -564,3 +580,87 @@ def test_demo_protection_requires_event_freshness_and_two_way_depth_coherence(fa
         fast_book_exchange_ts_ms=fast_stamp, deep_book_exchange_ts_ms=deep_stamp,
         book_stale_after_seconds=1.5, deep_book_stale_after_seconds=1.5, deep_book_max_skew_seconds=.5)
     assert execution_books_ready(engine, market) is allowed
+
+
+@pytest.mark.parametrize("fault", [None, "stale", "future", "episode", "generation", "no_response"])
+def test_countertrend_response_uses_fresh_absorption_from_same_episode(tmp_path, fault):
+    from scalp_bot.trading_policy import prepare
+    engine, session = policy_fixture(tmp_path, direction=Trend.DOWN, regime="bearish_trend")
+    d = decision(strategy="weak_level_rejection")
+    stamp = session.market_context.observed_at_ms
+    d.details.update(attackAbsorbed=False, microResponseReady=True, levelGeneration="level-1",
+        scenario={"episodeKey": "sweep-1"}, absorptionEvidence=dict(episodeKey="sweep-1",
+            generation="level-1", observedAtMs=stamp-550, responseWindowSeconds=6))
+    evidence = d.details["absorptionEvidence"]
+    if fault == "stale": evidence["observedAtMs"] = stamp-6001
+    if fault == "future": evidence["observedAtMs"] = stamp+1
+    if fault == "episode": evidence["episodeKey"] = "previous-sweep"
+    if fault == "generation": evidence["generation"] = "previous-level"
+    if fault == "no_response": d.details["microResponseReady"] = False
+    reason = prepare(engine, session, d)
+    assert reason == (None if fault is None else "countertrend_requires_absorption_and_immediate_response")
+    assert not d.details["allowRunner"]
+
+
+@pytest.mark.asyncio
+async def test_preparation_uses_real_frozen_arm_without_reservation_or_entry_authority(tmp_path):
+    from scalp_bot.trading24h import PaperEngine
+    from scalp_bot.engine import ActiveSymbolSession
+    from scalp_bot.scenario import Scenario
+    from scalp_bot.trading_policy import prepare
+    engine = PaperEngine(settings(tmp_path), configure_observability=False)
+    owner = "weak_level_rejection"
+    s = Scenario("AAAUSDT", "preview", owner, "long", "level", 100, .5, 1, 1, 301, [],
+        level={"low": 99.5, "high": 99.6})
+    engine.router.children[owner].scenarios[s.symbol] = s
+    _, context_session = policy_fixture(tmp_path, direction=Trend.DOWN, regime="bearish_trend")
+    rows = [Candle(i*60000, 100, 101, 99, 100, 100, 10000) for i in range(25)]
+    session = ActiveSymbolSession(s.symbol, candles=rows, orderbook=context_session.orderbook,
+        market_context=context_session.market_context)
+    wait = StrategyDecision(owner, Action.WAIT, [], details=dict(
+        zone=s.level, opportunityArm=dict(price=100., observedAtMs=99000, expectedImpulsePct=.008)))
+    original = deepcopy(wait.details)
+    try:
+        engine._scenario_prepare(session, wait)
+        assert s.preview and s.preview["reason"] != "causal_movement_anchor_missing"
+        assert s.preview["reason"] != "countertrend_requires_absorption_and_immediate_response"
+        assert not s.preview["reservesCapital"]
+        assert not engine.broker.positions and not engine.broker.pending_entries
+        assert not engine.router.executions and not s.frozen and s.state == "ASSIGNED"
+        candidate = engine.strategies[owner].prepare_plan(s, wait, session.orderbook, rows, None)
+        assert candidate.details["scenario"]["preparation"] is None
+        assert candidate.details["opportunityTrigger"]["price"] == 100
+        assert candidate.details["opportunityTrigger"]["expectedImpulsePct"] == .008
+        # Increasing current candle volatility does not renew the assigned budget.
+        rows[:] = [replace(c, high=110, low=90) for c in rows]
+        widened = engine.strategies[owner].prepare_plan(s, wait, session.orderbook, rows, None)
+        assert widened.details["opportunityTrigger"] == candidate.details["opportunityTrigger"]
+        candidate.details.pop("preparationOnly")
+        assert prepare(engine, session, candidate) == "countertrend_requires_absorption_and_immediate_response"
+        assert wait.action == Action.WAIT and wait.details == original
+        wait.details.pop("opportunityArm")
+        assert engine.strategies[owner].prepare_plan(s, wait, session.orderbook, rows, None) is None
+    finally:
+        await engine.close()
+
+
+def test_stopped_run_pumpfun_target_excludes_consumed_swing_without_renewing_budget():
+    import json
+    from pathlib import Path
+    from scalp_bot.strategy.liquidity import find_liquidity_targets
+    from scalp_bot.strategy.targets import structural_target
+    data = json.loads((Path(__file__).parent / "fixtures/trading/consumed_swing_pumpfun.json").read_text())
+    rows = [Candle(int(r[0]*1000), *r[1:]) for r in data["candles"]]
+    assert all(c.start_ms+60000 <= data["observedAtMs"] for c in rows)
+    old = find_liquidity_targets(rows, data["entry"], Action.SHORT, min_distance_pct=0)
+    new = find_liquidity_targets(rows, data["entry"], Action.SHORT, min_distance_pct=0, unconsumed_swings_only=True)
+    assert old[0].kind == "swing_low" and old[0].price == data["oldTarget"]
+    assert all(r.price != data["oldTarget"] for r in new)
+    assert new[0].price < data["oldTarget"]
+    d = decision("short")
+    d.details.update(opportunityTrigger=data["trigger"], liquidityLadder=[r.public() for r in new])
+    target, _, _ = structural_target(data["entry"], Action.SHORT, new, movement=None)
+    capped, _ = reachable_target(d, data["entry"], target)
+    anchor = data["trigger"]
+    assert capped >= anchor["price"]*(1-anchor["expectedImpulsePct"])
+    assert d.details["remainingMove"]["expectedImpulseBps"] == anchor["expectedImpulsePct"]*10000

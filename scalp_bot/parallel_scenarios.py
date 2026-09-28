@@ -60,7 +60,9 @@ class ParallelScenarioRouter(ScenarioRouter):
             if execution is not None and execution.owner == key:
                 continue
             observed = child.observe(symbol, context, candles, structure, enabled, now,
-                assessment=(deepcopy(assessment[0]), [c for c in assessment[1] if c["owner"] == key]))
+                # Children only replace top-level status/reason. Nested market
+                # evidence is read-only; public() still detaches it for callers.
+                assessment=(dict(assessment[0]), [c for c in assessment[1] if c["owner"] == key]))
         active = [s for child in self.children.values()
                   if (s := child.scenarios.get(symbol)) is not None and s.state not in TERMINAL]
         # Compatibility summary only. This representative grants no exclusivity.

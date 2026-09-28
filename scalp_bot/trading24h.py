@@ -147,7 +147,21 @@ class DemoEngine(CrossContext, PairedEngine):
         if pair:
             self.portfolio.cancel_entries.add(pair)
 
-    def _market_for_pair(self, session, **kwargs):
+    def _submit_research_opportunity(self, best):
+        # Idle symbols need no execution-depth merge on every quote. Prime both
+        # ledgers synchronously before reservation/dispatch using current depth.
+        if not execution_books_ready(self, best.session):
+            self._risk_reject_if_changed(best.session, best.decision, "paired_execution_book_unhealthy")
+            return True
+        self._market_for_pair(best.session, force=True)
+        return super()._submit_research_opportunity(best)
+
+    def _market_for_pair(self, session, *, force=False, **kwargs):
+        if not force and session.symbol not in self.portfolio.by_symbol:
+            self._paired_book_cache.pop(session.symbol, None)
+            self.portfolio.books.pop(session.symbol, None)
+            self.portfolio.arms["paper"].venue.books.pop(session.symbol, None)
+            return
         if not execution_books_ready(self, session):
             self.portfolio.books.pop(session.symbol, None)
             self.portfolio.arms["paper"].venue.books.pop(session.symbol, None)

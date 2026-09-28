@@ -921,6 +921,8 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
             for strategy in default_strategies
         }
         self.strategies["weak_level_rejection"].sweep_stop_enabled = config.trading_quality_enabled
+        for strategy in self.strategies.values():
+            strategy.causal_trading_quality = config.trading_quality_enabled
         self.broker.position_manager = lambda pos, gross: (
             self.strategies[pos.strategy].manage_progress(self.config,self.clock,pos,gross)
             if pos.strategy in self.strategies else False)
@@ -3862,12 +3864,17 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
         )
 
         session.market_context = context
+        # Preliminary density context deliberately has no liquidity evidence.
+        # It must not replace the previous completed observation's fingerprints:
+        # otherwise the final context falsely looks semantically new every tick.
+        if not emit:
+            return
         session.market_context_fingerprint = fingerprint
         session.market_context_semantic_fingerprint = (
             semantic_fingerprint
         )
 
-        if not emit or previous == fingerprint:
+        if previous == fingerprint:
             return
 
         semantic_changed = (

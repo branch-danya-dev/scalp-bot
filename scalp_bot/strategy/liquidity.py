@@ -35,6 +35,7 @@ def find_liquidity_targets(
     min_distance_pct: float | None = None,
     max_distance_pct: float = 0.05,
     structure: "MarketStructure | None" = None,
+    unconsumed_swings_only: bool = False,
 ) -> list[LiquidityTarget]:
     if not candles or entry <= 0 or action not in {Action.LONG, Action.SHORT}:
         return []
@@ -47,6 +48,14 @@ def find_liquidity_targets(
     )
     candidates: list[LiquidityTarget] = []
     window = candles[-200:]
+    # A later closed candle crossing an isolated swing consumes its untouched
+    # liquidity. Repeated structural zones remain valid and are kept separately.
+    later_high = [float("-inf")] * len(window)
+    later_low = [float("inf")] * len(window)
+    if unconsumed_swings_only:
+        for index in range(len(window) - 2, -1, -1):
+            later_high[index] = max(window[index + 1].high, later_high[index + 1])
+            later_low[index] = min(window[index + 1].low, later_low[index + 1])
 
     if structure is not None:
         for level in structure.levels:
@@ -96,6 +105,8 @@ def find_liquidity_targets(
                     )
                 )
         for index, target_price in swing_highs(window):
+            if unconsumed_swings_only and later_high[index] > target_price:
+                continue
             distance = (target_price - entry) / entry
             if minimum <= distance <= max_distance_pct:
                 candidates.append(
@@ -122,6 +133,8 @@ def find_liquidity_targets(
                     )
                 )
         for index, target_price in swing_lows(window):
+            if unconsumed_swings_only and later_low[index] < target_price:
+                continue
             distance = (entry - target_price) / entry
             if minimum <= distance <= max_distance_pct:
                 candidates.append(

@@ -888,6 +888,7 @@ class TrendStructureStrategy(Strategy):
                 action,
                 min_distance_pct=0.0,
                 structure=structure,
+                unconsumed_swings_only=self.causal_trading_quality,
             )
             nearest_obstacle = (
                 liquidity_ladder[0]
