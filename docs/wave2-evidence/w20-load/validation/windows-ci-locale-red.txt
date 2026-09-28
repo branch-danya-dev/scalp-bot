@@ -1,0 +1,218 @@
+CI run https://github.com/branch-danya-dev/scalp-bot/actions/runs/36364234278
+Head c6df8d63764a50868b4cda6d5e1b342440b1563a
+Windows runner: existing replay test reads UTF-8 journal using default cp1252.
+
+2026-09-28T01:01:28.5545044Z ================================== FAILURES ===================================
+2026-09-28T01:01:28.5546010Z ____ test_compressed_capture_replays_actual_breakout[False-False-shutdown] ____
+2026-09-28T01:01:28.5546520Z 
+2026-09-28T01:01:28.5547280Z tmp_path = WindowsPath('C:/Users/runneradmin/AppData/Local/Temp/pytest-of-runneradmin/pytest-0/test_compressed_capture_replay0')
+2026-09-28T01:01:28.5548613Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000022B2AC64830>
+2026-09-28T01:01:28.5549480Z event_driven = False, beta = False, exit_kind = 'shutdown'
+2026-09-28T01:01:28.5549919Z 
+2026-09-28T01:01:28.5550092Z     @pytest.mark.asyncio
+2026-09-28T01:01:28.5550624Z     @pytest.mark.parametrize('event_driven,beta,exit_kind', [
+2026-09-28T01:01:28.5553283Z         (False, False, 'shutdown'), (True, True, 'shutdown'), (True, True, 'duration_elapsed')])
+2026-09-28T01:01:28.5555108Z     async def test_compressed_capture_replays_actual_breakout(tmp_path, monkeypatch, event_driven, beta, exit_kind):
+2026-09-28T01:01:28.5556703Z         live, _, _ = await fixture(tmp_path, monkeypatch, production=True, exit_kind=exit_kind,
+2026-09-28T01:01:28.5557620Z             file_capture=True, event_driven=event_driven, beta=beta)
+2026-09-28T01:01:28.5558287Z         assert live.recorder.inputs.error is None
+2026-09-28T01:01:28.5558843Z         assert live.recorder.inputs.closed
+2026-09-28T01:01:28.5559609Z         assert live.recorder.inputs.written == live.recorder.inputs.accepted
+2026-09-28T01:01:28.5560369Z         assert live.recorder.inputs.pending_bytes == 0
+2026-09-28T01:01:28.5561336Z         assert not live.recorder.health()['droppedRows']
+2026-09-28T01:01:28.5561903Z         assert live.broker.total_closed_trades == 1
+2026-09-28T01:01:28.5562463Z         manifest = live.recorder.inputs.manifest
+2026-09-28T01:01:28.5563308Z         metadata = dict(status='sealed', profile='fixture', inputs=live.recorder.inputs.path.name,
+2026-09-28T01:01:28.5566953Z             session=live.recorder.path.name, sourceSha256=manifest['code']['sourceSha256'])
+2026-09-28T01:01:28.5567896Z         (tmp_path / 'capture.json').write_text(json.dumps(metadata))
+2026-09-28T01:01:28.5568646Z         with zipfile.ZipFile(tmp_path / 'source-at-capture.zip', 'w') as archive:
+2026-09-28T01:01:28.5569596Z             archive.writestr('fixture.txt', 'Only the archive hash is checked by baseline replay.')
+2026-09-28T01:01:28.5570343Z         report = await verify_capture(tmp_path)
+2026-09-28T01:01:28.5570849Z         assert report['status'] == 'baseline_replay_matched'
+2026-09-28T01:01:28.5571382Z         assert report['balance'] == live.broker.balance
+2026-09-28T01:01:28.5571862Z         assert report['closedTrades'] == 1
+2026-09-28T01:01:28.5572461Z         assert report['strategyResults']['level_breakout']['tradesClosed'] == 1
+2026-09-28T01:01:28.5573423Z         assert report['strategyResults']['level_breakout']['netPnl'] == pytest.approx(live.broker.total_pnl)
+2026-09-28T01:01:28.5574369Z         assert report['strategyResults']['orderbook_density']['evidenceOnly']
+2026-09-28T01:01:28.5574953Z         assert 'exam' not in report
+2026-09-28T01:01:28.5575446Z         assert not report['isolatedStrategySimulationPerformed']
+2026-09-28T01:01:28.5576118Z         assert report['integrity']['source']['compression'] == 'gzip'
+2026-09-28T01:01:28.5576808Z         assert not (tmp_path / 'replay-index.sqlite').exists()
+2026-09-28T01:01:28.5577483Z         # Exercise the real script entry point, whose sys.path differs from pytest
+2026-09-28T01:01:28.5578267Z         # and from python -m uvicorn. Dependency provenance must remain identical.
+2026-09-28T01:01:28.5578869Z         import subprocess
+2026-09-28T01:01:28.5579182Z         import sys
+2026-09-28T01:01:28.5579777Z         checked = subprocess.run([sys.executable, 'scripts/replay-paper-capture.py', str(tmp_path)],
+2026-09-28T01:01:28.5580564Z             capture_output=True, text=True, timeout=30)
+2026-09-28T01:01:28.5581445Z         assert checked.returncode == 0, checked.stderr
+2026-09-28T01:01:28.5582090Z         # A financial output change must not be hidden by the telemetry exclusions.
+2026-09-28T01:01:28.5582896Z >       rows = [json.loads(line) for line in live.recorder.path.read_text().splitlines()]
+2026-09-28T01:01:28.5583567Z                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-09-28T01:01:28.5583897Z 
+2026-09-28T01:01:28.5584040Z tests\test_paper_capture.py:57: 
+2026-09-28T01:01:28.5584490Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+2026-09-28T01:01:28.5585212Z C:\hostedtoolcache\windows\Python\3.13.15\x64\Lib\pathlib\_local.py:546: in read_text
+2026-09-28T01:01:28.5586034Z     return PathBase.read_text(self, encoding, errors, newline)
+2026-09-28T01:01:28.5586795Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-09-28T01:01:28.5587429Z C:\hostedtoolcache\windows\Python\3.13.15\x64\Lib\pathlib\_abc.py:633: in read_text
+2026-09-28T01:01:28.5588037Z     return f.read()
+2026-09-28T01:01:28.5588312Z            ^^^^^^^^
+2026-09-28T01:01:28.5588656Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+2026-09-28T01:01:28.5589059Z 
+2026-09-28T01:01:28.5589361Z self = <encodings.cp1252.IncrementalDecoder object at 0x0000022B266F25D0>
+2026-09-28T01:01:28.5590927Z input = b'{"ts":4805,"iso":"1970-01-01T01:20:05+00:00","event":"clock_sync","symbol":null,"payload":{"sample":{"server_ms":480...}\n{"ts":4827,"iso":"1970-01-01T01:20:27+00:00","event":"bot_stopped","symbol":null,"payload":{"reason":"shutdown"}}\n'
+2026-09-28T01:01:28.5592320Z final = True
+2026-09-28T01:01:28.5592486Z 
+2026-09-28T01:01:28.5592632Z     def decode(self, input, final=False):
+2026-09-28T01:01:28.5593201Z >       return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+2026-09-28T01:01:28.5593797Z                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-09-28T01:01:28.5595301Z E       UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 51970: character maps to <undefined>
+2026-09-28T01:01:28.5596048Z 
+2026-09-28T01:01:28.5596448Z C:\hostedtoolcache\windows\Python\3.13.15\x64\Lib\encodings\cp1252.py:23: UnicodeDecodeError
+2026-09-28T01:01:28.5597273Z ---------------------------- Captured stdout call -----------------------------
+2026-09-28T01:01:28.5597894Z Input chain checked; indexing the capture on disk...
+2026-09-28T01:01:28.5598450Z Replaying the recorded engine and checking every output...
+2026-09-28T01:01:28.5599142Z _____ test_compressed_capture_replays_actual_breakout[True-True-shutdown] _____
+2026-09-28T01:01:28.5599638Z 
+2026-09-28T01:01:28.5600315Z tmp_path = WindowsPath('C:/Users/runneradmin/AppData/Local/Temp/pytest-of-runneradmin/pytest-0/test_compressed_capture_replay1')
+2026-09-28T01:01:28.5601863Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000022B2C716DD0>
+2026-09-28T01:01:28.5602545Z event_driven = True, beta = True, exit_kind = 'shutdown'
+2026-09-28T01:01:28.5602903Z 
+2026-09-28T01:01:28.5603030Z     @pytest.mark.asyncio
+2026-09-28T01:01:28.5603464Z     @pytest.mark.parametrize('event_driven,beta,exit_kind', [
+2026-09-28T01:01:28.5604208Z         (False, False, 'shutdown'), (True, True, 'shutdown'), (True, True, 'duration_elapsed')])
+2026-09-28T01:01:28.5605255Z     async def test_compressed_capture_replays_actual_breakout(tmp_path, monkeypatch, event_driven, beta, exit_kind):
+2026-09-28T01:01:28.5606319Z         live, _, _ = await fixture(tmp_path, monkeypatch, production=True, exit_kind=exit_kind,
+2026-09-28T01:01:28.5607051Z             file_capture=True, event_driven=event_driven, beta=beta)
+2026-09-28T01:01:28.5607590Z         assert live.recorder.inputs.error is None
+2026-09-28T01:01:28.5608032Z         assert live.recorder.inputs.closed
+2026-09-28T01:01:28.5608648Z         assert live.recorder.inputs.written == live.recorder.inputs.accepted
+2026-09-28T01:01:28.5609304Z         assert live.recorder.inputs.pending_bytes == 0
+2026-09-28T01:01:28.5609832Z         assert not live.recorder.health()['droppedRows']
+2026-09-28T01:01:28.5610329Z         assert live.broker.total_closed_trades == 1
+2026-09-28T01:01:28.5610793Z         manifest = live.recorder.inputs.manifest
+2026-09-28T01:01:28.5611502Z         metadata = dict(status='sealed', profile='fixture', inputs=live.recorder.inputs.path.name,
+2026-09-28T01:01:28.5612440Z             session=live.recorder.path.name, sourceSha256=manifest['code']['sourceSha256'])
+2026-09-28T01:01:28.5613197Z         (tmp_path / 'capture.json').write_text(json.dumps(metadata))
+2026-09-28T01:01:28.5613894Z         with zipfile.ZipFile(tmp_path / 'source-at-capture.zip', 'w') as archive:
+2026-09-28T01:01:28.5614781Z             archive.writestr('fixture.txt', 'Only the archive hash is checked by baseline replay.')
+2026-09-28T01:01:28.5615720Z         report = await verify_capture(tmp_path)
+2026-09-28T01:01:28.5616274Z         assert report['status'] == 'baseline_replay_matched'
+2026-09-28T01:01:28.5616788Z         assert report['balance'] == live.broker.balance
+2026-09-28T01:01:28.5617265Z         assert report['closedTrades'] == 1
+2026-09-28T01:01:28.5617837Z         assert report['strategyResults']['level_breakout']['tradesClosed'] == 1
+2026-09-28T01:01:28.5619082Z         assert report['strategyResults']['level_breakout']['netPnl'] == pytest.approx(live.broker.total_pnl)
+2026-09-28T01:01:28.5620026Z         assert report['strategyResults']['orderbook_density']['evidenceOnly']
+2026-09-28T01:01:28.5644703Z         assert 'exam' not in report
+2026-09-28T01:01:28.5645238Z         assert not report['isolatedStrategySimulationPerformed']
+2026-09-28T01:01:28.5645907Z         assert report['integrity']['source']['compression'] == 'gzip'
+2026-09-28T01:01:28.5646586Z         assert not (tmp_path / 'replay-index.sqlite').exists()
+2026-09-28T01:01:28.5647287Z         # Exercise the real script entry point, whose sys.path differs from pytest
+2026-09-28T01:01:28.5648092Z         # and from python -m uvicorn. Dependency provenance must remain identical.
+2026-09-28T01:01:28.5648915Z         import subprocess
+2026-09-28T01:01:28.5649246Z         import sys
+2026-09-28T01:01:28.5649883Z         checked = subprocess.run([sys.executable, 'scripts/replay-paper-capture.py', str(tmp_path)],
+2026-09-28T01:01:28.5650675Z             capture_output=True, text=True, timeout=30)
+2026-09-28T01:01:28.5651197Z         assert checked.returncode == 0, checked.stderr
+2026-09-28T01:01:28.5651875Z         # A financial output change must not be hidden by the telemetry exclusions.
+2026-09-28T01:01:28.5652716Z >       rows = [json.loads(line) for line in live.recorder.path.read_text().splitlines()]
+2026-09-28T01:01:28.5653415Z                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-09-28T01:01:28.5653764Z 
+2026-09-28T01:01:28.5653900Z tests\test_paper_capture.py:57: 
+2026-09-28T01:01:28.5654346Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+2026-09-28T01:01:28.5655066Z C:\hostedtoolcache\windows\Python\3.13.15\x64\Lib\pathlib\_local.py:546: in read_text
+2026-09-28T01:01:28.5655835Z     return PathBase.read_text(self, encoding, errors, newline)
+2026-09-28T01:01:28.5656367Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-09-28T01:01:28.5657009Z C:\hostedtoolcache\windows\Python\3.13.15\x64\Lib\pathlib\_abc.py:633: in read_text
+2026-09-28T01:01:28.5657623Z     return f.read()
+2026-09-28T01:01:28.5657888Z            ^^^^^^^^
+2026-09-28T01:01:28.8893332Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+2026-09-28T01:01:28.8893919Z 
+2026-09-28T01:01:28.8894279Z self = <encodings.cp1252.IncrementalDecoder object at 0x0000022B2C5AC140>
+2026-09-28T01:01:28.8896298Z input = b'{"ts":4805,"iso":"1970-01-01T01:20:05+00:00","event":"strategy_toggle","symbol":null,"payload":{"strategy":"price_ac...}\n{"ts":4827,"iso":"1970-01-01T01:20:27+00:00","event":"bot_stopped","symbol":null,"payload":{"reason":"shutdown"}}\n'
+2026-09-28T01:01:28.8898168Z final = True
+2026-09-28T01:01:28.8898352Z 
+2026-09-28T01:01:28.8898537Z     def decode(self, input, final=False):
+2026-09-28T01:01:28.8899223Z >       return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+2026-09-28T01:01:28.8899969Z                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-09-28T01:01:28.8900961Z E       UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 52138: character maps to <undefined>
+2026-09-28T01:01:28.8901721Z 
+2026-09-28T01:01:28.8902174Z C:\hostedtoolcache\windows\Python\3.13.15\x64\Lib\encodings\cp1252.py:23: UnicodeDecodeError
+2026-09-28T01:01:28.8903052Z ---------------------------- Captured stdout call -----------------------------
+2026-09-28T01:01:28.8904150Z Input chain checked; indexing the capture on disk...
+2026-09-28T01:01:28.8904905Z Replaying the recorded engine and checking every output...
+2026-09-28T01:01:28.8906136Z _ test_compressed_capture_replays_actual_breakout[True-True-duration_elapsed] _
+2026-09-28T01:01:28.8906791Z 
+2026-09-28T01:01:28.8907514Z tmp_path = WindowsPath('C:/Users/runneradmin/AppData/Local/Temp/pytest-of-runneradmin/pytest-0/test_compressed_capture_replay2')
+2026-09-28T01:01:28.8908867Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000022B2AC64E50>
+2026-09-28T01:01:28.8909767Z event_driven = True, beta = True, exit_kind = 'duration_elapsed'
+2026-09-28T01:01:28.8910252Z 
+2026-09-28T01:01:28.8910419Z     @pytest.mark.asyncio
+2026-09-28T01:01:28.8910977Z     @pytest.mark.parametrize('event_driven,beta,exit_kind', [
+2026-09-28T01:01:28.8911880Z         (False, False, 'shutdown'), (True, True, 'shutdown'), (True, True, 'duration_elapsed')])
+2026-09-28T01:01:28.8913084Z     async def test_compressed_capture_replays_actual_breakout(tmp_path, monkeypatch, event_driven, beta, exit_kind):
+2026-09-28T01:01:28.8914284Z         live, _, _ = await fixture(tmp_path, monkeypatch, production=True, exit_kind=exit_kind,
+2026-09-28T01:01:28.8915176Z             file_capture=True, event_driven=event_driven, beta=beta)
+2026-09-28T01:01:28.8916566Z         assert live.recorder.inputs.error is None
+2026-09-28T01:01:28.8917170Z         assert live.recorder.inputs.closed
+2026-09-28T01:01:28.8917892Z         assert live.recorder.inputs.written == live.recorder.inputs.accepted
+2026-09-28T01:01:28.8918659Z         assert live.recorder.inputs.pending_bytes == 0
+2026-09-28T01:01:28.8919244Z         assert not live.recorder.health()['droppedRows']
+2026-09-28T01:01:28.8919840Z         assert live.broker.total_closed_trades == 1
+2026-09-28T01:01:28.8920331Z         manifest = live.recorder.inputs.manifest
+2026-09-28T01:01:28.8921055Z         metadata = dict(status='sealed', profile='fixture', inputs=live.recorder.inputs.path.name,
+2026-09-28T01:01:28.8922077Z             session=live.recorder.path.name, sourceSha256=manifest['code']['sourceSha256'])
+2026-09-28T01:01:28.8922869Z         (tmp_path / 'capture.json').write_text(json.dumps(metadata))
+2026-09-28T01:01:28.8923587Z         with zipfile.ZipFile(tmp_path / 'source-at-capture.zip', 'w') as archive:
+2026-09-28T01:01:28.8924473Z             archive.writestr('fixture.txt', 'Only the archive hash is checked by baseline replay.')
+2026-09-28T01:01:28.8925280Z         report = await verify_capture(tmp_path)
+2026-09-28T01:01:28.8925788Z         assert report['status'] == 'baseline_replay_matched'
+2026-09-28T01:01:28.8926678Z         assert report['balance'] == live.broker.balance
+2026-09-28T01:01:28.8927155Z         assert report['closedTrades'] == 1
+2026-09-28T01:01:28.8927750Z         assert report['strategyResults']['level_breakout']['tradesClosed'] == 1
+2026-09-28T01:01:28.8928684Z         assert report['strategyResults']['level_breakout']['netPnl'] == pytest.approx(live.broker.total_pnl)
+2026-09-28T01:01:28.8929618Z         assert report['strategyResults']['orderbook_density']['evidenceOnly']
+2026-09-28T01:01:28.8930205Z         assert 'exam' not in report
+2026-09-28T01:01:28.8930692Z         assert not report['isolatedStrategySimulationPerformed']
+2026-09-28T01:01:28.8931340Z         assert report['integrity']['source']['compression'] == 'gzip'
+2026-09-28T01:01:28.8931940Z         assert not (tmp_path / 'replay-index.sqlite').exists()
+2026-09-28T01:01:28.8932610Z         # Exercise the real script entry point, whose sys.path differs from pytest
+2026-09-28T01:01:28.8933398Z         # and from python -m uvicorn. Dependency provenance must remain identical.
+2026-09-28T01:01:28.8934010Z         import subprocess
+2026-09-28T01:01:28.8934315Z         import sys
+2026-09-28T01:01:28.8934905Z         checked = subprocess.run([sys.executable, 'scripts/replay-paper-capture.py', str(tmp_path)],
+2026-09-28T01:01:28.8935651Z             capture_output=True, text=True, timeout=30)
+2026-09-28T01:01:28.8936427Z         assert checked.returncode == 0, checked.stderr
+2026-09-28T01:01:28.8937054Z         # A financial output change must not be hidden by the telemetry exclusions.
+2026-09-28T01:01:28.8937866Z >       rows = [json.loads(line) for line in live.recorder.path.read_text().splitlines()]
+2026-09-28T01:01:28.8938559Z                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-09-28T01:01:28.8938904Z 
+2026-09-28T01:01:28.8939044Z tests\test_paper_capture.py:57: 
+2026-09-28T01:01:28.8939485Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+2026-09-28T01:01:28.8940202Z C:\hostedtoolcache\windows\Python\3.13.15\x64\Lib\pathlib\_local.py:546: in read_text
+2026-09-28T01:01:28.8940950Z     return PathBase.read_text(self, encoding, errors, newline)
+2026-09-28T01:01:28.8941469Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-09-28T01:01:28.8942096Z C:\hostedtoolcache\windows\Python\3.13.15\x64\Lib\pathlib\_abc.py:633: in read_text
+2026-09-28T01:01:28.8942797Z     return f.read()
+2026-09-28T01:01:28.8943068Z            ^^^^^^^^
+2026-09-28T01:01:28.8943433Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+2026-09-28T01:01:28.8944146Z 
+2026-09-28T01:01:28.8945603Z self = <encodings.cp1252.IncrementalDecoder object at 0x0000022B2AB59A40>
+2026-09-28T01:01:28.8947242Z input = b'{"ts":4805,"iso":"1970-01-01T01:20:05+00:00","event":"strategy_toggle","symbol":null,"payload":{"strategy":"price_ac...:4866,"iso":"1970-01-01T01:21:06+00:00","event":"bot_stopped","symbol":null,"payload":{"reason":"duration_elapsed"}}\n'
+2026-09-28T01:01:28.8948616Z final = True
+2026-09-28T01:01:28.8948770Z 
+2026-09-28T01:01:28.8948900Z     def decode(self, input, final=False):
+2026-09-28T01:01:28.8949466Z >       return codecs.charmap_decode(input,self.errors,decoding_table)[0]
+2026-09-28T01:01:28.8950059Z                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-09-28T01:01:28.8950899Z E       UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 52138: character maps to <undefined>
+2026-09-28T01:01:28.8951575Z 
+2026-09-28T01:01:28.8951978Z C:\hostedtoolcache\windows\Python\3.13.15\x64\Lib\encodings\cp1252.py:23: UnicodeDecodeError
+2026-09-28T01:01:28.8952804Z ---------------------------- Captured stdout call -----------------------------
+2026-09-28T01:01:28.8953422Z Input chain checked; indexing the capture on disk...
+2026-09-28T01:01:28.8953981Z Replaying the recorded engine and checking every output...
+2026-09-28T01:01:28.8954557Z =========================== short test summary info ===========================
+2026-09-28T01:01:28.8956231Z FAILED tests/test_paper_capture.py::test_compressed_capture_replays_actual_breakout[False-False-shutdown] - UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 51970: character maps to <undefined>
+2026-09-28T01:01:28.8958701Z FAILED tests/test_paper_capture.py::test_compressed_capture_replays_actual_breakout[True-True-shutdown] - UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 52138: character maps to <undefined>
+2026-09-28T01:01:28.8961244Z FAILED tests/test_paper_capture.py::test_compressed_capture_replays_actual_breakout[True-True-duration_elapsed] - UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 52138: character maps to <undefined>
+2026-09-28T01:01:28.8962770Z 3 failed, 378 passed in 47.83s
+

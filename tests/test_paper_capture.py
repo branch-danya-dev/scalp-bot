@@ -32,7 +32,7 @@ async def test_compressed_capture_replays_actual_breakout(tmp_path, monkeypatch,
     manifest = live.recorder.inputs.manifest
     metadata = dict(status='sealed', profile='fixture', inputs=live.recorder.inputs.path.name,
         session=live.recorder.path.name, sourceSha256=manifest['code']['sourceSha256'])
-    (tmp_path / 'capture.json').write_text(json.dumps(metadata))
+    (tmp_path / 'capture.json').write_text(json.dumps(metadata), encoding='utf-8')
     with zipfile.ZipFile(tmp_path / 'source-at-capture.zip', 'w') as archive:
         archive.writestr('fixture.txt', 'Only the archive hash is checked by baseline replay.')
     report = await verify_capture(tmp_path)
@@ -54,12 +54,19 @@ async def test_compressed_capture_replays_actual_breakout(tmp_path, monkeypatch,
         capture_output=True, text=True, timeout=30)
     assert checked.returncode == 0, checked.stderr
     # A financial output change must not be hidden by the telemetry exclusions.
-    rows = [json.loads(line) for line in live.recorder.path.read_text().splitlines()]
+    # Exercise a Western Windows default even on hosts configured for UTF-8.
+    read_text = Path.read_text
+    def western_locale(path, *args, **kwargs):
+        if path == live.recorder.path and not args and 'encoding' not in kwargs:
+            kwargs['encoding'] = 'cp1252'
+        return read_text(path, *args, **kwargs)
+    monkeypatch.setattr(Path, 'read_text', western_locale)
+    rows = [json.loads(line) for line in live.recorder.path.read_text(encoding='utf-8').splitlines()]
     next(r['payload'] for r in rows if r['event'] == 'trade_closed')['fees'] += .01
     live.recorder.path.write_text('\n'.join(json.dumps(r) for r in rows) + '\n', encoding='utf-8')
     with pytest.raises(SegmentMismatch, match='output mismatch'):
         await verify_capture(tmp_path)
-    assert json.loads((tmp_path / 'capture-check.json').read_text())['status'] == 'rejected'
+    assert json.loads((tmp_path / 'capture-check.json').read_text(encoding='utf-8'))['status'] == 'rejected'
     assert not (tmp_path / 'replay-index.sqlite').exists()
 
 
@@ -122,7 +129,7 @@ async def test_real_profiles_archive_source_and_lock_composition(tmp_path, monke
         assert capture.engine.strategy_enabled['price_action_hypothesis'] is beta
         assert capture.engine.strategy_enabled['trend_structure'] is beta
         assert capture.public()['strategiesLocked']
-        metadata = json.loads((tmp_path / 'capture.json').read_text())
+        metadata = json.loads((tmp_path / 'capture.json').read_text(encoding='utf-8'))
         if duration == '24h':
             assert metadata['exam'] == dict(durationSeconds=86400, targetNetReturnFraction=.10)
         capture.before_start()
@@ -192,7 +199,7 @@ async def test_writer_loss_invalidates_capture_and_stops_trading(tmp_path, monke
         monitor.cancel()
         await asyncio.gather(monitor, return_exceptions=True)
         await capture.close()
-    assert json.loads((tmp_path / 'capture.json').read_text())['status'] == 'incomplete'
+    assert json.loads((tmp_path / 'capture.json').read_text(encoding='utf-8'))['status'] == 'incomplete'
 
 
 def test_runtime_fingerprint_ignores_only_identical_distribution_duplicates(monkeypatch):
@@ -261,7 +268,7 @@ async def test_stop_seals_real_capture_and_ui_reads_do_not_append_after_footer(t
     monkeypatch.setattr(api, 'engine', live)
     assert capture.public()['status'] == 'sealed'
     assert not capture.public()['startAllowed']
-    assert json.loads((tmp_path / 'capture.json').read_text())['status'] == 'sealed'
+    assert json.loads((tmp_path / 'capture.json').read_text(encoding='utf-8'))['status'] == 'sealed'
     size = live.recorder.inputs.path.stat().st_size
     sequence = live.input_journal.sequence
     first = await api.state('AAA')
@@ -346,7 +353,7 @@ async def test_unacknowledged_task_shutdown_drains_writers_but_marks_incomplete(
         assert not capture.recorder.inputs.thread.is_alive()
         assert capture.engine.input_journal.closed
         assert capture.engine.rest.client.is_closed
-        status = json.loads((tmp_path/'capture.json').read_text())
+        status = json.loads((tmp_path/'capture.json').read_text(encoding='utf-8'))
         assert status['status']=='incomplete'
         assert 'TimeoutError' in status['error']
         with pytest.raises(ValueError):

@@ -15,6 +15,8 @@ The new 300s public paper capture has complete primary/supplemental chains, zero
 
 Windows/Python 3.13 full preflight: **1575 passed in 221.13s**; both JavaScript syntax checks passed. The Windows CI job now also covers the codec/spawn/capture/smoke regressions. [Red/green and full-suite receipts](wave2-evidence/w20-load/validation/) are retained. CI status belongs to the exact published head, separately from these local receipts.
 
+The first expanded CI run on `c6df8d6` passed Linux (**1562 passed, 5 skipped**) and exposed three existing Windows replay-test reads using the locale-default CP1252 against UTF-8 session files (**3 failed, 378 passed**). Replay itself had passed before each test's tamper check. The failure is retained and reproduced locally with a CP1252-default test guard before correction. Tests now request UTF-8 explicitly; financial-output tamper rejection remains enforced. This test-only repair does not change the frozen capture source/config/runtime. Final-head CI is reported separately on the PR.
+
 ## Fixed historical diagnostics
 
 All unprofiled variants consume the same 25045 source events: offset 60s, duration 58s from the failed PR60 prefix. This is a logical scheduler with a V2 probe at each evaluation, not native receive/parse, output parity, a natural fill, or training data. The public smoke uses its existing 10-second feature grid, so its timings are not a controlled A/B against this stress workload.

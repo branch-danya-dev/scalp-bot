@@ -16,6 +16,8 @@ W2.6 maker execution, W2.7 maker ML и W2.8 реальный riskScale не ре
 
 Последний полный локальный Windows/Python 3.13 preflight: **1575 passed** (221.13s); JS syntax checks пройдены. Новые receipts — `docs/wave2-evidence/w20-load/validation/`; исходные 1553-pass и failing runs сохранены в прежней evidence. GitHub Linux/Windows CI проверяется отдельно на exact draft PR head; Windows job дополнен codec/spawn/capture regressions.
 
+Расширенный CI на `c6df8d6`: Linux 1562 passed/5 skipped; Windows обнаружил 3 locale-dependent чтения UTF-8 файлов в существующем replay-тесте (378 passed). Ошибка воспроизведена локально до исправления; добавлена явная UTF-8 и CP1252-default regression guard. Production-код capture после `9adee8f` не менялся. Статус CI финального head — в PR.
+
 [Последний W2.0 evidence report](docs/w20-load-evidence.md), [roadmap](docs/wave2-roadmap.md), [фиксированный research protocol](docs/wave2-research-protocol.md), [исходное evidence](docs/wave2-evidence/summary.json). Raw, failed baseline и red/green receipts сохранены в `G:/codex/2026-09-28/referenced-chatgpt-conversation-this-is-an-2/work`; продолжение — в `w20-load/`, полный hash inventory в документации. Не удалять и не заменять результаты. Сначала закрыть load/natural-fill gate; затем независимые labels/studies; после model/adapter gates завершить paired integration. Нулевые fills не являются успехом.
 
 ---
