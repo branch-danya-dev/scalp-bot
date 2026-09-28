@@ -176,3 +176,49 @@ async def test_impossible_resume_has_bounded_failure_and_no_live_stack(tmp_path)
     with pytest.raises(NativeTapeError):
         await asyncio.wait_for(replay.run(wrong),1)
     assert not replay.stacks
+
+
+async def test_unowned_deadline_during_park_fails_with_exact_pending_token(tmp_path):
+    """Known architectural boundary: a wall timer cannot cancel a sync slice.
+
+    Recording blocks only this test's event loop to force the interleave. Replay
+    stays nonblocking, so the unmanaged wait_for timer fires inside stack parking.
+    This must remain a diagnosed hard FAIL until deadlines have owned dispatch.
+    """
+    from threading import Thread
+    import time
+    from scalp_bot.native_v5 import OwnedClock
+    from scalp_bot.whole_runtime_replay import WholeRuntimeReplayCoordinator
+    remotes = []
+    async def root(dispatch, output):
+        async def child():
+            remote = dispatch.writer.endpoint('v2','reply-relay').open_task(
+                'remote-deadline-test','runtime',parent_task_id=dispatch.owner().task_id)
+            coordinator = getattr(dispatch,'coordinator',None)
+            if coordinator is None:
+                def recorded():
+                    time.sleep(.04)
+                    remote.start()
+                    OwnedClock(remote,dispatch.source_clock).time()
+                    remote.end()
+                thread = Thread(target=recorded)
+                thread.start()
+                thread.join(1)
+                assert not thread.is_alive()
+            else:
+                async def replayed():
+                    await asyncio.sleep(.04)
+                    await coordinator.consume(remote.task_id,'task_start',{},producer='reply-relay')
+                    await coordinator.consume(remote.task_id,'clock',clock_method='time',producer='reply-relay')
+                    await coordinator.consume(remote.task_id,'task_end',dict(reason='completed',outputs={}),producer='reply-relay')
+                remotes.append(asyncio.create_task(replayed()))
+            dispatch.clock().time()
+        await asyncio.wait_for(dispatch.create_task(child(),name='timed-child'),.01)
+    tape, _ = await record(tmp_path,root)
+    replay = WholeRuntimeReplayCoordinator(tape,timeout_seconds=1)
+    try:
+        with pytest.raises(NativeTapeError,match='cancelled during replay coordination; next token'):
+            await replay.run(lambda d:root(d,[]))
+    finally:
+        await asyncio.gather(*remotes,return_exceptions=True)
+    assert not replay.stacks

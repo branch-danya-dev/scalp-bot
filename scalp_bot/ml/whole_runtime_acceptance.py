@@ -146,6 +146,7 @@ async def execute(output, model, *, repeats=2):
                 external_inventory=raw,expected_inventory_sha256=fingerprint(raw),artifact_hashes=artifacts) as tape:
             proof = coverage(tape,expected)
             save(output/'coverage.json',proof)
+            save(output/'cost-report.json',cost_gap(tape.population_hash))
             from ..pipeline_evidence import summarize
             save(output/'capture-diagnostics.json',dict(scope='actual all-on F capture only; small synthetic population, not A-F cost or W2 acceptance',
                 stages=expected['recordedDiagnosticStages'],joinedItems=expected['pipelineRecords'],

@@ -183,6 +183,8 @@ class WholeRuntimeReplayCoordinator:
                     future.set_result(None)
 
     def poison(self, error):
+        if isinstance(error, asyncio.CancelledError):
+            error = NativeTapeError(f'cancelled during replay coordination; next token {self.current}; waiting actors {list(self.waiters)}')
         self.failure = self.failure or error
         self._notify()
         return self.failure
