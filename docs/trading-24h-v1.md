@@ -29,6 +29,25 @@ breakout's own level cannot conceal the next foreign obstacle. Neither risk nor 
 management extends these targets to satisfy R multiples. The existing `1h_only` override
 and fast failed-break/acceptance-loss exits remain in force.
 
+When instrument metadata is available, targets sit at least one tick before the
+opposing liquidity boundary. Breakout obstacle checks use the reachable first exit,
+not a hypothetical 1R beyond a closer target, and recheck the final depth-priced plan.
+
+Partial take is optional at admission. A positive partial leg alone is insufficient:
+its complete partial-plus-target lifecycle must pass the existing cost-share and net
+RR policies. If that lifecycle fails while full closure at the same reachable target
+passes, the plan selects full closure. Both Paper and Demo honor `partialPlanned=false`;
+no partial or BE transition is silently added. Entry, quantity, hard stop, target ceiling,
+freshness and exposure limits stay fixed. A qualified partial lifecycle retains its
+partial/BE behavior. `economics.exitPlanSelection` records both conditional payouts and
+the selection. This is an execution policy, not an estimate of win probability: holding
+the full quantity to the target can give back gains that a partial would have realized.
+
+The stopped-run PUMPFUN regression uses 239 already-closed candles and captured price,
+size and fee inputs. It demonstrates an admissible full-target plan after replacing
+consumed swing liquidity; it does not establish a historical fill or a profitable trade.
+Neither passing software tests nor one admissible snapshot establishes 5–15 trades/hour.
+
 Participation requires a 5-second executed-notional ratio against the symbol's recent
 20 closed one-minute candles, local notional acceleration, trade count/rate, directional
 imbalance and price response. A known forming-candle volume pace below 0.75 blocks admission.

@@ -4506,6 +4506,13 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
                 else 0.0
             ),
         )
+        if self.config.trading_quality_enabled and result.allowed and decision.strategy == "level_breakout":
+            from .trading_policy import breakout_path
+            path = breakout_path(decision, session.market_context, self.config, plan=result.plan)
+            decision.details["reachableStructuralPath"] = path.public()
+            if path.obstacle_before_first_take and not path.own_breakout_level_exempted:
+                result = RiskResult(False, "strong_obstacle_before_first_take",
+                    diagnostics={**(result.diagnostics or {}), "reachableStructuralPath": path.public()})
         if self.config.trading_quality_enabled and "remainingMove" in decision.details:
             decision.details["remainingMove"]["rejectReason"] = None if result.allowed else result.reason
             decision.details["stopDistance"] = abs((result.plan.market_entry if result.plan else decision.entry) - decision.stop)

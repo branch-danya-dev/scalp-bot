@@ -166,7 +166,8 @@ class RiskEngine:
         target = float(decision.target)
         if self.config.trading_quality_enabled:
             from .trading_policy import reachable_target
-            target, reason = reachable_target(decision, market_entry, target)
+            target, reason = reachable_target(decision, market_entry, target,
+                tick_size=instrument.tick_size if instrument else 0.0)
             if reason:
                 return RiskResult(False, reason, diagnostics=dict(decision.details))
         if instrument is not None:
@@ -721,7 +722,8 @@ class RiskEngine:
 
         if self.config.trading_quality_enabled:
             from .trading_policy import reachable_target
-            target, reason = reachable_target(decision, market_entry, target)
+            target, reason = reachable_target(decision, market_entry, target,
+                tick_size=instrument.tick_size if instrument else 0.0)
             if instrument is not None:
                 target = instrument.target_price(target, side)
             target_pct = direction * (target - market_entry) / market_entry
@@ -870,6 +872,7 @@ class RiskEngine:
             * runner_target_pct
         )
 
+        exit_plan_selection = None
         if partial_enabled:
             runner_fraction = 1.0 - partial_fraction
             runner_quantity = quantity * runner_fraction
@@ -905,7 +908,45 @@ class RiskEngine:
                 partial_slippage_cost
                 + runner_slippage_cost
             )
-        else:
+            if self.config.trading_quality_enabled:
+                # A positive first leg does not qualify the complete lifecycle.
+                # Prefer the configured partial only when the whole plan passes;
+                # otherwise consider full closure at the SAME reachable target.
+                # Entry, structural stop, size and all admission limits stay fixed.
+                def exit_policy(gross, costs, first_move):
+                    net = gross - costs
+                    rr = net / all_in_net_loss if all_in_net_loss > 0 else 0.0
+                    share = ((costs + embedded_entry_slippage_usd)
+                             / (gross + embedded_entry_slippage_usd)
+                             if gross + embedded_entry_slippage_usd > 0 else float("inf"))
+                    failures = []
+                    if net <= 0:
+                        failures.append("nonpositive_net_payout")
+                    if rr < self.config.absolute_min_net_reward_risk:
+                        failures.append("absolute_net_reward_risk")
+                    if self.config.enforce_net_reward_risk_gate and rr < self.config.min_net_reward_risk:
+                        failures.append("net_reward_risk")
+                    if self.config.enforce_winner_cost_share_gate and share > self.config.max_winner_cost_share:
+                        failures.append("winner_cost_share")
+                    if self.config.enforce_min_net_profit_gate and net < required_net_profit:
+                        failures.append("minimum_net_profit")
+                    if self.config.enforce_min_first_take_move_gate and first_move < self.config.min_first_take_move_pct:
+                        failures.append("first_take_move")
+                    return dict(netAtTargetUsd=net, netRewardRisk=rr, winnerCostShare=share, blockers=failures)
+
+                partial_policy = exit_policy(gross_profit,
+                    lifecycle_fee_cost + lifecycle_slippage_cost, partial_move_pct)
+                full_policy = exit_policy(direction * (target - market_entry) * quantity,
+                    target_fee_cost + target_slippage_cost, target_pct)
+                use_single = bool(partial_policy["blockers"] and not full_policy["blockers"])
+                exit_plan_selection = dict(
+                    selected="single_reachable_target" if use_single else "partial_and_target",
+                    partial=partial_policy, singleTarget=full_policy, reachableTarget=target,
+                    policy="prefer_qualified_partial_else_qualified_full_target; conditional_payout_not_expectancy")
+                if use_single:
+                    partial_enabled = False
+                    runner_target_pct = target_pct
+        if not partial_enabled:
             runner_fraction = 1.0
             runner_quantity = quantity
             runner_raw_price = target
@@ -1119,6 +1160,7 @@ class RiskEngine:
             "firstTakePrice": partial_raw_price if partial_enabled else target,
             "partialCandidate": partial_candidate,
             "partialPlanned": partial_enabled,
+            "exitPlanSelection": exit_plan_selection,
             "configuredPartialFraction": partial_fraction,
             "partialFraction": (
                 partial_fraction

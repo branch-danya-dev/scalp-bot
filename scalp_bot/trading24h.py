@@ -61,6 +61,7 @@ def manifest(config):
         disabledStrategies={"price_action_hypothesis": "opt-in paper beta, not qualified for Demo"},
         mlAuthority=dict(entries=False, veto=False, rank=False, risk=False, size=False, worker=False),
         crossVenue="deterministic_entry_context", demoEquityPolicy="actual USDT equity; risk/exposure budget capped to min(actual,1000)",
+        exitPlanPolicy="prefer qualified partial; otherwise qualified full closure at the same reachable target",
         artificialLimits=dict(sessionLoss=False, dailyLoss=False, drawdownKill=False,
                               tradeCount=False, expectancy=False, segmentAdaptive=False),
         policyNotes="1.15 RR, participation and reaction thresholds are conservative policy values, not optima")

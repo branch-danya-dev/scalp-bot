@@ -3,6 +3,7 @@
 Runs at every economic-plan attempt, after the scenario has frozen its causal
 anchor and before sizing. External venues have entry authority only.
 """
+from dataclasses import replace
 from math import isfinite
 from statistics import median
 
@@ -95,7 +96,8 @@ def prepare(engine, session, decision):
     details["alignmentPriority"] = 2 if aligned else 1 if trend == Trend.FLAT else 0
     executable = session.orderbook.executable_entry(decision.side)
     if executable:
-        reachable_target(decision, executable, float(decision.target))
+        reachable_target(decision, executable, float(decision.target),
+                         tick_size=getattr(getattr(session, "instrument", None), "tick_size", 0.0))
     snapshot = engine.cross.snapshot(session.symbol, engine.clock.perf_counter_ns()) if hasattr(engine, "cross") else {}
     cross = cross_classification(snapshot, side, config)
     details["crossVenueContext"] = dict(classification=cross, mode="deterministic_entry_only",
@@ -130,8 +132,7 @@ def prepare(engine, session, decision):
         if trend != Trend.FLAT and not aligned:
             return "countertrend_breakout_forbidden"
         # This supplements the existing 1h_only override, without weakening it.
-        path = assess_structural_path(decision, context, partial_take_at_r=config.partial_take_at_r,
-                                      partial_take_enabled=config.partial_take_enabled, skip_accepted_breakout_level=True)
+        path = breakout_path(decision, context, config, executable=executable)
         details["reachableStructuralPath"] = path.public()
         details["reachableObstaclePrice"] = (path.obstacle.get("low" if side == "long" else "high")
                                               if path.obstacle and not path.own_breakout_level_exempted else None)
@@ -143,6 +144,25 @@ def prepare(engine, session, decision):
         if cross == "opposed":
             return "fresh_cross_venue_continuation_opposed"
     return None
+
+
+def breakout_path(decision, context, config, *, executable=None, plan=None):
+    """Check the actual first exit; a notional 1R beyond the target is not an exit."""
+    entry = plan.market_entry if plan else executable or decision.entry
+    target = plan.target if plan else (decision.details.get("remainingMove") or {}).get("reachableTarget", decision.target)
+    details = dict(decision.details)
+    sign = 1 if decision.side.value == "long" else -1
+    if plan:
+        first = plan.strategy_details["economics"]["firstTakePrice"]
+    else:
+        distance = max(0.0, sign * (target - entry))
+        if config.partial_take_enabled and details.get("allowRunner", True):
+            distance = min(distance, abs(entry - decision.stop) * max(0.0, config.partial_take_at_r))
+        first = entry + sign * distance
+    details.update(plannedEntryPrice=entry, plannedFirstTakePrice=first)
+    priced = replace(decision, entry=entry, target=target, details=details)
+    return assess_structural_path(priced, context, partial_take_at_r=config.partial_take_at_r,
+        partial_take_enabled=config.partial_take_enabled, skip_accepted_breakout_level=True)
 
 
 def episode_absorption_confirmed(details, observed_at_ms):
@@ -172,7 +192,7 @@ def broader_continuation_opposed(context, side):
                and sign * horizons[h].trade_imbalance < -.15 for h in (15, 60))
 
 
-def reachable_target(decision, executable, target):
+def reachable_target(decision, executable, target, *, tick_size=0.0):
     """Absolute frozen price ceiling: recomputation cannot renew spent movement."""
     details = decision.details
     sign = 1 if decision.side.value == "long" else -1
@@ -189,12 +209,15 @@ def reachable_target(decision, executable, target):
     ceiling = executable + sign * remaining
     target = min(target, ceiling) if sign > 0 else max(target, ceiling)
     obstacle = number(details.get("reachableObstaclePrice"))
+    tick = max(0.0, number(tick_size))
     if obstacle > 0:
-        target = min(target, obstacle) if sign > 0 else max(target, obstacle)
+        boundary = obstacle - sign * tick
+        target = min(target, boundary) if sign > 0 else max(target, boundary)
     for row in details.get("liquidityLadder") or []:
         price = number(row.get("price"))
         if sign * (price - executable) > 0:
-            target = min(target, price) if sign > 0 else max(target, price)
+            boundary = price - sign * tick
+            target = min(target, boundary) if sign > 0 else max(target, boundary)
     reason = "remaining_move_exhausted" if remaining <= 0 or sign * (target - executable) <= 0 else None
     details["remainingMove"] = dict(triggerPrice=anchor, triggerTimestamp=trigger["observedAtMs"],
         executableEntry=executable, expectedImpulseBps=impulse * 10000,
