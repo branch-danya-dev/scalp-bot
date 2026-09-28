@@ -119,7 +119,7 @@ or training is needed to run this profile. `.env.demo-paper.local` uses the exis
 # PAPER CHECK
 .\scripts\run-trading-24h.ps1 -Mode Paper -Check
 # PAPER START (86400 seconds)
-.\scripts\run-trading-24h.ps1 -Mode Paper -Action Start -Output data\trading-24h-v1\paper-run -Port 8010
+.\scripts\run-trading-24h.ps1 -Mode Paper -Action Start -Output data\trading-24h-v1\paper-run -Port 8000
 # DEMO CHECK / connected NO-ORDER preflight
 .\scripts\run-trading-24h.ps1 -Mode Demo -Action ConnectedCheck -Output data\trading-24h-v1\demo-check
 # DEMO START, with the existing independent comparison Paper ledger
@@ -133,7 +133,16 @@ or training is needed to run this profile. `.env.demo-paper.local` uses the exis
 ```
 
 Use a new output folder for every start. No auto-restart loop is installed.
-UI: `http://127.0.0.1:8010/` (Paper) or `http://127.0.0.1:8011/` (Demo).
+The original Scalp Bot terminal is shared with the ordinary app: charts, order book,
+scanner, strategies, decisions, positions, trade history and existing session/review APIs.
+Paper defaults to `http://127.0.0.1:8000/`; Demo to `http://127.0.0.1:8011/`.
+The badge identifies PAPER / BYBIT DEMO. Demo balances, positions and fills come from
+its actual ledger; comparison Paper data is separate. The timer uses the existing
+coordinator deadline. UI Stop requests full graceful finalization; UI Start cannot
+reset the 24h deadline and strategy toggles are locked to the selected profile.
+An occupied UI port fails before the new runtime or any Demo write starts.
+Omitting `-Output` selects a fresh timestamped folder. Running processes need a graceful
+restart to load this UI change; existing results remain in their original directories.
 Outputs: `profile.json`, live `status.json`, final `summary.json`, Paper `sessions/`
 or Demo `capture/` JSONL logs. Admission details include `remainingMove`,
 `participationQuality`, `rejectionClass`, `crossVenueContext`, sweep/stop source and

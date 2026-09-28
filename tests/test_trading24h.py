@@ -413,3 +413,72 @@ async def test_rule_only_demo_full_lifecycle_and_graceful_finalization(tmp_path,
     assert sum(not p["reduceOnly"] for p in creates)==1
     assert all(p["reduceOnly"] for p in creates[1:])
     assert (root/"summary.json").is_file()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["paper", "demo"])
+async def test_original_terminal_reads_live_engine_and_stop_uses_coordinator(tmp_path, mode):
+    import time
+    import httpx
+    from scalp_bot.engine import ActiveSymbolSession
+    from scalp_bot.trading24h import PaperEngine, DemoSession, create_dashboard
+    root = tmp_path / "run"
+    cfg = settings(root / "sessions")
+    session = DemoSession(cfg, Credentials("fake", "fake", "123"), root) if mode == "demo" else None
+    engine = session.engine if session else PaperEngine(cfg, configure_observability=False)
+    engine.sessions["AAA"] = ActiveSymbolSession("AAA", clock=engine.clock)
+    engine.sessions["BBB"] = ActiveSymbolSession("BBB", clock=engine.clock)
+    engine.running = True
+    engine._run_started_at = time.time() - 60
+    engine._run_started_mono = time.perf_counter_ns() / 1e9 - 60
+    if session:
+        session.start_ns = time.perf_counter_ns() - 60_000_000_000
+        session.start_ms = int((time.time() - 60) * 1000)
+        session.arms["demo"].broker.balance = 1007
+        session.arms["paper"].broker.balance = 800
+        session.arms["demo"].broker.closed_trades.append({"symbol": "DEMO_ONLY"})
+        session.arms["paper"].broker.closed_trades.append({"symbol": "PAPER_ONLY"})
+    app = create_dashboard(engine, root, mode, session)
+    try:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            page = await client.get("/")
+            assert page.status_code == 200 and 'id="chart"' in page.text and '/static/styles.css' in page.text
+            assert 'id="executionMode"' in page.text and '<pre id="state">' not in page.text
+            for path in ("/static/app.js", "/static/styles.css", "/replay", "/api/replay/sessions"):
+                assert (await client.get(path)).status_code == 200
+            state = (await client.get("/api/state?symbol=BBB")).json()
+            assert state["market"]["symbol"] == "BBB"
+            assert state["mode"] == mode and state["trading24h"]["mlAuthority"] == "OFF"
+            assert 86335 < state["run"]["remainingSeconds"] < 86341
+            assert state["controls"]["strategiesLocked"] and not state["controls"]["startAllowed"]
+            assert isinstance(state["strategies"], list) and state["risk"]["enforceNetRewardRiskGate"]
+            if session:
+                assert state["balance"] == 1007
+                assert state["closedTrades"] == [{"symbol": "DEMO_ONLY"}]
+                assert state["trading24h"]["comparisonPaper"]["balance"] == 800
+            assert (await client.post("/api/bot/start")).status_code == 409
+            assert (await client.post("/api/strategies/trend_structure", json={"enabled": False})).status_code == 409
+            assert engine.running and engine.strategy_enabled["trend_structure"]
+            assert (await client.post("/api/bot/stop")).json()["finalizing"]
+            assert (root / "STOP").exists() and not engine.running
+            if session:
+                assert session.stop.is_set() and not session.portfolio.accepting
+    finally:
+        # Synthetic UI ledger records are not economic trades.
+        if session:
+            for arm in session.arms.values(): arm.broker.closed_trades.clear()
+        await engine.close()
+        if session: await session.rest.close()
+
+
+@pytest.mark.asyncio
+async def test_occupied_dashboard_port_fails_before_demo_credentials_or_runtime(tmp_path):
+    import socket
+    from scalp_bot.trading24h import main_async
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0)); listener.listen()
+        args = NS(action="start", mode="demo", output=str(tmp_path / "never-started"),
+            port=listener.getsockname()[1], credentials="missing-secret-file", smoke_seconds=None)
+        with pytest.raises(SafetyError, match="UI port .* unavailable; trading was not started"):
+            await main_async(args)
+    assert not (tmp_path / "never-started").exists()

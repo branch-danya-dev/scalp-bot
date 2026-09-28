@@ -430,8 +430,8 @@ def write_status(output, engine, *, mode, recovery=None, started_ns=None, actual
         mlAuthority="OFF", session=str(engine.recorder.path), updatedAt=time.time()))
 
 
-async def run_paper(config, output, *, smoke_seconds=None):
-    engine = PaperEngine(config, rest_client=PublicRest(config), configure_observability=False)
+async def run_paper(config, output, *, smoke_seconds=None, engine=None):
+    engine = engine or PaperEngine(config, rest_client=PublicRest(config), configure_observability=False)
     stop = asyncio.Event()
     restore = install_stop_signals(stop)
     started = time.perf_counter_ns()
@@ -469,25 +469,76 @@ async def run_paper(config, output, *, smoke_seconds=None):
     return result
 
 
-async def dashboard(output, port, stop):
+def dashboard_state(engine, output, mode, symbol=None, session=None):
+    state = engine.public_state(symbol)
+    started = session.start_ns if session is not None else (
+        int(engine._run_started_mono * 1e9) if engine._run_started_mono is not None else None)
+    elapsed = max(0, (time.perf_counter_ns() - started) / 1e9) if started else 0
+    state["mode"] = mode
+    state["run"].update(configuredDurationSeconds=DURATION, elapsedSeconds=elapsed,
+        remainingSeconds=max(0, DURATION - elapsed),
+        deadlineAt=(session.start_ms / 1000 + DURATION if session and session.start_ms else
+                    engine._run_started_at + DURATION if engine._run_started_at else None))
+    stopping = (output / "STOP").exists() or bool(session and session.stop.is_set())
+    state["controls"] = dict(startAllowed=False, strategiesLocked=True, stopRequested=stopping)
+    state["trading24h"] = dict(profile=PROFILE, mlAuthority="OFF", referenceBalance=1000,
+        actualEquityAtStart=engine.config.start_balance, recovery=list(session.recovery) if session else [],
+        message=("Штатное завершение: сверка и закрытие позиций…" if stopping else
+                 f"{PROFILE} · ML OFF · 24 часа · reference 1000 USDT"))
+    if session is not None:
+        # The portfolio combines ownership for admission. The UI must show actual
+        # Demo facts, not the minimum balance or merged positions of both ledgers.
+        broker = session.arms["demo"].broker
+        state.update(balance=broker.balance, totalPnl=broker.total_pnl,
+            positions=[p.public() for p in broker.positions.values()],
+            closedTrades=list(broker.closed_trades[-30:]))
+        for row in state["working"]:
+            position = broker.positions.get(row["symbol"])
+            row["position"] = position.public() if position else None
+        state["portfolio"].update(totalExposure=broker.total_exposure,
+            grossLeverage=broker.total_exposure / broker.balance if broker.balance else 0)
+        state["trading24h"]["comparisonPaper"] = dict(balance=session.arms["paper"].broker.balance,
+            positions=len(session.arms["paper"].broker.positions))
+    return state
+
+
+def create_dashboard(engine, output, mode, session=None):
+    from fastapi import FastAPI, HTTPException
+    from .ui import mount_trading_ui
+    app = FastAPI(title="Scalp Bot")
+
+    async def state(symbol=None):
+        return dashboard_state(engine, output, mode, symbol, session)
+
+    mount_trading_ui(app, lambda: engine, state)
+
+    @app.post("/api/bot/start")
+    async def start_bot():
+        raise HTTPException(409, "24h run запускается launcher; UI не сбрасывает его deadline")
+
+    @app.post("/api/strategies/{key}")
+    async def toggle_strategy(key: str):
+        raise HTTPException(409, "Состав стратегий зафиксирован профилем trading-24h-v1")
+
+    @app.post("/api/bot/stop")
+    async def stop_bot():
+        (output / "STOP").touch()
+        engine.running = False
+        if session is not None:
+            session.portfolio.accepting = False
+            session.stop.set()
+        return dict(ok=True, running=False, finalizing=True)
+
+    return app
+
+
+async def dashboard(app, listener, stop):
     import uvicorn
-    from fastapi import FastAPI
-    from fastapi.responses import HTMLResponse
-    app = FastAPI()
-    @app.get("/")
-    async def index():
-        return HTMLResponse('<meta charset="utf-8"><title>Trading 24h</title><h1>Trading 24h</h1>'
-            '<p>ML OFF · 1000 USDT reference · 86400 seconds</p><pre id="state"></pre>'
-            '<script>setInterval(async()=>{state.textContent=JSON.stringify(await(await fetch("/api/state")).json(),null,2)},1000)</script>')
-    @app.get("/api/state")
-    async def state():
-        path = output / "status.json"
-        return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {"phase": "startup"}
-    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
+    server = uvicorn.Server(uvicorn.Config(app, log_level="warning"))
     # The coordinator's handlers own graceful order finalization.
     from contextlib import nullcontext
     server.capture_signals = nullcontext
-    task = asyncio.create_task(server.serve())
+    task = asyncio.create_task(server.serve(sockets=[listener]))
     try:
         await stop.wait()
     finally:
@@ -506,25 +557,45 @@ async def main_async(args):
         (output / "STOP").touch()
         print("Graceful stop requested; wait for summary.json finalized=true")
         return
+    if args.action == "connected-check":
+        credentials = load_credentials(args.credentials)
+        result = await no_order_preflight(settings(output.parent / (output.name + "-preflight")), credentials)
+        print(json.dumps(result, indent=2, default=str))
+        return
+    if output.exists(): raise SafetyError("use a new output directory for each start")
+    # Reserve the UI port before creating a runtime or enabling any Demo writes.
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        try:
+            listener.bind(("127.0.0.1", args.port))
+            listener.listen(128)
+            listener.setblocking(False)
+        except OSError as exc:
+            raise SafetyError(f"UI port {args.port} unavailable; trading was not started") from exc
+        await start_run(args, output, config, listener)
+
+
+async def start_run(args, output, config, listener):
     credentials = load_credentials(args.credentials) if args.mode == "demo" else None
-    if args.action == "connected-check" or args.mode == "demo":
+    if args.mode == "demo":
         # Runs with write_enabled=False before EVERY Demo start.
         preflight_config = settings(output.parent / (output.name + "-preflight"))
         result = await no_order_preflight(preflight_config, credentials)
         print(json.dumps(result, indent=2, default=str))
-        if args.action == "connected-check": return
         config = settings(output / "sessions", equity=result["actualEquityUSDT"])
-    if output.exists(): raise SafetyError("use a new output directory for each start")
     if args.mode == "demo":
         session = DemoSession(config, credentials, output)
+        engine = session.engine
     else:
         output.mkdir(parents=True)
+        session = None
+        engine = PaperEngine(config, rest_client=PublicRest(config), configure_observability=False)
     save_json(output / "profile.json", manifest(config))
     stop_ui = asyncio.Event()
-    ui = asyncio.create_task(dashboard(output, args.port, stop_ui))
+    ui = asyncio.create_task(dashboard(create_dashboard(engine, output, args.mode, session), listener, stop_ui))
     print(f"UI http://127.0.0.1:{args.port}/ · results {output}", flush=True)
     try:
-        result = await session.run_session() if args.mode == "demo" else await run_paper(config, output, smoke_seconds=args.smoke_seconds)
+        result = await session.run_session() if args.mode == "demo" else await run_paper(config, output, smoke_seconds=args.smoke_seconds, engine=engine)
         print(json.dumps(result, default=str), flush=True)
         if not result["finalized"]: raise SafetyError("finalization incomplete; inspect owned Demo exposure and retained evidence")
         if result["reason"] not in {"operator_stop", "duration_elapsed", "smoke_complete"}:
@@ -540,9 +611,10 @@ def main():
     parser.add_argument("--mode", choices=["paper", "demo"], default="paper")
     parser.add_argument("--output", default="data/trading-24h-v1/run")
     parser.add_argument("--credentials", default=".env.demo-paper.local")
-    parser.add_argument("--port", type=int, default=8010)
+    parser.add_argument("--port", type=int)
     parser.add_argument("--smoke-seconds", type=int)
     args = parser.parse_args()
+    if args.port is None: args.port = 8000 if args.mode == "paper" else 8011
     if args.smoke_seconds and args.mode != "paper": parser.error("smoke is public Paper only")
     if args.action == "connected-check" and args.mode != "demo": parser.error("connected-check requires demo")
     try:

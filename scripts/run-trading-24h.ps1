@@ -3,7 +3,7 @@ param(
     [ValidateSet("Check", "ConnectedCheck", "Start", "Stop", "Archive")][string]$Action = "Check",
     [string]$Output = "",
     [string]$Credentials = ".env.demo-paper.local",
-    [int]$Port = 8010,
+    [ValidateRange(1,65535)][int]$Port,
     [ValidateRange(30,900)][int]$SmokeSeconds = 60,
     [switch]$Smoke,
     [switch]$Check
@@ -13,6 +13,7 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $pythonPath = Join-Path $projectRoot ".venv\Scripts\python.exe"
 if (-not (Test-Path -LiteralPath $pythonPath)) { throw "Run .\scripts\setup.ps1 first." }
 if ($Check) { $Action = "Check" }
+if (-not $PSBoundParameters.ContainsKey("Port")) { $Port = if ($Mode -eq "Paper") { 8000 } else { 8011 } }
 if (-not $Output) { $Output = "data\trading-24h-v1\$($Mode.ToLower())-" + (Get-Date -Format "yyyyMMdd-HHmmss") }
 if (-not [IO.Path]::IsPathRooted($Output)) { $Output = Join-Path $projectRoot $Output }
 $Output = [IO.Path]::GetFullPath($Output)

@@ -1541,7 +1541,7 @@ async function openTradeReview(reviewId) {
 function renderTrades(rows) {
   const root = $("closedTrades");
   if (!rows?.length) {
-    root.innerHTML = '<div class="empty-row">Закрытых paper-сделок пока нет.</div>';
+    root.innerHTML = '<div class="empty-row">Закрытых сделок пока нет.</div>';
     return;
   }
   root.innerHTML = rows.slice().reverse().map(trade => {
@@ -1578,13 +1578,16 @@ function renderTrades(rows) {
 
 function render(data) {
   const status = $("connection");
-  const lossCap = data.risk?.sessionLossLimitEnabled ? "лимит убытка включён" : "исследование · лимит убытка выключен";
+  const modeLabel = data.mode === "demo" ? "BYBIT DEMO" : "PAPER";
+  const controls = data.controls || data.capture || {};
+  if ($("executionMode")) $("executionMode").textContent = modeLabel;
+  const lossCap = data.risk?.sessionLossLimitEnabled ? "лимит убытка включён" : "лимит сессии выключен";
   const marketHealth = data.marketHealth || {};
   const marketReady = Boolean(marketHealth.ready);
   status.textContent = data.botRunning
-    ? `PAPER · торговля включена · ${lossCap}`
+    ? `${modeLabel} · торговля включена · ${lossCap}`
     : marketReady
-      ? `PAPER · готово · ${lossCap}`
+      ? `${modeLabel} · готово · ${lossCap}`
       : marketHealth.scannerError
         ? "ОШИБКА РЫНОЧНЫХ ДАННЫХ"
         : "ОЖИДАНИЕ РЫНКА";
@@ -1593,13 +1596,13 @@ function render(data) {
     : marketReady
       ? "live observing"
       : "live disconnected";
-  $("startBtn").disabled = data.botRunning || !marketReady || data.capture?.startAllowed === false;
-  $("stopBtn").disabled = !data.botRunning;
+  $("startBtn").disabled = data.botRunning || !marketReady || controls.startAllowed === false;
+  $("stopBtn").disabled = !data.botRunning || controls.stopRequested;
   const captureStatus = $("captureStatus");
   if (captureStatus) {
-    captureStatus.classList.toggle("hidden", !data.capture);
+    captureStatus.classList.toggle("hidden", !data.capture && !data.trading24h);
     captureStatus.classList.toggle("negative", Boolean(data.capture?.error));
-    captureStatus.textContent = data.capture?.message || "";
+    captureStatus.textContent = data.trading24h?.message || data.capture?.message || "";
   }
 
   const marketAlert = $("marketAlert");
@@ -1651,7 +1654,7 @@ function render(data) {
 
   renderWorking(data.working);
   renderCandidates(data.candidates);
-  renderStrategies(data.strategies, Boolean(data.capture?.strategiesLocked));
+  renderStrategies(data.strategies, Boolean(controls.strategiesLocked));
   renderEvents(data.events);
   lastLiveClosedTrades = data.closedTrades;
   if (selectedReviewSession === "current" && data.closedTrades.length !== lastClosedTradeCount) {
