@@ -101,23 +101,12 @@ def _median_positive(values: list[float]) -> float | None:
     return float(median(rows)) if rows else None
 
 
-def _micro_window(
-    trades: list[TradeTick],
-    *,
-    observed_at_ms: int,
-    seconds: int,
+def _micro_window_stats(
+    rows: list[TradeTick],
 ) -> tuple[float | None, float | None]:
-    if len(trades) < 2:
-        return None, None
-    cutoff = observed_at_ms - seconds * 1000
-    rows = [
-        trade
-        for trade in trades
-        if cutoff <= trade.ts_ms <= observed_at_ms
-    ]
+    # Caller selects the causal window and orders it stably by timestamp.
     if len(rows) < 2:
         return None, None
-    rows.sort(key=lambda trade: trade.ts_ms)
     first = rows[0].price
     last = rows[-1].price
     if first <= 0:
@@ -206,30 +195,29 @@ def build_forming_candle_context(
     else:
         direction = Trend.UP if body_pct > 0 else Trend.DOWN
 
-    minute_trades = sorted(
-        [
-            trade
-            for trade in (recent_trades or [])
-            if (
-                forming.start_ms
-                <= trade.ts_ms
-                < forming.start_ms + 60_000
-                and trade.ts_ms <= observed_at_ms
-            )
-        ],
-        key=lambda trade: trade.ts_ms,
-    )
+    minute_count = 0
+    minute_latest_ts = None
+    micro_trades = []
+    minute_end = forming.start_ms + 60_000
+    cutoff_15 = observed_at_ms - 15_000
+    for trade in recent_trades or []:
+        ts = trade.ts_ms
+        if forming.start_ms <= ts < minute_end and ts <= observed_at_ms:
+            minute_count += 1
+            if minute_latest_ts is None or ts > minute_latest_ts:
+                minute_latest_ts = ts
+            if ts >= cutoff_15:
+                micro_trades.append(trade)
+    # Only the micro windows require chronological order; full-minute count
+    # and latest timestamp do not. Stable ties preserve first/last price.
+    micro_trades.sort(key=lambda trade: trade.ts_ms)
     resolved_last_trade_ts = (
         max(
             [
                 value
                 for value in (
                     last_trade_ts_ms,
-                    (
-                        minute_trades[-1].ts_ms
-                        if minute_trades
-                        else None
-                    ),
+                    minute_latest_ts,
                 )
                 if isinstance(value, int)
             ],
@@ -256,15 +244,11 @@ def build_forming_candle_context(
         if kline_snapshot_observed_at_ms is not None
         else None
     )
-    micro_move_5s_bps, micro_range_5s_bps = _micro_window(
-        minute_trades,
-        observed_at_ms=observed_at_ms,
-        seconds=5,
+    micro_move_5s_bps, micro_range_5s_bps = _micro_window_stats(
+        [trade for trade in micro_trades if trade.ts_ms >= observed_at_ms - 5000],
     )
-    micro_move_15s_bps, micro_range_15s_bps = _micro_window(
-        minute_trades,
-        observed_at_ms=observed_at_ms,
-        seconds=15,
+    micro_move_15s_bps, micro_range_15s_bps = _micro_window_stats(
+        micro_trades,
     )
 
     return FormingCandleContext(
@@ -303,7 +287,7 @@ def build_forming_candle_context(
             else "kline_snapshot"
         ),
         tape_updates=max(0, int(tape_updates)),
-        current_minute_trade_count=len(minute_trades),
+        current_minute_trade_count=minute_count,
         last_trade_ts_ms=resolved_last_trade_ts,
         last_trade_age_seconds=last_trade_age_seconds,
         kline_snapshot_age_seconds=kline_snapshot_age_seconds,

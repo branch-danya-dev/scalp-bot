@@ -40,4 +40,4 @@ jobs:
       - name: Install optional CPU learning environment
         run: python -m pip install -e ".[dev,ml]"
       - name: Spawn, causal data and saved model regressions
-        run: python -m pytest -q tests/ml tests/demo_paper tests/test_parallel_scenarios.py tests/test_transport_recovery.py tests/test_journal_writer_pipeline.py tests/test_capture_hotpath_equivalence.py tests/test_capture_benchmark_clocks.py tests/test_wave2_smoke_gate.py tests/test_paper_capture.py
+        run: python -m pytest -q tests/ml tests/demo_paper tests/test_parallel_scenarios.py tests/test_transport_recovery.py tests/test_journal_writer_pipeline.py tests/test_capture_hotpath_equivalence.py tests/test_capture_benchmark_clocks.py tests/test_wave2_smoke_gate.py tests/test_paper_capture.py tests/test_tape_window_work.py tests/test_forming_candle_context.py tests/test_trade_flow_equivalence.py

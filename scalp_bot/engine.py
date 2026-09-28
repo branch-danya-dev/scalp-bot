@@ -444,14 +444,19 @@ class ActiveSymbolSession:
     def book_flow_snapshot(self, now_ms: int | None = None) -> dict:
         resolved_now_ms = int(self.clock.time() * 1000) if now_ms is None else now_ms
 
-        def window(seconds: int) -> tuple[float, int]:
-            cutoff = resolved_now_ms - seconds * 1000
-            rows = [
-                value
-                for ts, value in self.book_flow
-                if cutoff <= ts <= resolved_now_ms
-            ]
-            return sum(rows), len(rows)
+        cutoff_5 = resolved_now_ms - 5000
+        cutoff_15 = resolved_now_ms - 15000
+        cutoff_60 = resolved_now_ms - 60000
+        rows_5, rows_15, rows_60 = [], [], []
+        # Partition once, retaining arrival order and builtin sum semantics.
+        # Future and out-of-order events still use the same inclusive windows.
+        for ts, value in self.book_flow:
+            if cutoff_60 <= ts <= resolved_now_ms:
+                rows_60.append(value)
+                if ts >= cutoff_15:
+                    rows_15.append(value)
+                    if ts >= cutoff_5:
+                        rows_5.append(value)
 
         depth_usd = sum(
             price * qty
@@ -459,9 +464,9 @@ class ActiveSymbolSession:
                 self.orderbook.bids[:5] + self.orderbook.asks[:5]
             )
         )
-        ofi_5s, count_5s = window(5)
-        ofi_15s, count_15s = window(15)
-        ofi_60s, count_60s = window(60)
+        ofi_5s, count_5s = sum(rows_5), len(rows_5)
+        ofi_15s, count_15s = sum(rows_15), len(rows_15)
+        ofi_60s, count_60s = sum(rows_60), len(rows_60)
         latest_age_ms = (
             max(0, resolved_now_ms - self.last_book_flow_ms)
             if self.last_book_flow_ms > 0
