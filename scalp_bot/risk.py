@@ -636,6 +636,55 @@ class RiskEngine:
                 "normalizedNotionalUsd": notional,
             }
 
+        if self.config.trading_quality_enabled:
+            # The exchange accepts base quantity, not the earlier quote-notional
+            # estimate. Reprice the FINAL (possibly step-rounded) quantity and
+            # enforce exact cash risk; never retain VWAP from a larger order.
+            sign = 1 if side == Side.LONG else -1
+            for _ in range(4):
+                if entry_mode != "maker_limit":
+                    raw_depth_entry, filled_quantity, visible_entry_depth = depth.entry_vwap_quantity(side, quantity)
+                    if raw_depth_entry is None or filled_quantity + 1e-12 < quantity:
+                        return RiskResult(False, "insufficient visible depth for final quantity")
+                market_entry = apply_entry_slippage(float(raw_depth_entry), side, entry_slippage_rate)
+                notional = quantity * market_entry
+                entry_drift = sign * (market_entry - setup_entry) / setup_entry
+                if sign * (market_entry-stop) <= 0 or entry_drift > max_drift:
+                    return RiskResult(False, "setup invalidated after final quantity pricing")
+                stop_pct = abs(market_entry-stop)/market_entry
+                target_pct = sign*(target-market_entry)/market_entry
+                (stop_depth_stress_rate, stop_depth_impact_rate, visible_stop_depth,
+                 raw_stop_exit_vwap, stop_depth_model) = self._stop_depth_stress(depth, side, notional, stop)
+                if raw_stop_exit_vwap is None or visible_stop_depth <= 0:
+                    return RiskResult(False, "insufficient stop-side depth for final quantity")
+                stressed_fill = apply_exit_slippage(stop, side, stop_exit_slippage_rate) * (1-sign*stop_depth_stress_rate)
+                exact_structural = quantity*abs(market_entry-stop)
+                exact_loss = quantity*(sign*(market_entry-stressed_fill)
+                    + market_entry*entry_fee_rate + stressed_fill*stop_exit_fee_rate)
+                if exact_loss <= 0:
+                    return RiskResult(False, "invalid final cash risk")
+                ratio = min(1., structural_risk_budget/exact_structural,
+                    trade_all_in_cap_usd/exact_loss, max(available_risk_usd,0)/exact_loss,
+                    max(available_notional,0)/notional, position_exposure_cap/notional,
+                    visible_stop_depth/notional)
+                if ratio >= 1-1e-10:
+                    break
+                quantity *= max(0., ratio)*(1-1e-10)
+                if instrument:
+                    normalized = instrument.normalize_quantity(entry_price=market_entry,
+                        requested_notional=quantity*market_entry, market_order=entry_mode != "maker_limit")
+                    if normalized is None:
+                        return RiskResult(False, "instrument minimum after final cash risk sizing")
+                    quantity, _ = normalized
+                if quantity <= 0:
+                    return RiskResult(False, "final cash risk budget exhausted")
+            else:
+                return RiskResult(False, "final quantity risk sizing did not converge")
+            if instrument:
+                if quantity < instrument.min_order_qty or notional < instrument.min_notional_value:
+                    return RiskResult(False, "instrument minimum after final quantity pricing")
+                instrument_diagnostics.update(normalizedQuantity=quantity, normalizedNotionalUsd=notional)
+
         entry_depth_impact_bps = (
             max(
                 0.0,
@@ -1074,6 +1123,10 @@ class RiskEngine:
             binding = "depth_stress_or_quantity_rounding"
         economic_diagnostics = {
             "payoutMeaning": "conditional_on_targets_not_expected_value",
+            "breakEvenWinRateTargetOrStop": (all_in_net_loss / (all_in_net_loss + expected_net)
+                if expected_net > 0 and all_in_net_loss > 0 else None),
+            "breakEvenWinRateMeaning": "binary target-or-stop illustration; partial/failure/time exits require observed outcome distribution",
+            "liquidityMeaning": "current executable depth and structural references; future stop liquidity is stressed estimation",
             "conditionalTargetNetUsd": expected_net,
             "executionBook": dict(depth.execution),
             "sizing": {"initialRiskNotionalUsd": initial_risk_notional,

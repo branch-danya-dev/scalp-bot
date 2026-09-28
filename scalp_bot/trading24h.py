@@ -21,10 +21,13 @@ from .demo_paper.transport import DemoRest, DemoReject, private_stream
 
 DURATION = 86400
 PROFILE = "trading-24h-v1"
+ACTIVE_PROFILE = "scalping-active-v1"
 STRATEGIES = ["level_breakout", "weak_level_rejection", "trend_structure"]
 
 
-def settings(output, *, equity=1000.0):
+def settings(output, *, equity=1000.0, profile=PROFILE):
+    if profile not in {PROFILE, ACTIVE_PROFILE}:
+        raise SafetyError("unknown trading profile")
     values = {k: f.default for k, f in Settings.model_fields.items()}
     values.update(start_balance=1000.0, paper_run_duration_seconds=DURATION,
         run_label=PROFILE, session_dir=str(output), trading_quality_enabled=True,
@@ -40,6 +43,15 @@ def settings(output, *, equity=1000.0):
         enforce_min_net_profit_gate=False, e01_breakout_obstacle_veto=False,
         research_frame_seconds=5, replay_idle_frame_seconds=15,
         research_trade_delta_enabled=True, replay_trade_delta_enabled=True)
+    if profile == ACTIVE_PROFILE:
+        # Activity policy, not an inferred win rate or permission to exceed risk.
+        values.update(run_label=profile, min_turnover_usd=50_000_000.,
+            liquid_universe_size=60, working_symbols=12, max_active_symbols=12,
+            active_symbol_min_seconds=180., min_net_reward_risk=1.0,
+            max_winner_cost_share=.50, setup_rearm_seconds=5.,
+            trend_structure_no_follow_through_seconds=20.,
+            weak_level_rejection_no_follow_through_seconds=15.,
+            breakout_no_follow_through_seconds=30.)
     if not 0 < equity < float("inf"):
         raise SafetyError("positive finite Demo USDT equity required")
     # Same dollar risk as the 1000-USDT paper profile when equity is larger;
@@ -56,7 +68,7 @@ def manifest(config):
     from .run_manifest import build_run_manifest, code_provenance
     result = build_run_manifest(config, {k: True for k in STRATEGIES},
                                code=code_provenance(Path(__file__).resolve().parents[1]), policy={"mode": "off"})
-    result.update(profile=PROFILE, durationSeconds=DURATION, startBalance=config.start_balance, referenceBalance=1000,
+    result.update(profile=config.run_label, durationSeconds=DURATION, startBalance=config.start_balance, referenceBalance=1000,
         tradeableStrategies=STRATEGIES, evidenceOnly=["orderbook_density"],
         disabledStrategies={"price_action_hypothesis": "opt-in paper beta, not qualified for Demo"},
         mlAuthority=dict(entries=False, veto=False, rank=False, risk=False, size=False, worker=False),
@@ -64,7 +76,12 @@ def manifest(config):
         exitPlanPolicy="prefer qualified partial; otherwise qualified full closure at the same reachable target",
         artificialLimits=dict(sessionLoss=False, dailyLoss=False, drawdownKill=False,
                               tradeCount=False, expectancy=False, segmentAdaptive=False),
-        policyNotes="1.15 RR, participation and reaction thresholds are conservative policy values, not optima")
+        policyNotes="RR, winner cost share, participation and reaction thresholds are policy choices, not measured optima",
+        admissionPolicy=dict(minNetRewardRisk=config.min_net_reward_risk,
+            absoluteMinNetRewardRisk=config.absolute_min_net_reward_risk,
+            maxWinnerCostShare=config.max_winner_cost_share,
+            formingCandlePositionRequired=config.run_label != ACTIVE_PROFILE,
+            participationAccelerationRequired=config.run_label != ACTIVE_PROFILE))
     from .manifest_validation import fingerprint
     result["manifestSha256"] = fingerprint({k:v for k,v in result.items() if k not in {"manifestSha256", "manifestId"}})
     return result
@@ -73,6 +90,7 @@ def manifest(config):
 class CrossContext:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.strategies["weak_level_rejection"].require_forming_position = self.config.run_label != ACTIVE_PROFILE
         self.cross = CrossVenueRuntime(self.recorder.path.name)
         owner = self
         class Journal:
@@ -556,10 +574,10 @@ def dashboard_state(engine, output, mode, symbol=None, session=None):
                     engine._run_started_at + DURATION if engine._run_started_at else None))
     stopping = (output / "STOP").exists() or bool(session and session.stop.is_set())
     state["controls"] = dict(startAllowed=False, strategiesLocked=True, stopRequested=stopping)
-    state["trading24h"] = dict(profile=PROFILE, mlAuthority="OFF", referenceBalance=1000,
+    state["trading24h"] = dict(profile=engine.config.run_label, mlAuthority="OFF", referenceBalance=1000,
         actualEquityAtStart=engine.config.start_balance, recovery=list(session.recovery) if session else [],
         message=("Штатное завершение: сверка и закрытие позиций…" if stopping else
-                 f"{PROFILE} · ML OFF · 24 часа · reference 1000 USDT"))
+                 f"{engine.config.run_label} · ML OFF · 24 часа · reference 1000 USDT"))
     if session is not None:
         # The portfolio combines ownership for admission. The UI must show actual
         # Demo facts, not the minimum balance or merged positions of both ledgers.
@@ -623,7 +641,7 @@ async def dashboard(app, listener, stop):
 
 async def main_async(args):
     output = Path(args.output).resolve()
-    config = settings(output / "sessions")
+    config = settings(output / "sessions", profile=getattr(args, "profile", ACTIVE_PROFILE))
     if args.action == "check":
         print(json.dumps(manifest(config), ensure_ascii=False, indent=2))
         return
@@ -634,7 +652,7 @@ async def main_async(args):
         return
     if args.action == "connected-check":
         credentials = load_credentials(args.credentials)
-        result = await no_order_preflight(settings(output.parent / (output.name + "-preflight")), credentials)
+        result = await no_order_preflight(settings(output.parent / (output.name + "-preflight"), profile=args.profile), credentials)
         print(json.dumps(result, indent=2, default=str))
         return
     if output.exists(): raise SafetyError("use a new output directory for each start")
@@ -654,10 +672,10 @@ async def start_run(args, output, config, listener):
     credentials = load_credentials(args.credentials) if args.mode == "demo" else None
     if args.mode == "demo":
         # Runs with write_enabled=False before EVERY Demo start.
-        preflight_config = settings(output.parent / (output.name + "-preflight"))
+        preflight_config = settings(output.parent / (output.name + "-preflight"), profile=config.run_label)
         result = await no_order_preflight(preflight_config, credentials)
         print(json.dumps(result, indent=2, default=str))
-        config = settings(output / "sessions", equity=result["actualEquityUSDT"])
+        config = settings(output / "sessions", equity=result["actualEquityUSDT"], profile=config.run_label)
     if args.mode == "demo":
         session = DemoSession(config, credentials, output)
         engine = session.engine
@@ -684,6 +702,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=["check", "connected-check", "start", "stop"])
     parser.add_argument("--mode", choices=["paper", "demo"], default="paper")
+    parser.add_argument("--profile", choices=[PROFILE, ACTIVE_PROFILE], default=ACTIVE_PROFILE)
     parser.add_argument("--output", default="data/trading-24h-v1/run")
     parser.add_argument("--credentials", default=".env.demo-paper.local")
     parser.add_argument("--port", type=int)

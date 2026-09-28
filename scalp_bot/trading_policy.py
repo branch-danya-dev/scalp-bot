@@ -61,16 +61,22 @@ def participation_quality(flow, candles, forming, side, config):
     relative = notional / baseline if baseline > 0 else 0.0
     pace = number(getattr(forming, "volume_pace_ratio", None), -1)
     response = sign * number(flow.get("priceMove5sPct")) * 10000
+    active = config.run_label == "scalping-active-v1"
+    # A new burst can follow a quiet start of the same minute. Require both
+    # notional AND count above baseline before ignoring accumulated candle pace.
+    current_burst = (relative >= 1.25 and number(flow.get("tradeRateRatio")) >= 1.25
+                     and number(flow.get("tradeCount5s")) >= 3)
     reasons = []
     if not flow.get("baselineReady") or baseline <= 0:
         reasons.append("participation_baseline_missing")
     if relative < config.participation_min_notional_ratio:
         reasons.append("executed_notional_below_baseline")
-    if number(flow.get("acceleration")) < 1 or number(flow.get("tradeRateRatio")) < config.participation_min_trade_rate_ratio:
+    if ((not active and number(flow.get("acceleration")) < 1)
+            or number(flow.get("tradeRateRatio")) < config.participation_min_trade_rate_ratio):
         reasons.append("insufficient_trade_intensity")
     if number(flow.get("tradeCount5s")) < 3:
         reasons.append("insufficient_trade_count")
-    if pace >= 0 and pace < config.participation_min_volume_pace:
+    if pace >= 0 and pace < config.participation_min_volume_pace and not (active and current_burst):
         reasons.append("candle_volume_pace_weak")
     if sign * number(flow.get("imbalance5s")) < .03 or response < config.participation_min_response_bps:
         reasons.append("directional_price_response_missing")
@@ -78,6 +84,8 @@ def participation_quality(flow, candles, forming, side, config):
                 baselineNotional5s=baseline, notionalRatio=relative,
                 tradeCount5s=flow.get("tradeCount5s", 0), tradeRateRatio=flow.get("tradeRateRatio", 0),
                 acceleration=flow.get("acceleration", 0), candleVolumePace=pace if pace >= 0 else None,
+                currentBurstConfirmed=current_burst, accelerationRequired=not active,
+                candlePaceOverride=active and current_burst and 0 <= pace < config.participation_min_volume_pace,
                 imbalance5s=flow.get("imbalance5s", 0), directionalResponseBps=response)
 
 

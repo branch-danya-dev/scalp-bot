@@ -576,7 +576,7 @@ class WeakLevelRejectionStrategy(Strategy):
                 >= self.micro_response_min_bps
                 or tape_response_aligned
             )
-            and forming_position_supported
+            and (not getattr(self, "require_forming_position", True) or forming_position_supported)
         )
 
         early_absorption_ready = (

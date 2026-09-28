@@ -1,5 +1,8 @@
 # Ordinary non-ML trading, 24h v1
 
+The launcher now defaults to [scalping-active-v1](scalping-active-v1.md).
+Pass `-Profile trading-24h-v1` to retain the policy documented here.
+
 This profile starts at PR61 `39713333c5342d272649c142c7f66a1237c0ddaa`, stacked on PR60
 `1a2d0f67da0331df7d2d134bffde6f64141c7898`. No merge or base-branch change.
 N3/W2 replay evidence and its NOT_MET status remain historical evidence, not a launch gate.

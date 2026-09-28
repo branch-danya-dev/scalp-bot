@@ -59,6 +59,8 @@ def find_liquidity_targets(
 
     if structure is not None:
         for level in structure.levels:
+            if unconsumed_swings_only and level.lifecycle == "broken":
+                continue
             if action == Action.LONG:
                 eligible_kind = (
                     level.kind in RESISTANCE_LEVEL_KINDS
@@ -90,8 +92,20 @@ def find_liquidity_targets(
                     )
                 )
 
+    def retired_zone(zone):
+        if not unconsumed_swings_only or structure is None:
+            return False
+        # Raw candle detection has no lifecycle. Do not resurrect the same
+        # retired zone; a genuinely new/reclaimed generation remains eligible.
+        matching = [level for level in structure.levels if level.kind == zone.kind
+                    and abs(level.low-zone.low) <= entry*1e-9
+                    and abs(level.high-zone.high) <= entry*1e-9]
+        return bool(matching) and all(level.lifecycle == "broken" for level in matching)
+
     if action == Action.LONG:
         for zone in detect_level_zones(candles, "resistance", min_touches=2):
+            if retired_zone(zone):
+                continue
             target_price = zone.low
             distance = (target_price - entry) / entry
             if minimum <= distance <= max_distance_pct:
@@ -120,6 +134,8 @@ def find_liquidity_targets(
                 )
     else:
         for zone in detect_level_zones(candles, "support", min_touches=2):
+            if retired_zone(zone):
+                continue
             target_price = zone.high
             distance = (entry - target_price) / entry
             if minimum <= distance <= max_distance_pct:
