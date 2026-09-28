@@ -1,3 +1,30 @@
+# Current integration state after production wiring
+
+See [current evidence](n3-production-v5-evidence.md) and
+[pre-code file audit](n3-production-v5-plan.md).
+
+Implemented: independent source-lane ingress counters and applied-source
+references; NativeDispatch coroutine slices and done callbacks; routed engine,
+session, broker and transport clocks; separated W2 effects; extracted probe;
+CrossVenue task ownership/retired-task joining; real child request replay; and
+disk-backed whole-tape structural validation. The original framework remains
+fail closed and no productionCoverage override was added.
+
+Remaining architecture boundary: NativeControlledDriver still executes explicit
+operations. It does not reconstruct arbitrary runtime coroutine roots/source
+await results/probe control cadence. NativeChildReplayBridge consumes real
+child/relay clocks asynchronously but rejects a parent synchronous slice that
+crosses another actor's token. A whole-runtime resume coordinator, complete
+producer lifetimes and the unified nonempty P8/P9 acceptance population are
+required before production cost attribution or controlled W2.0 can be claimed.
+
+The two successful witnesses (native-root recording and child-request replay)
+must not be aggregated into a fictitious complete-session semantic proof.
+Historical architecture below explains the starting point; several listed
+component absences are now implemented, while the production gate remains open.
+
+---
+
 # Production integration boundary after the v5 architecture witness
 
 The opt-in sequencer and explicit-operation driver are executable. They are

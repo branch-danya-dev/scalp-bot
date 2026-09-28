@@ -1,0 +1,33 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+___________ test_watch_removed_task_is_joined_before_service_close ____________
+
+    async def test_watch_removed_task_is_joined_before_service_close():
+        service = PublicCrossVenueService(SimpleNamespace(), SimpleNamespace())
+        service.specs = {"okx": {"BTCUSDT": {}}, "binance": {"BTCUSDT": {}}}
+        started, released, finished = asyncio.Event(), asyncio.Event(), []
+        async def stream(venue, symbol):
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                await released.wait()
+                finished.append((venue, symbol))
+        service._stream = stream
+        service.watch(["BTCUSDT"])
+        await started.wait()
+        await asyncio.sleep(0)
+        service.watch([])
+        closing = asyncio.create_task(service.close())
+        await asyncio.sleep(0)
+        try:
+>           assert not closing.done(), "close returned while cancelled external tasks still owned live work"
+E           AssertionError: close returned while cancelled external tasks still owned live work
+E           assert not True
+E            +  where True = <built-in method done of _asyncio.Task object at 0x0000018F7781E410>()
+E            +    where <built-in method done of _asyncio.Task object at 0x0000018F7781E410> = <Task finished name='Task-4' coro=<PublicCrossVenueService.close() done, defined at G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\cross_venue_public.py:162> result=None>.done
+
+tests\test_cross_venue_lifecycle.py:26: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_cross_venue_lifecycle.py::test_watch_removed_task_is_joined_before_service_close
+1 failed in 0.19s

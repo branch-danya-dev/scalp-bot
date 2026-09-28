@@ -1,0 +1,1 @@
+{"fixture": "MET", "counts": {"task_open": 25, "task_start": 25, "clock": 145, "task_end": 25, "boundary": 64}, "productionAtoF": "NOT_TESTED", "controlledW20": "NOT_MET"}

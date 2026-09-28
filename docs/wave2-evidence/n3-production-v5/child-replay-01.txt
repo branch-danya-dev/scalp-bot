@@ -1,0 +1,294 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ test_real_spawn_replay_consumes_child_and_relay_clocks_without_blocking_loop _
+
+fut = <coroutine object NativeControlledDriver.run.<locals>.dispatch at 0x0000029814CC3EF0>
+timeout = 10
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\asyncio\tasks.py:507: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scalp_bot\native_controlled.py:144: in dispatch
+    await c.changed.wait()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <asyncio.locks.Condition object at 0x0000029814C8F620 [unlocked]>
+
+    async def wait(self):
+        """Wait until notified.
+    
+        If the calling task has not acquired the lock when this
+        method is called, a RuntimeError is raised.
+    
+        This method releases the underlying lock, and then blocks
+        until it is awakened by a notify() or notify_all() call for
+        the same condition variable in another task.  Once
+        awakened, it re-acquires the lock and returns True.
+    
+        This method may return spuriously,
+        which is why the caller should always
+        re-check the state and be prepared to wait() again.
+        """
+        if not self.locked():
+            raise RuntimeError('cannot wait on un-acquired lock')
+    
+        fut = self._get_loop().create_future()
+        self.release()
+        try:
+            try:
+                self._waiters.append(fut)
+                try:
+>                   await fut
+E                   asyncio.exceptions.CancelledError
+
+C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\asyncio\locks.py:272: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <scalp_bot.native_controlled.NativeControlledDriver object at 0x0000029814C8F230>
+variant = 'F'
+
+    async def run(self, variant):
+        if variant not in VARIANTS: raise NativeTapeError("unknown A-F variant")
+        validate_events(self.tape.events, self.tape.header["capture_id"])
+        enabled = VARIANTS[variant]
+        declarations = {r["task_id"]: r for r in self.tape.events if r["kind"] == "task_open"}
+        included = {key for key, row in declarations.items() if row["module_id"] in enabled}
+        for key in included:
+            row = declarations[key]
+            if row["parent_task_id"] is not None and row["parent_task_id"] not in included:
+                raise NativeTapeError("enabled task depends on disabled module parent")
+            if (row["module_id"], row["data"]["operation"]) not in self.handlers:
+                raise NativeTapeError("missing native handler: "+row["module_id"]+"/"+row["data"]["operation"])
+        rows = [r for r in self.tape.events if r["task_id"] in included]
+        c = _Coordinator(rows)
+        tasks = []
+    
+        async def execute(row):
+            ctx = NativeReplayContext(c, row)
+            try:
+                await c.consume(ctx.task_id, "task_start", {})
+                before = time.perf_counter_ns()
+                outputs = await self.handlers[(ctx.module_id, row["data"]["operation"])](ctx, row["data"]["inputs"])
+                if outputs is not None and not isinstance(outputs, dict):
+                    raise NativeTapeError("handler must compute a dictionary output")
+                elapsed = (time.perf_counter_ns()-before)/1e6
+                await c.consume(ctx.task_id, "task_end", dict(reason=ctx.terminal_reason, outputs=outputs or {}))
+                c.outputs.append(dict(task=ctx.task_id, module=ctx.module_id, outputs=outputs or {}))
+                c.callback_ms.append(elapsed)
+            except BaseException as exc:
+                async with c.changed:
+                    c.failure = c.failure or exc
+                    c.changed.notify_all()
+                raise
+    
+        async def dispatch():
+            async with c.changed:
+                while c.index < len(rows):
+                    if c.failure: raise c.failure
+                    row = rows[c.index]
+                    if row["kind"] == "task_open":
+                        c.index += 1
+                        tasks.append(asyncio.create_task(execute(row), name="v5:"+row["task_id"]))
+                        c.changed.notify_all()
+                    else:
+                        await c.changed.wait()
+            await asyncio.gather(*tasks)
+    
+        try:
+>           await asyncio.wait_for(dispatch(), self.timeout_seconds)
+
+scalp_bot\native_controlled.py:148: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\asyncio\tasks.py:506: in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x0000029814D04680>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is not None:
+                # Since there are no new cancel requests, we're
+                # handling this.
+                if issubclass(exc_type, exceptions.CancelledError):
+>                   raise TimeoutError from exc_val
+E                   TimeoutError
+
+C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\asyncio\timeouts.py:117: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-515/test_real_spawn_replay_consume0')
+
+    async def test_real_spawn_replay_consumes_child_and_relay_clocks_without_blocking_loop(tmp_path):
+        snap = snapshot()
+        with writer_at(tmp_path/"real.gz") as writer:
+            worker = InferenceWorker(tmp_path, _target=test_child, native_endpoint=writer.endpoint("v2", "parent"))
+            worker.start()
+            try:
+                await asyncio.to_thread(poll_until, worker, lambda: worker.ready)
+                task = request(writer, snap, "r1")
+                worker.activate("AAA", 1)
+                worker.submit(snap, "long", native_task=task)
+                while not (rows := worker.poll()):
+                    await asyncio.sleep(.001)
+                outputs = dict(forecast=asdict(rows[0][1]))
+                worker.complete_native(task.task_id, outputs)
+            finally:
+                await asyncio.to_thread(worker.close)
+        tape = read_native_tape(tmp_path/"real.gz")
+        ticks = []
+        async def replay(ctx, inputs):
+            bridge = NativeChildReplayBridge(ctx.coordinator, tmp_path, target=test_child)
+            stop = asyncio.Event()
+            async def heartbeat():
+                while not stop.is_set():
+                    ticks.append(time.perf_counter_ns())
+                    await asyncio.sleep(.001)
+            heartbeat_task = asyncio.create_task(heartbeat())
+            try:
+                await bridge.start()
+                for stage in PIPELINE[:3]:
+                    await ctx.boundary(stage)
+                forecast = await bridge.request(ctx, snap, "long")
+                result = dict(forecast=asdict(forecast))
+                assert result == outputs
+                await ctx.boundary("adapter_decision", result)
+                return result
+            finally:
+                await bridge.close()
+                stop.set()
+                await heartbeat_task
+>       result = await NativeControlledDriver(tape, {("v2", "request"):replay}).run("F")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\ml\test_native_child_replay.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.native_controlled.NativeControlledDriver object at 0x0000029814C8F230>
+variant = 'F'
+
+    async def run(self, variant):
+        if variant not in VARIANTS: raise NativeTapeError("unknown A-F variant")
+        validate_events(self.tape.events, self.tape.header["capture_id"])
+        enabled = VARIANTS[variant]
+        declarations = {r["task_id"]: r for r in self.tape.events if r["kind"] == "task_open"}
+        included = {key for key, row in declarations.items() if row["module_id"] in enabled}
+        for key in included:
+            row = declarations[key]
+            if row["parent_task_id"] is not None and row["parent_task_id"] not in included:
+                raise NativeTapeError("enabled task depends on disabled module parent")
+            if (row["module_id"], row["data"]["operation"]) not in self.handlers:
+                raise NativeTapeError("missing native handler: "+row["module_id"]+"/"+row["data"]["operation"])
+        rows = [r for r in self.tape.events if r["task_id"] in included]
+        c = _Coordinator(rows)
+        tasks = []
+    
+        async def execute(row):
+            ctx = NativeReplayContext(c, row)
+            try:
+                await c.consume(ctx.task_id, "task_start", {})
+                before = time.perf_counter_ns()
+                outputs = await self.handlers[(ctx.module_id, row["data"]["operation"])](ctx, row["data"]["inputs"])
+                if outputs is not None and not isinstance(outputs, dict):
+                    raise NativeTapeError("handler must compute a dictionary output")
+                elapsed = (time.perf_counter_ns()-before)/1e6
+                await c.consume(ctx.task_id, "task_end", dict(reason=ctx.terminal_reason, outputs=outputs or {}))
+                c.outputs.append(dict(task=ctx.task_id, module=ctx.module_id, outputs=outputs or {}))
+                c.callback_ms.append(elapsed)
+            except BaseException as exc:
+                async with c.changed:
+                    c.failure = c.failure or exc
+                    c.changed.notify_all()
+                raise
+    
+        async def dispatch():
+            async with c.changed:
+                while c.index < len(rows):
+                    if c.failure: raise c.failure
+                    row = rows[c.index]
+                    if row["kind"] == "task_open":
+                        c.index += 1
+                        tasks.append(asyncio.create_task(execute(row), name="v5:"+row["task_id"]))
+                        c.changed.notify_all()
+                    else:
+                        await c.changed.wait()
+            await asyncio.gather(*tasks)
+    
+        try:
+            await asyncio.wait_for(dispatch(), self.timeout_seconds)
+        except asyncio.TimeoutError as exc:
+>           raise NativeTapeError(f"native dispatcher blocked; first unconsumed token index {c.index}") from exc
+E           scalp_bot.native_v5.NativeTapeError: native dispatcher blocked; first unconsumed token index 17
+
+scalp_bot\native_controlled.py:150: NativeTapeError
+=========================== short test summary info ===========================
+FAILED tests/ml/test_native_child_replay.py::test_real_spawn_replay_consumes_child_and_relay_clocks_without_blocking_loop
+1 failed in 11.26s

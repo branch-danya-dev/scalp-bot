@@ -1,3 +1,32 @@
+# N3 production wiring continuation — 28.09.2026
+
+**Главный deliverable не завершён: production N3.0 и W2.0 = NOT_MET.**
+Продолжение exact PR61 `23d3525`; main и PR60 не изменяются.
+
+Реализованы opt-in NativeDispatch для production service/symbol/receive/process/
+event roots и done callbacks, независимые ingress IDs, task/module clocks,
+разделение W2 hooks с exact all-on parity, extracted frozen probe, CrossVenue
+retired-task join, реальный spawned V2 request replay и disk-backed v5 validator.
+Новые A–F operation witnesses дважды потребляют 284 tokens; F использует настоящий
+child и relay с model hashes и joined terminals. Local Predictor fallback убран.
+
+Это два отдельных proof: production scheduling **capture regression** и real
+child **explicit-request replay**. Они не составляют complete-session executor.
+Не хватает replay arbitrary runtime coroutine slices, полного startup/poll/timeout/
+shutdown actor population и единой P8 population с EconomicPlan/FIRE/fill/close/
+executable label. Поэтому production A–F cost/tax и latency patch не выполнены.
+
+Последний actual native p99 прежний: 24.4621 / 308.2433ms. 900s, training, paired,
+Demo/mainnet, maker execution/ML, applied riskScale, 8h/12h не запускались.
+Dataset policy и Maker NO_SUPPORTED_HYPOTHESIS_YET неизменны; CrossVenue telemetry-only.
+
+[Текущий evidence и точный blocker](docs/n3-production-v5-evidence.md),
+[audit/план до кода](docs/n3-production-v5-plan.md),
+[raw inventories и red/green receipts](docs/wave2-evidence/n3-production-v5/).
+Ниже сохранена история; прежние числа не заменяют текущие gates.
+
+---
+
 # N3 prospective v5 handoff — 28.09.2026
 
 **W2.0 NOT_MET. Полный production native A–F executor не завершён.**

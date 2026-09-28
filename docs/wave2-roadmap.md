@@ -1,3 +1,22 @@
+# Current N3 production integration continuation
+
+Authority: [N3 production wiring evidence](n3-production-v5-evidence.md).
+Production recording roots, split W2 hooks, extracted frozen V2 probe, real
+spawned request replay and indexed structural validation are implemented.
+The production-root capture regression and 284-token A–F request witness are
+separate populations. **P8/P9, production N3.0 and W2.0 remain NOT_MET.**
+
+Next dependency is a whole-runtime coroutine/source/probe replay coordinator
+plus a unified nonempty EconomicPlan/FIRE/PaperBroker/managed-close/executable-
+label population. Then eligible A–F cost/tax, a measured bottleneck regression
+and controlled acceptance. Only a MET controlled gate permits the one frozen
+900s attempt. No new latency or natural-label result is claimed here.
+
+Dataset wave2-population-20260928-v1, Maker NO_SUPPORTED_HYPOTHESIS_YET,
+telemetry-only CrossVenue and all downstream freezes remain unchanged.
+
+---
+
 # Wave 2: audited plan and evidence
 
 ## Prospective v5 continuation from e4de7a0 — 28 September 2026

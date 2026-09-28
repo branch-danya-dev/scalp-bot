@@ -1,3 +1,18 @@
+# Current continuation from exact 23d3525
+
+Current authority: [production wiring and child replay evidence](n3-production-v5-evidence.md).
+Native production recording roots, W2 split/probe extraction and real spawned
+request replay are now implemented and regression-tested. The operation witness
+is 284 tokens, twice A–F, with actual child/relay replay in F. A disk-backed
+validator checks complete supplied tapes, but cannot grant production coverage.
+
+**Complete production N3.0 and W2.0 remain NOT_MET.** Full runtime/probe
+coroutine replay and a unified nonempty P8 execution/label population are absent.
+No eligible production cost/tax or latency fix, and no market attempt. The
+280-token local-recompute witness below is retained as historical evidence.
+
+---
+
 # N3 prospective v5 architecture evidence — 28 September 2026
 
 **W2.0 remains NOT_MET. Complete production N3.0 is not implemented.**

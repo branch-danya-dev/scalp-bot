@@ -1,0 +1,629 @@
+{
+  "schema": "native-v5-offline-fixture",
+  "fixture": "MET",
+  "reports": [
+    {
+      "repeat": 0,
+      "schema": "native-controlled-v5-report",
+      "variant": "A",
+      "populationSha256": "8e027832c166052f551dcfaadcc85b6fe5e00ccb01dc5051bcfa38785a7d4049",
+      "provenance": {
+        "sourceSha256": "10f6371898cb9daeed939d13a88a454011400ac79c2ad8622f1fcf8877b51b42",
+        "configSha256": "4cd18ab4bbd1ea59fc8ad47889801901403e12eec1d25ab5f46a92d15b84f388",
+        "runtimeSha256": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+        "schemaSha256": "e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c"
+      },
+      "semanticReplay": "MET",
+      "consumed": 168,
+      "excludedOwnedTokens": 116,
+      "excludedModules": [
+        "cross_venue",
+        "maker",
+        "segment",
+        "v2",
+        "v3"
+      ],
+      "leftovers": 0,
+      "accountingComplete": true,
+      "outputSha256": "30e1f95a8539829a4e5442c642223896f2ede4a5507e3e374f11c62bf8fc6aef",
+      "ordinaryOperationSha256": "30e1f95a8539829a4e5442c642223896f2ede4a5507e3e374f11c62bf8fc6aef",
+      "callbackReplayMs": {
+        "count": 10,
+        "p50": 1.3535,
+        "p95": 2.1974,
+        "p99": 2.1974,
+        "max": 6.466
+      },
+      "timingScope": "native asyncio replay handler residence INCLUDING token coordination; not native loop lateness or production incremental cost",
+      "nativeLoopMs": null,
+      "dataToAdapterMs": null,
+      "realReplayIPC": false,
+      "replayIPCReceipts": [],
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "admissionSequenceSha256": null,
+      "productionCoverage": false,
+      "controlledW20": "NOT_MET"
+    },
+    {
+      "repeat": 0,
+      "schema": "native-controlled-v5-report",
+      "variant": "B",
+      "populationSha256": "8e027832c166052f551dcfaadcc85b6fe5e00ccb01dc5051bcfa38785a7d4049",
+      "provenance": {
+        "sourceSha256": "10f6371898cb9daeed939d13a88a454011400ac79c2ad8622f1fcf8877b51b42",
+        "configSha256": "4cd18ab4bbd1ea59fc8ad47889801901403e12eec1d25ab5f46a92d15b84f388",
+        "runtimeSha256": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+        "schemaSha256": "e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c"
+      },
+      "semanticReplay": "MET",
+      "consumed": 184,
+      "excludedOwnedTokens": 100,
+      "excludedModules": [
+        "cross_venue",
+        "maker",
+        "v2",
+        "v3"
+      ],
+      "leftovers": 0,
+      "accountingComplete": true,
+      "outputSha256": "c994a57eb084d006869a8f3292113242bdc3e4d403269f56aeacdd03f60636e1",
+      "ordinaryOperationSha256": "30e1f95a8539829a4e5442c642223896f2ede4a5507e3e374f11c62bf8fc6aef",
+      "callbackReplayMs": {
+        "count": 14,
+        "p50": 0.2159,
+        "p95": 4.0616,
+        "p99": 4.0616,
+        "max": 6.7303
+      },
+      "timingScope": "native asyncio replay handler residence INCLUDING token coordination; not native loop lateness or production incremental cost",
+      "nativeLoopMs": null,
+      "dataToAdapterMs": null,
+      "realReplayIPC": false,
+      "replayIPCReceipts": [],
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "admissionSequenceSha256": null,
+      "productionCoverage": false,
+      "controlledW20": "NOT_MET"
+    },
+    {
+      "repeat": 0,
+      "schema": "native-controlled-v5-report",
+      "variant": "C",
+      "populationSha256": "8e027832c166052f551dcfaadcc85b6fe5e00ccb01dc5051bcfa38785a7d4049",
+      "provenance": {
+        "sourceSha256": "10f6371898cb9daeed939d13a88a454011400ac79c2ad8622f1fcf8877b51b42",
+        "configSha256": "4cd18ab4bbd1ea59fc8ad47889801901403e12eec1d25ab5f46a92d15b84f388",
+        "runtimeSha256": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+        "schemaSha256": "e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c"
+      },
+      "semanticReplay": "MET",
+      "consumed": 226,
+      "excludedOwnedTokens": 58,
+      "excludedModules": [
+        "maker",
+        "v2",
+        "v3"
+      ],
+      "leftovers": 0,
+      "accountingComplete": true,
+      "outputSha256": "080312cf3e943cce83b5a7e800d63c4b9ed53bc2da4476583a244cae51b08fe0",
+      "ordinaryOperationSha256": "30e1f95a8539829a4e5442c642223896f2ede4a5507e3e374f11c62bf8fc6aef",
+      "callbackReplayMs": {
+        "count": 20,
+        "p50": 0.1426,
+        "p95": 2.5805,
+        "p99": 2.5805,
+        "max": 6.7919
+      },
+      "timingScope": "native asyncio replay handler residence INCLUDING token coordination; not native loop lateness or production incremental cost",
+      "nativeLoopMs": null,
+      "dataToAdapterMs": null,
+      "realReplayIPC": false,
+      "replayIPCReceipts": [],
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "admissionSequenceSha256": null,
+      "productionCoverage": false,
+      "controlledW20": "NOT_MET"
+    },
+    {
+      "repeat": 0,
+      "schema": "native-controlled-v5-report",
+      "variant": "D",
+      "populationSha256": "8e027832c166052f551dcfaadcc85b6fe5e00ccb01dc5051bcfa38785a7d4049",
+      "provenance": {
+        "sourceSha256": "10f6371898cb9daeed939d13a88a454011400ac79c2ad8622f1fcf8877b51b42",
+        "configSha256": "4cd18ab4bbd1ea59fc8ad47889801901403e12eec1d25ab5f46a92d15b84f388",
+        "runtimeSha256": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+        "schemaSha256": "e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c"
+      },
+      "semanticReplay": "MET",
+      "consumed": 234,
+      "excludedOwnedTokens": 50,
+      "excludedModules": [
+        "v2",
+        "v3"
+      ],
+      "leftovers": 0,
+      "accountingComplete": true,
+      "outputSha256": "4e3985bdbcb808e3eebeb8ff5abb8ac242033cac6dc00a3f668b8426147391d8",
+      "ordinaryOperationSha256": "30e1f95a8539829a4e5442c642223896f2ede4a5507e3e374f11c62bf8fc6aef",
+      "callbackReplayMs": {
+        "count": 22,
+        "p50": 0.0528,
+        "p95": 2.2011,
+        "p99": 2.364,
+        "max": 6.4124
+      },
+      "timingScope": "native asyncio replay handler residence INCLUDING token coordination; not native loop lateness or production incremental cost",
+      "nativeLoopMs": null,
+      "dataToAdapterMs": null,
+      "realReplayIPC": false,
+      "replayIPCReceipts": [],
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "admissionSequenceSha256": null,
+      "productionCoverage": false,
+      "controlledW20": "NOT_MET"
+    },
+    {
+      "repeat": 0,
+      "schema": "native-controlled-v5-report",
+      "variant": "E",
+      "populationSha256": "8e027832c166052f551dcfaadcc85b6fe5e00ccb01dc5051bcfa38785a7d4049",
+      "provenance": {
+        "sourceSha256": "10f6371898cb9daeed939d13a88a454011400ac79c2ad8622f1fcf8877b51b42",
+        "configSha256": "4cd18ab4bbd1ea59fc8ad47889801901403e12eec1d25ab5f46a92d15b84f388",
+        "runtimeSha256": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+        "schemaSha256": "e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c"
+      },
+      "semanticReplay": "MET",
+      "consumed": 238,
+      "excludedOwnedTokens": 46,
+      "excludedModules": [
+        "v2"
+      ],
+      "leftovers": 0,
+      "accountingComplete": true,
+      "outputSha256": "8f9ed6ce34cd62603039cfa7ab0778ac39414f56aadb6b0ce4b6fcd96da4a5fe",
+      "ordinaryOperationSha256": "30e1f95a8539829a4e5442c642223896f2ede4a5507e3e374f11c62bf8fc6aef",
+      "callbackReplayMs": {
+        "count": 23,
+        "p50": 0.0511,
+        "p95": 2.2716,
+        "p99": 2.3024,
+        "max": 6.2264
+      },
+      "timingScope": "native asyncio replay handler residence INCLUDING token coordination; not native loop lateness or production incremental cost",
+      "nativeLoopMs": null,
+      "dataToAdapterMs": null,
+      "realReplayIPC": false,
+      "replayIPCReceipts": [],
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "admissionSequenceSha256": null,
+      "productionCoverage": false,
+      "controlledW20": "NOT_MET"
+    },
+    {
+      "repeat": 0,
+      "schema": "native-controlled-v5-report",
+      "variant": "F",
+      "populationSha256": "8e027832c166052f551dcfaadcc85b6fe5e00ccb01dc5051bcfa38785a7d4049",
+      "provenance": {
+        "sourceSha256": "10f6371898cb9daeed939d13a88a454011400ac79c2ad8622f1fcf8877b51b42",
+        "configSha256": "4cd18ab4bbd1ea59fc8ad47889801901403e12eec1d25ab5f46a92d15b84f388",
+        "runtimeSha256": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+        "schemaSha256": "e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c"
+      },
+      "semanticReplay": "MET",
+      "consumed": 284,
+      "excludedOwnedTokens": 0,
+      "excludedModules": [],
+      "leftovers": 0,
+      "accountingComplete": true,
+      "outputSha256": "cf1c58ba6e801915cbc5b90517f4a907fce1f0f78f7f88475b0d5adef0d92d82",
+      "ordinaryOperationSha256": "30e1f95a8539829a4e5442c642223896f2ede4a5507e3e374f11c62bf8fc6aef",
+      "callbackReplayMs": {
+        "count": 25,
+        "p50": 0.0583,
+        "p95": 6.2222,
+        "p99": 866.7604,
+        "max": 869.3909
+      },
+      "timingScope": "native asyncio replay handler residence INCLUDING token coordination; not native loop lateness or production incremental cost",
+      "nativeLoopMs": null,
+      "dataToAdapterMs": null,
+      "realReplayIPC": true,
+      "replayIPCReceipts": [
+        {
+          "pid": 32496,
+          "exitCode": 0,
+          "joined": true,
+          "relayJoined": true,
+          "remoteTokensConsumed": 10,
+          "modelHashes": {
+            "model.cbm": "a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2",
+            "manifest.json": "15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3"
+          }
+        },
+        {
+          "pid": 8364,
+          "exitCode": 0,
+          "joined": true,
+          "relayJoined": true,
+          "remoteTokensConsumed": 10,
+          "modelHashes": {
+            "model.cbm": "a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2",
+            "manifest.json": "15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3"
+          }
+        }
+      ],
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "admissionSequenceSha256": null,
+      "productionCoverage": false,
+      "controlledW20": "NOT_MET"
+    },
+    {
+      "repeat": 1,
+      "schema": "native-controlled-v5-report",
+      "variant": "A",
+      "populationSha256": "8e027832c166052f551dcfaadcc85b6fe5e00ccb01dc5051bcfa38785a7d4049",
+      "provenance": {
+        "sourceSha256": "10f6371898cb9daeed939d13a88a454011400ac79c2ad8622f1fcf8877b51b42",
+        "configSha256": "4cd18ab4bbd1ea59fc8ad47889801901403e12eec1d25ab5f46a92d15b84f388",
+        "runtimeSha256": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+        "schemaSha256": "e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c"
+      },
+      "semanticReplay": "MET",
+      "consumed": 168,
+      "excludedOwnedTokens": 116,
+      "excludedModules": [
+        "cross_venue",
+        "maker",
+        "segment",
+        "v2",
+        "v3"
+      ],
+      "leftovers": 0,
+      "accountingComplete": true,
+      "outputSha256": "30e1f95a8539829a4e5442c642223896f2ede4a5507e3e374f11c62bf8fc6aef",
+      "ordinaryOperationSha256": "30e1f95a8539829a4e5442c642223896f2ede4a5507e3e374f11c62bf8fc6aef",
+      "callbackReplayMs": {
+        "count": 10,
+        "p50": 1.6108,
+        "p95": 2.3375,
+        "p99": 2.3375,
+        "max": 6.7807
+      },
+      "timingScope": "native asyncio replay handler residence INCLUDING token coordination; not native loop lateness or production incremental cost",
+      "nativeLoopMs": null,
+      "dataToAdapterMs": null,
+      "realReplayIPC": false,
+      "replayIPCReceipts": [],
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "admissionSequenceSha256": null,
+      "productionCoverage": false,
+      "controlledW20": "NOT_MET"
+    },
+    {
+      "repeat": 1,
+      "schema": "native-controlled-v5-report",
+      "variant": "B",
+      "populationSha256": "8e027832c166052f551dcfaadcc85b6fe5e00ccb01dc5051bcfa38785a7d4049",
+      "provenance": {
+        "sourceSha256": "10f6371898cb9daeed939d13a88a454011400ac79c2ad8622f1fcf8877b51b42",
+        "configSha256": "4cd18ab4bbd1ea59fc8ad47889801901403e12eec1d25ab5f46a92d15b84f388",
+        "runtimeSha256": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+        "schemaSha256": "e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c"
+      },
+      "semanticReplay": "MET",
+      "consumed": 184,
+      "excludedOwnedTokens": 100,
+      "excludedModules": [
+        "cross_venue",
+        "maker",
+        "v2",
+        "v3"
+      ],
+      "leftovers": 0,
+      "accountingComplete": true,
+      "outputSha256": "c994a57eb084d006869a8f3292113242bdc3e4d403269f56aeacdd03f60636e1",
+      "ordinaryOperationSha256": "30e1f95a8539829a4e5442c642223896f2ede4a5507e3e374f11c62bf8fc6aef",
+      "callbackReplayMs": {
+        "count": 14,
+        "p50": 0.2222,
+        "p95": 5.0106,
+        "p99": 5.0106,
+        "max": 6.7248
+      },
+      "timingScope": "native asyncio replay handler residence INCLUDING token coordination; not native loop lateness or production incremental cost",
+      "nativeLoopMs": null,
+      "dataToAdapterMs": null,
+      "realReplayIPC": false,
+      "replayIPCReceipts": [],
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "admissionSequenceSha256": null,
+      "productionCoverage": false,
+      "controlledW20": "NOT_MET"
+    },
+    {
+      "repeat": 1,
+      "schema": "native-controlled-v5-report",
+      "variant": "C",
+      "populationSha256": "8e027832c166052f551dcfaadcc85b6fe5e00ccb01dc5051bcfa38785a7d4049",
+      "provenance": {
+        "sourceSha256": "10f6371898cb9daeed939d13a88a454011400ac79c2ad8622f1fcf8877b51b42",
+        "configSha256": "4cd18ab4bbd1ea59fc8ad47889801901403e12eec1d25ab5f46a92d15b84f388",
+        "runtimeSha256": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+        "schemaSha256": "e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c"
+      },
+      "semanticReplay": "MET",
+      "consumed": 226,
+      "excludedOwnedTokens": 58,
+      "excludedModules": [
+        "maker",
+        "v2",
+        "v3"
+      ],
+      "leftovers": 0,
+      "accountingComplete": true,
+      "outputSha256": "080312cf3e943cce83b5a7e800d63c4b9ed53bc2da4476583a244cae51b08fe0",
+      "ordinaryOperationSha256": "30e1f95a8539829a4e5442c642223896f2ede4a5507e3e374f11c62bf8fc6aef",
+      "callbackReplayMs": {
+        "count": 20,
+        "p50": 0.0552,
+        "p95": 2.2541,
+        "p99": 2.2541,
+        "max": 6.5505
+      },
+      "timingScope": "native asyncio replay handler residence INCLUDING token coordination; not native loop lateness or production incremental cost",
+      "nativeLoopMs": null,
+      "dataToAdapterMs": null,
+      "realReplayIPC": false,
+      "replayIPCReceipts": [],
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "admissionSequenceSha256": null,
+      "productionCoverage": false,
+      "controlledW20": "NOT_MET"
+    },
+    {
+      "repeat": 1,
+      "schema": "native-controlled-v5-report",
+      "variant": "D",
+      "populationSha256": "8e027832c166052f551dcfaadcc85b6fe5e00ccb01dc5051bcfa38785a7d4049",
+      "provenance": {
+        "sourceSha256": "10f6371898cb9daeed939d13a88a454011400ac79c2ad8622f1fcf8877b51b42",
+        "configSha256": "4cd18ab4bbd1ea59fc8ad47889801901403e12eec1d25ab5f46a92d15b84f388",
+        "runtimeSha256": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+        "schemaSha256": "e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c"
+      },
+      "semanticReplay": "MET",
+      "consumed": 234,
+      "excludedOwnedTokens": 50,
+      "excludedModules": [
+        "v2",
+        "v3"
+      ],
+      "leftovers": 0,
+      "accountingComplete": true,
+      "outputSha256": "4e3985bdbcb808e3eebeb8ff5abb8ac242033cac6dc00a3f668b8426147391d8",
+      "ordinaryOperationSha256": "30e1f95a8539829a4e5442c642223896f2ede4a5507e3e374f11c62bf8fc6aef",
+      "callbackReplayMs": {
+        "count": 22,
+        "p50": 0.0503,
+        "p95": 2.2443,
+        "p99": 2.3438,
+        "max": 6.573
+      },
+      "timingScope": "native asyncio replay handler residence INCLUDING token coordination; not native loop lateness or production incremental cost",
+      "nativeLoopMs": null,
+      "dataToAdapterMs": null,
+      "realReplayIPC": false,
+      "replayIPCReceipts": [],
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "admissionSequenceSha256": null,
+      "productionCoverage": false,
+      "controlledW20": "NOT_MET"
+    },
+    {
+      "repeat": 1,
+      "schema": "native-controlled-v5-report",
+      "variant": "E",
+      "populationSha256": "8e027832c166052f551dcfaadcc85b6fe5e00ccb01dc5051bcfa38785a7d4049",
+      "provenance": {
+        "sourceSha256": "10f6371898cb9daeed939d13a88a454011400ac79c2ad8622f1fcf8877b51b42",
+        "configSha256": "4cd18ab4bbd1ea59fc8ad47889801901403e12eec1d25ab5f46a92d15b84f388",
+        "runtimeSha256": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+        "schemaSha256": "e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c"
+      },
+      "semanticReplay": "MET",
+      "consumed": 238,
+      "excludedOwnedTokens": 46,
+      "excludedModules": [
+        "v2"
+      ],
+      "leftovers": 0,
+      "accountingComplete": true,
+      "outputSha256": "8f9ed6ce34cd62603039cfa7ab0778ac39414f56aadb6b0ce4b6fcd96da4a5fe",
+      "ordinaryOperationSha256": "30e1f95a8539829a4e5442c642223896f2ede4a5507e3e374f11c62bf8fc6aef",
+      "callbackReplayMs": {
+        "count": 23,
+        "p50": 0.0493,
+        "p95": 2.3288,
+        "p99": 2.3618,
+        "max": 6.6636
+      },
+      "timingScope": "native asyncio replay handler residence INCLUDING token coordination; not native loop lateness or production incremental cost",
+      "nativeLoopMs": null,
+      "dataToAdapterMs": null,
+      "realReplayIPC": false,
+      "replayIPCReceipts": [],
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "admissionSequenceSha256": null,
+      "productionCoverage": false,
+      "controlledW20": "NOT_MET"
+    },
+    {
+      "repeat": 1,
+      "schema": "native-controlled-v5-report",
+      "variant": "F",
+      "populationSha256": "8e027832c166052f551dcfaadcc85b6fe5e00ccb01dc5051bcfa38785a7d4049",
+      "provenance": {
+        "sourceSha256": "10f6371898cb9daeed939d13a88a454011400ac79c2ad8622f1fcf8877b51b42",
+        "configSha256": "4cd18ab4bbd1ea59fc8ad47889801901403e12eec1d25ab5f46a92d15b84f388",
+        "runtimeSha256": "af5748c639af3cc554ab410df665b424d29d51dc1f2a9c93b2da8df0dd4ca9d5",
+        "schemaSha256": "e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c"
+      },
+      "semanticReplay": "MET",
+      "consumed": 284,
+      "excludedOwnedTokens": 0,
+      "excludedModules": [],
+      "leftovers": 0,
+      "accountingComplete": true,
+      "outputSha256": "cf1c58ba6e801915cbc5b90517f4a907fce1f0f78f7f88475b0d5adef0d92d82",
+      "ordinaryOperationSha256": "30e1f95a8539829a4e5442c642223896f2ede4a5507e3e374f11c62bf8fc6aef",
+      "callbackReplayMs": {
+        "count": 25,
+        "p50": 0.0562,
+        "p95": 6.5141,
+        "p99": 856.3105,
+        "max": 862.7783
+      },
+      "timingScope": "native asyncio replay handler residence INCLUDING token coordination; not native loop lateness or production incremental cost",
+      "nativeLoopMs": null,
+      "dataToAdapterMs": null,
+      "realReplayIPC": true,
+      "replayIPCReceipts": [
+        {
+          "pid": 25192,
+          "exitCode": 0,
+          "joined": true,
+          "relayJoined": true,
+          "remoteTokensConsumed": 10,
+          "modelHashes": {
+            "model.cbm": "a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2",
+            "manifest.json": "15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3"
+          }
+        },
+        {
+          "pid": 13080,
+          "exitCode": 0,
+          "joined": true,
+          "relayJoined": true,
+          "remoteTokensConsumed": 10,
+          "modelHashes": {
+            "model.cbm": "a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2",
+            "manifest.json": "15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3"
+          }
+        }
+      ],
+      "ordinaryDecisionSha256": null,
+      "portfolioSha256": null,
+      "admissionSequenceSha256": null,
+      "productionCoverage": false,
+      "controlledW20": "NOT_MET"
+    }
+  ],
+  "writer": {
+    "accepted": 284,
+    "rejected": 0,
+    "errorCode": 0,
+    "closed": true,
+    "pendingBytes": 0,
+    "highWaterBytes": 142540,
+    "capacityBytes": 1048576,
+    "written": 284,
+    "writerError": null,
+    "batches": 12,
+    "maxBatchRows": 155,
+    "writerAlive": false
+  },
+  "counts": {
+    "task_open": 25,
+    "task_start": 25,
+    "clock": 145,
+    "task_end": 25,
+    "boundary": 64
+  },
+  "populationSha256": "8e027832c166052f551dcfaadcc85b6fe5e00ccb01dc5051bcfa38785a7d4049",
+  "criticalPaths": [
+    {
+      "task": "request-0",
+      "source": {
+        "capture_id": "native-v5-fixture",
+        "symbol": "AAAUSDT",
+        "epoch": 1,
+        "source_sequence": 4,
+        "event_id": "m4"
+      },
+      "spansMs": {
+        "probe_enqueue": 0.006,
+        "probe_dequeue": 0.0052,
+        "request_submit": 0.0128,
+        "request_dequeue": 0.0201,
+        "request_ipc_enqueue": 0.006,
+        "worker_receive": 0.6467,
+        "worker_start": 0.0282,
+        "prediction_complete": 1.5141,
+        "reply_ipc_enqueue": 0.1375,
+        "reply_ipc_receive": 0.2931,
+        "relay_enqueue": 0.0456,
+        "relay_dequeue": 13.041,
+        "adapter_receive": 0.0135,
+        "adapter_decision": 0.051
+      },
+      "totalBoundaryMs": 15.8208,
+      "boundaryMeaning": "entry to instrumented operation; IPC spans include queue/feeder/scheduling, not isolated wire time"
+    },
+    {
+      "task": "request-1",
+      "source": {
+        "capture_id": "native-v5-fixture",
+        "symbol": "AAAUSDT",
+        "epoch": 1,
+        "source_sequence": 4,
+        "event_id": "m4"
+      },
+      "spansMs": {
+        "probe_enqueue": 0.0057,
+        "probe_dequeue": 0.0053,
+        "request_submit": 0.0089,
+        "request_dequeue": 0.0152,
+        "request_ipc_enqueue": 0.0056,
+        "worker_receive": 0.235,
+        "worker_start": 0.0193,
+        "prediction_complete": 0.6333,
+        "reply_ipc_enqueue": 0.1753,
+        "reply_ipc_receive": 0.179,
+        "relay_enqueue": 0.0286,
+        "relay_dequeue": 13.7371,
+        "adapter_receive": 0.0151,
+        "adapter_decision": 0.062
+      },
+      "totalBoundaryMs": 15.1254,
+      "boundaryMeaning": "entry to instrumented operation; IPC spans include queue/feeder/scheduling, not isolated wire time"
+    }
+  ],
+  "realCaptureSubprocessIPC": true,
+  "productionAtoF": "NOT_TESTED",
+  "controlledW20": "NOT_MET",
+  "nativeLabel": "INCONCLUSIVE",
+  "limitations": [
+    "event_driven_evaluation disabled in fixed fixture",
+    "no live service scheduler/source transport",
+    "V3 economics rejection only; no natural fill",
+    "synthetic V2 features, exact frozen V2 model",
+    "real child request replay; whole-engine startup/poll/slice replay still unqualified",
+    "coupled Wave2Observer not split into production module dispatch",
+    "clock scope covers declared operations only; heartbeat/startup/codec not owned"
+  ]
+}

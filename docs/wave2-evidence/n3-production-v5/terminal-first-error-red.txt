@@ -1,0 +1,84 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_________ test_first_native_failure_is_not_masked_by_terminal_cleanup _________
+
+    async def root():
+>       dispatch.fail("first-owned-clock-divergence")
+
+tests\test_native_dispatch.py:71: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.native_dispatch.NativeDispatch object at 0x0000020FF66130E0>
+message = 'first-owned-clock-divergence'
+
+    def fail(self, message):
+        self.failure = self.failure or message
+        self.writer.ring.state[4] = self.writer.ring.state[4] or 8
+>       raise NativeTapeError(message)
+E       scalp_bot.native_v5.NativeTapeError: first-owned-clock-divergence
+
+scalp_bot\native_dispatch.py:74: NativeTapeError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-522/test_first_native_failure_is_n0')
+
+    async def test_first_native_failure_is_not_masked_by_terminal_cleanup(tmp_path):
+        with writer(tmp_path/"first-error.gz") as tape:
+            dispatch = NativeDispatch(tape)
+            async def root():
+                dispatch.fail("first-owned-clock-divergence")
+            with pytest.raises(NativeTapeError, match="first-owned-clock-divergence"):
+>               await dispatch.run(root())
+
+tests\test_native_dispatch.py:73: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scalp_bot\native_dispatch.py:191: in run
+    return await self.create_task(coroutine, name=name, module=module, root=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\native_dispatch.py:168: in run
+    return await stepped()
+           ^^^^^^^^^^^^^^^
+scalp_bot\native_dispatch.py:165: in stepped
+    native.end(reason=reason)
+scalp_bot\native_v5.py:221: in end
+    return self.emit("task_end", dict(reason=reason, outputs={} if outputs is None else outputs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\native_v5.py:215: in emit
+    return self.endpoint.ring.put([self.endpoint.module_id, self.endpoint.producer,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.native_v5._Ring object at 0x0000020FF66123C0>
+payload = ['core', 'parent-asyncio', 'runtime:core:1:session', None, None, 'task_end', ...]
+observation = None
+
+    def put(self, payload, observation=None):
+        with self.lock:
+            s = self.state
+            if s[4] or s[5]:
+                s[3] += 1
+                s[4] = s[4] or 1
+>               raise NativeTapeError("v5 sequencer closed or poisoned")
+E               scalp_bot.native_v5.NativeTapeError: v5 sequencer closed or poisoned
+
+scalp_bot\native_v5.py:133: NativeTapeError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-522/test_first_native_failure_is_n0')
+
+    async def test_first_native_failure_is_not_masked_by_terminal_cleanup(tmp_path):
+        with writer(tmp_path/"first-error.gz") as tape:
+            dispatch = NativeDispatch(tape)
+            async def root():
+                dispatch.fail("first-owned-clock-divergence")
+>           with pytest.raises(NativeTapeError, match="first-owned-clock-divergence"):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: Regex pattern did not match.
+E            Regex: 'first-owned-clock-divergence'
+E            Input: 'v5 sequencer closed or poisoned'
+
+tests\test_native_dispatch.py:72: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_native_dispatch.py::test_first_native_failure_is_not_masked_by_terminal_cleanup
+1 failed in 0.22s
