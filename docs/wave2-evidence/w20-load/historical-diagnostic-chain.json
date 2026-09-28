@@ -1,0 +1,9 @@
+{
+  "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-2\\work\\w20-load\\engine-scalar-clock\\run\\session-20260928T004032Z.inputs.jsonl.gz",
+  "rows": 467402,
+  "hashSequenceChain": "MET",
+  "footer": false,
+  "scope": "historical logical-scheduler diagnostic prefix only; not a native capture/dataset",
+  "trainingReady": false,
+  "finalHash": "a2e18972d74d2d3e1b84ff0fd3fd0410059dd58eba24eb0fe1a23d5a6ad26af1"
+}

@@ -1,0 +1,138 @@
+F....FFFF.                                                               [100%]
+================================== FAILURES ===================================
+____ test_burst_uses_bounded_compression_batches_and_preserves_every_hash _____
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-464/test_burst_uses_bounded_compre0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001DE7C61FE10>
+
+    def test_burst_uses_bounded_compression_batches_and_preserves_every_hash(tmp_path, monkeypatch):
+        from threading import Event
+        from scalp_bot.capture import InputWriter
+        from scalp_bot.input_journal import DeferredJournalRow, JournalHashChain
+        import scalp_bot.capture as capture
+        import msgspec
+        ready = Event()
+        real_run = InputWriter._run
+        monkeypatch.setattr(InputWriter, '_run', lambda self: (ready.wait(5), real_run(self)))
+        writes = []
+        base = gzip.GzipFile
+        class CountedGzip(base):
+            def write(self, data):
+                writes.append(len(data))
+                return super().write(data)
+        monkeypatch.setattr(capture.gzip, 'GzipFile', CountedGzip)
+        writer = InputWriter(tmp_path/'inputs.gz')
+        expected = []
+        chain = JournalHashChain()
+        writer_chain = JournalHashChain()
+        try:
+            for sequence in range(1, 301):
+                row = dict(kind='clock_read', body=dict(method='time', value=123.0, scopeId=1),
+                    sequence=sequence)
+                expected.append(dict(event='replay_input', symbol=None,
+                    payload=DeferredJournalRow(dict(row), chain, 4096).resolve()))
+                writer.record('replay_input', None, DeferredJournalRow(row, writer_chain, 4096))
+        finally:
+            ready.set()
+            writer.close()
+        assert writer.error is None
+        assert writer.accepted == writer.written == 300
+        assert writer.pending_bytes == 0
+        assert gzip.decompress(writer.path.read_bytes()) == b''.join(msgspec.json.encode(r)+b'\n' for r in expected)
+        # A ready burst must not invoke the compressor separately for every clock read.
+>       assert 1 < len(writes) <= 5
+E       assert 300 <= 5
+E        +  where 300 = len([229, 291, 291, 291, 291, 291, ...])
+
+tests\test_journal_writer_pipeline.py:48: AssertionError
+_______ test_capture_failure_stops_new_activity_before_deadline[input] ________
+
+failure = 'input'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('failure', ['input', 'session', 'drops', 'research'])
+    async def test_capture_failure_stops_new_activity_before_deadline(failure):
+        spec = importlib.util.spec_from_file_location("smoke_monitor", Path(__file__).parents[1]/"scripts/smoke-trading-model.py")
+        smoke = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(smoke)
+        stops = []
+        bot = SimpleNamespace(running=True, set_running=lambda value: stops.append(value))
+        recorder = SimpleNamespace(inputs=SimpleNamespace(error='byte limit' if failure == 'input' else None),
+            health=lambda: dict(writerError='disk error' if failure == 'session' else None,
+                droppedRows=int(failure == 'drops')))
+        research = SimpleNamespace(health=lambda: dict(failure='research loss' if failure == 'research' else None))
+>       with pytest.raises(RuntimeError, match='capture recording failed'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_wave2_smoke_gate.py:35: Failed
+______ test_capture_failure_stops_new_activity_before_deadline[session] _______
+
+failure = 'session'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('failure', ['input', 'session', 'drops', 'research'])
+    async def test_capture_failure_stops_new_activity_before_deadline(failure):
+        spec = importlib.util.spec_from_file_location("smoke_monitor", Path(__file__).parents[1]/"scripts/smoke-trading-model.py")
+        smoke = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(smoke)
+        stops = []
+        bot = SimpleNamespace(running=True, set_running=lambda value: stops.append(value))
+        recorder = SimpleNamespace(inputs=SimpleNamespace(error='byte limit' if failure == 'input' else None),
+            health=lambda: dict(writerError='disk error' if failure == 'session' else None,
+                droppedRows=int(failure == 'drops')))
+        research = SimpleNamespace(health=lambda: dict(failure='research loss' if failure == 'research' else None))
+>       with pytest.raises(RuntimeError, match='capture recording failed'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_wave2_smoke_gate.py:35: Failed
+_______ test_capture_failure_stops_new_activity_before_deadline[drops] ________
+
+failure = 'drops'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('failure', ['input', 'session', 'drops', 'research'])
+    async def test_capture_failure_stops_new_activity_before_deadline(failure):
+        spec = importlib.util.spec_from_file_location("smoke_monitor", Path(__file__).parents[1]/"scripts/smoke-trading-model.py")
+        smoke = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(smoke)
+        stops = []
+        bot = SimpleNamespace(running=True, set_running=lambda value: stops.append(value))
+        recorder = SimpleNamespace(inputs=SimpleNamespace(error='byte limit' if failure == 'input' else None),
+            health=lambda: dict(writerError='disk error' if failure == 'session' else None,
+                droppedRows=int(failure == 'drops')))
+        research = SimpleNamespace(health=lambda: dict(failure='research loss' if failure == 'research' else None))
+>       with pytest.raises(RuntimeError, match='capture recording failed'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_wave2_smoke_gate.py:35: Failed
+______ test_capture_failure_stops_new_activity_before_deadline[research] ______
+
+failure = 'research'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('failure', ['input', 'session', 'drops', 'research'])
+    async def test_capture_failure_stops_new_activity_before_deadline(failure):
+        spec = importlib.util.spec_from_file_location("smoke_monitor", Path(__file__).parents[1]/"scripts/smoke-trading-model.py")
+        smoke = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(smoke)
+        stops = []
+        bot = SimpleNamespace(running=True, set_running=lambda value: stops.append(value))
+        recorder = SimpleNamespace(inputs=SimpleNamespace(error='byte limit' if failure == 'input' else None),
+            health=lambda: dict(writerError='disk error' if failure == 'session' else None,
+                droppedRows=int(failure == 'drops')))
+        research = SimpleNamespace(health=lambda: dict(failure='research loss' if failure == 'research' else None))
+>       with pytest.raises(RuntimeError, match='capture recording failed'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_wave2_smoke_gate.py:35: Failed
+=========================== short test summary info ===========================
+FAILED tests/test_journal_writer_pipeline.py::test_burst_uses_bounded_compression_batches_and_preserves_every_hash
+FAILED tests/test_wave2_smoke_gate.py::test_capture_failure_stops_new_activity_before_deadline[input]
+FAILED tests/test_wave2_smoke_gate.py::test_capture_failure_stops_new_activity_before_deadline[session]
+FAILED tests/test_wave2_smoke_gate.py::test_capture_failure_stops_new_activity_before_deadline[drops]
+FAILED tests/test_wave2_smoke_gate.py::test_capture_failure_stops_new_activity_before_deadline[research]
+5 failed, 5 passed in 0.73s

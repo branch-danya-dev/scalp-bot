@@ -81,11 +81,11 @@ configuration, runtime and raw file hashes are in
 
 | Stage | Implemented / observed | Remaining gate |
 |---|---|---|
-| W2.0 | Exact PR60 300s paper capture preserved | **NOT MET**: 0 fills; input writer 32MiB bound exceeded, no footer; loop p99 64.0391ms and data→adapter 894.1426ms |
+| W2.0 | Exact PR60 failure preserved; bounded codec/scalar-clock fix; latest 300s unified capture has complete chains, zero loss/backpressure, loop 17.3199ms and adapter 109.0299ms p99 | **NOT MET**: still 0 prepared/fills; full-clock historical stress latency 44.5126/682.9072ms exceeds budgets |
 | W2.1 | Existing evidence store extended; five-state SHADOW lifecycle; replay/dormant recovery tests | No independent complete shadow labels to fit real transitions; no applied risk change |
 | W2.2 | Public Binance/OKX adapters, explicit clocks/units/epochs, supplemental hash-chain and normalized replay | No live trading influence; sustained data/clock validation still needed |
 | W2.3 | Offline purged strategy/alignment/symbol/regime study command | **INCONCLUSIVE**: W2 market capture had no prepared intents |
-| W2.4 | Virtual queue/partial fill/cancel/markout engine; one capture produced 377 candidates, 64 with any fill, 133 fill fragments | Short development markouts negative on average; independent positive evidence absent |
+| W2.4 | Virtual queue/partial fill/cancel/markout engine; initial capture 377 candidates/64 with any fill; latest capture 2214/483, 1283 fragments | Both short development captures have negative mean net markouts; independent positive evidence absent |
 | W2.5 | Frozen structural label engine using PaperBroker, global wall provenance, Logistic/Ridge + CatBoost, calibration/LOSO, one-time test receipts, identity-bound adapter | No trained V3, verified native label replay dataset, economic promotion or untouched test; fitting rejects unverified dataset manifests |
 | W2.6–8 | Intentionally not enabled/implemented before required evidence | Maker playbook → maker ML → applied registry risk remain gated |
 | W2.9 | Tested external paper controller: common input contract, independent ledgers, fixed loss/DD/hash/timeout/finalization guards | Concrete live paired arm/feed/inference integration and 30–60m paired run not completed; 8h forbidden |
@@ -118,8 +118,16 @@ also failed the full suite and was repaired without weakening its test.
 
 ## Next work, in order
 
-1. Diagnose and bound the PR60 capture writer/loop failure under comparable load;
-   do not raise queue budgets. Preserve the incomplete baseline and all receipts.
+Latest continuation: [W2.0 load/capture evidence](w20-load-evidence.md), implementation
+`9adee8f`. Full local preflight **1575 passed**. Native 300s primary/supplemental
+hash chains and normalized external-context replay pass; no native setup/fill or
+executable-label replay was observed. The historical full-clock stress writer
+now retains all 467402 rows, but its latency budgets remain open. Partial-clock
+and profiled variants are explicitly separated; all attempts are retained.
+
+1. Isolate the remaining callback/queue latency under the same full-clock stress
+   workload; preserve exact strategy/scheduler semantics and queue budgets.
+   Do not treat the passing native smoke as a controlled speed comparison.
 2. Obtain one bounded causal prepared→economic→FIRE→natural fill→exit observation
    when the market offers it, under unchanged economics. No automatic repeat loop.
 3. Validate executable label replay against primary raw, add exact per-capture

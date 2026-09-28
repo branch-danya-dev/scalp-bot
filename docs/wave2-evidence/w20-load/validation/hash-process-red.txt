@@ -1,0 +1,39 @@
+......F                                                                  [100%]
+================================== FAILURES ===================================
+______ test_real_capture_hashes_on_fifo_writer_and_detaches_inputs[True] ______
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-470/test_real_capture_hashes_on_fi1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001D744530160>
+compressed = True
+
+    @pytest.mark.parametrize("compressed", [False, True])
+    def test_real_capture_hashes_on_fifo_writer_and_detaches_inputs(tmp_path, monkeypatch, compressed):
+        import scalp_bot.input_journal as module
+        threads = []
+        original = module.fingerprint
+        def hash_row(row):
+            threads.append(current_thread().name)
+            return original(row)
+        monkeypatch.setattr(module, "fingerprint", hash_row)
+        clock = ReplayRuntimeClock(wall_seconds=1000, mono_ns=10_000_000_000)
+        recorder = (CaptureRecorder if compressed else SessionRecorder)(str(tmp_path), clock=clock)
+        recorder.start_background_writer()
+        journal = InputJournal(recorder.record, clock)
+        try:
+            market = message()
+            journal.market_message("AAAUSDT", market)
+            market.data[0]["p"] = "999"
+            journal.append("callback", "AAAUSDT", {"name": "evaluate"})
+            journal.close()
+            recorder.flush()
+            if compressed:
+                recorder.inputs.close()
+            if compressed:
+>               assert not threads, "compressed capture must not hash on the market process GIL"
+E               AssertionError: compressed capture must not hash on the market process GIL
+E               assert not ['paper-input-writer', 'paper-input-writer', 'paper-input-writer', 'paper-input-writer']
+
+tests\test_journal_writer_pipeline.py:138: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_journal_writer_pipeline.py::test_real_capture_hashes_on_fifo_writer_and_detaches_inputs[True]
+1 failed, 6 passed in 1.24s

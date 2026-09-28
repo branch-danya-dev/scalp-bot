@@ -1,0 +1,35 @@
+......FF                                                                 [100%]
+================================== FAILURES ===================================
+_____ test_backpressure_report_invalidates_smoke_even_without_writer_loss _____
+
+    def test_backpressure_report_invalidates_smoke_even_without_writer_loss():
+        spec = importlib.util.spec_from_file_location("smoke_gate", Path(__file__).parents[1]/"scripts/smoke-trading-model.py")
+        smoke = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(smoke)
+        result = dict(naturalFills=1, transport=dict(backpressureEvents=1, discardedMessages=0),
+            writerHealth=dict(inputAccepted=10, inputWritten=10),
+            latencyMs={k: dict(p99=1) for k in ('event_loop_lateness', 'data_to_adapter')})
+>       assert smoke.assess_smoke(result)['status'] == 'INVALID'
+E       AssertionError: assert 'REQUIRES_PAT..._CHAIN_REVIEW' == 'INVALID'
+E         
+E         - INVALID
+E         + REQUIRES_PATH_AND_CHAIN_REVIEW
+
+tests\test_wave2_smoke_gate.py:59: AssertionError
+___ test_transport_monitor_observes_direct_journal_events_and_retains_rows ____
+
+    def test_transport_monitor_observes_direct_journal_events_and_retains_rows():
+        spec = importlib.util.spec_from_file_location("smoke_transport", Path(__file__).parents[1]/"scripts/smoke-trading-model.py")
+        smoke = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(smoke)
+        recorded = []
+        journal = SimpleNamespace(append=lambda *args: recorded.append(args))
+>       transport = smoke.monitor_transport(journal)
+                    ^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'smoke_transport' has no attribute 'monitor_transport'
+
+tests\test_wave2_smoke_gate.py:68: AttributeError
+=========================== short test summary info ===========================
+FAILED tests/test_wave2_smoke_gate.py::test_backpressure_report_invalidates_smoke_even_without_writer_loss
+FAILED tests/test_wave2_smoke_gate.py::test_transport_monitor_observes_direct_journal_events_and_retains_rows
+2 failed, 6 passed in 0.18s
