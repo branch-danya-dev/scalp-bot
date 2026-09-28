@@ -1,0 +1,1117 @@
+[
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-2\\work\\w20-callback\\paper-300s\\session-20260928T092647Z.inputs.jsonl.gz",
+    "bytes": 243176816,
+    "sha256": "7a56ede64c47e5b60268b4c9f8b637834968c03409f0ace7aa226c918cdeb613"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-2\\work\\w20-callback\\paper-300s\\session-20260928T092647Z.jsonl",
+    "bytes": 138906703,
+    "sha256": "f286d996c1c0fb9bbc5df037df9944a50ac02b097f51c8b0b2fadab6785cf8ed"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-2\\work\\w20-callback\\paper-300s\\wave2-research.jsonl.gz",
+    "bytes": 65091525,
+    "sha256": "b217242e2eaa804b3fe76396bd70878c15934042f899e6de61793f051f707a01"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-2\\work\\w20-callback\\paper-300s-freeze.json",
+    "bytes": 29121,
+    "sha256": "3bde0e096f26842f8e9c40bdbaf58eaacfe2c22dd0a7ee85202f928d58f4c648"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-2\\work\\w20-callback\\source-before-paper-300s.zip",
+    "bytes": 504563,
+    "sha256": "e2326c7a813eaaa2e8967c45ac8a6524e45223f2ddaa925ce4542c27d9e9a636"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\full-preflight.txt",
+    "bytes": 1978,
+    "sha256": "885d7ea51c55ff05502c5c9155f0967f1e8334eeafce5530d60548edfe19136c"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\n3-green.txt",
+    "bytes": 102,
+    "sha256": "979ac47e2335c699d4ea4426f651a166f5c754a850b9cfab6496eb7be4a46a7c"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\n3-red.txt",
+    "bytes": 2136,
+    "sha256": "06f161bef5762cba216737150bfca8b6da45d405bad830d5458cf046abdaff22"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-audit\\native-joined-traces.jsonl",
+    "bytes": 323447,
+    "sha256": "429ab6c4ecd93b843ac7d7708897728e0a15260b50a71059fbdd6e0efd5e13bf"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-audit\\report.json",
+    "bytes": 10849,
+    "sha256": "5ecabb38c876639864ee0a408a94a8b7a1bd553d3ffd15aa4af0c55b6c1e92fe"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-audit\\source-joins.sqlite",
+    "bytes": 99393536,
+    "sha256": "84343ce14ecda9def903d677de6bec23e4c67b8e7e97951a00f9aa52502e4aeb"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-audit-console.txt",
+    "bytes": 482,
+    "sha256": "50d4d58e2183ef5898070943016dcf6fbccef65cd308b945156c76de682c3e26"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\binding.json",
+    "bytes": 16102,
+    "sha256": "cef6ed379e14cb33ea472915415d981218b17513c225d40876cf0033c2d1839f"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\pyproject.toml",
+    "bytes": 919,
+    "sha256": "8203eeba9b205144d525c52805d80774c638e338e876a6e802a10a2d2c12dead"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__init__.py",
+    "bytes": 23,
+    "sha256": "d03eacad88bd7a33d49f0a635660e8241fa832e06a3d288fe742cf46833c1b42"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\__init__.cpython-313.pyc",
+    "bytes": 236,
+    "sha256": "88ebd02f292409f52b1600b702002c9c70b974f578b89982d3733786cd0c5242"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\activity.cpython-313.pyc",
+    "bytes": 11335,
+    "sha256": "ea2339f2cac1ad537e50a1fb00027a99e874a4820830b90b22bf93fdae9c96d7"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\admission.cpython-313.pyc",
+    "bytes": 29609,
+    "sha256": "697a5168115bb345c764b2228af70e0d9396627177632392f944f960969233d8"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\bybit.cpython-313.pyc",
+    "bytes": 51057,
+    "sha256": "3c730df1a7d6d620a120dea21e3bb6e54e014962276a366e3a8c12e0d77509e4"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\capture.cpython-313.pyc",
+    "bytes": 28899,
+    "sha256": "f398ee4f0aa882eb51dee9e96defe1de5f7f9255f14113a18d5d135f875b6ea2"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\capture_codec.cpython-313.pyc",
+    "bytes": 6913,
+    "sha256": "8edbf5164a6d30bd95a083c8cfc525bc5e99c926cd89b5b9620097f3f8fbbe75"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\capture_replay.cpython-313.pyc",
+    "bytes": 15519,
+    "sha256": "95a513112c7a0b25081e3c19e13771555f0edb805fa6dbf986731753f31625e2"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\config.cpython-313.pyc",
+    "bytes": 11558,
+    "sha256": "54f9bae4da4bf90132cb7e88dbd7f0d580e7418a91b6a34b45d8bfbd355dce53"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\domain.cpython-313.pyc",
+    "bytes": 14020,
+    "sha256": "7e8c1aa5a0dfe4ce5e79305066a400a93a41a0b5fe1a1140fad75edfb81bf5d8"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\engine.cpython-313.pyc",
+    "bytes": 243893,
+    "sha256": "1441b5e0a83523165412d6e7e32f31d4a4d92762393e6351c8b061a137890f82"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\execution.cpython-313.pyc",
+    "bytes": 5960,
+    "sha256": "d5313d306863f8cba93f205f4cd8a122689b8d80a20b3487788e564bdf3ee214"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\execution_book.cpython-313.pyc",
+    "bytes": 3655,
+    "sha256": "570028d6a1a7ec45ddfb77d7494946df2b0e55f1f7eb5203ba97da390866e75b"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\expectancy.cpython-313.pyc",
+    "bytes": 12377,
+    "sha256": "dad4734fef38572ad45dd7b8974fd6eb766df1b0f76046111131a7fea6800276"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\input_journal.cpython-313.pyc",
+    "bytes": 46435,
+    "sha256": "b3e2443c39d30ed274cdc5beca8e64b69b7feaeecb6e3ed75c412f4aa180602d"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\input_scope.cpython-313.pyc",
+    "bytes": 4408,
+    "sha256": "1559379b40b63f7140608d33e476248801885676e54e9c0ad77e696047820774"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\instrument.cpython-313.pyc",
+    "bytes": 5849,
+    "sha256": "37b99a9d070afaaa262e5090d8d1e9f33078d8f8ae582532f67935265406c6ed"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\latency_observability.cpython-313.pyc",
+    "bytes": 14974,
+    "sha256": "31bc9e02a95e066f90c6aaff9eeae6d039d1700823ad6206ee401d1ee926671d"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\manifest_schema.cpython-313.pyc",
+    "bytes": 5223,
+    "sha256": "cfe157767efcba82255d993ed85a29c503efa88550cca7b39bcbec10fe80d183"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\manifest_validation.cpython-313.pyc",
+    "bytes": 8727,
+    "sha256": "0331885d81d50559e220c7cc215ab698c0d7a651ccce557c07d14591a7fdebdc"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\market_clock.cpython-313.pyc",
+    "bytes": 8334,
+    "sha256": "87ff7bbd81b7104df673e1ae1fb5ffa568687d780c1d54b54e9289c93af6fc4b"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\market_runtime.cpython-313.pyc",
+    "bytes": 5048,
+    "sha256": "783f3da5c626f5e7924b2f6acf8e40ce37beeb4601363db22a7ebe30ab4cf2b5"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\observability.cpython-313.pyc",
+    "bytes": 9573,
+    "sha256": "351a7cf103ed82e887528f08ae4dc30e3b72906725228317c947c2917307d67b"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\offline_bootstrap.cpython-313.pyc",
+    "bytes": 9658,
+    "sha256": "37644aadcefc7fb1fd0bb65d9eb81099315fca58773c77a8afe80728854b1244"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\offline_scheduler.cpython-313.pyc",
+    "bytes": 30413,
+    "sha256": "203388e3c141c539f51d65e45300288393790d25b6913a242fe4a760d89539b7"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\offline_segment.cpython-313.pyc",
+    "bytes": 25344,
+    "sha256": "ff4098cb42c957a201651c3df6f8258104faff6ffe35aface6a29ae9a37cad21"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\offline_transport.cpython-313.pyc",
+    "bytes": 6173,
+    "sha256": "51b08dea539255b3dee575bf120ecd6f369b586dad17440e8db69ee1e23500f9"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\paper.cpython-313.pyc",
+    "bytes": 73422,
+    "sha256": "239980f648231774c5359e38d60b59f5ab472b19f20df7c268f82a41fc0d5145"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\parallel_scenarios.cpython-313.pyc",
+    "bytes": 14855,
+    "sha256": "65ca4ac3026e2b2ae77a255ec52702dbaeafcccdaa21163692b6c6bb6c41bbac"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\recorder.cpython-313.pyc",
+    "bytes": 69694,
+    "sha256": "a13562ceb47243aaa97805d32464a100f53e6e21b107b8dadd70ff0232135e66"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\research_policy.cpython-313.pyc",
+    "bytes": 37657,
+    "sha256": "61bc911c5149146db6a65b80a7a72ac7b032e49a1c99cd812a9041887d7741be"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\risk.cpython-313.pyc",
+    "bytes": 35841,
+    "sha256": "06e441061e2d0b3f72673d798f4385d0550dca59a4c2e8f8e7e2b0e83c244700"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\run_manifest.cpython-313.pyc",
+    "bytes": 6119,
+    "sha256": "4b470a0343b9b1f98a03efcba9dd7222cd06658142ea59f2d23c3d24348c46e4"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\runtime_clock.cpython-313.pyc",
+    "bytes": 8359,
+    "sha256": "e62c9da87426840f58cbf5a7e0ceb360778dbd7acf05ed395fe29902210628ac"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\scenario.cpython-313.pyc",
+    "bytes": 40086,
+    "sha256": "ed8711a6122ec2fa4cf05375ef48fdefbb1dab3846b2e0d68d72d6892cee53d5"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\scenario_episodes.cpython-313.pyc",
+    "bytes": 5481,
+    "sha256": "3a857400ad2fd951b236832627a70b2caee20f7bd2c9dad36e6033c1effd5816"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\scenario_identity.cpython-313.pyc",
+    "bytes": 5202,
+    "sha256": "feaa1d71b10785f7d25b100b415da4fb0114fe829b7bf6f654d76b19766cd495"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\scenario_runtime.cpython-313.pyc",
+    "bytes": 14864,
+    "sha256": "ff48f4243f9f406043a9e22920cea465fa48b1a9162997e458cee279e8a32973"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\setup_segments.cpython-313.pyc",
+    "bytes": 12229,
+    "sha256": "2dbea4b9e424ff459303609fdec1312f0e568136ce50a4c3cc2581c67d92744c"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\source_await.cpython-313.pyc",
+    "bytes": 1705,
+    "sha256": "63fa6d33e4c17edc20315f469dcf032dc14fc773ec61978a537e1f656a0b37a2"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\source_failure.cpython-313.pyc",
+    "bytes": 1733,
+    "sha256": "646454dc2b8b94f8775d7127ef45b93f03dec6cc862b3e4c3d054baa229f014d"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\__pycache__\\strategy_policy.cpython-313.pyc",
+    "bytes": 4563,
+    "sha256": "7d9775f59c9459d8eb42284b82d948912fddd274ba561de892c937335ac9d1c8"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\activity.py",
+    "bytes": 7595,
+    "sha256": "7210a1826445cb59d278a722ea7a133d7a0271eb44f8f79ca322cd100c8dedb8"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\admission.py",
+    "bytes": 31020,
+    "sha256": "3cedbe3738baeaf2c12a57ea8e60e2eaac12eb8cfe5f42fbad758a0e676e5f68"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\analysis_pack.py",
+    "bytes": 12642,
+    "sha256": "af9e607a96e3fd4a57853df9e317f20263488437f15728b2a86bb081ebe85eed"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\app.py",
+    "bytes": 5722,
+    "sha256": "02761d1da665081f0236367d7dd003a3a414ecc89b55325d72912dd79fe10b9e"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\bybit.py",
+    "bytes": 43801,
+    "sha256": "fc4f73acdbd0638fe12225ed269939cc89b4699906a7abb3f3ffebfd0dcb3cad"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\capture.py",
+    "bytes": 18331,
+    "sha256": "99b129bb28864672c687627d9558dd7bcd7db49a1dfeb5e6cf0501a9274f80ae"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\capture_codec.py",
+    "bytes": 3566,
+    "sha256": "530f6f1f3040cb372edd0424fc2be07e607d0226a78a04cdc1200c2fac6e7222"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\capture_replay.py",
+    "bytes": 9958,
+    "sha256": "074ad553b753f90e82ffcd650976764c524e0338135ca9eb0ab890eb064dd4a3"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\config.py",
+    "bytes": 11484,
+    "sha256": "6c81126c9482f2881362265b431c5f5c1ed5e7edbad16473885855cb48c8edeb"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\cross_venue.py",
+    "bytes": 9329,
+    "sha256": "bcf37723c3271f12ba4e13e8b0d922edb6ca074fc65e222fd1770035b45f515f"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\cross_venue_public.py",
+    "bytes": 8945,
+    "sha256": "837ce896350fd892c1b5a656c99a1a542797ff90bcb60ff15c3619e2c9e7f3c5"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\demo_paper\\__init__.py",
+    "bytes": 84,
+    "sha256": "02702e8a3b04f1cae207806a204e1fac1ffb8820b35946eeadc470fd9c00e069"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\demo_paper\\__main__.py",
+    "bytes": 2086,
+    "sha256": "821fa18ab26c5920ad3f3716e7fe75cb86c103de769c67d5c3a108b26d8a2893"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\demo_paper\\contracts.py",
+    "bytes": 6562,
+    "sha256": "ff5bbaaaac8e31e28f29410032b6b90eeb1fad1fda97d5cb31cccb07009102b0"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\demo_paper\\engine.py",
+    "bytes": 14712,
+    "sha256": "201f1fae1467b21915e3e0823afee7abc7161a5e94ee1fc406978adc75fab7a7"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\demo_paper\\ml_adapter.py",
+    "bytes": 4410,
+    "sha256": "2256117379620a9430adda4a41c072b04dc5210f57a27d50fefc2ebcc9e375f1"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\demo_paper\\portfolio.py",
+    "bytes": 18577,
+    "sha256": "3733be3a065e848b05c5b34a1a4fc9fd054ec30c7b0e46e5d984a656e56ea1d4"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\demo_paper\\preflight.py",
+    "bytes": 9224,
+    "sha256": "edd4500e947480e0d9a0639ebca3d9ca2117fc93deab73f0d185905750176b36"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\demo_paper\\report.py",
+    "bytes": 12150,
+    "sha256": "202f1eb095c56b743c4d03f648e1e4d2daeef9b3c5d89a5afab5fbc21a961fb8"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\demo_paper\\runtime.py",
+    "bytes": 17283,
+    "sha256": "d388588d8ec19c1fe84a1329abe64fadbfad588a6c244770da1a3f148331b611"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\demo_paper\\transport.py",
+    "bytes": 9548,
+    "sha256": "028bcfa4b4c6150c2e30d8fac1a245f76b3b4a9b177b969bc3e75c0a10019d7c"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\demo_paper\\venues.py",
+    "bytes": 14195,
+    "sha256": "8157d673b7c2f54cdba40047cacbbde32253d7e4c1dca7a0622a9c012a608e32"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\domain.py",
+    "bytes": 9324,
+    "sha256": "b87157d0c40105438a3846814265a7bf7f0e0a635250d2936e110cd1873aa64d"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\e01_comparison.py",
+    "bytes": 11306,
+    "sha256": "0543974cd9db151a187c389177c6bab5de75ec28db9999ee0cc78fbf8a7f4248"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\e01_feed.py",
+    "bytes": 2537,
+    "sha256": "a0f410b2b6d14e46b56cbe3e9a27d638aee4d068e109bee74c254d279aa6de83"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\e01_live.py",
+    "bytes": 19085,
+    "sha256": "11d7de3497ac7becabe0e0fb06830d0c72db6e4bf0b45957fe5b3480623a1300"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\e06_capture.py",
+    "bytes": 3399,
+    "sha256": "a377b631ac878d2fa90f2dd87780638aafc165b2fd181616682a9d51b2cc3778"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\economic_calibration.py",
+    "bytes": 17779,
+    "sha256": "1f72293a0d28cd8c786f90843501cf2aab883ee31582e8e044fba53ce7794ede"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\engine.py",
+    "bytes": 230384,
+    "sha256": "b2fbba5cb940cfa821a078968408a42b73c778f83a74a3fb6dc5082bf6892186"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\execution.py",
+    "bytes": 4594,
+    "sha256": "a7dba54da70a91cf7e720f7c33076c0bb3d386a430358c8ff0bdb37e3a339105"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\execution_book.py",
+    "bytes": 2015,
+    "sha256": "affaaf7a8929077ca7c29dd205b8c30c5fbbda567c16587fea2074d5ff8dde27"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\expectancy.py",
+    "bytes": 7945,
+    "sha256": "6df05b5706426b082a96781278d33a679ccb55cba2f1320ddf8f9de55ef0d99b"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\experiment_controller.py",
+    "bytes": 8566,
+    "sha256": "6233aedaee11a861de5f4b4d1277a431eb383cf25b9a0d031bc64c18838faa67"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\git_session_export.py",
+    "bytes": 36713,
+    "sha256": "3562a66357f4fc7c414c85bf6f00883202403b15c21054dbfa6d023aeb781196"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\hindsight_review.py",
+    "bytes": 37187,
+    "sha256": "881155e64c894f71ff4d9401736bfde7966b807a36c47e2c22ef41fdda13700f"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\input_journal.py",
+    "bytes": 36115,
+    "sha256": "7524ffe4768eb3f535eb04a8069a0055e6db88eaa049834d9c51517150a40121"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\input_scope.py",
+    "bytes": 2274,
+    "sha256": "e9d6780d53293998818ce53a1e6483544fb7ae5fdc0a895ebddf37487e37c8f1"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\instrument.py",
+    "bytes": 4327,
+    "sha256": "baa0dec23dab7765479ff21ec88c780b09593b62d71b42e024eff7276687c25a"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\latency_observability.py",
+    "bytes": 12297,
+    "sha256": "af438842381a121ea0accfa2178194096beccd2ce7259bc02d95fe8e756325fa"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\long_run_pack.py",
+    "bytes": 30022,
+    "sha256": "ef7e865f872437446e0c0bcc77b7f5053a144c2aec420b5008a88efb1ca7b6d4"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\maker_shadow.py",
+    "bytes": 9455,
+    "sha256": "236b43e32c7fe5188115da68f2795c9a8caea1e88cea201adfdb06abb9bc07cd"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\manifest_schema.py",
+    "bytes": 5390,
+    "sha256": "5085a568beddf8ba2bc4a8f0e6c88ae93e9f5bc91e545f9cb625115204d82dc5"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\manifest_validation.py",
+    "bytes": 5473,
+    "sha256": "606de5ea875abbed1ce1ac549fb0d6f94244d9ea06e18246742a76234551e3d2"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\market_clock.py",
+    "bytes": 7512,
+    "sha256": "7d578181249e8f9e777a55c86ee7cb7fb22a1d069339087870f599d69e661f9f"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\market_interaction_review.py",
+    "bytes": 34123,
+    "sha256": "5bcbc03c386e6f1aab0d1b136ee261c3e25849e240ae50d14c4187091f4aba1f"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\market_runtime.py",
+    "bytes": 4004,
+    "sha256": "5f339833df3351c277d42c628c0e9c98a659a9c7216539c64a2860a805a2e781"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\__init__.py",
+    "bytes": 262,
+    "sha256": "f8e84cafb0793674c0d0069a9c4f3ca3213f23390d0f5c2d0d15f8e79ab32e22"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\__main__.py",
+    "bytes": 2800,
+    "sha256": "86702260b28fb49e9161ef7a5eb66fa3e9af2c08e5e487b0dde1b3dc8e5c934d"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\arbitration.py",
+    "bytes": 1635,
+    "sha256": "9267bcfbcdd161e856ab521ee95d082a7cd8a3d4a4a83b5d3d41892c71f1641e"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\capture_context.py",
+    "bytes": 6821,
+    "sha256": "4b3135cd108eee0a88191eb3d695131c24f697c7b63a7a268cac206a47f09091"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\combine_periods.py",
+    "bytes": 4802,
+    "sha256": "d24dd795a6cdb640c0ec735075c97ebbf60f79fc91f5945cb6ee5b6df60e23ba"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\context_audit.py",
+    "bytes": 2904,
+    "sha256": "a06e4e49c32dbc332817d8161ad313797cd8bc2633b96743b38a3d743c468542"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\contracts.py",
+    "bytes": 5788,
+    "sha256": "20b8aa774f7dc5d3e83018c95b502bc53fea84d2525c054b26c2e4e22a548a84"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\cross_venue_study.py",
+    "bytes": 2972,
+    "sha256": "e61e606fa56d655a180b7c4ad11d9e872ff93097c7011fbdc7f17418b4e7c9ea"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\dataset.py",
+    "bytes": 10176,
+    "sha256": "267e58836c756beeb65305806889f1c8770ae9c60e17faf993c0dd8968a76896"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\diagnostics.py",
+    "bytes": 4432,
+    "sha256": "ae8ab6fc6154510ead8a061f67e8a81f1ee3d69c0b8956fd7665e10a01fb05c2"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\engine_dataset.py",
+    "bytes": 6035,
+    "sha256": "020aca312a945c8633428b8a32781df9053a04bce471df6c75630018937eaa0d"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\features.py",
+    "bytes": 10340,
+    "sha256": "712bf1c8ee851429bd85b16ed729dd1d0c9c8cfd2d2161d1b4f7f98a2eb6eaa2"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\history\\__init__.py",
+    "bytes": 84,
+    "sha256": "2a6860a47041816f15fe30a75e37788383bce122b2c2c5dcf609adbe5d23f076"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\history\\__main__.py",
+    "bytes": 2459,
+    "sha256": "b992bfa9b385eadbe926f5d374c2f6717a9092e99166bbc48a92ee3da184b10a"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\history\\adapters.py",
+    "bytes": 7802,
+    "sha256": "b7201c9ed7a7ccff0bc4f27c7bd36c7dcb7cad5272650f87140d57dabbba8f66"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\history\\alignment.py",
+    "bytes": 12280,
+    "sha256": "ca546a99c76ea070e8faabe51454cf1151169f09985f44d1cb96429bb31e785d"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\history\\book.py",
+    "bytes": 2135,
+    "sha256": "75d82bee9c234d4aa40bf8b726d0f368be2f7906f1888d2ea93fc8377772ed23"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\history\\importer.py",
+    "bytes": 7735,
+    "sha256": "8db4d1cc467660e8aa70b20fd53cbf972d5af090af1f59777047edfc0de86758"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\history\\samples.py",
+    "bytes": 4472,
+    "sha256": "cd0d263632d14752ead7b17bf7d414a789158b4f5b0f514511b65b868bdbf4ea"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\history\\sources.py",
+    "bytes": 3293,
+    "sha256": "5c1eb7e17352db9b5f6fff99f03e0367deb12acdc749d8834b812a2af880e682"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\learning.py",
+    "bytes": 11563,
+    "sha256": "35790522eee8bf600c03d63aa59882ca6f89c329dcfc0493c8fa872eefe98b46"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\plan_diagnosis.py",
+    "bytes": 9722,
+    "sha256": "a5e37e0b1302ba3de645cb127a54747246f06e472be84ca68ee50ce72a1ed8f2"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\plan_paths.py",
+    "bytes": 4725,
+    "sha256": "03dc0690588c8ee1cac00c8b6bfb513c5a9fc0335d58c2cdb6ede0c2dc1f3df9"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\prepared_adapter.py",
+    "bytes": 2622,
+    "sha256": "332d3c6d42957415a7107080e759934133ff8ef75756612c3b2de34536d4e624"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\prepared_dataset.py",
+    "bytes": 5676,
+    "sha256": "a7fa5dafec473010e91e66a554fb35fad036a1ef1e4476650a28baca91936159"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\prepared_labels.py",
+    "bytes": 13710,
+    "sha256": "af22e9fa704b4a92ec9da3e124c7f7b44b867728e2cae77364142505ce44849d"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\prepared_learning.py",
+    "bytes": 14601,
+    "sha256": "9419570270a6e299d1223cd16e132e7a1f7c9c2e53828f45a0e07a9a56877ccb"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\process_stats.py",
+    "bytes": 1272,
+    "sha256": "55cb308d2a46edac5f4053dfc9a7c7c9ed0b11af601195e421fb0cabe939e419"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\shadow.py",
+    "bytes": 6439,
+    "sha256": "2a2b192594404a275548f976f711380a564c675e9f80fd8a3ad746157df69ca7"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\wave2.py",
+    "bytes": 10061,
+    "sha256": "15b1aa711ada2f65463eb7838e58f0905403351dcfa90eff408731a71b962d48"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\wave2_replay.py",
+    "bytes": 2746,
+    "sha256": "d5fa55e3be84563ef9b9e538e36e8affd1473e5ff711b0fbba7ecbb205673dcc"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\ml\\worker.py",
+    "bytes": 7275,
+    "sha256": "2cdd4348a9fb4a4a9e8c3c4c0bcf504dab1fcdba23d9575c22ec171b2f11fc38"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\observability.py",
+    "bytes": 7884,
+    "sha256": "34691a18e3853124908d43add19530791e8468c433a3522d8931c0af20221eca"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\offline_benchmark.py",
+    "bytes": 18258,
+    "sha256": "0b6c88af43062d92a08e3fa4e272f95dcb14c43356624ca73982041ad83de460"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\offline_benchmark_trace.py",
+    "bytes": 8846,
+    "sha256": "7d823c53d8fde3946ee1e61f65691d9e9e605bb0f01c0c09ea1afc5504b796c3"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\offline_bootstrap.py",
+    "bytes": 6348,
+    "sha256": "c0537b698bb032b0d233ad4f5df1fdc49d64ed86fe41657871a68a080112f309"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\offline_comparison.py",
+    "bytes": 13978,
+    "sha256": "23c4bb0b043d30dbabdfe394219c82c9f9644f9d6ef9dee8804db612788871eb"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\offline_index.py",
+    "bytes": 3394,
+    "sha256": "e3bbcbbfb3398c39d36349fc828c5fd3fca3e2e3704435801e329a563939e22b"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\offline_market_index.py",
+    "bytes": 3740,
+    "sha256": "bd9c4be92ee65c2b853abbf8e365079937b41406993da6429dbbf6f7563e82e9"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\offline_scheduler.py",
+    "bytes": 25692,
+    "sha256": "59482640fd6e779b33207318ab83984b11deba50fd978cb326784836883b2952"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\offline_segment.py",
+    "bytes": 16685,
+    "sha256": "9ef8302884af94faf1c92d994ca06e9c76bffc53a9f8aa925af0d37bdec48b25"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\offline_study.py",
+    "bytes": 14687,
+    "sha256": "df4d9152265493f495e0854075848a43fe275cc379449914ec1d72106fff5cd7"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\offline_trade_diagnosis.py",
+    "bytes": 12957,
+    "sha256": "6a9b8a01a740cc36aaa566c8a1614f7d759edc0c119737fc8d4938ed5e93e6fa"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\offline_transport.py",
+    "bytes": 4302,
+    "sha256": "15bafda4fbaea59c513dfd57055f3df05ddfd7124b6db856a8251276790ba74c"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\opportunity_review.py",
+    "bytes": 26812,
+    "sha256": "3900c23cee6a53406731726824e5632a6bbd00d94357b8b6fa6a85647e04329e"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\paper.py",
+    "bytes": 68833,
+    "sha256": "f4b092b956a8b68b736b3a11ecee25f9f2f72df3a6f9c0d2c192abb2836f2c56"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\parallel_scenarios.py",
+    "bytes": 9125,
+    "sha256": "89d8927d30465788844708e866e760ec2d8ec6bf2ee1053122744145779417f4"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\performance_matrix.py",
+    "bytes": 27848,
+    "sha256": "04f490bb29defa1bb7947e26c6204388447ceb5d9a7cc0f721ab9c64735a7aec"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\preflight.py",
+    "bytes": 4647,
+    "sha256": "70bcd4e1a2c327d180617adfb1ad72e6645b4d2aa3f84dd67ad0c7a1d1bfc172"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\raw_session_archive.py",
+    "bytes": 9409,
+    "sha256": "bf5def2861b15c0900dcaa195022b2a9d8cfced7da1a0e5eb8f794dac5ef0bb1"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\recorder.py",
+    "bytes": 71644,
+    "sha256": "70f2d9914042fe1bf431a9ad4dcaef2b8d6f79a2299f235a4b13571789365f54"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\research.py",
+    "bytes": 7770,
+    "sha256": "55e9863d238cb5e73441d1e085b29f61582fb1526368b36b06789c35e4272e97"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\research_dataset.py",
+    "bytes": 41074,
+    "sha256": "f5935d6c7eabaee92036cb3afbe8470be8770df2b02f273fd96ad6b25d43ec62"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\research_journal.py",
+    "bytes": 2688,
+    "sha256": "8058f7655aa795b10a3037b83fe401ed031b5d73381f23eaca383efce6babe41"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\research_policy.py",
+    "bytes": 34442,
+    "sha256": "f6f661e96e8b82000701e73ac34ecb378f15924da11c1db5ac0ce386bddbf2d2"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\risk.py",
+    "bytes": 50666,
+    "sha256": "baa387c93c52e5d02bcb3006bfa704476e44eb9f2b118da4c26d34b7ba991f3d"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\run_manifest.py",
+    "bytes": 3843,
+    "sha256": "ab9b283b836a08ab3998140d0fadaba1a2c1ebf327a6df2efd1250539a861391"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\runtime_clock.py",
+    "bytes": 4265,
+    "sha256": "0180be929aa96ee3d12061a0954d00045746a0d839d57aa13d9966654d720023"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\scenario.py",
+    "bytes": 29735,
+    "sha256": "fde0d0416e98ac4a88ba7b105fa1db27392d84c1486068638047192aaa4dbdb3"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\scenario_episodes.py",
+    "bytes": 4069,
+    "sha256": "04d1e182cf1e42954c0d620598bf000e362370cd295fbeee56ca1f728d9d7dbc"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\scenario_identity.py",
+    "bytes": 3113,
+    "sha256": "14f0d7cfcc7eca07f9f4ce8b39e01309d1f18ba5136e2f16bfb8d33c5e0bfee3"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\scenario_runtime.py",
+    "bytes": 9837,
+    "sha256": "8bd631fc15c22ad7e2e7bf1198d558135a7cf7417fd53f4c69a1035bcd891c64"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\segment_registry.py",
+    "bytes": 3807,
+    "sha256": "9f60ddf028f1a656f9036f2ae5a828bf659a6772c9ba8e6e7aa944bebe68479e"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\session_validation.py",
+    "bytes": 13904,
+    "sha256": "9f680b77bc29efbbfa4fde26a3ac58b0c6ab81433a24ba736114e7a8985b8c8e"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\setup_segments.py",
+    "bytes": 6659,
+    "sha256": "7435bf6a49fe9bc551bde5e9b34262f531cbc1d4e1192eba4961e7e942da151b"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\source_await.py",
+    "bytes": 1107,
+    "sha256": "4744b8197fdeeb3b4247d86c7aa2d7fa2ef8212afdf12ff741912267d863b986"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\source_failure.py",
+    "bytes": 660,
+    "sha256": "17090aa96b985f694b1b8412edab4cae9d2e20943f7183fff9db5367f10ffc84"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\stability_validation.py",
+    "bytes": 39906,
+    "sha256": "64ce9f403b83e2555b70b40ef4679a4e422a6a7910206bbbd943e1e20bcce651"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategies.py",
+    "bytes": 855,
+    "sha256": "f2006cd88ce36fe9095e071ec25dc0c2786c3c9468cdaacc85275ca90493e24a"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__init__.py",
+    "bytes": 4353,
+    "sha256": "78a1c72f81e3b663fb2a9b638533305257aeb805b42402d3298e167ae25f0632"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\__init__.cpython-313.pyc",
+    "bytes": 3467,
+    "sha256": "1481c0ab7dc59bfc817c7b97e3b81828ccede5803bf59e3718845f0aa3849eb3"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\base.cpython-313.pyc",
+    "bytes": 4355,
+    "sha256": "5fe6d7770ccc1b86d9fd1e375f9966fa76d5e552f5d64d8aa367bc09b10ffdb6"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\breakout.cpython-313.pyc",
+    "bytes": 53184,
+    "sha256": "38be273c9c35281362c297de23beb8bb3a564c8a65860c3004ceae6cbe938fc3"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\common.cpython-313.pyc",
+    "bytes": 23463,
+    "sha256": "b3e1ccb6d83e511e6c31f08b1efb9c569a03eb86996a8b187537c864e05d5035"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\density.cpython-313.pyc",
+    "bytes": 37962,
+    "sha256": "b9db64bb64a6baa499262d6dfa981cb9b8f90bdea4c3fa309e6fb26c96b72268"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\flow.cpython-313.pyc",
+    "bytes": 10215,
+    "sha256": "eb746d229e504af39b0ecd213b8afab5d5064d80d2da3c7356596bd8aa99ba4f"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\flow_context.cpython-313.pyc",
+    "bytes": 13278,
+    "sha256": "6d10a59e392789ed6aa1ce8e59fe0d49d16e36cbf5d9d57da612903327a6b847"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\freshness.cpython-313.pyc",
+    "bytes": 9098,
+    "sha256": "d6860664bc9ad3a409b5cebdfe08d803b7f0aa3542595c9e97f2d10802faa334"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\lifecycle.cpython-313.pyc",
+    "bytes": 9926,
+    "sha256": "312271db55a73ffd8127793ed86c9d1355c9792ea7916c52a91f639a260bdd4d"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\liquidity.cpython-313.pyc",
+    "bytes": 6230,
+    "sha256": "3bc8f052d6c2c3d71c6dc6f55013ae9f557a71d7f63ebbc4dc67f8923a6ec676"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\liquidity_evidence.cpython-313.pyc",
+    "bytes": 13354,
+    "sha256": "4a3b27aab8dbebadf5b2d2cf815245b4fd70530ddb960a0d7f9b37f35246118b"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\market_context.cpython-313.pyc",
+    "bytes": 11236,
+    "sha256": "eaf7c22367194221b739b6fdd893c22a4c727423d39d1db2663f4bf38f1e0b4b"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\playbook_context.cpython-313.pyc",
+    "bytes": 24968,
+    "sha256": "72d746517397dc2611faceadee97d5efd1b3fac0d925aa481117c14b18dbecbd"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\pre_state.cpython-313.pyc",
+    "bytes": 11852,
+    "sha256": "6f4c5cfeca6640ae1b5da6e76c75fbddd9c69bbdb9a2758dacaebf365acbd1ce"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\price_action_hypothesis.cpython-313.pyc",
+    "bytes": 13335,
+    "sha256": "03af5894f0d1cc3b380c70bd02893339a031ecc2254b4a5f79f3218c434f44b8"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\regime.cpython-313.pyc",
+    "bytes": 14514,
+    "sha256": "08653a71455b37489735a7cff2d212c859f5d16106418762326104a2cbe05d77"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\semantic_arbiter.cpython-313.pyc",
+    "bytes": 26287,
+    "sha256": "f554fe4c96fd27cfb13d5c225da97d6b0984f46eeba8bf87cf46e5af9eb4c1ee"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\structure.cpython-313.pyc",
+    "bytes": 29233,
+    "sha256": "e94699cc2bbe8ace14efc2a68171a05ef8f1c3720b1ca1f9e9e282a665cea520"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\targets.cpython-313.pyc",
+    "bytes": 1605,
+    "sha256": "8bddaa8598c69ca666323aa098a66b08d839a1b016655f2d7fea7b60f171215b"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\trend_structure.cpython-313.pyc",
+    "bytes": 34132,
+    "sha256": "a95b814c1e15d6b4c035c3d343afdb10f4c92b9a2907c8250f397da4e52fe2eb"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\__pycache__\\weak_level_rejection.cpython-313.pyc",
+    "bytes": 44967,
+    "sha256": "768257c1d8524c80ec57baa7d8a790c51fc61f3c600c2edb9434c44ea0eb841a"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\base.py",
+    "bytes": 2907,
+    "sha256": "b72aa2880b537102f81aa36f89eea077fa28706d0fb35d476ac57fe2197d376b"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\breakout.py",
+    "bytes": 64597,
+    "sha256": "b5e8a4e37426bc37a38e42b19d8c7f8ba08b04718e92b6712c98e723e8970f44"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\common.py",
+    "bytes": 17108,
+    "sha256": "e89c4233f3b9193e487c5711de074a436f0841f59c21385e54841197b63a3bf8"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\density.py",
+    "bytes": 36414,
+    "sha256": "b6c33e4cccd13a5b3496d470245854186f07c79a6e86a466963236779ee365b4"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\flow.py",
+    "bytes": 6207,
+    "sha256": "2fc7cf0fdc59a1f59b64b971ae5ca73d728912462a156cb806a7055b0313d558"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\flow_context.py",
+    "bytes": 9307,
+    "sha256": "674d76947e54d7e73acd1d97300c84287e9ecafd89f7a0a43b500317d43949e8"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\freshness.py",
+    "bytes": 8782,
+    "sha256": "a4b8823fa94b6fdfb75d4586e3647e80c7db3b211c969d396586f4a64c0b6ec0"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\lifecycle.py",
+    "bytes": 10913,
+    "sha256": "b03bf8b5264ff01c3528d10a622a76079596eb8fd5840b3914ae27d2ca18cf19"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\liquidity.py",
+    "bytes": 5797,
+    "sha256": "1d78af5587b27d62524d956abcef4e95b58cb734aa621b20f310fb0584ca9ab0"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\liquidity_evidence.py",
+    "bytes": 11394,
+    "sha256": "b1b841a9f84e5e1d08d66763443f9949b3f8ba4145e2be827a61e1a23c8d85a3"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\market_context.py",
+    "bytes": 9834,
+    "sha256": "470045f08d1877d488b8df2dc2aff6f9b4ac16352ffed1ad1828446ae80c2198"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\playbook_context.py",
+    "bytes": 23201,
+    "sha256": "daa3abca32949404ed003c157567517a8fdb33741b7958b7f37a2aec612a6fc5"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\position_policy.py",
+    "bytes": 1880,
+    "sha256": "3efd9e3e5190fa40b124933f39ca9deaecbb0c2fd4d381ebddb403bead031a0f"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\pre_state.py",
+    "bytes": 10039,
+    "sha256": "991a742758bf20cecafd05f8f65d9d3be218613e1c697102de9126917e1ab37f"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\preparation.py",
+    "bytes": 2558,
+    "sha256": "ccde5fef3de808facf1b076e768d4ccf75caebefa401fe3a4a618ed3fc6f3378"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\price_action_hypothesis.py",
+    "bytes": 10207,
+    "sha256": "f61c77847c3347bf59d421eef92dcfd9b4079140abc0350ca8d787df081fa83b"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\regime.py",
+    "bytes": 16623,
+    "sha256": "74ff66b4970f8884cab5eae930e38e5f685024131e5536c286a8a08c9f862ff5"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\rejection_response.py",
+    "bytes": 944,
+    "sha256": "6c018c3186ffd1b6458473104d4e313013085a4bdc735ce25d57705a96fcd464"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\semantic_arbiter.py",
+    "bytes": 25315,
+    "sha256": "3f33cb2a7e023ec3d29adedbda4a96fd308088562af2739e293a5b610abd9a4f"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\structure.py",
+    "bytes": 21411,
+    "sha256": "f465e1ce3573a82f5bddaf1327a1392860a1985a3201c1619bb3d01b799061ff"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\targets.py",
+    "bytes": 784,
+    "sha256": "8ba08b7a4aea71aff6b398680374856c0d3eeb6f1b705c0c7d9dd40aaa50f641"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\trend_structure.py",
+    "bytes": 37532,
+    "sha256": "75927f5764c8b3a497265cc5c817af59c9239f2cb6ef82e741fc98cf383771fe"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy\\weak_level_rejection.py",
+    "bytes": 54055,
+    "sha256": "b29cb9105a5d757b37764df96f68261477fefbc1889b4b54f7c3d3783ac19172"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scalp_bot\\strategy_policy.py",
+    "bytes": 2984,
+    "sha256": "a7be435589e39bdd5bd1331e1fa30164896e3dcf130190653bded1d3fe80bf6d"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scripts\\profile-capture-model.py",
+    "bytes": 6320,
+    "sha256": "6fa51919e8a55b359e06fe9e997a126d8db7c08c075b34b4e9915a46f94a2855"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness\\source\\scripts\\smoke-trading-model.py",
+    "bytes": 15197,
+    "sha256": "3c94163368cc876c32e5eda1319d59e4ccc9ffeaf39c41540f7205edd3151904"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native-witness-console.txt",
+    "bytes": 758,
+    "sha256": "fb454a379ebef3dc0a7819615aef72ac59a5f950b7e40ab10a96ea890f501f9e"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\native_witness.py",
+    "bytes": 3981,
+    "sha256": "1c066340c96701136dea93da0378f6875266b2e078ad1ac3fe03d9877d513a96"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\package_n3.py",
+    "bytes": 6915,
+    "sha256": "9718ad54a8d98f42c1e171e610de8ae4f4e9747ace57ace7af514b70fd193006"
+  },
+  {
+    "path": "G:\\codex\\2026-09-28\\referenced-chatgpt-conversation-this-is-an-4\\work\\windows-targeted.txt",
+    "bytes": 680,
+    "sha256": "b5960af901e130a3ba09c0e2156a6325724ed02a94903675976608e9c8b49bc8"
+  }
+]

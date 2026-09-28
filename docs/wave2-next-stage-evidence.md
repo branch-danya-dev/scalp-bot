@@ -1,5 +1,9 @@
 # Wave 2 next-stage evidence — 28 September 2026
 
+Current continuation: [N3 native evidence](n3-native-evidence.md). The report below is
+retained previous-stage evidence. W2.0 remains NOT_MET; N3.0 is incomplete.
+
+
 Starting head: `01c491d7961126836e04682bed874c7f14971100`, PR61 on PR60
 `1a2d0f67da0331df7d2d134bffde6f64141c7898`. Audit was committed before
 implementation: [file-level plan](wave2-next-stage-plan.md). Published implementation

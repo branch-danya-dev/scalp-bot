@@ -1,3 +1,35 @@
+# N3 native handoff — 28.09.2026
+
+**W2.0 NOT_MET; N3.0 six-variant executor NOT_TESTED и ещё не реализован.**
+Продолжение PR61 от `179af6d`; опубликованная реализация
+`1d28ce66fe8f351c8d3bc67ce6e0ebad7af8c35b`. Main и PR60 не изменены.
+
+На точном архивном source/runtime найден config blocker: сохранённый duration
+`300` становится `300.0` при Settings validation и меняет hash. Будущий capture
+теперь блокирует unreplayable config; smoke передаёт float. Strict replay также
+сохраняет первую clock divergence, которую раньше маскировал scope cleanup.
+Обе регрессии сначала падали. Старые manifests и raw не переписаны.
+
+Проверены все 2429150 primary / 252573 supplemental rows; 1920104 clock reads
+сохранены. Для 488/488 native forecasts получены exact source/event/feature joins.
+У p99 item 308.2433ms основная часть — 272.593ms от feature ready до prediction
+end; native probe/IPC subdivisions не записаны. В native tape также нет module
+clock ownership и полного порядка external/V2 dispatch. Это следующий blocker,
+а readiness audit не заменяет native executor или latency acceptance.
+
+Windows full: 1671 passed; expanded Windows targeted: 570 passed; JS passed.
+Linux implementation CI: 1657 passed / 6 skipped. Exact final-head CI — в PR61
+и финальном receipt. Нового latency improvement или ordinary replay parity этой
+итерации не заявлено; предыдущее historical logical evidence остаётся историческим.
+
+900s не запускался. Native labels INCONCLUSIVE; dataset NOT_MET; V3 не обучена.
+N3.5–N4.0 downstream expansion остановлено на открытом controlled gate. Никаких
+paired market, Demo/private/order, maker execution/ML, 8h/12h или background collection.
+
+[Текущий evidence и gate graph](docs/n3-native-evidence.md),
+[план до кода](docs/n3-native-plan.md), [raw/receipts](docs/wave2-evidence/n3-native/).
+
+---
 # Wave 2 next-stage handoff — 28.09.2026
 
 Продолжение PR61 от `01c491d7961126836e04682bed874c7f14971100`; опубликованная реализация `b163f785ed4a85deede118e03a57fecf7633c039`. Main и PR60 не изменены. **W2.0 остаётся NOT_MET; native executable-label gate — INCONCLUSIVE.**

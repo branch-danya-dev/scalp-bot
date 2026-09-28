@@ -1,5 +1,28 @@
 # Wave 2: audited plan and evidence
 
+## N3 continuation from 179af6d — 28 September 2026
+
+Current authority: [N3 native evidence](n3-native-evidence.md). W2.0 remains
+NOT_MET; the six-variant native executor is NOT_TESTED, not implemented by the
+readiness audit. Full raw populations and 488 exact native forecast joins are
+retained. Two red/green fixes prevent unreplayable config and masked first
+clock divergence. Native latency/natural-label proof is still absent.
+
+Required sequence: controlled native W2.0 → one 900s natural-path qualification
+→ native executable-label parity → independent dataset under unchanged policy
+→ V3 Logistic/CatBoost, calibration, LOSO, untouched test and same-risk economic
+promotion → short shadow latency smoke → owner-authorized paired paper run
+→ optional owner-authorized Paper/Demo qualification → 8h eligibility.
+No downstream success replaces an upstream gate. Current market/data/model/Demo
+execution and additional downstream plumbing are stopped at the controlled gate.
+Maker conclusion remains NO_SUPPORTED_HYPOTHESIS_YET, not REJECTED_HYPOTHESIS.
+
+Next engineering blocker: a complete native controlled driver with evidenced
+module clock ownership, external dispatch and V2 request/reply schedule. Existing
+v4 raw cannot acquire missing ownership/order retrospectively. First prove the
+recording and replay contract offline; do not substitute a new market attempt.
+
+
 ## Current continuation from exact 01c491d — 28 September 2026
 
 The current gate authority is [next-stage evidence](wave2-next-stage-evidence.md).

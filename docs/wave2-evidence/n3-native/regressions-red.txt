@@ -1,0 +1,35 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_ test_capture_rejects_unvalidated_config_before_recording_unreplayable_manifest _
+
+    def test_capture_rejects_unvalidated_config_before_recording_unreplayable_manifest():
+        # Exact defect in the preserved 300s smoke: model_copy bypasses float validation.
+        config = Settings(_env_file=None).model_copy(update={'paper_run_duration_seconds': 300})
+>       with pytest.raises(ValueError, match='replay-stable'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests\test_n3_native_regressions.py:12: Failed
+__________ test_native_first_clock_divergence_survives_scope_cleanup __________
+
+    def test_native_first_clock_divergence_survives_scope_cleanup():
+        rows = [dict(sequence=41, kind='scope', symbol='AAA',
+                     body=dict(phase='begin', id=1, parentId=None, name='evaluate')),
+                dict(sequence=42, kind='clock_read', symbol=None,
+                     body=dict(scopeId=1, method='time', value=100.0))]
+        cursor = _Cursor(rows)
+        scopes = InputScopes(cursor)
+        cursor.scopes = scopes
+        with pytest.raises(SegmentMismatch) as caught:
+            with scopes.enter('evaluate', 'AAA'):
+                cursor.monotonic()
+        error = caught.value
+>       assert 'monotonic' in str(error) and 'time' in str(error)
+E       AssertionError: assert ('monotonic' in 'input mismatch at sequence 42: scope')
+E        +  where 'input mismatch at sequence 42: scope' = str(SegmentMismatch('input mismatch at sequence 42: scope'))
+
+tests\test_n3_native_regressions.py:28: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_n3_native_regressions.py::test_capture_rejects_unvalidated_config_before_recording_unreplayable_manifest
+FAILED tests/test_n3_native_regressions.py::test_native_first_clock_divergence_survives_scope_cleanup
+2 failed in 0.54s

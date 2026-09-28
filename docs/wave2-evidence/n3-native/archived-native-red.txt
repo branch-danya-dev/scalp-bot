@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-4\work\native_witness.py", line 71, in <module>
+    if __name__=='__main__': main()
+                             ~~~~^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-4\work\native_witness.py", line 31, in main
+    engine=restore_cold_engine(prefix) # Unchanged archive code, mandatory exact binding.
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-4\work\native-witness\source\scalp_bot\offline_bootstrap.py", line 101, in restore_cold_engine
+    raise SegmentMismatch('configuration changed during validation')
+scalp_bot.offline_segment.SegmentMismatch: configuration changed during validation
