@@ -4,7 +4,7 @@ from dataclasses import asdict, replace
 from decimal import Decimal
 import time
 from .contracts import Order, SafetyError, FeeMetadataError, TERMINAL, dec
-from .transport import DemoReject, ACCOUNT_SCOPES
+from .transport import DemoReject, WriteNotSent, ACCOUNT_SCOPES
 from ..domain import Side
 
 class Venue:
@@ -68,6 +68,11 @@ class DemoVenue(Venue):
             order.order_id=result["orderId"];order.ack_ns=time.perf_counter_ns()
             if order.status=="Submitting": order.status="Acknowledged"
             self.emit("ack",dict(link_id=command.link_id,pair_id=command.pair_id,ns=order.ack_ns))
+        except WriteNotSent:
+            order.status="Rejected";order.rejection="local_admission_not_sent"
+            order.confirmed=True;order.create_rejected=True
+            self.emit("entry_not_sent",dict(link_id=command.link_id,pair_id=command.pair_id))
+            return order
         except DemoReject as exc:
             # Codes for duplicate/client request cannot establish absence.
             if exc.code in (10000,10014,10016,10019,110072): order.unknown=True

@@ -164,6 +164,11 @@ class RiskEngine:
         best_raw_entry = raw_market_entry
         stop = float(decision.stop)
         target = float(decision.target)
+        if self.config.trading_quality_enabled:
+            from .trading_policy import reachable_target
+            target, reason = reachable_target(decision, market_entry, target)
+            if reason:
+                return RiskResult(False, reason, diagnostics=dict(decision.details))
         if instrument is not None:
             stop = instrument.stop_price(stop, side)
             target = instrument.target_price(target, side)
@@ -714,6 +719,15 @@ class RiskEngine:
         stop_cost_pct = stressed_stop_cost_pct
         round_trip_cost_pct = stressed_stop_cost_pct
 
+        if self.config.trading_quality_enabled:
+            from .trading_policy import reachable_target
+            target, reason = reachable_target(decision, market_entry, target)
+            if instrument is not None:
+                target = instrument.target_price(target, side)
+            target_pct = direction * (target - market_entry) / market_entry
+            decision.details["remainingMove"]["reachableTarget"] = target
+            if reason or target_pct <= 0:
+                return RiskResult(False, reason or "reachable_target_exhausted", diagnostics=dict(decision.details))
         full_target_fill = apply_exit_slippage(
             target,
             side,

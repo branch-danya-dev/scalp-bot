@@ -920,6 +920,7 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
             strategy.key: strategy
             for strategy in default_strategies
         }
+        self.strategies["weak_level_rejection"].sweep_stop_enabled = config.trading_quality_enabled
         self.broker.position_manager = lambda pos, gross: (
             self.strategies[pos.strategy].manage_progress(self.config,self.clock,pos,gross)
             if pos.strategy in self.strategies else False)
@@ -4461,10 +4462,18 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
         position_action: str,
         existing_position: Position | None,
     ):
+        if self.config.trading_quality_enabled:
+            from .trading_policy import prepare
+            from .risk import RiskResult
+            reason = prepare(self, session, decision)
+            decision.details["tradingRejectReason"] = reason
+            if reason:
+                return RiskResult(False, reason, diagnostics={
+                    "rejectionOwner": "trading_quality", "tradingPolicy": dict(decision.details)})
         decision.details["fundingSnapshot"] = (
             session.funding_public()
         )
-        return self.risk.build_plan(
+        result = self.risk.build_plan(
             session.symbol,
             decision,
             self.broker.balance,
@@ -4490,6 +4499,12 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
                 else 0.0
             ),
         )
+        if self.config.trading_quality_enabled and "remainingMove" in decision.details:
+            decision.details["remainingMove"]["rejectReason"] = None if result.allowed else result.reason
+            decision.details["stopDistance"] = abs((result.plan.market_entry if result.plan else decision.entry) - decision.stop)
+            if result.diagnostics is not None:
+                result.diagnostics["remainingMove"] = dict(decision.details["remainingMove"])
+        return result
 
     def _submit_research_opportunity(self, opportunity) -> bool:
         """Explicit opt-in execution boundary; ordinary paper behavior is unchanged."""

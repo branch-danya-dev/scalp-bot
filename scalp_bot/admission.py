@@ -535,13 +535,19 @@ class AdmissionEngine:
             return
 
         winners = {}
-        for item in sorted(opportunities, key=lambda item: self.router.ready_key(
-                item.session.symbol, item.decision.strategy)):
+        def ready_priority(item):
+            ready = self.router.ready_key(item.session.symbol, item.decision.strategy)
+            if not self.config.trading_quality_enabled:
+                return ready
+            details = item.plan.strategy_details
+            return (-details.get("alignmentPriority", 0), -item.plan.net_reward_risk,
+                    -details.get("crossVenuePriority", 0), -float(details.get("setupQuality", 0)), ready)
+        for item in sorted(opportunities, key=ready_priority):
             symbol = item.session.symbol
             if symbol not in winners:
                 winners[symbol] = item
             else:
-                self.router.reject(symbol, "dispatcher", "earlier_eligible_ready_proposal",
+                self.router.reject(symbol, "dispatcher", "trading_quality_priority" if self.config.trading_quality_enabled else "earlier_eligible_ready_proposal",
                     self.clock.perf_counter_ns()/1e9, strategy=item.decision.strategy)
         ordered = sorted(winners.values(), key=lambda item: item.priority.key(), reverse=True)
         if self.prepared_ranker is not None:

@@ -34,6 +34,10 @@ class DemoReject(SafetyError):
         self.code = int(code)
         super().__init__("Demo API rejection code " + str(self.code))
 
+
+class WriteNotSent(SafetyError):
+    """Local admission failed before the HTTP send; absence is known."""
+
 class DemoRest:
     def __init__(self, credentials, *, enabled=False, base_url=REST, transport=None):
         if not enabled or base_url != REST: raise SafetyError("Demo adapter disabled or host forbidden")
@@ -58,7 +62,9 @@ class DemoRest:
         async with self._lock:
             await asyncio.sleep(max(0, .12 - (time.monotonic() - self._last)))
             self._last = time.monotonic()
-            if method=="POST" and self.before_write is not None:self.before_write(path,params)
+            if method=="POST" and self.before_write is not None:
+                try:self.before_write(path,params)
+                except SafetyError as exc:raise WriteNotSent(str(exc)) from None
             stamp = str(int(time.time()*1000)); window = "5000"
             sign = hmac.new(self.credentials.secret.encode(),
                 (stamp+self.credentials.key+window+query).encode(), hashlib.sha256).hexdigest()

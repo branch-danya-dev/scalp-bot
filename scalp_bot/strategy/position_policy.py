@@ -9,9 +9,13 @@ def should_exit_without_progress(config, clock, pos, gross_mark_original) -> boo
         config,
         pos.strategy,
     )
+    if pos.strategy_details.get("rejectionClass") == "countertrend_reaction":
+        timeout = float(pos.strategy_details["noFollowThroughSeconds"])
     if age < timeout or pos.initial_risk_usd <= 0:
         return False
     current_r = gross_mark_original / pos.initial_risk_usd
+    if pos.strategy_details.get("rejectionClass") == "countertrend_reaction":
+        return pos.mfe_r < config.no_follow_through_max_mfe_r or current_r <= 0
     adverse_r = max(0.0, -current_r)
     weak_start = (
         pos.mfe_r < config.no_follow_through_max_mfe_r

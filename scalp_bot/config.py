@@ -38,6 +38,16 @@ class Settings(BaseSettings):
     trade_receipt_stale_seconds: float = 5.0
 
     start_balance: float = 1_000.0
+    # Opt-in ordinary trading profile. Historical/replay profiles stay unchanged.
+    trading_quality_enabled: bool = False
+    participation_min_notional_ratio: float = 0.75
+    participation_min_trade_rate_ratio: float = 0.75
+    participation_min_volume_pace: float = 0.75
+    participation_min_response_bps: float = 1.0
+    countertrend_reaction_budget_fraction: float = 0.5
+    countertrend_no_follow_through_seconds: float = 20.0
+    countertrend_failure_seconds: float = 1.0
+    cross_venue_min_move_bps: float = 1.0
     e01_breakout_obstacle_veto: bool = False
     e06_conditional_breakout_hold: bool = False
     min_turnover_usd: float = 150_000_000.0
