@@ -175,7 +175,7 @@ async def main(output, seconds, shadow_model, wave2=False):
     from scalp_bot import bybit, engine as engine_module, admission, market_runtime
     output = Path(output)
     output.mkdir(parents=True, exist_ok=False)
-    cfg = settings(output).model_copy(update=dict(paper_run_duration_seconds=seconds,
+    cfg = settings(output).model_copy(update=dict(paper_run_duration_seconds=float(seconds),
         run_label='trading-model-technical-smoke', otel_enabled=False))
     recorder = CaptureRecorder(str(output))
     from scalp_bot import pipeline_evidence

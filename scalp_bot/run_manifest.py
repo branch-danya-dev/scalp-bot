@@ -15,6 +15,29 @@ from .manifest_validation import fingerprint
 from .manifest_schema import PUBLIC_CONFIG_FIELDS, SECRET_CONFIG_FIELDS
 
 
+class _ManifestSettings(Settings):
+    @classmethod
+    def settings_customise_sources(cls, settings_cls, init_settings, env_settings,
+                                  dotenv_settings, file_secret_settings):
+        return (init_settings,)
+
+
+def replay_config_differences(values: dict) -> list[str]:
+    """Check exact JSON representation after validation, without env or secrets.
+
+    model_copy(update=...) does not validate types. Even equal-valued 300 and
+    300.0 have different canonical hashes; discover that before capture begins.
+    Never normalize the recorded values or weaken the strict replay check.
+    """
+    try:
+        restored = _ManifestSettings(_env_file=None, **values,
+                                    bybit_api_key='', bybit_api_secret='')
+        return sorted(key for key in PUBLIC_CONFIG_FIELDS
+                      if key not in values or fingerprint(values[key]) != fingerprint(getattr(restored, key)))
+    except Exception:
+        raise ValueError('configuration is not replay-stable') from None
+
+
 def runtime_provenance() -> dict:
     # Only public name/version metadata; never serialize installation paths or URLs.
     # Uvicorn, pytest and script entry points place the editable repository on
@@ -52,6 +75,9 @@ def build_run_manifest(config: Settings, strategies: dict[str, bool], *,
     # Fail closed if a reviewed public field is changed to a secret/nonprimitive type.
     if any(type(value) not in (str, int, float, bool, type(None)) for value in values.values()):
         raise ValueError("non-public type in run manifest configuration")
+    differences = replay_config_differences(values)
+    if differences:
+        raise ValueError('configuration is not replay-stable: ' + ', '.join(differences))
     config_hash = fingerprint(values)
     enabled = sorted(key for key, value in strategies.items() if value)
     runtime = runtime_provenance()
