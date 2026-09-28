@@ -1,7 +1,7 @@
 """External paper A/B guard. No network clients or automatic launch authority."""
 import asyncio
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import math
 
 from .paper import PaperBroker
@@ -175,16 +175,27 @@ class ExperimentController:
             self.stop("requested_stop")
         if self.state != "STOPPING":
             raise RuntimeError("finalization requires one stopped experiment")
+        errors, snapshots = [], []
         try:
-            await asyncio.wait_for(asyncio.gather(*(arm.finalize() for arm in self.arms)), timeout=90)
-            snapshots = [arm.snapshot() for arm in self.arms]
-            complete = not self.disable_errors and all(s.reconciled and s.healthy and s.pending == 0 and s.positions == 0
-                and math.isfinite(s.balance) and math.isfinite(s.equity) and abs(s.balance-s.equity) < 1e-6 for s in snapshots)
-        except Exception:
-            complete, snapshots = False, []
+            outcomes = await asyncio.wait_for(asyncio.gather(*(arm.finalize() for arm in self.arms),
+                return_exceptions=True), timeout=90)
+            errors.extend(dict(arm="AB"[i], errorType=type(outcome).__name__, reason=str(outcome))
+                for i,outcome in enumerate(outcomes) if isinstance(outcome, BaseException))
+        except Exception as exc:
+            errors.append(dict(arm="both", errorType=type(exc).__name__, reason=str(exc)))
+        for i, arm in enumerate(self.arms):
+            try:
+                snapshots.append(arm.snapshot())
+            except Exception as exc:
+                snapshots.append(None)
+                errors.append(dict(arm="AB"[i], errorType=type(exc).__name__, reason="snapshot: "+str(exc)))
+        complete = not errors and not self.disable_errors and all(s is not None and s.reconciled and s.healthy
+            and s.pending == 0 and s.positions == 0 and math.isfinite(s.balance) and math.isfinite(s.equity)
+            and abs(s.balance-s.equity) < 1e-6 for s in snapshots)
         self.state = "COMPLETED" if complete else "INCOMPLETE"
         result = dict(state=self.state, reason=self.reason,
-            naturalFills=[s.natural_fills for s in snapshots],
+            armSnapshots=[asdict(s) if s is not None else None for s in snapshots], finalizationErrors=errors,
+            naturalFills=[s.natural_fills if s is not None else None for s in snapshots],
             net=[s.balance-1000 for s in snapshots] if complete else None,
             tradingGate="MET" if complete and all(s.natural_fills > 0 for s in snapshots) else "INCONCLUSIVE",
             autoRestart=False)

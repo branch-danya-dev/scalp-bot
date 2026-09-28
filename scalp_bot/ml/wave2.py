@@ -18,6 +18,10 @@ from ..research_journal import ResearchJournal
 from .prepared_labels import PreparedLabelEngine
 
 
+def source_sequence(engine, now):
+    return engine.input_journal.sequence if engine.input_journal else getattr(engine.recorder, "sequence", now)
+
+
 def guarded(method):
     @functools.wraps(method)
     def call(self, *args, **kwargs):
@@ -41,7 +45,7 @@ class Wave2Observer:
         self.cross = CrossVenueRuntime(capture_id)
         self.service = PublicCrossVenueService(self.cross, self.journal)
         self.maker = MakerShadowEngine(config, self.journal.append)
-        self.labels = PreparedLabelEngine(config, self._label)
+        self.labels = PreparedLabelEngine(config, self._label, audit=lambda row:self.journal.append("label_input", row))
         self.registry = None
         self.epochs = defaultdict(int)
         self.last_post = {}
@@ -90,6 +94,7 @@ class Wave2Observer:
             funding=session.funding_public(), sourceSequence=row["source"]["source_sequence"],
             bookFresh=session.book_is_fresh(), depthFresh=session.deep_book_is_fresh(),
             planMeaning="frozen_first_prepared_structural_plan_unreserved",
+            instrument=asdict(session.instrument) if session.instrument is not None else None,
             sourceCaptureId=self.capture_id, epoch=self.epochs[session.symbol])
         self.journal.append("prepared", prepared)
         self.labels.add(prepared)
@@ -103,7 +108,7 @@ class Wave2Observer:
             book = session.orderbook
             event = VenueEvent(self.capture_id, "bybit", session.symbol, epoch, "quote",
                 int(message.cts or message.ts or 0), message.receipt_wall_ns//1_000_000,
-                message.receipt_mono_ns, now, engine.input_journal.sequence if engine.input_journal else now,
+                message.receipt_mono_ns, now, source_sequence(engine, now),
                 book.best_bid, book.best_ask, book.bids[0][1], book.asks[0][1], units_verified=session.instrument is not None)
             accepted = self.cross.ingest(event)
             self.journal.append("venue_event", dict(event=asdict(event), accepted=accepted))
@@ -111,7 +116,7 @@ class Wave2Observer:
         book = session.depth_orderbook()
         self.maker.book(session.symbol, epoch=epoch, now_ns=now, book=book, depth_fresh=fresh)
         self.labels.market(session.symbol, now_ns=now, wall_ms=int(engine.clock.time()*1000),
-            sequence=engine.input_journal.sequence if engine.input_journal else now, epoch=epoch,
+            sequence=source_sequence(engine, now), epoch=epoch,
             book=session.orderbook, depth=book, fresh=fresh,
             exchange_ms=session.latest_processed_event_ms, funding=session.funding_public())
         if not fast or not fresh or now-self.last_post.get(session.symbol, 0) < 1_000_000_000:
@@ -120,20 +125,35 @@ class Wave2Observer:
         instrument = session.instrument
         if instrument is None:
             return
+        external = self.cross.snapshot(session.symbol, now)
+        context = session.market_context
+        local = context.local_regime if context else None
+        flow = context.flow if context else None
+        bybit = external["venues"]["bybit"]
+        bid_qty, ask_qty = session.orderbook.bids[0][1], session.orderbook.asks[0][1]
         for side in ("long", "short"):
             normalized = instrument.normalize_quantity(entry_price=session.orderbook.mid,
                 requested_notional=100., market_order=False)
             if normalized:
                 self.maker.post(session.symbol, side, epoch=epoch, now_ns=now,
-                    sequence=engine.input_journal.sequence if engine.input_journal else now,
+                    sequence=source_sequence(engine, now),
                     exchange_ms=session.latest_processed_event_ms, book=session.orderbook,
-                    quantity=normalized[0], depth_fresh=fresh)
+                    quantity=normalized[0], depth_fresh=fresh,
+                    context=dict(asOfMonoNs=now, sourceSequence=source_sequence(engine, now),
+                        contextObservedMs=context.observed_at_ms if context else None,
+                        crossVenueAlignment=alignment(external, side), crossVenue=external,
+                        ofiUsd=bybit.get("ofiUsd"),tradeImpulse=bybit.get("tradeImpulse"),
+                        imbalance=(bid_qty-ask_qty)/(bid_qty+ask_qty) if bid_qty+ask_qty else None,
+                        regime=local.regime.value if local else None,
+                        volatilityPct=local.recent_range_pct if local else None,
+                        volatilityMeaning="last_causal_local_recent_range_pct",
+                        depthFresh=fresh,flow=flow.public() if flow else None))
 
     @guarded
     def trade(self, engine, session, message, tick):
         now = engine.clock.perf_counter_ns()
         epoch = self.epochs[session.symbol]
-        sequence = engine.input_journal.sequence if engine.input_journal else now
+        sequence = source_sequence(engine, now)
         self.maker.trade(session.symbol, epoch=epoch, now_ns=now, sequence=sequence,
             tick_sequence=tick.sequence, exchange_ms=tick.ts_ms, price=tick.price, quantity=tick.size,
             aggressor=tick.side, depth_fresh=session.deep_book_is_fresh() and session.book_is_fresh())

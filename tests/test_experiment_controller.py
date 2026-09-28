@@ -41,6 +41,7 @@ def test_missing_hash_blocks_start(key):
 
 
 @pytest.mark.parametrize("equity_a,equity_b,reason", [(969, 1000, "fixed_loss_or_drawdown_A"),
+    (1000, 970, "fixed_loss_or_drawdown_B"),
     (990, 989.999, "additional_B_drawdown"), (1000, float("nan"), "arm_health_or_unknown_equity")])
 def test_fixed_and_relative_stops_stop_both(equity_a, equity_b, reason):
     c, a, b, p, hashes, clock = fixture()

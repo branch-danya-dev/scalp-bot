@@ -87,7 +87,7 @@ async def measure(rows,manifest,output,model,*,shadow,speed,start_ns):
     engine=StudyEngine(Settings(_env_file=None,**manifest['config']),clock=clock,recorder=recorder,
                        rest_client=_DeniedRest(),configure_observability=False)
     trace=PipelineTrace(engine,start_ns,speed);trace.install();engine._benchmark_trace=trace
-    worker=InferenceWorker(model) if shadow else None
+    worker=InferenceWorker(model, trace=trace.worker_timing) if shadow else None
     if worker:trace.bind_worker(worker)
     adapter=ShadowAdapter(json.loads((Path(model)/'manifest.json').read_text())) if shadow else None
     times=defaultdict(list);reasons=Counter();current={};finish={};observed=0;resources=None
@@ -137,6 +137,8 @@ async def measure(rows,manifest,output,model,*,shadow,speed,start_ns):
             decision,why=adapter.accept(forecast,current[session.symbol],received,quote=session.orderbook.best_ask,instrument=session.instrument)
             terminal=time.perf_counter_ns();reasons.update(why or ('proposal',))
             prediction.update(adapter_start_ns=received,adapter_end_ns=terminal,terminal_ns=terminal,terminal='proposal' if decision is not None else '|'.join(why))
+            if 'pipeline' in prediction:
+                prediction['pipeline'].update(feature_ready_ns=prediction['feature_end_ns'], adapter_end_ns=terminal)
             times['adapter_runtime_ms'].append((terminal-received)/1e6)
             times['data_to_adapter_ms'].append((terminal-forecast.source.available_mono_ns)/1e6)
             times['legacy_data_to_adapter_ms'].append((terminal-prediction['legacy_available_ns'])/1e6)
@@ -210,6 +212,8 @@ async def measure(rows,manifest,output,model,*,shadow,speed,start_ns):
             source_clock_scope='real scheduled deadline preserved through generator/queue; periodic evaluation uses last applied symbol input, not next event')
         measurements=Path(output).with_suffix('.measurements.json');measurements.write_text(json.dumps(dict(times),separators=(',',':'))+'\n')
         stages=Path(output).with_suffix('.stages.json');stages.write_text(json.dumps(trace.public(),separators=(',',':'))+'\n')
+        from .pipeline_evidence import summarize
+        report['pipelineAttribution'] = summarize([p['pipeline'] for p in trace.predictions.values() if 'pipeline' in p])
         report.update(measurements_path=str(measurements.resolve()),stages_path=str(stages.resolve()),absolute_event_loop_pass=report['metrics']['event_loop_lateness_ms']['p99']<=20)
         terminals=report['metrics'].get('data_to_terminal_ms',{}).get('p99')
         report['adapter_budget_pass']=terminals<=250 if terminals is not None else None

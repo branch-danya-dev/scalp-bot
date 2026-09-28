@@ -64,6 +64,7 @@ class MarketMessage(msgspec.Struct):
     receipt_wall_ns: int = 0
     receipt_mono_ns: int = 0
     parsed_mono_ns: int = 0
+    enqueued_mono_ns: int = 0
     processor_started_mono_ns: int = 0
     book_updated_mono_ns: int = 0
     features_ready_mono_ns: int = 0
@@ -758,6 +759,14 @@ StreamCallback = Callable[
 ]
 
 
+class _DiagnosticMarketQueue(asyncio.Queue):
+    def _put(self, message):
+        from . import pipeline_evidence
+        if pipeline_evidence.market_sink is not None:
+            message.enqueued_mono_ns = perf_counter_ns()
+        super()._put(message)
+
+
 async def _process_market_queue(
     queue: asyncio.Queue[MarketMessage],
     callback: StreamCallback,
@@ -845,9 +854,14 @@ async def _process_market_queue(
                 ):
                     await callback(message)
         finally:
-            if active_root is not None:
-                active_root.end()
-            queue.task_done()
+            try:
+                from . import pipeline_evidence
+                if pipeline_evidence.market_sink is not None:
+                    pipeline_evidence.market_sink(pipeline_evidence.market_record(message, perf_counter_ns()))
+            finally:
+                if active_root is not None:
+                    active_root.end()
+                queue.task_done()
 
         # A ready asyncio.Queue.get() and a CPU-only callback do not suspend.
         # Preserve FIFO application, but let clocks, other symbols and worker
@@ -930,7 +944,7 @@ async def _stream_topics(
                     }),
                     text=True,
                 )
-                queue = asyncio.Queue(
+                queue = _DiagnosticMarketQueue(
                     maxsize=max(1, int(queue_size)),
                 )
                 notify("subscription_sent")

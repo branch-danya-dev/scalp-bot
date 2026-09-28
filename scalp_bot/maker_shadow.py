@@ -5,6 +5,7 @@ aggressor, strict trade-through and public traded quantity. Cancellation never
 depletes queue. Markouts are executable-liquidation diagnostics, not spread PnL.
 """
 from dataclasses import dataclass, field, asdict
+from copy import deepcopy
 import math
 
 from .domain import Side
@@ -31,6 +32,7 @@ class MakerCandidate:
     first_fill_ns: int | None = None
     lots: list = field(default_factory=list)
     cancel_reason: str | None = None
+    context: dict | None = None
 
 
 class MakerShadowEngine:
@@ -44,7 +46,7 @@ class MakerShadowEngine:
         self.observing = {}
         self.serial = 0
 
-    def post(self, symbol, side, *, epoch, now_ns, sequence, exchange_ms, book, quantity, depth_fresh):
+    def post(self, symbol, side, *, epoch, now_ns, sequence, exchange_ms, book, quantity, depth_fresh, context=None):
         if side not in {"long", "short"} or any(c.symbol == symbol and c.side == side for c in self.observing.values()):
             return None
         if not depth_fresh or not book.bids or not book.asks or not 0 < book.best_bid < book.best_ask:
@@ -58,6 +60,7 @@ class MakerShadowEngine:
             now_ns, sequence, exchange_ms, price, quantity, queue,
             (book.best_ask-book.best_bid)/book.mid*10000, quantity, queue)
         self.active[(symbol, side)] = candidate
+        candidate.context = deepcopy(context)
         self.observing[candidate.identity] = candidate
         self.emit("maker_candidate", dict(**asdict(candidate), wouldPostPrice=price,
             queueAheadEstimate=queue, mode="shadow", queueEstimateError=None,

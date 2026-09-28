@@ -6,7 +6,7 @@ from pathlib import Path
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("replay", "study", "evaluate", "train", "test"))
+    parser.add_argument("command", choices=("replay", "study", "evaluate", "ablation", "train", "test"))
     parser.add_argument("source", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("--protocol", type=Path)
@@ -34,6 +34,9 @@ def main():
             elif args.command == "evaluate":
                 from scalp_bot.ml.prepared_learning import evaluate
                 result = evaluate(rows, protocol, evidence=evidence)
+            elif args.command == "ablation":
+                from scalp_bot.ml.prepared_learning import evaluate_ablation
+                result = evaluate_ablation(rows, protocol, evidence=evidence)
             else:
                 from scalp_bot.ml.cross_venue_study import study
                 result = study(rows, protocol["windows"], embargo_ms=protocol["embargo_ms"])

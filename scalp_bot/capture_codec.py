@@ -3,6 +3,7 @@ import gzip
 import multiprocessing
 import os
 import pickle
+import time
 
 import msgspec
 
@@ -27,14 +28,19 @@ def _worker(connection):
             rows = pickle.loads(connection.recv_bytes(64 * 1024**2))
             if rows is None:
                 return
+            started = time.perf_counter_ns()
             chains = _chains(rows)
             hashed = sum(isinstance(row.get('payload'), DEFERRED_ROWS) for row in rows)
             data = b''.join(encoder.encode(resolve_journal_row(row))+b'\n' for row in rows)
+            encoded = time.perf_counter_ns()
             # Independent gzip members are a standard gzip stream; readers
             # recover exactly the original concatenated JSONL bytes.
-            connection.send(dict(data=gzip.compress(data, compresslevel=1, mtime=0),
+            compressed = gzip.compress(data, compresslevel=1, mtime=0)
+            finished = time.perf_counter_ns()
+            connection.send(dict(data=compressed,
                 chainHashes=[chain.previous_hash for chain in chains],
-                encodedBytes=len(data), hashedRows=hashed))
+                encodedBytes=len(data), hashedRows=hashed,
+                codecTiming=dict(workerStartNs=started,hashJsonEndNs=encoded,gzipEndNs=finished)))
     except (EOFError, BrokenPipeError, OSError):
         return
     except Exception as exc:
@@ -71,10 +77,13 @@ class CaptureCodec:
 
     def encode(self, rows):
         chains = _chains(rows)
+        started = time.perf_counter_ns()
         self.connection.send(rows)
+        sent = time.perf_counter_ns()
         if not self.connection.poll(10):
             raise TimeoutError('capture codec response timeout')
         result = pickle.loads(self.connection.recv_bytes(65 * 1024**2))
+        result.setdefault('codecTiming', {}).update(parentStartNs=started,parentSentNs=sent,parentReceivedNs=time.perf_counter_ns())
         if result.get('error'):
             self.error = result['error']
             raise RuntimeError('capture codec failed: '+self.error)

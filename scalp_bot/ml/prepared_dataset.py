@@ -82,7 +82,9 @@ def purged_walk_forward(rows, windows, *, embargo_ms=60_000, held_out_symbols=()
                 validation.append(i)
             elif left <= start < right:
                 purged.append(i)
-        validation_episodes = {rows[i]["episode"] for i in validation}
+        # Embargoed and right-censored future members still belong to the same
+        # episode. Purging only selected validation rows leaks their past members.
+        validation_episodes = {r["episode"] for r in rows if r["label_end_wall_ms"] >= split-embargo_ms}
         leaking = [i for i in train if rows[i]["episode"] in validation_episodes]
         train = [i for i in train if i not in leaking]
         folds.append(dict(train=train, validation=validation, purged=sorted(purged+leaking),

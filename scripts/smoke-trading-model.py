@@ -19,7 +19,7 @@ class ShadowProbe:
         from scalp_bot.ml.worker import InferenceWorker
         from scalp_bot.ml.shadow import ShadowAdapter
         self.bot, self.stages = bot, stages
-        self.worker = InferenceWorker(model)
+        self.worker = InferenceWorker(model, trace=self._timed)
         self.adapter = ShadowAdapter(json.loads((Path(model)/'manifest.json').read_text()))
         self.source, self.current, self.grid = {}, {}, {}
         self.queue = deque(maxlen=32)
@@ -64,10 +64,15 @@ class ShadowProbe:
                 if len(self.queue) == self.queue.maxlen:
                     self.counts['queue_full'] += 1
                 else:
-                    self.queue.append((snapshot, side))
+                    self.queue.append((snapshot, side, after))
             bot.recorder.record('shadow_features', session.symbol, dict(source=asdict(ref),
                 features=snapshot.values, featureEndNs=after))
         bot._evaluate = evaluated
+
+    def _timed(self, row):
+        # Completed forecasts are emitted after the adapter's decision below.
+        if row['terminal'] != 'forecast':
+            self.bot.recorder.record('pipeline_worker', row['identity'][1], row)
 
     def poll(self):
         for item in self.worker.poll():
@@ -87,16 +92,24 @@ class ShadowProbe:
                     self.current.get(session.symbol, forecast.source), received,
                     quote=session.orderbook.executable_entry(Side(forecast.side)), instrument=session.instrument)
             terminal = time.perf_counter_ns()
+            if isinstance(item[-1], dict) and 'pipelineTiming' in item[-1]:
+                timing=dict(item[-1]['pipelineTiming'],adapter_end_ns=terminal)
+                self.bot.recorder.record('pipeline_worker', forecast.source.symbol,timing)
             self.stages['data_to_adapter'].append((terminal-forecast.source.available_mono_ns)/1e6)
             self.counts.update(reasons or ('shadow_proposal_never_executed',))
             self.bot.recorder.record('shadow_forecast', forecast.source.symbol,
                 dict(forecast=asdict(forecast), reasons=reasons, receivedNs=received, adapterEndNs=terminal))
         if self.worker.ready and not self.worker.inflight and not self.worker.latest and self.queue:
-            snapshot, side = self.queue.popleft()
+            snapshot, side, feature_end = self.queue.popleft()
             if time.perf_counter_ns()-snapshot.ref.available_mono_ns < 1_000_000_000:
-                self.counts['submitted' if self.worker.submit(snapshot, side) else 'submit_rejected'] += 1
+                self.counts['submitted' if self.worker.submit(snapshot, side, feature_ready_ns=feature_end,
+                    probe_queued_ns=feature_end,probe_queue_depth=len(self.queue)) else 'submit_rejected'] += 1
             else:
                 self.counts['queue_expired'] += 1
+                self.bot.recorder.record('pipeline_worker',snapshot.ref.symbol,dict(
+                    identity=[snapshot.ref.capture_id,snapshot.ref.symbol,snapshot.ref.selection_epoch,snapshot.ref.source_sequence,side],
+                    available_ns=snapshot.ref.available_mono_ns,feature_ready_ns=feature_end,
+                    terminal='probe_queue_expired',terminal_ns=time.perf_counter_ns()))
 
 
 def assess_smoke(result):
@@ -165,6 +178,9 @@ async def main(output, seconds, shadow_model, wave2=False):
     cfg = settings(output).model_copy(update=dict(paper_run_duration_seconds=seconds,
         run_label='trading-model-technical-smoke', otel_enabled=False))
     recorder = CaptureRecorder(str(output))
+    from scalp_bot import pipeline_evidence
+    previous_market_sink = pipeline_evidence.market_sink
+    pipeline_evidence.market_sink = lambda row:recorder.record('pipeline_market',None,row)
     prepared = PreparedDatasetCollector(output/'prepared-intents.jsonl')
     bot = TradingEngine(cfg, recorder=recorder, rest_client=PublicRest(cfg),
                         capture_inputs=True, configure_observability=False, prepared_collector=prepared)
@@ -268,6 +284,7 @@ async def main(output, seconds, shadow_model, wave2=False):
             worker=probe.worker.info,
             modelSha256=__import__('hashlib').sha256((Path(shadow_model)/'model.cbm').read_bytes()).hexdigest()) if probe else None
         result['wave2'] = research.health() if research else {}
+        pipeline_evidence.market_sink = previous_market_sink
         result['acceptance'] = assess_smoke(result)['status']
         result['gates'] = assess_smoke(result)
         (output/'result.json').write_text(json.dumps(result,indent=2,default=str)+'\n')

@@ -21,6 +21,8 @@ def digest(value):
 def verify_dataset_evidence(rows, evidence):
     if not evidence or evidence.get("datasetHash") != digest(rows) or evidence.get("trainingReady") is not True:
         raise ValueError("verified dataset evidence required before fitting/testing")
+    from .dataset_promotion import require_population
+    require_population(rows, evidence)
     for capture in {r["capture_id"] for r in rows}:
         proof = evidence.get("captures", {}).get(capture, {})
         if proof.get("primaryIntegrity") != "MET" or proof.get("labelReplay") != "MET":
@@ -51,9 +53,13 @@ def eligible(rows):
     return result
 
 
-def matrix(rows):
+def matrix(rows, feature_set="bybit_cross_venue"):
     import numpy as np
+    if feature_set not in {"bybit_only", "bybit_cross_venue"}:
+        raise ValueError("unknown frozen feature set")
     def values(row):
+        if feature_set == "bybit_only":
+            return row["features"]+[1 if row["side"] == "long" else -1]
         cross = row.get("crossVenue", {})
         extra = []
         for venue in ("binance", "okx"):
@@ -84,7 +90,13 @@ def splits(rows, window, embargo_ms, held_out=()):
         heldOutValidation=[i for i in valid if rows[i]["symbol"] in held_out])
 
 
-def fit(rows, split, kind):
+def fit(rows, split, kind, *, evidence=None):
+    verify_dataset_evidence(rows, evidence)
+    return _fit_baseline(rows, split, kind)
+
+
+def _fit_baseline(rows, split, kind, *, feature_set="bybit_cross_venue"):
+    """Numerical primitive; production entry points validate population first."""
     import numpy as np
     from sklearn.linear_model import LogisticRegression, Ridge
     from threadpoolctl import threadpool_limits
@@ -92,7 +104,7 @@ def fit(rows, split, kind):
     calibration = [rows[i] for i in split["calibration"]]
     if len(training) < 30 or len(calibration) < 30 or any(len({r["target_before_stop"] for r in rs}) < 2 for rs in (training, calibration)):
         raise ValueError("insufficient fitting/calibration classes or samples")
-    raw = matrix(training)
+    raw = matrix(training, feature_set)
     medians = np.array([np.median(c[~np.isnan(c)]) if (~np.isnan(c)).any() else 0 for c in raw.T])
     filled = np.where(np.isnan(raw), medians, raw)
     scale = filled.std(axis=0)
@@ -114,16 +126,16 @@ def fit(rows, split, kind):
     with threadpool_limits(limits=1):
         classifier.fit(x, y)
         ranker.fit(x, net)
-        cx = transform(matrix(calibration), prep)
+        cx = transform(matrix(calibration, feature_set), prep)
         p = np.clip(classifier.predict_proba(cx)[:, 1], 1e-9, 1-1e-9)
         calibrator = LogisticRegression(C=1, random_state=1729)
         calibrator.fit(np.log(p/(1-p)).reshape(-1, 1), [int(r["target_before_stop"]) for r in calibration])
-    return dict(kind=kind, classifier=classifier, ranker=ranker, calibrator=calibrator, preprocessing=prep)
+    return dict(kind=kind, featureSet=feature_set, classifier=classifier, ranker=ranker, calibrator=calibrator, preprocessing=prep)
 
 
 def predict(model, rows):
     import numpy as np
-    x = transform(matrix(rows), model["preprocessing"])
+    x = transform(matrix(rows, model.get("featureSet","bybit_cross_venue")), model["preprocessing"])
     p = np.clip(model["classifier"].predict_proba(x)[:, 1], 1e-9, 1-1e-9)
     return model["calibrator"].predict_proba(np.log(p/(1-p)).reshape(-1, 1))[:, 1], model["ranker"].predict(x)
 
@@ -184,7 +196,7 @@ def evaluate(rows, protocol, evidence=None):
                 try:
                     if len(valid) < 30:
                         raise ValueError("insufficient validation membership")
-                    model = fit(rows, split, kind)
+                    model = _fit_baseline(rows, split, kind)
                     item.update(status="evaluated", metrics=report(valid, *predict(model, valid)))
                 except ValueError as exc:
                     item.update(status="INCONCLUSIVE", reason=str(exc))
@@ -197,6 +209,9 @@ def evaluate(rows, protocol, evidence=None):
 def train_frozen(rows, protocol, output, *, kind, evidence=None):
     """Explicit selected baseline; save artifacts before any untouched-test access."""
     verify_dataset_evidence(rows, evidence)
+    feature_set = protocol.get("selected_feature_set")
+    if feature_set not in {"bybit_only", "bybit_cross_venue"}:
+        raise ValueError("preregistered feature/source selection required before frozen fit")
     import numpy as np
     rows = eligible(rows)
     if protocol["embargo_ms"] < 60_000 or len({r["capture_id"] for r in rows}) < 3 or len({r["symbol"] for r in rows}) < 2:
@@ -204,7 +219,7 @@ def train_frozen(rows, protocol, output, *, kind, evidence=None):
     if any(r["capture_id"] in set(protocol["untouched_test_captures"]) for r in rows):
         raise ValueError("test capture present in fitting data")
     split = splits(rows, protocol["final_window"], protocol["embargo_ms"])
-    model = fit(rows, split, kind)
+    model = _fit_baseline(rows, split, kind, feature_set=feature_set)
     output = Path(output)
     output.mkdir(parents=True, exist_ok=False)
     if kind == "catboost":
@@ -214,7 +229,7 @@ def train_frozen(rows, protocol, output, *, kind, evidence=None):
         np.savez(output/"linear.npz", classifier_coef=model["classifier"].coef_,
             classifier_intercept=model["classifier"].intercept_, ranker_coef=model["ranker"].coef_,
             ranker_intercept=model["ranker"].intercept_)
-    metadata = dict(kind=kind, datasetHash=digest(rows), datasetEvidenceHash=digest(evidence), protocolHash=digest(protocol), splitHash=digest(split),
+    metadata = dict(kind=kind, featureSet=feature_set, datasetHash=digest(rows), datasetEvidenceHash=digest(evidence), protocolHash=digest(protocol), splitHash=digest(split),
         preprocessing=model["preprocessing"], calibration=dict(coef=model["calibrator"].coef_.tolist(),
             intercept=model["calibrator"].intercept_.tolist()),
         files={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in output.iterdir()},
@@ -245,7 +260,7 @@ def evaluate_test(rows, model_dir, evidence=None):
     # Reserve first, so failed attempts cannot be silently overwritten or retried.
     with (directory/"test-receipt.json").open("x", encoding="utf-8") as receipt:
         receipt.write(json.dumps(dict(status="STARTED", modelHash=expected, datasetHash=digest(rows))))
-    x = transform(matrix(rows), metadata["preprocessing"])
+    x = transform(matrix(rows, metadata["featureSet"]), metadata["preprocessing"])
     if metadata["kind"] == "catboost":
         from catboost import CatBoostClassifier, CatBoostRegressor
         classifier, ranker = CatBoostClassifier(), CatBoostRegressor()
@@ -264,3 +279,34 @@ def evaluate_test(rows, model_dir, evidence=None):
         promotionAuthorized=False, status="evaluated_once")
     (directory/"test-receipt.json").write_text(json.dumps(result, indent=2)+"\n")
     return result
+
+
+def evaluate_ablation(raw_rows, protocol, evidence=None):
+    """Same folds/labels/intents, Bybit-only versus Bybit+external features."""
+    verify_dataset_evidence(raw_rows,evidence)
+    rows=eligible(raw_rows)
+    reserved=set(protocol["untouched_test_captures"])
+    if not reserved or any(r["capture_id"] in reserved for r in rows) or protocol["embargo_ms"]<60_000:
+        raise ValueError("independent reserved test and preregistered embargo required")
+    results=[]
+    for number,window in enumerate(protocol["windows"]):
+        for held in [None]+sorted({r["symbol"] for r in rows}):
+            split=splits(rows,window,protocol["embargo_ms"],(held,) if held else ())
+            indices=split["heldOutValidation"] if held else split["validation"]
+            validation=[rows[i] for i in indices]
+            membership=digest([(r["capture_id"],r["identity"]) for r in validation])
+            for kind in ("logistic","catboost"):
+                for feature_set in ("bybit_only","bybit_cross_venue"):
+                    item=dict(fold=number,heldOutSymbol=held,kind=kind,featureSet=feature_set,
+                        splitHash=digest(split),membershipHash=membership)
+                    try:
+                        if len(validation)<30:raise ValueError("insufficient validation membership")
+                        model=_fit_baseline(rows,split,kind,feature_set=feature_set)
+                        probabilities,scores=predict(model,validation)
+                        item.update(status="evaluated",metrics=report(validation,probabilities,scores),
+                            ranked=[dict(capture_id=r["capture_id"],identity=r["identity"],score=float(score),
+                                wouldVeto=bool(score<0)) for r,score in zip(validation,scores,strict=True)])
+                    except ValueError as exc:item.update(status="INCONCLUSIVE",reason=str(exc))
+                    results.append(item)
+    return dict(schema="prepared-v3-identical-ablation-v1",datasetHash=digest(raw_rows),protocolHash=digest(protocol),
+        folds=results,portfolioReplay="NOT_TESTED",promotionAuthorized=False,testEvaluated=False)

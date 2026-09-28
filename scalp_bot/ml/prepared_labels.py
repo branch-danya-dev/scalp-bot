@@ -59,6 +59,7 @@ class PreparedPath:
         self.mfe_r = self.mae_r = 0.0
         self.mfe_ns = None
         self.first_target_ns = self.first_stop_ns = None
+        self.entry_depth = None
 
     def _time(self, now_ns, wall_ms):
         if now_ns < self.last_ns:
@@ -76,6 +77,7 @@ class PreparedPath:
         return self.finished
 
     def _result(self, now_ns, wall_ms, *, censor_reason=None, trade=None):
+        from .dataset_promotion import digest
         trade = trade or {}
         risk = trade.get("initialRiskUsd")
         net = trade.get("netPnl")
@@ -83,6 +85,10 @@ class PreparedPath:
         return dict(identity=self.row["identity"], source=self.row["source"], symbol=self.plan.symbol,
             strategy=self.plan.strategy, side=self.plan.side.value, segment=self.prepared["segment"],
             capture_id=self.row["source"]["capture_id"],
+            economicsAllowed=self.prepared.get("economicsAllowed", True),
+            wall_time_provenance=self.row.get("wall_time_provenance"),
+            planHash=digest(self.prepared["frozenPlan"]),
+            sourcePlanIdentity=digest([self.row["source"],self.prepared["frozenPlan"]]),
             episode=self.plan.symbol+":"+self.plan.strategy+":"+(self.row["intent"].get("episode_key")
                 or self.row["source"]["capture_id"]+":"+self.row["identity"]),
             features=self.row["features"], crossVenue=self.prepared["crossVenue"],
@@ -104,6 +110,7 @@ class PreparedPath:
             exit_reason=reason or None, policyHash=self.policy.digest,
             cost_fill_provenance=dict(executor="PaperBroker", events=self.events, trade=trade,
                 frozenPlan=self.prepared["frozenPlan"], entryLatencyMs=self.policy.entry_latency_ms,
+                entryDepth=self.entry_depth, instrument=self.prepared.get("instrument"),
                 entrySequence=self.submitted_sequence, scope="independent_label_not_portfolio"),
             trainingReady=censor_reason is None and bool(risk), portfolioPnl=None)
 
@@ -144,6 +151,9 @@ class PreparedPath:
             if price is None or available < quantity-1e-10:
                 return self.censor("entry_depth", now_ns, wall_ms)
             self.submitted_sequence = sequence
+            self.entry_depth = dict(sequence=sequence, epoch=epoch, nowNs=now_ns,
+                exchangeMs=exchange_ms, fresh=fresh, quantity=quantity, availableQuantity=available,
+                entryVwap=price, book=asdict(book), depth=asdict(depth))
             try:
                 if self.plan.entry_mode == "maker_limit":
                     self.broker.place_pending(self.plan, min_trade_ts_ms=exchange_ms)
@@ -217,12 +227,15 @@ class PreparedPath:
 
 
 class PreparedLabelEngine:
-    def __init__(self, config, emit, policy=None):
+    def __init__(self, config, emit, policy=None, *, audit=None):
         self.config, self.emit = config, emit
         self.policy = policy or LabelPolicy()
         self.pending = {}
+        self.audit = audit
 
     def add(self, prepared):
+        if self.audit:
+            self.audit(dict(method="add", prepared=deepcopy(prepared), policy=asdict(self.policy)))
         row = prepared["row"]
         if not prepared["economicsAllowed"]:
             self.emit("prepared_censored", dict(identity=row["identity"], source=row["source"],
@@ -235,6 +248,9 @@ class PreparedLabelEngine:
             self.pending[row["identity"]] = path
 
     def market(self, symbol, **kwargs):
+        if self.audit and any(p.plan.symbol == symbol for p in self.pending.values()):
+            import msgspec
+            self.audit(dict(method="market", symbol=symbol, arguments=msgspec.to_builtins(kwargs)))
         for identity, path in list(self.pending.items()):
             if path.plan.symbol == symbol:
                 self._done(identity, path.advance(**kwargs))
@@ -242,9 +258,19 @@ class PreparedLabelEngine:
     def context(self, session, **kwargs):
         for identity, path in list(self.pending.items()):
             if path.plan.symbol == session.symbol:
-                self._done(identity, path.context(session, **kwargs))
+                if self.audit:
+                    from .label_replay import ContextObservation
+                    observed = ContextObservation(session)
+                    result = path.context(observed, **kwargs)
+                    self.audit(dict(method="context", identity=identity, arguments=kwargs,
+                        session=observed.payload()))
+                else:
+                    result = path.context(session, **kwargs)
+                self._done(identity, result)
 
     def invalidate(self, symbol, reason, now_ns, wall_ms):
+        if self.audit and any(p.plan.symbol == symbol for p in self.pending.values()):
+            self.audit(dict(method="invalidate", symbol=symbol, reason=reason, now_ns=now_ns, wall_ms=wall_ms))
         for identity, path in list(self.pending.items()):
             if path.plan.symbol == symbol:
                 self._done(identity, path.censor(reason, now_ns, wall_ms))

@@ -26,6 +26,7 @@ async def test_one_capture_records_prepared_segment_maker_cross_context_and_repl
     engine = TradingEngine(cfg, clock=clock, prepared_collector=collector)
     observer = Wave2Observer(tmp_path/"research.gz", engine.recorder.path.name, cfg, {"config":"fixture"})
     engine.research_observer = observer
+    engine.recorder.sequence = 17
     book = OrderBook([(100., 1000)], [(100.01, 1000)])
     session = ActiveSymbolSession("AAAUSDT", clock=clock, orderbook=book, last_price=100,
         book_synced=True, last_book_at=120., last_market_at=120., market_context=replace(context(), symbol="AAAUSDT"),
@@ -52,6 +53,10 @@ async def test_one_capture_records_prepared_segment_maker_cross_context_and_repl
     assert result["prepared"] == 1 and result["crossVenueReplay"] == "MET"
     assert result["counts"]["maker_candidate"] == 2
     assert not result["trainingReady"]  # native label parity/primary chain still required
+    from scalp_bot.research_journal import read_research
+    bybit_events = [r["body"]["event"] for r in read_research(tmp_path/"research.gz")
+        if r["kind"] == "venue_event" and r["body"]["event"]["venue"] == "bybit"]
+    assert bybit_events[0]["sequence"] == 17
 
 
 def test_ranker_identity_expiry_model_and_shadow_do_not_change_authority():

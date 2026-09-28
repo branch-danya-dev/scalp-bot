@@ -1,6 +1,6 @@
 import pytest
 pytest.importorskip("sklearn")
-from scalp_bot.ml.prepared_learning import eligible, splits, fit, predict, report, evaluate
+from scalp_bot.ml.prepared_learning import eligible, splits, _fit_baseline as fit, predict, report, evaluate
 
 
 def rows():
