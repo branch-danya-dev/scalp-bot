@@ -22,9 +22,8 @@ try {
         $summary = Join-Path $Output "summary.json"
         if (-not (Test-Path -LiteralPath $summary)) { throw "Wait for finalization; summary.json is missing." }
         if (-not (Get-Content -LiteralPath $summary -Raw | ConvertFrom-Json).finalized) { throw "Finalization incomplete; inspect the retained run before archiving." }
-        $archivePath = $Output + ".zip"
-        Compress-Archive -LiteralPath $Output -DestinationPath $archivePath
-        Write-Host $archivePath
+        & $pythonPath (Join-Path $PSScriptRoot "archive-trading-run.py") $Output
+        if ($LASTEXITCODE -ne 0) { throw "Archive failed; original run files are retained." }
         return
     }
     if ($Smoke -and ($Mode -ne "Paper" -or $Action -ne "Start")) { throw "Smoke is only valid for Paper Start." }

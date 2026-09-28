@@ -156,6 +156,7 @@ def policy_fixture(tmp_path, direction=Trend.UP, regime="bullish_trend", resista
     rows=[TradeTick(82000+i*1000,100,1,"Sell") for i in range(10)]
     rows += [TradeTick(96000+i*500,100+i*.01,30,"Buy") for i in range(8)]
     session=NS(symbol="AAAUSDT",market_context=ctx,trades=rows,
+        orderbook=OrderBook(bids=[(99.99,100)],asks=[(100.,100)]),
         candles=[NS(turnover=120000,confirmed=True)]*20)
     engine=NS(config=settings(tmp_path),clock=NS(time=lambda:100,perf_counter_ns=lambda:10**11))
     return engine,session
@@ -202,6 +203,28 @@ def test_countertrend_position_exits_on_continued_opposing_bybit_flow():
         opened_at=100,strategy_details={"rejectionClass":"countertrend_reaction"},decision=None,
         trend=Trend.DOWN,last_price=100,market_context=context,observed_at_ms=101000)
     assert reason=="countertrend_continuation_resumed"
+
+
+def test_broader_flow_blocks_reaction_even_after_brief_five_second_flip(tmp_path):
+    from scalp_bot.trading_policy import prepare
+    e,s=policy_fixture(tmp_path,direction=Trend.DOWN,regime="bearish_trend")
+    s.market_context=replace(s.market_context,flow=NS(horizons={
+        5:NS(trade_count=10,trade_imbalance=.5),
+        15:NS(trade_count=50,trade_imbalance=-.5),
+        60:NS(trade_count=200,trade_imbalance=-.3)}))
+    d=decision(strategy="weak_level_rejection");d.details.update(attackAbsorbed=True,microResponseReady=True)
+    assert prepare(e,s,d)=="countertrend_flow_continues_against_reaction"
+
+
+def test_positive_sub_dollar_scalp_is_not_rejected_by_fixed_profit_floor(tmp_path):
+    cfg=settings(tmp_path)
+    from scalp_bot.instrument import InstrumentSpec
+    spec=InstrumentSpec("XUSDT","Trading",.01,.01,.01,5,1,1,480,100)
+    b=OrderBook(bids=[(99.99,10000)],asks=[(100,10000)])
+    r=RiskEngine(cfg).build_plan("XUSDT",decision(),1000,b,10000,20,instrument=spec)
+    assert r.allowed
+    assert 0<r.plan.expected_net_profit<1
+    assert r.plan.net_reward_risk>=1.15
 
 
 def test_countertrend_no_follow_through_does_not_wait_for_large_loss():

@@ -93,6 +93,9 @@ def prepare(engine, session, decision):
     details["tradingQualityPolicy"] = "trading-v1"
     details["marketTargetOnly"] = True
     details["alignmentPriority"] = 2 if aligned else 1 if trend == Trend.FLAT else 0
+    executable = session.orderbook.executable_entry(decision.side)
+    if executable:
+        reachable_target(decision, executable, float(decision.target))
     snapshot = engine.cross.snapshot(session.symbol, engine.clock.perf_counter_ns()) if hasattr(engine, "cross") else {}
     cross = cross_classification(snapshot, side, config)
     details["crossVenueContext"] = dict(classification=cross, mode="deterministic_entry_only",
@@ -145,10 +148,10 @@ def broader_continuation_opposed(context, side):
     if context is None or context.flow is None:
         return False
     sign = 1 if side == "long" else -1
-    # Require current continuation too; a spent historical trend is not a veto.
+    # Broader executed continuation must have turned, not merely a brief 5s flip.
     horizons = context.flow.horizons
     return all(h in horizons and horizons[h].trade_count >= 3
-               and sign * horizons[h].trade_imbalance < -.15 for h in (5, 15, 60))
+               and sign * horizons[h].trade_imbalance < -.15 for h in (15, 60))
 
 
 def reachable_target(decision, executable, target):

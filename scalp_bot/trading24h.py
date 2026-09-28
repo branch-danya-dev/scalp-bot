@@ -370,8 +370,10 @@ class DemoSession(Session):
                     if not self.portfolio.has_execution_work:
                         stable += 1
                         if stable >= 2:
-                            complete = True
-                            break
+                            await asyncio.wait_for(self.funding(), 10)
+                            if self.funding_complete():
+                                complete = True
+                                break
                 except Exception as exc:
                     stable = 0
                     self.emit("shutdown_reconcile_failure", dict(error_type=type(exc).__name__))
@@ -386,6 +388,7 @@ class DemoSession(Session):
                 await self.rest.close()
                 restore()
             result = dict(reason=reason, finalized=complete, mode="demo", actualEquityAtStart=self.config.start_balance if self.connected else None,
+                          fundingComplete=self.funding_complete(),
                           balances={n: a.broker.balance for n, a in self.arms.items()},
                           trades={n: list(a.broker.closed_trades) for n, a in self.arms.items()})
             save_json(self.output / "summary.json", result)
