@@ -2,7 +2,7 @@
 
 The core uses real TradingEngine callbacks with a deterministic pre-state and
 no live services. The V2 capture uses the frozen Predictor and InferenceWorker
-spawn/relay; replay recomputes predictions locally. This limitation is explicit.
+spawn/relay in capture and replay. Whole-engine scheduling remains outside this witness.
 """
 from __future__ import annotations
 
@@ -59,7 +59,6 @@ class FixtureRuntime:
         self.maker = MakerShadowEngine(self.config, self.emit)
         self.labels = PreparedLabelEngine(self.config, self.emit)
         self.model_dir = model_dir
-        self.predictor = None
 
     def emit(self, kind, body): self.research.append(deepcopy(dict(kind=kind, body=body)))
 
@@ -159,33 +158,27 @@ class FixtureRuntime:
         return {"events": self.research[before:]}
 
     async def prediction(self, ctx, inputs):
-        from .learning import Predictor
+        from .native_bridge import NativeChildReplayBridge
         from .contracts import FeatureSnapshot, SnapshotRef
-        # The production child performed these boundaries during capture.
-        # Replay recomputes the same model locally; it does NOT pretend to have
-        # replayed native IPC/heartbeat or to measure its native latency.
-        if self.predictor is None: self.predictor = Predictor(self.model_dir)
+        from .shadow import ShadowAdapter
         ref = SnapshotRef(**inputs["ref"])
         snapshot = FeatureSnapshot(ref, tuple(inputs["names"]), tuple(inputs["values"]))
-        for stage in PIPELINE[:8]: await ctx.boundary(stage)
-        await ctx.clock("perf_counter_ns")
-        probabilities = self.predictor.predict(snapshot, inputs["side"])
-        prediction_end = await ctx.clock("perf_counter_ns")
-        await ctx.boundary("prediction_complete", dict(probabilities=probabilities))
-        for stage in PIPELINE[9:14]: await ctx.boundary(stage)
-        from .shadow import ShadowAdapter
-        from .contracts import ImpulseForecast
-        # Adapter times are owned observations, never current wall time.
-        produced = await ctx.clock("perf_counter_ns")
-        metadata = self.predictor.metadata
-        forecast = ImpulseForecast(ref, metadata["model_version"], metadata["policy_version"],
-            inputs["side"], metadata["plan_policy"]["horizon_seconds"]*1000,
-            prediction_end, ref.available_mono_ns+1_000_000_000, *probabilities)
-        _, reasons = ShadowAdapter(metadata).accept(forecast, ref, produced,
-            quote=100.01, instrument=self.engine.sessions["AAAUSDT"].instrument)
-        result = dict(probabilities=probabilities, reasons=list(reasons))
-        await ctx.boundary("adapter_decision", result)
-        return result
+        metadata = json.loads((Path(self.model_dir)/"manifest.json").read_text())
+        bridge = NativeChildReplayBridge(ctx.coordinator, self.model_dir, producer=ctx.producer)
+        try:
+            await bridge.start()
+            for stage in PIPELINE[:3]:
+                await ctx.boundary(stage)
+            forecast = await bridge.request(ctx, snapshot, inputs["side"])
+            produced = await ctx.clock("perf_counter_ns")
+            _, reasons = ShadowAdapter(metadata).accept(forecast, ref, produced,
+                quote=100.01, instrument=self.engine.sessions["AAAUSDT"].instrument)
+            result = dict(probabilities=[forecast.p_target_first, forecast.p_stop_first, forecast.p_timeout],
+                reasons=list(reasons))
+            await ctx.boundary("adapter_decision", result)
+            return result
+        finally:
+            await bridge.close()
 
     async def shutdown(self, ctx, inputs):
         self._clock(ctx)
@@ -345,7 +338,7 @@ async def run_fixture(output, *, model_dir=None):
         productionAtoF="NOT_TESTED", controlledW20="NOT_MET", nativeLabel="INCONCLUSIVE",
         limitations=["event_driven_evaluation disabled in fixed fixture", "no live service scheduler/source transport",
             "V3 economics rejection only; no natural fill", "synthetic V2 features, exact frozen V2 model",
-            "V2 replay recomputes locally; IPC scheduling replay not implemented",
+            "real child request replay; whole-engine startup/poll/slice replay still unqualified",
             "coupled Wave2Observer not split into production module dispatch",
             "clock scope covers declared operations only; heartbeat/startup/codec not owned"])
     (output/"report.json").write_text(json.dumps(result, indent=2)+"\n", encoding="utf-8")

@@ -153,6 +153,9 @@ class ScenarioRuntime:
             return
         context = session.market_context
         sequence = self.input_journal.sequence if self.input_journal else getattr(self.recorder, "sequence", 0)
+        identity = self.source_identity(session.symbol)
+        if identity is not None:
+            sequence = identity["source_sequence"]
         capture_id = self.recorder.path.name
         trade_seconds = self._trade_buffer_seconds(session)
         row = self.prepared_collector.observe_prepared(intent, context, capture_id=capture_id,

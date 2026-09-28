@@ -84,6 +84,9 @@ class RuntimeClock(Protocol):
 
 
 class SystemRuntimeClock:
+    def time_ns(self) -> int:
+        return time.time_ns()
+
     def time(self) -> float:
         return time.time()
 

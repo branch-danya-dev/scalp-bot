@@ -22,15 +22,16 @@ class _Coordinator:
         self.failure = None
         self.outputs = []
         self.callback_ms = []
+        self.ipc_receipts = []
 
-    async def consume(self, task, kind, data=None, *, clock_method=None):
+    async def consume(self, task, kind, data=None, *, clock_method=None, producer=None):
         async with self.changed:
             while True:
                 if self.failure: raise self.failure
                 if self.index >= len(self.rows):
                     raise NativeTapeError(f"extra {kind} after tape end: {task}")
                 row = self.rows[self.index]
-                if row["task_id"] == task:
+                if row["task_id"] == task and (producer is None or row["producer"] == producer):
                     if row["kind"] != kind:
                         raise NativeTapeError(f"first divergence token {row['sequence']}: expected {row['kind']}, actual {kind}, task {task}")
                     if clock_method is not None:
@@ -51,13 +52,14 @@ class NativeReplayContext:
         self.module_id = row["module_id"]
         self.source = row["source"]
         self.parent_task_id = row["parent_task_id"]
+        self.producer = row["producer"]
         self.terminal_reason = "completed"
 
     async def clock(self, method):
-        return await self.coordinator.consume(self.task_id, "clock", clock_method=method)
+        return await self.coordinator.consume(self.task_id, "clock", clock_method=method, producer=self.producer)
 
     async def boundary(self, name, value=None):
-        await self.coordinator.consume(self.task_id, "boundary", dict(name=name, value={} if value is None else value))
+        await self.coordinator.consume(self.task_id, "boundary", dict(name=name, value={} if value is None else value), producer=self.producer)
 
     def runtime_clock(self):
         """Synchronous clocks only within a recorded uninterrupted callback slice.
@@ -77,6 +79,7 @@ class NativeReplayContext:
                 c.index += 1
                 return row["data"]["value"]
             def time(self): return self._read("time")
+            def time_ns(self): return self._read("time_ns")
             def monotonic(self): return self._read("monotonic")
             def perf_counter_ns(self): return self._read("perf_counter_ns")
         return Clock()
@@ -161,6 +164,7 @@ class NativeControlledDriver:
             outputSha256=fingerprint(c.outputs), ordinaryOperationSha256=fingerprint(ordinary),
             callbackReplayMs=quantiles(c.callback_ms),
             timingScope="native asyncio replay handler residence INCLUDING token coordination; not native loop lateness or production incremental cost",
-            nativeLoopMs=None, dataToAdapterMs=None, realReplayIPC=False,
+            nativeLoopMs=None, dataToAdapterMs=None, realReplayIPC=bool(c.ipc_receipts),
+            replayIPCReceipts=c.ipc_receipts,
             ordinaryDecisionSha256=None, portfolioSha256=None, admissionSequenceSha256=None,
             productionCoverage=False, controlledW20="NOT_MET")

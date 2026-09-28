@@ -8,6 +8,8 @@ import httpx
 import websockets
 
 from .cross_venue import VenueEvent
+from .native_dispatch import create_task as native_create_task
+from .native_v5 import NativeTapeError
 
 BINANCE_REST = "https://fapi.binance.com/fapi/v1/exchangeInfo"
 BINANCE_WS = "wss://fstream.binance.com/stream"
@@ -80,12 +82,25 @@ def decode(venue, raw, *, capture_id, symbol, epoch, spec, receipt_wall_ms, rece
 
 
 class PublicCrossVenueService:
-    def __init__(self, runtime, journal, *, clock=time):
+    def __init__(self, runtime, journal, *, clock=time, native_dispatch=None):
         self.runtime, self.journal, self.clock = runtime, journal, clock
+        self.native_dispatch = native_dispatch
+        if native_dispatch is not None:
+            self.clock = native_dispatch.clock()
         self.specs = {}
         self.tasks = {}
         self.epochs = {}
         self.closed = False
+        self.retired = set()
+
+    def _record(self, kind, payload):
+        if self.native_dispatch is not None:
+            self.native_dispatch.boundary("external_"+kind, payload)
+        self.journal.append(kind, payload)
+
+    async def _receive(self, ws, timeout):
+        task = native_create_task(self.native_dispatch, ws.recv(), name="cross-receive", module="cross_venue")
+        return await asyncio.wait_for(task, timeout)
 
     async def start(self):
         async with httpx.AsyncClient(timeout=10, trust_env=False, follow_redirects=False) as client:
@@ -95,18 +110,30 @@ class PublicCrossVenueService:
                     response.raise_for_status()
                     payload = response.json()
                     self.specs[venue] = instruments(venue, payload)
-                    self.journal.append("venue_instruments", dict(venue=venue,
+                    self._record("venue_instruments", dict(venue=venue,
                         receiptWallMs=int(self.clock.time()*1000), payload=payload, url=url))
+                except NativeTapeError:
+                    raise
                 except Exception as exc:
                     self.specs[venue] = {}
-                    self.journal.append("venue_error", dict(venue=venue, reason=type(exc).__name__, stage="instruments"))
+                    self._record("venue_error", dict(venue=venue, reason=type(exc).__name__, stage="instruments"))
 
     def watch(self, symbols):
         wanted = {(v, s) for v, specs in self.specs.items() for s in symbols if s in specs}
-        for key in set(self.tasks)-wanted:
-            self.tasks.pop(key).cancel()
-        for key in wanted-self.tasks.keys():
-            self.tasks[key] = asyncio.create_task(self._stream(*key))
+        for key in sorted(set(self.tasks)-wanted):
+            task = self.tasks.pop(key)
+            self.retired.add(task)
+            task.cancel()
+        # Retain cancelled owners until their cleanup has finished and retrieve
+        # failures; removal from the watch set is not a terminal/join receipt.
+        for task in list(self.retired):
+            if task.done():
+                if not task.cancelled():
+                    task.exception()
+                self.retired.remove(task)
+        for key in sorted(wanted-self.tasks.keys()):
+            self.tasks[key] = native_create_task(self.native_dispatch, self._stream(*key),
+                name="cross-stream:"+":".join(key), module="cross_venue")
 
     async def _stream(self, venue, symbol):
         key = venue, symbol
@@ -116,7 +143,7 @@ class PublicCrossVenueService:
             self.epochs[key] = self.epochs.get(key, 0)+1
             epoch = self.epochs[key]
             self.runtime.gap(venue, symbol, epoch, "connecting")
-            self.journal.append("venue_gap", dict(venue=venue, symbol=symbol, epoch=epoch, reason="connecting"))
+            self._record("venue_gap", dict(venue=venue, symbol=symbol, epoch=epoch, reason="connecting"))
             try:
                 streams = f"{symbol.lower()}@depth5@100ms/{symbol.lower()}@aggTrade"
                 url = BINANCE_WS+"?streams="+streams if venue == "binance" else OKX_WS
@@ -127,11 +154,11 @@ class PublicCrossVenueService:
                             for c in ("books5", "trades")])))
                     while not self.closed:
                         try:
-                            raw = await asyncio.wait_for(ws.recv(), 20)
+                            raw = await self._receive(ws, 20)
                         except asyncio.TimeoutError:
                             if venue == "okx":
                                 await ws.send("ping")
-                                raw = await asyncio.wait_for(ws.recv(), 5)
+                                raw = await self._receive(ws, 5)
                             else:
                                 raise
                         receipt_ns, wall = self.clock.perf_counter_ns(), int(self.clock.time()*1000)
@@ -139,22 +166,26 @@ class PublicCrossVenueService:
                             continue
                         payload = json.loads(raw)
                         processing_ns = self.clock.perf_counter_ns()
-                        self.journal.append("venue_raw", dict(venue=venue, symbol=symbol, epoch=epoch,
+                        if self.native_dispatch is not None:
+                            self.native_dispatch.accept_ingress(venue, symbol, epoch=epoch, payload=payload)
+                        self._record("venue_raw", dict(venue=venue, symbol=symbol, epoch=epoch,
                             receiptWallMs=wall, receiptMonoNs=receipt_ns, processingMonoNs=processing_ns, payload=payload))
                         if payload.get("event") == "error" or "code" in payload and payload.get("code") not in (0, "0"):
                             raise ValueError("public subscription error")
                         for event in decode(venue, payload, capture_id=self.runtime.capture_id, symbol=symbol,
                                 epoch=epoch, spec=spec, receipt_wall_ms=wall, receipt_ns=receipt_ns, processing_ns=processing_ns):
                             accepted = self.runtime.ingest(event)
-                            self.journal.append("venue_event", dict(event=asdict(event), accepted=accepted))
+                            self._record("venue_event", dict(event=asdict(event), accepted=accepted))
                         await asyncio.sleep(0)
             except asyncio.CancelledError:
                 self.runtime.gap(venue, symbol, epoch, "cancelled")
-                self.journal.append("venue_gap", dict(venue=venue, symbol=symbol, epoch=epoch, reason="cancelled"))
+                self._record("venue_gap", dict(venue=venue, symbol=symbol, epoch=epoch, reason="cancelled"))
+                raise
+            except NativeTapeError:
                 raise
             except Exception as exc:
                 self.runtime.gap(venue, symbol, epoch, "disconnected")
-                self.journal.append("venue_gap", dict(venue=venue, symbol=symbol, epoch=epoch,
+                self._record("venue_gap", dict(venue=venue, symbol=symbol, epoch=epoch,
                     reason="disconnected", errorType=type(exc).__name__))
                 attempts += 1
                 await asyncio.sleep(min(30, 2**min(attempts, 5)))
@@ -163,5 +194,9 @@ class PublicCrossVenueService:
         self.closed = True
         for task in self.tasks.values():
             task.cancel()
-        await asyncio.gather(*self.tasks.values(), return_exceptions=True)
+        results = await asyncio.gather(*self.tasks.values(), *self.retired, return_exceptions=True)
         self.tasks.clear()
+        self.retired.clear()
+        for result in results:
+            if isinstance(result, NativeTapeError):
+                raise result

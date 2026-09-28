@@ -66,7 +66,7 @@ def _inference_main(model_dir, inbox, outbox, ttl_ns, native_endpoint=None):
 
 class InferenceWorker:
     def __init__(self, model_dir, *, capacity=12, ttl_ms=1000, timeout_ms=2000,
-                 startup_seconds=30, _target=_inference_main, trace=None, native_endpoint=None):
+                 startup_seconds=30, _target=_inference_main, trace=None, native_endpoint=None, clock=time):
         if not 1<=capacity<=128 or ttl_ms<=0 or timeout_ms<=0:raise ValueError("invalid worker bounds")
         self.model_dir=str(Path(model_dir).resolve())
         self.capacity=capacity;self.ttl_ns=ttl_ms*1_000_000;self.timeout_ns=timeout_ms*1_000_000
@@ -77,6 +77,7 @@ class InferenceWorker:
         self.closed=False
         self.trace = trace
         self.native_endpoint = native_endpoint
+        self.clock = clock
         self.native_tasks = {}
         self.native_error = None
         self.timings = {}
@@ -94,7 +95,7 @@ class InferenceWorker:
             args += (NativeEndpoint(self.native_endpoint.ring, "v2", "inference-worker"),)
         self.process=self.ctx.Process(target=self.target,args=args,
                                       name="scalp-ml-shadow",daemon=True)
-        self.process.start();self.started=time.perf_counter_ns()
+        self.process.start();self.started=self.clock.perf_counter_ns()
         self.receiver=Thread(target=self._receive_replies,name='ml-reply-relay',daemon=True)
         self.receiver.start()
 
@@ -113,10 +114,12 @@ class InferenceWorker:
                 return
             timing = (item[-1].get("pipelineTiming") if isinstance(item[-1], dict) else None)
             native = self._native_from_timing(timing, producer="reply-relay")
+            from ..native_v5 import OwnedClock
+            relay_clock = OwnedClock(native) if native is not None else time
             if native is not None:
                 native.boundary("reply_ipc_receive")
             if timing is not None:
-                timing["relay_received_ns"] = time.perf_counter_ns()
+                timing["relay_received_ns"] = relay_clock.perf_counter_ns()
             while not self.receiver_stop.is_set():
                 try:
                     # Stamp while holding Queue's mutex, before notifying the
@@ -126,7 +129,7 @@ class InferenceWorker:
                             self.received.not_full.wait(.05)
                             continue
                         if timing is not None:
-                            timing["relay_enqueued_ns"] = time.perf_counter_ns()
+                            timing["relay_enqueued_ns"] = relay_clock.perf_counter_ns()
                             timing["relay_queue_depth"] = self.received._qsize()+1
                         if native is not None:
                             native.boundary("relay_enqueue")
@@ -150,7 +153,7 @@ class InferenceWorker:
         timing = self.timings.pop(symbol, None)
         if timing is not None:
             if self.trace is not None:
-                self.trace(dict(timing, terminal=reason, terminal_ns=time.perf_counter_ns()))
+                self.trace(dict(timing, terminal=reason, terminal_ns=self.clock.perf_counter_ns()))
             self._finish_native(timing, reason)
 
     def _native_from_timing(self, timing, *, producer=None):
@@ -207,7 +210,7 @@ class InferenceWorker:
             ref = snapshot.ref
             self.timings[key] = dict(identity=[ref.capture_id, ref.symbol, ref.selection_epoch,
                 ref.source_sequence, side], available_ns=ref.available_mono_ns,
-                submit_ns=time.perf_counter_ns(), parent_queue_depth=len(self.latest))
+                submit_ns=self.clock.perf_counter_ns(), parent_queue_depth=len(self.latest))
             self.timings[key].update({k:v for k,v in dict(feature_ready_ns=feature_ready_ns,
                 probe_queued_ns=probe_queued_ns,probe_queue_depth=probe_queue_depth).items() if v is not None})
             if native_task is not None:
@@ -222,7 +225,7 @@ class InferenceWorker:
         key,task=next(iter(self.latest.items()))
         timing = self.timings.get(key)
         if timing is not None:
-            timing["dispatch_ns"] = time.perf_counter_ns()
+            timing["dispatch_ns"] = self.clock.perf_counter_ns()
             task = (*task, dict(timing))
         native = self._native_from_timing(timing)
         if native is not None:
@@ -238,12 +241,12 @@ class InferenceWorker:
             return
         self.timings.pop(key, None)
         self.inflight_timing = dict(timing) if timing is not None else None
-        self.latest.pop(key);self.inflight=(task[0].ref,time.perf_counter_ns())
+        self.latest.pop(key);self.inflight=(task[0].ref,self.clock.perf_counter_ns())
 
     def poll(self):
         """Never wait on a prediction; a dead/hung child becomes unavailable."""
         if self.closed:return []
-        results=[];now=time.perf_counter_ns()
+        results=[];now=self.clock.perf_counter_ns()
         try:
             item=self.received.get_nowait()
         except Empty:item=None
@@ -254,7 +257,7 @@ class InferenceWorker:
                 if native is not None:
                     native.boundary("relay_dequeue")
                     native.boundary("adapter_receive")
-                timing["adapter_receive_ns"] = time.perf_counter_ns()
+                timing["adapter_receive_ns"] = self.clock.perf_counter_ns()
                 timing["terminal"] = item[0] if item[0] == "forecast" else str(item[1])
                 if item[0] == 'forecast' and self.active.get(item[1].source.symbol) != item[1].source.selection_epoch:
                     timing['terminal'] = 'inactive_epoch'
@@ -277,7 +280,7 @@ class InferenceWorker:
         if self.failed:
             if self.inflight_timing is not None:
                 if self.trace is not None:
-                    self.trace(dict(self.inflight_timing,terminal=self.failed,terminal_ns=time.perf_counter_ns()))
+                    self.trace(dict(self.inflight_timing,terminal=self.failed,terminal_ns=self.clock.perf_counter_ns()))
                 self.inflight_timing=None
             for key in list(self.timings):self._terminal(key, self.failed)
             self.latest.clear()
@@ -290,7 +293,7 @@ class InferenceWorker:
         if self.closed:return
         if self.inflight_timing is not None:
             if self.trace is not None:
-                self.trace(dict(self.inflight_timing,terminal='shutdown_inflight',terminal_ns=time.perf_counter_ns()))
+                self.trace(dict(self.inflight_timing,terminal='shutdown_inflight',terminal_ns=self.clock.perf_counter_ns()))
             self.inflight_timing=None
         for key in list(self.timings):
             try: self._terminal(key, "shutdown_pending")

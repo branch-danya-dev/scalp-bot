@@ -1,0 +1,98 @@
+class ShadowProbe:
+    """Frozen V2 load probe only; adapter proposals never reach admission."""
+    def __init__(self, bot, model, stages):
+        from scalp_bot.ml.worker import InferenceWorker
+        from scalp_bot.ml.shadow import ShadowAdapter
+        self.bot, self.stages = bot, stages
+        self.worker = InferenceWorker(model, trace=self._timed)
+        self.adapter = ShadowAdapter(json.loads((Path(model)/'manifest.json').read_text()))
+        self.source, self.current, self.grid = {}, {}, {}
+        self.queue = deque(maxlen=32)
+        self.counts = Counter()
+        self.model = model
+        original = bot.input_journal.market_message
+        def recorded(symbol, message):
+            original(symbol, message)
+            if message.receipt_mono_ns:
+                self.source[symbol] = (bot.input_journal.sequence, message.receipt_mono_ns)
+        bot.input_journal.market_message = recorded
+        evaluate = bot._evaluate
+        async def evaluated(session):
+            await evaluate(session)
+            if not bot.running or not self.worker.ready or not session.market_context or not session.instrument:
+                return
+            source = self.source.get(session.symbol)
+            if source is None:
+                return
+            context = session.market_context
+            grid = context.observed_at_ms//10_000
+            if self.grid.get(session.symbol) == grid:
+                return
+            self.grid[session.symbol] = grid
+            from scalp_bot.ml.contracts import SnapshotRef
+            from scalp_bot.ml.features import FEATURE_SCHEMA, ContextCoverage, extract_context_features
+            before = time.perf_counter_ns()
+            ref = SnapshotRef('technical-smoke-v2-shadow', session.symbol,
+                bot.router.epochs.get(session.symbol, 0), source[0], context.observed_at_ms,
+                source[1], 'perf_counter', FEATURE_SCHEMA)
+            covered = bot._trade_buffer_seconds(session)
+            coverage = ContextCoverage(tuple(n for n in (5,15,60) if covered >= n), (),
+                context.forming_candle is not None, session.deep_book_is_fresh(),
+                context.structure is not None, True)
+            snapshot = extract_context_features(context, ref, coverage)
+            after = time.perf_counter_ns()
+            stages['features'].append((after-before)/1e6)
+            stages['data_to_features'].append((after-ref.available_mono_ns)/1e6)
+            self.current[session.symbol] = ref
+            self.worker.activate(session.symbol, ref.selection_epoch)
+            for side in ('long','short'):
+                if len(self.queue) == self.queue.maxlen:
+                    self.counts['queue_full'] += 1
+                else:
+                    self.queue.append((snapshot, side, after))
+            bot.recorder.record('shadow_features', session.symbol, dict(source=asdict(ref),
+                features=snapshot.values, featureEndNs=after))
+        bot._evaluate = evaluated
+
+    def _timed(self, row):
+        # Completed forecasts are emitted after the adapter's decision below.
+        if row['terminal'] != 'forecast':
+            self.bot.recorder.record('pipeline_worker', row['identity'][1], row)
+
+    def poll(self):
+        for item in self.worker.poll():
+            received = time.perf_counter_ns()
+            if item[0] != 'forecast':
+                self.counts['worker_error:'+str(item[1])] += 1
+                continue
+            forecast = item[1]
+            self.counts['forecasts'] += 1
+            self.stages['prediction'].append(item[2]/1e6)
+            session = self.bot.sessions.get(forecast.source.symbol)
+            if session is None:
+                reasons = ('symbol_inactive',)
+            else:
+                from scalp_bot.domain import Side
+                _, reasons = self.adapter.accept(forecast,
+                    self.current.get(session.symbol, forecast.source), received,
+                    quote=session.orderbook.executable_entry(Side(forecast.side)), instrument=session.instrument)
+            terminal = time.perf_counter_ns()
+            if isinstance(item[-1], dict) and 'pipelineTiming' in item[-1]:
+                timing=dict(item[-1]['pipelineTiming'],adapter_end_ns=terminal)
+                self.bot.recorder.record('pipeline_worker', forecast.source.symbol,timing)
+            self.stages['data_to_adapter'].append((terminal-forecast.source.available_mono_ns)/1e6)
+            self.counts.update(reasons or ('shadow_proposal_never_executed',))
+            self.bot.recorder.record('shadow_forecast', forecast.source.symbol,
+                dict(forecast=asdict(forecast), reasons=reasons, receivedNs=received, adapterEndNs=terminal))
+        if self.worker.ready and not self.worker.inflight and not self.worker.latest and self.queue:
+            snapshot, side, feature_end = self.queue.popleft()
+            if time.perf_counter_ns()-snapshot.ref.available_mono_ns < 1_000_000_000:
+                self.counts['submitted' if self.worker.submit(snapshot, side, feature_ready_ns=feature_end,
+                    probe_queued_ns=feature_end,probe_queue_depth=len(self.queue)) else 'submit_rejected'] += 1
+            else:
+                self.counts['queue_expired'] += 1
+                self.bot.recorder.record('pipeline_worker',snapshot.ref.symbol,dict(
+                    identity=[snapshot.ref.capture_id,snapshot.ref.symbol,snapshot.ref.selection_epoch,snapshot.ref.source_sequence,side],
+                    available_ns=snapshot.ref.available_mono_ns,feature_ready_ns=feature_end,
+                    terminal='probe_queue_expired',terminal_ns=time.perf_counter_ns()))
+

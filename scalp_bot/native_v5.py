@@ -32,6 +32,9 @@ OPERATIONS = {
     "v3": ("label", "context", "gap", "shutdown"),
     "v2": ("request", "heartbeat", "shutdown"),
 }
+# Runtime operations carry actual coroutine dispatch slices. Original fixture
+# operations retain their stricter request/external pipeline contracts.
+OPERATIONS = {module: (*operations, "runtime") for module, operations in OPERATIONS.items()}
 KINDS = ("task_open", "task_start", "clock", "boundary", "task_end")
 TERMINALS = ("completed", "cancelled", "failed", "shutdown", "coalesced", "dropped", "expired", "inactive")
 PIPELINE = ("features_ready", "probe_enqueue", "probe_dequeue", "request_submit",
@@ -65,7 +68,7 @@ def schema_hash():
     return fingerprint(dict(schema=SCHEMA, modules=MODULES, operations=OPERATIONS,
         kinds=KINDS, terminals=TERMINALS, pipeline=PIPELINE, externalPipeline=EXTERNAL_PIPELINE,
         eventFields="schema sequence observed_ns module_id producer task_id parent_task_id source kind data previousHash hash",
-        clockMethods=("time", "monotonic", "perf_counter_ns"),
+        clockMethods=("time", "monotonic", "perf_counter_ns", "time_ns"),
         sourceFields="capture_id symbol epoch source_sequence event_id",
         ordering="shared-lock-at-observation", compatibility="v4-separate-no-migration"))
 
@@ -228,6 +231,7 @@ class OwnedClock:
             t.task_id, t.parent_task_id, t.source, "clock", None], (method, self.source))[1]
 
     def time(self): return self._read("time")
+    def time_ns(self): return self._read("time_ns")
     def monotonic(self): return self._read("monotonic")
     def perf_counter_ns(self): return self._read("perf_counter_ns")
 
@@ -343,8 +347,8 @@ def _source(value, capture_id):
         raise NativeTapeError("incomplete source/capture correlation")
 
 
-def validate_events(events, capture_id):
-    tasks, counts = {}, Counter()
+def validate_events(events, capture_id, *, task_store=None):
+    tasks, counts = {} if task_store is None else task_store, Counter()
     expected = set("schema sequence observed_ns module_id producer task_id parent_task_id source kind data".split())
     for sequence, row in enumerate(events, 1):
         if set(row)-{"hash", "previousHash"} != expected:
@@ -367,12 +371,18 @@ def validate_events(events, capture_id):
             if data["operation"] == "request" and row["source"] is None:
                 raise NativeTapeError("V2 request requires exact source identity")
             tasks[task_id] = dict(module=module, parent=parent, source=row["source"],
-                operation=data["operation"], state="open", stage=0)
+                producer=row["producer"], operation=data["operation"], state="open", stage=0,
+                dispatch_index=0, dispatch_state="initial", scopes=[])
         else:
             task = tasks.get(task_id)
             if task is None or (module, parent, row["source"]) != (task["module"], task["parent"], task["source"]):
                 raise NativeTapeError("task/module/source ownership mismatch")
             if task["state"] == "ended": raise NativeTapeError("observation after task terminal")
+            if task["operation"] == "runtime" and row["producer"] != task["producer"]:
+                raise NativeTapeError("runtime producer ownership mismatch")
+            if task["operation"] == "request" and row["producer"] not in (
+                    task["producer"], "inference-worker", "reply-relay"):
+                raise NativeTapeError("unknown worker/relay producer ownership")
             if kind == "task_start":
                 if task["state"] != "open" or data: raise NativeTapeError("duplicate task dispatch")
                 task["state"] = "started"
@@ -382,18 +392,20 @@ def validate_events(events, capture_id):
                         or data["reason"] == "completed" and task["state"] != "started"):
                     raise NativeTapeError("invalid task terminal")
                 required = PIPELINE if module == "v2" and task["operation"] == "request" else (
-                    EXTERNAL_PIPELINE if module == "cross_venue" else ())
+                    EXTERNAL_PIPELINE if module == "cross_venue" and task["operation"] != "runtime" else ())
                 if data["reason"] == "completed" and required and task["stage"] != len(required):
                     raise NativeTapeError("missing request/reply/relay or external boundary")
+                if task["scopes"] or task["dispatch_state"] == "suspended":
+                    raise NativeTapeError("terminal with pending scope or dispatch suspension")
                 task["state"] = "ended"
             elif task["state"] != "started":
                 raise NativeTapeError("observation before task dispatch")
             elif kind == "clock":
                 if set(data) != {"method", "value"}: raise NativeTapeError("invalid owned clock")
                 method, value = data["method"], data["value"]
-                if (method not in ("time", "monotonic", "perf_counter_ns")
+                if (method not in ("time", "monotonic", "perf_counter_ns", "time_ns")
                         or type(value) not in (int, float) or not math.isfinite(value)
-                        or method == "perf_counter_ns" and (type(value) is not int or value < 0)):
+                        or method in ("perf_counter_ns", "time_ns") and (type(value) is not int or value < 0)):
                     raise NativeTapeError("invalid owned clock value")
             elif kind == "boundary":
                 if (set(data) != {"name", "value"} or not isinstance(data["name"], str)
@@ -403,10 +415,33 @@ def validate_events(events, capture_id):
                     if task["stage"] >= len(PIPELINE) or data["name"] != PIPELINE[task["stage"]]:
                         raise NativeTapeError("request/reply/relay dispatch out of order")
                     task["stage"] += 1
-                elif module == "cross_venue":
+                elif module == "cross_venue" and task["operation"] != "runtime":
                     if task["stage"] >= len(EXTERNAL_PIPELINE) or data["name"] != EXTERNAL_PIPELINE[task["stage"]]:
                         raise NativeTapeError("external dispatch out of order")
                     task["stage"] += 1
+                elif task["operation"] == "runtime":
+                    name, value = data["name"], data["value"]
+                    if name == "dispatch_resume":
+                        if (task["dispatch_state"] not in ("initial", "suspended")
+                                or value.get("index") != task["dispatch_index"]
+                                or set(value) != {"index", "outcome"}
+                                or not isinstance(value["outcome"], str)):
+                            raise NativeTapeError("duplicate/missing runtime resume")
+                        task["dispatch_state"] = "running"
+                    elif name == "dispatch_suspend":
+                        if (task["dispatch_state"] != "running" or value != {"index": task["dispatch_index"]}):
+                            raise NativeTapeError("duplicate/missing runtime suspension")
+                        task["dispatch_index"] += 1
+                        task["dispatch_state"] = "suspended"
+                    elif name == "scope_begin":
+                        task["scopes"].append(value)
+                    elif name == "scope_end":
+                        if not task["scopes"] or task["scopes"].pop() != value:
+                            raise NativeTapeError("runtime scope order mismatch")
+        # A disk-backed mapping writes each updated state explicitly; in-memory
+        # fixture validation retains the same behavior.
+        if kind != "task_open":
+            tasks[task_id] = task
         counts[kind] += 1
     if any(task["state"] != "ended" for task in tasks.values()):
         raise NativeTapeError("leftover unfinished task tokens")

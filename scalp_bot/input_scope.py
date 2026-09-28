@@ -42,19 +42,35 @@ def input_scope(name, *, symbol_arg=False):
             value = args[0] if args else kwargs.get(argument)
             return value if isinstance(value, str) else getattr(value, "symbol", None)
 
+        @contextmanager
+        def scope(self, args, kwargs):
+            native = getattr(self, "native_dispatch", None)
+            value = dict(name=name, symbol=symbol(args, kwargs))
+            if native is not None:
+                native.boundary("scope_begin", value)
+            try:
+                if self.input_scopes is None:
+                    yield
+                else:
+                    with self.input_scopes.enter(name, symbol(args, kwargs)):
+                        yield
+            finally:
+                if native is not None:
+                    native.boundary("scope_end", value)
+
         if iscoroutinefunction(fn):
             @wraps(fn)
             async def wrapped(self, *args, **kwargs):
-                if self.input_scopes is None:
+                if self.input_scopes is None and getattr(self, "native_dispatch", None) is None:
                     return await fn(self, *args, **kwargs)
-                with self.input_scopes.enter(name, symbol(args, kwargs)):
+                with scope(self, args, kwargs):
                     return await fn(self, *args, **kwargs)
         else:
             @wraps(fn)
             def wrapped(self, *args, **kwargs):
-                if self.input_scopes is None:
+                if self.input_scopes is None and getattr(self, "native_dispatch", None) is None:
                     return fn(self, *args, **kwargs)
-                with self.input_scopes.enter(name, symbol(args, kwargs)):
+                with scope(self, args, kwargs):
                     return fn(self, *args, **kwargs)
         return wrapped
     return decorate
