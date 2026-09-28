@@ -1,0 +1,30 @@
+{
+  "baseline": "b3027ede153d657981657acc7ddf148ecb564918",
+  "commits": [
+    {
+      "scope": "audit before code",
+      "local": "8bf2990839b436f26c4706b95e873dace8c1c687",
+      "published": "b2aea49251cbf46e0f6bac6a8b082a9e6745a05a",
+      "tree": "39f7dd302bbddb8d99d36bf10fb80f031f61b05c"
+    },
+    {
+      "scope": "coordinator and source population",
+      "local": "8155a8500c8b449ce479a0794a10e6e7b1613a76",
+      "published": "a3aa1fb958e30904efd6da9f3fcb663de51d7a2e",
+      "tree": "58cce2a959aedd9f3d8b7aa27632040b729b104a"
+    },
+    {
+      "scope": "probe worker and unified runner",
+      "local": "64e6cf5c3c406fc40687162e9dbfc022c94257c4",
+      "published": "d5f477ed0354bc937c7cfebbe5978eb475f71111",
+      "tree": "c95414f2ce9dded554a121feae52f2531eccb2e2"
+    },
+    {
+      "scope": "precise cancellation failure",
+      "local": "226b7f81166d2d8611a3270f5a6d2cb7e85c6136",
+      "published": "7baaff06ce0529bbdd1861925d8d1f2a3099d26a",
+      "tree": "da91f3f34300125dfca928a22a43eb82db9fcb21"
+    }
+  ],
+  "method": "Git push credentials unavailable; authenticated GitHub Git Data connector. Each published tree exactly matches its local tree; commit metadata differs."
+}

@@ -1,3 +1,19 @@
+# Current whole-runtime continuation
+
+Authority: [whole-runtime evidence](n3-whole-runtime-evidence.md).
+WholeRuntimeReplayCoordinator and a unified nonempty native-like source/task/
+trade/label/probe/child population are implemented. One shared development
+population completes A-F once with exact enabled semantics and zero leftovers.
+The clean indexed final attempt passes F1 but fails F2 during cancellation at a
+parked synchronous slice. **R5, production N3.0 and W2.0 remain NOT_MET.**
+
+Next: explicit owned deadline/cancellation scheduling; strict repeated unified
+R5; then valid native incremental A-F cost and whole-population instrumentation
+tax. Only then may a profile-directed latency fix be selected. R8 must be MET
+before the single preregistered 900s attempt. No downstream activity is unblocked.
+
+---
+
 # Current N3 production integration continuation
 
 Authority: [N3 production wiring evidence](n3-production-v5-evidence.md).

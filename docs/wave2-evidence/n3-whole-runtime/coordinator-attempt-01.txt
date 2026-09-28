@@ -1,0 +1,99 @@
+F
+================================== FAILURES ===================================
+_____ test_actual_coroutine_roots_repeat_with_nested_await_and_callbacks ______
+tests\test_whole_runtime_replay.py:43: in test_actual_coroutine_roots_repeat_with_nested_await_and_callbacks
+    tape, expected = await record(tmp_path)
+                     ^^^^^^^^^^^^^^^^^^^^^^
+tests\test_whole_runtime_replay.py:36: in record
+    await dispatch.run(root(dispatch, outputs))
+scalp_bot\native_dispatch.py:212: in run
+    return await self.create_task(coroutine, name=name, module=module, root=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\native_dispatch.py:183: in run
+    return await stepped()
+           ^^^^^^^^^^^^^^^
+scalp_bot\native_dispatch.py:155: in stepped
+    native.boundary("dispatch_resume", dict(index=serial,
+scalp_bot\native_v5.py:219: in boundary
+    def boundary(self, name, value=None): return self.emit("boundary", dict(name=name, value={} if value is None else value))
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\native_v5.py:215: in emit
+    return self.endpoint.ring.put([self.endpoint.module_id, self.endpoint.producer,
+scalp_bot\native_v5.py:133: in put
+    raise NativeTapeError("v5 sequencer closed or poisoned")
+E   scalp_bot.native_v5.NativeTapeError: v5 sequencer closed or poisoned
+------------------------------ Captured log call ------------------------------
+ERROR    asyncio:base_events.py:1890 Exception in callback NativeDispatch.add_done_callback.<locals>.<lambda>() at G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py:239
+handle: <Handle NativeDispatch.add_done_callback.<locals>.<lambda>() at G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py:239>
+Traceback (most recent call last):
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 228, in completed
+    native.start()
+    ~~~~~~~~~~~~^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 218, in start
+    def start(self): return self.emit("task_start", {})
+                            ~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 215, in emit
+    return self.endpoint.ring.put([self.endpoint.module_id, self.endpoint.producer,
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.task_id, self.parent_task_id, self.source, kind, data], observation)[0]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 133, in put
+    raise NativeTapeError("v5 sequencer closed or poisoned")
+scalp_bot.native_v5.NativeTapeError: v5 sequencer closed or poisoned
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\asyncio\events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 239, in <lambda>
+    task.add_done_callback(lambda finished: self._callback(completed, finished))
+                                            ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 209, in _callback
+    callback(finished)
+    ~~~~~~~~^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 238, in completed
+    native.end(reason=reason)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 221, in end
+    return self.emit("task_end", dict(reason=reason, outputs={} if outputs is None else outputs))
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 215, in emit
+    return self.endpoint.ring.put([self.endpoint.module_id, self.endpoint.producer,
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.task_id, self.parent_task_id, self.source, kind, data], observation)[0]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 133, in put
+    raise NativeTapeError("v5 sequencer closed or poisoned")
+scalp_bot.native_v5.NativeTapeError: v5 sequencer closed or poisoned
+ERROR    asyncio:base_events.py:1890 Exception in callback NativeDispatch.create_task.<locals>.<lambda>() at G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py:202
+handle: <Handle NativeDispatch.create_task.<locals>.<lambda>() at G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py:202>
+Traceback (most recent call last):
+  File "C:\Users\workingspace\AppData\Local\Programs\Python\Python313\Lib\asyncio\events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 202, in <lambda>
+    task.add_done_callback(lambda finished: self._callback(completed, finished))
+                                            ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 209, in _callback
+    callback(finished)
+    ~~~~~~~~^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_dispatch.py", line 193, in completed
+    native.end(reason="cancelled" if finished.cancelled() else "failed")
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 221, in end
+    return self.emit("task_end", dict(reason=reason, outputs={} if outputs is None else outputs))
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 215, in emit
+    return self.endpoint.ring.put([self.endpoint.module_id, self.endpoint.producer,
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.task_id, self.parent_task_id, self.source, kind, data], observation)[0]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-6\work\scalp-bot\scalp_bot\native_v5.py", line 133, in put
+    raise NativeTapeError("v5 sequencer closed or poisoned")
+scalp_bot.native_v5.NativeTapeError: v5 sequencer closed or poisoned
+=========================== short test summary info ===========================
+FAILED tests/test_whole_runtime_replay.py::test_actual_coroutine_roots_repeat_with_nested_await_and_callbacks
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed in 0.21s

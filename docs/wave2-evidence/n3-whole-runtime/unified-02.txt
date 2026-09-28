@@ -1,0 +1,67 @@
+{
+  "sourceSha256": "2e81084814b557812271c65766549a698d00ad1160ab9398e268d162929c0fc9",
+  "externalSourceSha256": "b2ebcfd70af3f893e85cbf1b73df78da3a8d0c0d556743c8f7f4bd3a8a1b8913",
+  "externalConnections": {
+    "binance": 3,
+    "okx": 2
+  },
+  "ordinaryHashes": {
+    "decision": "b3ad28e5d60bddac2c07812b338128bb7854f15547a36526bbe7b6bbc9eb0305",
+    "admission": "9d34fad3302328f09eb0ab283d2ebd041460bf8e0d0f8009238486c5bd11b3e7",
+    "execution": "606e472f13b68e82cc35362d46017b46ac2e2870b93e0f94f9b71ea2fa14260b",
+    "portfolio": "dc80c081b29695169e6f705d67b642b77470a50b2ca9e25bd3f826d0f801b09c"
+  },
+  "labelSha256": "0562cc5bc3cea90cf420daf887f7e32ba019a202c9dd6a8e116a423a75b5b729",
+  "eventCounts": {
+    "clock_sync": 2,
+    "symbol_activated": 1,
+    "scanner_update": 1,
+    "transport_diagnostics": 8,
+    "market_context_changed": 105,
+    "strategy_state_transition": 12,
+    "decision": 12,
+    "scenario_transition": 12,
+    "research_frame": 25,
+    "market_frame": 25,
+    "clock_admission_changed": 10,
+    "bot_started": 1,
+    "shadow_features": 4,
+    "pipeline_worker": 8,
+    "shadow_forecast": 8,
+    "entry_freshness_changed": 1,
+    "admission_fire": 1,
+    "trade_opened": 1,
+    "setup_consumed": 1,
+    "trade_closed": 1,
+    "run_summary": 1,
+    "bot_stopped": 1
+  },
+  "researchFailure": null,
+  "writer": {
+    "background": false,
+    "queuedRows": 10041,
+    "writtenRows": 10041,
+    "pendingRows": 0,
+    "queueDepth": 0,
+    "queueCapacity": 8192,
+    "droppedRows": 0,
+    "droppedBulkRows": 0,
+    "droppedCriticalRows": 0,
+    "writerError": null
+  },
+  "probeCounts": {
+    "submitted": 8,
+    "forecasts": 8,
+    "probability_abstention": 8
+  },
+  "forecastSha256": "8211264955019c14491f9257a5394e89daaf7f2f4ca773de831986f5d5387be0",
+  "workerFailure": null,
+  "workerExchangeImported": false
+}
+CLOSED 1 PREPARED 1 LABELS 1
+REPLAY A-0 {'schema': 'whole-runtime-v5-report', 'variant': 'A', 'populationSha256': 'ef491452c9b3ce9922e4370bda0e34c44613b9613ac064adfd5280e24eff8583', 'provenance': {'sourceSha256': 'c435b01568fb6101d7a45b5f09b76b402fd65e2bf67ac0d8eda6bf52630304c9', 'configSha256': 'e1a47dddf3c27dda0b3dd7732fb1666db0dd8d9ff38d215066f5babebb069743', 'runtimeSha256': '985d0d78c69938527e37a534fc04afd97cb0b440a5b47a367bd9bad0e27ae29c', 'schemaSha256': 'e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c'}, 'consumed': 12962, 'counts': {'task_open': 459, 'task_start': 459, 'boundary': 4133, 'clock': 7452, 'task_end': 459}, 'excludedOwnedTokens': 30300, 'excludedModules': ['cross_venue', 'maker', 'segment', 'v2', 'v3'], 'leftovers': 0, 'accountingComplete': True, 'semanticReplay': 'MET', 'productionCoverage': False, 'controlledW20': 'NOT_MET', 'timingScope': 'owned coroutine replay; coordination time is not production incremental cost', 'replayIPCReceipts': [], 'ordinaryParity': True, 'sourceParity': True, 'labelParity': False, 'forecastParity': False}
+REPLAY B-0 {'schema': 'whole-runtime-v5-report', 'variant': 'B', 'populationSha256': 'ef491452c9b3ce9922e4370bda0e34c44613b9613ac064adfd5280e24eff8583', 'provenance': {'sourceSha256': 'c435b01568fb6101d7a45b5f09b76b402fd65e2bf67ac0d8eda6bf52630304c9', 'configSha256': 'e1a47dddf3c27dda0b3dd7732fb1666db0dd8d9ff38d215066f5babebb069743', 'runtimeSha256': '985d0d78c69938527e37a534fc04afd97cb0b440a5b47a367bd9bad0e27ae29c', 'schemaSha256': 'e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c'}, 'consumed': 12970, 'counts': {'task_open': 461, 'task_start': 461, 'boundary': 4133, 'clock': 7454, 'task_end': 461}, 'excludedOwnedTokens': 30292, 'excludedModules': ['cross_venue', 'maker', 'v2', 'v3'], 'leftovers': 0, 'accountingComplete': True, 'semanticReplay': 'MET', 'productionCoverage': False, 'controlledW20': 'NOT_MET', 'timingScope': 'owned coroutine replay; coordination time is not production incremental cost', 'replayIPCReceipts': [], 'ordinaryParity': True, 'sourceParity': True, 'labelParity': False, 'forecastParity': False}
+REPLAY C-0 {'schema': 'whole-runtime-v5-report', 'variant': 'C', 'populationSha256': 'ef491452c9b3ce9922e4370bda0e34c44613b9613ac064adfd5280e24eff8583', 'provenance': {'sourceSha256': 'c435b01568fb6101d7a45b5f09b76b402fd65e2bf67ac0d8eda6bf52630304c9', 'configSha256': 'e1a47dddf3c27dda0b3dd7732fb1666db0dd8d9ff38d215066f5babebb069743', 'runtimeSha256': '985d0d78c69938527e37a534fc04afd97cb0b440a5b47a367bd9bad0e27ae29c', 'schemaSha256': 'e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c'}, 'consumed': 16146, 'counts': {'task_open': 1203, 'task_start': 1203, 'boundary': 4280, 'clock': 8257, 'task_end': 1203}, 'excludedOwnedTokens': 27116, 'excludedModules': ['maker', 'v2', 'v3'], 'leftovers': 0, 'accountingComplete': True, 'semanticReplay': 'MET', 'productionCoverage': False, 'controlledW20': 'NOT_MET', 'timingScope': 'owned coroutine replay; coordination time is not production incremental cost', 'replayIPCReceipts': [], 'ordinaryParity': True, 'sourceParity': True, 'labelParity': False, 'forecastParity': False}
+REPLAY D-0 {'schema': 'whole-runtime-v5-report', 'variant': 'D', 'populationSha256': 'ef491452c9b3ce9922e4370bda0e34c44613b9613ac064adfd5280e24eff8583', 'provenance': {'sourceSha256': 'c435b01568fb6101d7a45b5f09b76b402fd65e2bf67ac0d8eda6bf52630304c9', 'configSha256': 'e1a47dddf3c27dda0b3dd7732fb1666db0dd8d9ff38d215066f5babebb069743', 'runtimeSha256': '985d0d78c69938527e37a534fc04afd97cb0b440a5b47a367bd9bad0e27ae29c', 'schemaSha256': 'e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c'}, 'consumed': 18140, 'counts': {'task_open': 1767, 'task_start': 1767, 'boundary': 4280, 'clock': 8559, 'task_end': 1767}, 'excludedOwnedTokens': 25122, 'excludedModules': ['v2', 'v3'], 'leftovers': 0, 'accountingComplete': True, 'semanticReplay': 'MET', 'productionCoverage': False, 'controlledW20': 'NOT_MET', 'timingScope': 'owned coroutine replay; coordination time is not production incremental cost', 'replayIPCReceipts': [], 'ordinaryParity': True, 'sourceParity': True, 'labelParity': False, 'forecastParity': False}
+REPLAY E-0 {'schema': 'whole-runtime-v5-report', 'variant': 'E', 'populationSha256': 'ef491452c9b3ce9922e4370bda0e34c44613b9613ac064adfd5280e24eff8583', 'provenance': {'sourceSha256': 'c435b01568fb6101d7a45b5f09b76b402fd65e2bf67ac0d8eda6bf52630304c9', 'configSha256': 'e1a47dddf3c27dda0b3dd7732fb1666db0dd8d9ff38d215066f5babebb069743', 'runtimeSha256': '985d0d78c69938527e37a534fc04afd97cb0b440a5b47a367bd9bad0e27ae29c', 'schemaSha256': 'e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c'}, 'consumed': 20505, 'counts': {'task_open': 2233, 'task_start': 2233, 'boundary': 4280, 'clock': 9526, 'task_end': 2233}, 'excludedOwnedTokens': 22757, 'excludedModules': ['v2'], 'leftovers': 0, 'accountingComplete': True, 'semanticReplay': 'MET', 'productionCoverage': False, 'controlledW20': 'NOT_MET', 'timingScope': 'owned coroutine replay; coordination time is not production incremental cost', 'replayIPCReceipts': [], 'ordinaryParity': True, 'sourceParity': True, 'labelParity': True, 'forecastParity': False}
+REPLAY F-0 {'schema': 'whole-runtime-v5-report', 'variant': 'F', 'populationSha256': 'ef491452c9b3ce9922e4370bda0e34c44613b9613ac064adfd5280e24eff8583', 'provenance': {'sourceSha256': 'c435b01568fb6101d7a45b5f09b76b402fd65e2bf67ac0d8eda6bf52630304c9', 'configSha256': 'e1a47dddf3c27dda0b3dd7732fb1666db0dd8d9ff38d215066f5babebb069743', 'runtimeSha256': '985d0d78c69938527e37a534fc04afd97cb0b440a5b47a367bd9bad0e27ae29c', 'schemaSha256': 'e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c'}, 'consumed': 43262, 'counts': {'task_open': 5745, 'task_start': 5745, 'boundary': 11271, 'clock': 14756, 'task_end': 5745}, 'excludedOwnedTokens': 0, 'excludedModules': [], 'leftovers': 0, 'accountingComplete': True, 'semanticReplay': 'MET', 'productionCoverage': False, 'controlledW20': 'NOT_MET', 'timingScope': 'owned coroutine replay; coordination time is not production incremental cost', 'replayIPCReceipts': [{'pid': 2496, 'exitCode': 0, 'joined': True, 'relayJoined': True, 'remoteTokensConsumed': 86, 'modelHashes': {'model.cbm': 'a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2', 'manifest.json': '15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3'}}], 'ordinaryParity': True, 'sourceParity': True, 'labelParity': True, 'forecastParity': True}

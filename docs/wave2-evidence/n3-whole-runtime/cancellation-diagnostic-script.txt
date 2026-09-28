@@ -1,0 +1,29 @@
+import asyncio,json
+from pathlib import Path
+async def main():
+    from scalp_bot.native_index import IndexedNativeTape
+    from scalp_bot.ml.whole_runtime_fixture import WholeRuntimePopulation
+    from scalp_bot.ml.native_runtime import NativeRuntimeActorTransport
+    from scalp_bot.whole_runtime_replay import WholeRuntimeReplayCoordinator
+    p=Path(r'G:\codex\2026-09-28\referenced-chatgpt-conversation-this-is-an-7\work\unified-final-01')
+    out=p.parent/'cancellation-diagnostic-03';out.mkdir()
+    freeze=json.loads((p/'freeze.json').read_text())
+    import scalp_bot.engine
+    scalp_bot.engine.code_provenance=lambda *a,**kw:freeze['source']
+    with IndexedNativeTape(p/'tape.gz',out/'tape.sqlite',expected_provenance=freeze['provenance']) as tape:
+        for i in range(6):
+            c=WholeRuntimeReplayCoordinator(tape,timeout_seconds=60)
+            population=WholeRuntimePopulation(out/str(i),model_dir=r'G:\scalp-bot\data\pr58-completion\model-v2')
+            transport=NativeRuntimeActorTransport(c,population.model_dir,expected_model_hashes=freeze['config']['model'])
+            await transport.start()
+            try:
+                report=await c.run(population.run)
+                await transport.close(population.probe.worker)
+                print('PASS',i,report['consumed'],flush=True)
+            except BaseException:
+                c.poison(RuntimeError('failed diagnostic'))
+                print('FAIL',i,str(c.failure),flush=True)
+                if population.probe is not None: await transport.abort_worker(population.probe.worker)
+                await transport.close()
+                raise
+if __name__=='__main__': asyncio.run(main())

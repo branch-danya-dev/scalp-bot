@@ -1,0 +1,36 @@
+{
+  "schema": "whole-runtime-v5-report",
+  "variant": "C",
+  "populationSha256": "ad4b96d8f162f54337a423cc496b926694ba5163c4bd58db3acdf0fa46f8a0ed",
+  "provenance": {
+    "sourceSha256": "295846f3ad42ce8ccf1d5d9b4d14331e9c7e3eb6693f74d7bfa5548a0e1729b3",
+    "configSha256": "e1a47dddf3c27dda0b3dd7732fb1666db0dd8d9ff38d215066f5babebb069743",
+    "runtimeSha256": "985d0d78c69938527e37a534fc04afd97cb0b440a5b47a367bd9bad0e27ae29c",
+    "schemaSha256": "e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c"
+  },
+  "consumed": 982,
+  "counts": {
+    "task_open": 114,
+    "task_start": 114,
+    "boundary": 269,
+    "clock": 371,
+    "task_end": 114
+  },
+  "excludedOwnedTokens": 1527,
+  "excludedModules": [
+    "maker",
+    "v2",
+    "v3"
+  ],
+  "leftovers": 0,
+  "accountingComplete": true,
+  "semanticReplay": "MET",
+  "productionCoverage": false,
+  "controlledW20": "NOT_MET",
+  "timingScope": "owned coroutine replay; coordination time is not production incremental cost",
+  "replayIPCReceipts": [],
+  "ordinaryParity": true,
+  "sourceParity": true,
+  "labelParity": true,
+  "forecastParity": true
+}

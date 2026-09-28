@@ -1,0 +1,68 @@
+import argparse
+import asyncio
+import json
+from pathlib import Path
+
+async def main(args):
+    from scalp_bot.ml.whole_runtime_fixture import CAPTURE_ID, WholeRuntimePopulation
+    from scalp_bot.native_dispatch import NativeDispatch
+    from scalp_bot.native_v5 import NativeTapeWriter, provenance, read_native_tape
+    from scalp_bot.run_manifest import code_provenance, runtime_provenance
+    from scalp_bot.whole_runtime_replay import WholeRuntimeReplayCoordinator
+    from scalp_bot.ml.native_runtime import NativeRuntimeActorTransport, model_hashes
+    out=Path(args.output)
+    out.mkdir(parents=True,exist_ok=False)
+    population=WholeRuntimePopulation(out/'capture',trade_path=not args.fast,model_dir=args.model)
+    source=code_provenance(Path(__import__('scalp_bot').__file__).resolve().parents[1])
+    runtime=runtime_provenance()
+    config=population.config.model_dump(exclude={'bybit_api_key','bybit_api_secret'})
+    models=model_hashes(args.model) if args.model else None
+    config=dict(settings=config,model=models)
+    freeze=dict(source=source,config=config,runtime=runtime)
+    prov=provenance(source_sha256=source['sourceSha256'],config=config,runtime=runtime)
+    (out/'freeze.json').write_text(json.dumps(dict(freeze,provenance=prov),indent=2))
+    with NativeTapeWriter(out/'tape.gz',capture_id=CAPTURE_ID+'.jsonl',provenance=prov) as writer:
+        d=NativeDispatch(writer)
+        await d.run(population.run(d))
+        await d.join()
+    result=population.result()
+    (out/'capture-result.json').write_text(json.dumps(result,indent=2))
+    print(json.dumps({k:v for k,v in result.items() if k not in ('ordinary','labels','prepared')},indent=2),flush=True)
+    print('CLOSED',len(result['ordinary']['portfolio']['closed']),'PREPARED',len(result['prepared']),'LABELS',len(result['labels']),flush=True)
+    tape=read_native_tape(out/'tape.gz',expected_provenance=prov)
+    for variant,i in ((variant,i) for variant in args.variants for i in range(args.replays)):
+        identity=f'{variant}-{i}'
+        replay=WholeRuntimePopulation(out/f'replay-{identity}',trade_path=not args.fast,model_dir=args.model,variant=variant)
+        coordinator=WholeRuntimeReplayCoordinator(tape,timeout_seconds=60,variant=variant)
+        transport=None
+        if args.model and variant=='F':
+            transport=NativeRuntimeActorTransport(coordinator,args.model,expected_model_hashes=models)
+            await transport.start()
+        try:
+            report=await coordinator.run(replay.run)
+            if transport:
+                await transport.close(replay.probe.worker)
+                transport=None
+            actual=replay.result()
+            (out/f'replay-{identity}-result.json').write_text(json.dumps(actual,indent=2))
+            report['ordinaryParity']=actual['ordinaryHashes']==result['ordinaryHashes']
+            report['sourceParity']=actual['sourceSha256']==result['sourceSha256']
+            report['labelParity']=actual['labelSha256']==result['labelSha256']
+            report['forecastParity']=actual['forecastSha256']==result['forecastSha256']
+            (out/f'replay-{identity}-report.json').write_text(json.dumps(report,indent=2))
+            print('REPLAY',identity,report,flush=True)
+        except BaseException as exc:
+            (out/f'replay-{identity}-failure.txt').write_text(str(exc),encoding='utf-8')
+            raise
+        finally:
+            if transport:
+                await transport.close()
+
+if __name__=='__main__':
+    parser=argparse.ArgumentParser()
+    parser.add_argument('output')
+    parser.add_argument('--fast',action='store_true')
+    parser.add_argument('--replays',type=int,default=0)
+    parser.add_argument('--model')
+    parser.add_argument('--variants',default='F')
+    asyncio.run(main(parser.parse_args()))

@@ -1,3 +1,12 @@
+# Current continuation
+
+The authoritative continuation from exact `b3027ede` is now
+[whole-runtime evidence](n3-whole-runtime-evidence.md). A real unified nonempty
+session and coroutine/child/relay replay exist. Production N3.0/W2.0 remain
+NOT_MET: the strict final F repeat failed at cancellation during stack parking;
+owned deadlines and native A-F cost/tax remain open. The material below is the
+retained prior stage, not the current remaining-blocker description.
+
 # N3 production wiring and spawned request replay — 28 September 2026
 
 **The main deliverable is incomplete. Production N3.0 and W2.0 remain NOT_MET.**

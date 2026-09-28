@@ -1,0 +1,141 @@
+{
+  "populationSha256": "8592e27eb7fe1b35f1925c80a2a68ba9e2bc4b3fffe39678fdafe262c961d129",
+  "status": "NOT_MET",
+  "reason": "Replay clocks are frozen F causal inputs. Replay wall time includes coordinator, RPC and stack parking. Neither is a native variant cost estimator.",
+  "variants": {
+    "A": {
+      "nativeCostMeasured": false,
+      "metrics": {
+        "event_loop": null,
+        "data_to_adapter": null,
+        "joined_critical_paths": null,
+        "source_queue_dwell": null,
+        "callback_evaluate_residence": null,
+        "request_submit_queue_dwell": null,
+        "parent_ipc": null,
+        "worker_scheduling": null,
+        "prediction": null,
+        "reply_ipc": null,
+        "relay_dwell": null,
+        "adapter_decision": null,
+        "writer_codec_high_water": null,
+        "gc_pause_overlap": null,
+        "allocation_throughput_top_sites": null
+      }
+    },
+    "B": {
+      "nativeCostMeasured": false,
+      "metrics": {
+        "event_loop": null,
+        "data_to_adapter": null,
+        "joined_critical_paths": null,
+        "source_queue_dwell": null,
+        "callback_evaluate_residence": null,
+        "request_submit_queue_dwell": null,
+        "parent_ipc": null,
+        "worker_scheduling": null,
+        "prediction": null,
+        "reply_ipc": null,
+        "relay_dwell": null,
+        "adapter_decision": null,
+        "writer_codec_high_water": null,
+        "gc_pause_overlap": null,
+        "allocation_throughput_top_sites": null
+      }
+    },
+    "C": {
+      "nativeCostMeasured": false,
+      "metrics": {
+        "event_loop": null,
+        "data_to_adapter": null,
+        "joined_critical_paths": null,
+        "source_queue_dwell": null,
+        "callback_evaluate_residence": null,
+        "request_submit_queue_dwell": null,
+        "parent_ipc": null,
+        "worker_scheduling": null,
+        "prediction": null,
+        "reply_ipc": null,
+        "relay_dwell": null,
+        "adapter_decision": null,
+        "writer_codec_high_water": null,
+        "gc_pause_overlap": null,
+        "allocation_throughput_top_sites": null
+      }
+    },
+    "D": {
+      "nativeCostMeasured": false,
+      "metrics": {
+        "event_loop": null,
+        "data_to_adapter": null,
+        "joined_critical_paths": null,
+        "source_queue_dwell": null,
+        "callback_evaluate_residence": null,
+        "request_submit_queue_dwell": null,
+        "parent_ipc": null,
+        "worker_scheduling": null,
+        "prediction": null,
+        "reply_ipc": null,
+        "relay_dwell": null,
+        "adapter_decision": null,
+        "writer_codec_high_water": null,
+        "gc_pause_overlap": null,
+        "allocation_throughput_top_sites": null
+      }
+    },
+    "E": {
+      "nativeCostMeasured": false,
+      "metrics": {
+        "event_loop": null,
+        "data_to_adapter": null,
+        "joined_critical_paths": null,
+        "source_queue_dwell": null,
+        "callback_evaluate_residence": null,
+        "request_submit_queue_dwell": null,
+        "parent_ipc": null,
+        "worker_scheduling": null,
+        "prediction": null,
+        "reply_ipc": null,
+        "relay_dwell": null,
+        "adapter_decision": null,
+        "writer_codec_high_water": null,
+        "gc_pause_overlap": null,
+        "allocation_throughput_top_sites": null
+      }
+    },
+    "F": {
+      "nativeCostMeasured": false,
+      "metrics": {
+        "event_loop": null,
+        "data_to_adapter": null,
+        "joined_critical_paths": null,
+        "source_queue_dwell": null,
+        "callback_evaluate_residence": null,
+        "request_submit_queue_dwell": null,
+        "parent_ipc": null,
+        "worker_scheduling": null,
+        "prediction": null,
+        "reply_ipc": null,
+        "relay_dwell": null,
+        "adapter_decision": null,
+        "writer_codec_high_water": null,
+        "gc_pause_overlap": null,
+        "allocation_throughput_top_sites": null
+      }
+    }
+  },
+  "incremental": {
+    "B-A": null,
+    "C-B": null,
+    "D-C": null,
+    "E-D": null,
+    "F-E": null
+  },
+  "wholePopulationInstrumentationTax": {
+    "status": "NOT_MEASURED",
+    "value": null,
+    "reason": "No paired equivalent native scheduler population with v5 recording disabled has been established."
+  },
+  "nextRequirement": "Separate real diagnostic spans from causal clocks and coordinator waits, with equivalent native source/dispatch and a recording-off control. Validate that estimator before selecting any latency fix.",
+  "precedingBlocker": "R3/R5 unmanaged asyncio deadlines/cancellation can interrupt a parked synchronous slice; strict final F repeat 2 failed."
+}

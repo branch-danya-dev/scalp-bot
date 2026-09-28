@@ -1,3 +1,25 @@
+# Whole-runtime continuation — 28.09.2026
+
+**Production N3.0 и W2.0 = NOT_MET.** Текущий authority:
+[whole-runtime evidence](docs/n3-whole-runtime-evidence.md).
+
+Добавлен WholeRuntimeReplayCoordinator, real source/runtime/ShadowProbe/child/
+relay lifecycle и единая непустая population. На одном development capture
+43 262 tokens A–F по одному разу дали exact ordinary/source parity, E/F — label,
+F — real forecasts/adapter; enabled leftovers = 0. Есть настоящий EconomicPlan,
+FIRE, PaperBroker fill, managed close и executable first-prepared label.
+
+Строгая clean-source indexed попытка: 43 888 tokens, F1 exact, **F2 FAIL** при
+cancellation внутри stack parking. Её не заменяют успешные diagnostic replays.
+Следующая работа: owned deadlines/cancellation на coroutine boundaries, затем
+строгое R5 повторно; после него отдельный native A–F cost estimator и paired
+whole-population v5 tax. Frozen F clocks и replay wall time не являются cost.
+
+Никакого latency fix или 900s. Main/PR60, dataset policy и downstream freezes
+не изменены. Audit/plan, implementation и evidence разделены по commits.
+
+---
+
 # N3 production wiring continuation — 28.09.2026
 
 **Главный deliverable не завершён: production N3.0 и W2.0 = NOT_MET.**

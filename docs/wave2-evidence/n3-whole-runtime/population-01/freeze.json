@@ -1,0 +1,618 @@
+{
+  "source": {
+    "sourceSha256": "702ce8a6d736f04cb220756824ad3eac914c27cc8bc5b92a44e1a89ec5506371",
+    "fileHashes": {
+      "scalp_bot/__init__.py": "d03eacad88bd7a33d49f0a635660e8241fa832e06a3d288fe742cf46833c1b42",
+      "scalp_bot/activity.py": "7210a1826445cb59d278a722ea7a133d7a0271eb44f8f79ca322cd100c8dedb8",
+      "scalp_bot/admission.py": "859b006aa9c73bddc458d7700b869476a27927285f69fd4630442aef77832163",
+      "scalp_bot/analysis_pack.py": "af9e607a96e3fd4a57853df9e317f20263488437f15728b2a86bb081ebe85eed",
+      "scalp_bot/app.py": "02761d1da665081f0236367d7dd003a3a414ecc89b55325d72912dd79fe10b9e",
+      "scalp_bot/bybit.py": "47967bff69815d1fdc37a246ead0d3a8b02adbeb0ae3392057a9a21e34dcd5dc",
+      "scalp_bot/capture.py": "3240395f703a0312934b920fd015d106dc0768a21391e323d61e03f941d14aa1",
+      "scalp_bot/capture_codec.py": "b271cc3e54c61d8fe31095dabf0d474cc06d3cc5c79826258492b607f5b53d21",
+      "scalp_bot/capture_replay.py": "074ad553b753f90e82ffcd650976764c524e0338135ca9eb0ab890eb064dd4a3",
+      "scalp_bot/config.py": "6c81126c9482f2881362265b431c5f5c1ed5e7edbad16473885855cb48c8edeb",
+      "scalp_bot/cross_venue.py": "2ee6ca3518987856d1d25112b3f88fc30a6a313a421e8e5334f418bea95166ca",
+      "scalp_bot/cross_venue_public.py": "788c6c9d2a4727ec1f4ceeb45039dbe4af7726f972989e76e5c169c4ba976361",
+      "scalp_bot/demo_paper/__init__.py": "02702e8a3b04f1cae207806a204e1fac1ffb8820b35946eeadc470fd9c00e069",
+      "scalp_bot/demo_paper/__main__.py": "821fa18ab26c5920ad3f3716e7fe75cb86c103de769c67d5c3a108b26d8a2893",
+      "scalp_bot/demo_paper/calibration.py": "980b3926efeb2bc43149caf25b5f6c02583e31dcc77610f9bd6165bf1274d32b",
+      "scalp_bot/demo_paper/contracts.py": "ff5bbaaaac8e31e28f29410032b6b90eeb1fad1fda97d5cb31cccb07009102b0",
+      "scalp_bot/demo_paper/engine.py": "201f1fae1467b21915e3e0823afee7abc7161a5e94ee1fc406978adc75fab7a7",
+      "scalp_bot/demo_paper/ml_adapter.py": "2256117379620a9430adda4a41c072b04dc5210f57a27d50fefc2ebcc9e375f1",
+      "scalp_bot/demo_paper/portfolio.py": "3733be3a065e848b05c5b34a1a4fc9fd054ec30c7b0e46e5d984a656e56ea1d4",
+      "scalp_bot/demo_paper/preflight.py": "edd4500e947480e0d9a0639ebca3d9ca2117fc93deab73f0d185905750176b36",
+      "scalp_bot/demo_paper/report.py": "202f1eb095c56b743c4d03f648e1e4d2daeef9b3c5d89a5afab5fbc21a961fb8",
+      "scalp_bot/demo_paper/runtime.py": "d388588d8ec19c1fe84a1329abe64fadbfad588a6c244770da1a3f148331b611",
+      "scalp_bot/demo_paper/transport.py": "028bcfa4b4c6150c2e30d8fac1a245f76b3b4a9b177b969bc3e75c0a10019d7c",
+      "scalp_bot/demo_paper/venues.py": "8157d673b7c2f54cdba40047cacbbde32253d7e4c1dca7a0622a9c012a608e32",
+      "scalp_bot/domain.py": "b87157d0c40105438a3846814265a7bf7f0e0a635250d2936e110cd1873aa64d",
+      "scalp_bot/e01_comparison.py": "0543974cd9db151a187c389177c6bab5de75ec28db9999ee0cc78fbf8a7f4248",
+      "scalp_bot/e01_feed.py": "a0f410b2b6d14e46b56cbe3e9a27d638aee4d068e109bee74c254d279aa6de83",
+      "scalp_bot/e01_live.py": "11d7de3497ac7becabe0e0fb06830d0c72db6e4bf0b45957fe5b3480623a1300",
+      "scalp_bot/e06_capture.py": "a377b631ac878d2fa90f2dd87780638aafc165b2fd181616682a9d51b2cc3778",
+      "scalp_bot/economic_calibration.py": "1f72293a0d28cd8c786f90843501cf2aab883ee31582e8e044fba53ce7794ede",
+      "scalp_bot/engine.py": "89ee74be398dc4eedf4b694429c633cfacdcdf22f1d9817ba6e129367b8714a3",
+      "scalp_bot/execution.py": "a7dba54da70a91cf7e720f7c33076c0bb3d386a430358c8ff0bdb37e3a339105",
+      "scalp_bot/execution_book.py": "affaaf7a8929077ca7c29dd205b8c30c5fbbda567c16587fea2074d5ff8dde27",
+      "scalp_bot/expectancy.py": "ba64f3a47a2590e10d08ebfb2cd0599cda6cfc3187db3833f1a31a7eb896a2ad",
+      "scalp_bot/experiment_controller.py": "37526f7887132b49d436cdb312552b207e5dee7f3c343c43acb741f1ca4d81a3",
+      "scalp_bot/git_session_export.py": "3562a66357f4fc7c414c85bf6f00883202403b15c21054dbfa6d023aeb781196",
+      "scalp_bot/hindsight_review.py": "881155e64c894f71ff4d9401736bfde7966b807a36c47e2c22ef41fdda13700f",
+      "scalp_bot/input_journal.py": "14968fa8e4d1c70ec046b344cccd198557064ae9345a565fb51be580bd1f3c8e",
+      "scalp_bot/input_scope.py": "a9df10e8e8fc6549dd41e1f287855d636240739f2a661e54f073e55bf0bff662",
+      "scalp_bot/instrument.py": "baa0dec23dab7765479ff21ec88c780b09593b62d71b42e024eff7276687c25a",
+      "scalp_bot/latency_observability.py": "af438842381a121ea0accfa2178194096beccd2ce7259bc02d95fe8e756325fa",
+      "scalp_bot/long_run_pack.py": "ef7e865f872437446e0c0bcc77b7f5053a144c2aec420b5008a88efb1ca7b6d4",
+      "scalp_bot/maker_shadow.py": "ae2901894a4edf4af6d0ce0c2860daebfbe74db59eece08d1b431d4ab206cc59",
+      "scalp_bot/manifest_schema.py": "5085a568beddf8ba2bc4a8f0e6c88ae93e9f5bc91e545f9cb625115204d82dc5",
+      "scalp_bot/manifest_validation.py": "3ceaf6eb37be18065f225307e7aa77db35c626b7b4b2d957aa52dfe2b371ae69",
+      "scalp_bot/market_clock.py": "7d578181249e8f9e777a55c86ee7cb7fb22a1d069339087870f599d69e661f9f",
+      "scalp_bot/market_interaction_review.py": "5bcbc03c386e6f1aab0d1b136ee261c3e25849e240ae50d14c4187091f4aba1f",
+      "scalp_bot/market_runtime.py": "fd279da145560d127de865b9737355dd716cdf63adcde49ea5c5d1fff91399b7",
+      "scalp_bot/ml/__init__.py": "f8e84cafb0793674c0d0069a9c4f3ca3213f23390d0f5c2d0d15f8e79ab32e22",
+      "scalp_bot/ml/__main__.py": "86702260b28fb49e9161ef7a5eb66fa3e9af2c08e5e487b0dde1b3dc8e5c934d",
+      "scalp_bot/ml/arbitration.py": "9267bcfbcdd161e856ab521ee95d082a7cd8a3d4a4a83b5d3d41892c71f1641e",
+      "scalp_bot/ml/capture_context.py": "4b3135cd108eee0a88191eb3d695131c24f697c7b63a7a268cac206a47f09091",
+      "scalp_bot/ml/combine_periods.py": "d24dd795a6cdb640c0ec735075c97ebbf60f79fc91f5945cb6ee5b6df60e23ba",
+      "scalp_bot/ml/context_audit.py": "a06e4e49c32dbc332817d8161ad313797cd8bc2633b96743b38a3d743c468542",
+      "scalp_bot/ml/contracts.py": "20b8aa774f7dc5d3e83018c95b502bc53fea84d2525c054b26c2e4e22a548a84",
+      "scalp_bot/ml/cross_venue_study.py": "c44bf4bdf651e8a823fc577639e7c1ed5e3a9b40e5deb94ccf98e276ad1c0437",
+      "scalp_bot/ml/dataset.py": "267e58836c756beeb65305806889f1c8770ae9c60e17faf993c0dd8968a76896",
+      "scalp_bot/ml/dataset_promotion.py": "108efd0bc536fb80d08e9a3ae6c6590fb89125a5d87ed410e779ad851f9854a3",
+      "scalp_bot/ml/diagnostics.py": "ae8ab6fc6154510ead8a061f67e8a81f1ee3d69c0b8956fd7665e10a01fb05c2",
+      "scalp_bot/ml/engine_dataset.py": "020aca312a945c8633428b8a32781df9053a04bce471df6c75630018937eaa0d",
+      "scalp_bot/ml/features.py": "712bf1c8ee851429bd85b16ed729dd1d0c9c8cfd2d2161d1b4f7f98a2eb6eaa2",
+      "scalp_bot/ml/history/__init__.py": "2a6860a47041816f15fe30a75e37788383bce122b2c2c5dcf609adbe5d23f076",
+      "scalp_bot/ml/history/__main__.py": "b992bfa9b385eadbe926f5d374c2f6717a9092e99166bbc48a92ee3da184b10a",
+      "scalp_bot/ml/history/adapters.py": "b7201c9ed7a7ccff0bc4f27c7bd36c7dcb7cad5272650f87140d57dabbba8f66",
+      "scalp_bot/ml/history/alignment.py": "ca546a99c76ea070e8faabe51454cf1151169f09985f44d1cb96429bb31e785d",
+      "scalp_bot/ml/history/book.py": "75d82bee9c234d4aa40bf8b726d0f368be2f7906f1888d2ea93fc8377772ed23",
+      "scalp_bot/ml/history/importer.py": "8db4d1cc467660e8aa70b20fd53cbf972d5af090af1f59777047edfc0de86758",
+      "scalp_bot/ml/history/samples.py": "cd0d263632d14752ead7b17bf7d414a789158b4f5b0f514511b65b868bdbf4ea",
+      "scalp_bot/ml/history/sources.py": "5c1eb7e17352db9b5f6fff99f03e0367deb12acdc749d8834b812a2af880e682",
+      "scalp_bot/ml/label_replay.py": "71420565ec199a1c7b558ae83d40a918230e4132dc7b010f3894f443a4d5d1b1",
+      "scalp_bot/ml/learning.py": "35790522eee8bf600c03d63aa59882ca6f89c329dcfc0493c8fa872eefe98b46",
+      "scalp_bot/ml/maker_study.py": "a6f5c3c05b8e01b393109c48b7651f77f78c779098fbed0df1d19eb55be9df92",
+      "scalp_bot/ml/native_bridge.py": "b5dffc9ee390bc4a151a9b754fd09f173286600388346300bdbb06b131d07693",
+      "scalp_bot/ml/native_fixture.py": "1d54d4c420549624b7216a7623ab194abca3a90f82dad46d114a68f5256bd037",
+      "scalp_bot/ml/paired_paper.py": "6a44a21419f0914208ca6beed5103b4358b683a01fbbb47743a7ae98fa2698f6",
+      "scalp_bot/ml/plan_diagnosis.py": "a5e37e0b1302ba3de645cb127a54747246f06e472be84ca68ee50ce72a1ed8f2",
+      "scalp_bot/ml/plan_paths.py": "03dc0690588c8ee1cac00c8b6bfb513c5a9fc0335d58c2cdb6ede0c2dc1f3df9",
+      "scalp_bot/ml/prepared_adapter.py": "e46276bde75b446c7a06ce555e51708a108e92fdb9b67c9e64b3ca934461badd",
+      "scalp_bot/ml/prepared_dataset.py": "f661f460cb34c780859c89a5d9c8a12f352681874e4d8dca2303abdb6d7b3730",
+      "scalp_bot/ml/prepared_labels.py": "354a62197863d7d9524f240d55b6546d03ccbbb0a2c698c602970cb1279c578b",
+      "scalp_bot/ml/prepared_learning.py": "e7ea9b0546584826f71c9e971246589c362c7e77843d63037d66af69a3d35c57",
+      "scalp_bot/ml/prepared_population.py": "073d4accd6a1a39fe889ffe408b0f34f01bf43e6b867c5307fbe09b6cedaddd9",
+      "scalp_bot/ml/probe.py": "55f582a9d50eae11eebc3714d44f01e835d66a092f3449773fd020e84a110a81",
+      "scalp_bot/ml/process_stats.py": "55cb308d2a46edac5f4053dfc9a7c7c9ed0b11af601195e421fb0cabe939e419",
+      "scalp_bot/ml/shadow.py": "2a2b192594404a275548f976f711380a564c675e9f80fd8a3ad746157df69ca7",
+      "scalp_bot/ml/wave2.py": "588ee415c4325e9ab161c5d6439dff6f868aae0a2faeee597ea23cd4ae9209c2",
+      "scalp_bot/ml/wave2_replay.py": "8efbea261b730adb30aa0fe0f86ec54a72bd07ae4bf1402268046d8cee84aa48",
+      "scalp_bot/ml/whole_runtime_fixture.py": "2715a404ad005b64d86197b2fda3e9fc7879920319901c34b7a1e76d4ff3bea2",
+      "scalp_bot/ml/worker.py": "15003af9f51a11f1acfd4cf66c928565c388495f44aa2fb8c0bafa3e28d7073a",
+      "scalp_bot/native_controlled.py": "442d0ae198bd6345e1b20ca91322f6bbd8921650c71f2d138bcf6c6c293846f1",
+      "scalp_bot/native_dispatch.py": "b361c1c1fc9fe76192c0773616567e71b6e3d347087dac66ea2d6a4a71bdd96b",
+      "scalp_bot/native_index.py": "e1a47c51ffdaf16766852193dffb2fc19f21792a965d09762af7cd516f71c6d5",
+      "scalp_bot/native_qualification.py": "1fe16130a8e9ad72b30bda1ad721f213455424215c43f1cdd11b356ef4bbef6a",
+      "scalp_bot/native_v5.py": "b51b9c1f9c8ee697d95ce5d8f67ff9182466abb63d6a30e3ab84d45aebc4994f",
+      "scalp_bot/observability.py": "34691a18e3853124908d43add19530791e8468c433a3522d8931c0af20221eca",
+      "scalp_bot/offline_benchmark.py": "7526bb6cc96ea8e90d305d1329c8154cfb0cc52dda80b546a6b452b8a603732e",
+      "scalp_bot/offline_benchmark_trace.py": "185960be4500d0d7be94a6a91e511bf503d8914693f64077e01917de46990d23",
+      "scalp_bot/offline_bootstrap.py": "c0537b698bb032b0d233ad4f5df1fdc49d64ed86fe41657871a68a080112f309",
+      "scalp_bot/offline_comparison.py": "23c4bb0b043d30dbabdfe394219c82c9f9644f9d6ef9dee8804db612788871eb",
+      "scalp_bot/offline_index.py": "e3bbcbbfb3398c39d36349fc828c5fd3fca3e2e3704435801e329a563939e22b",
+      "scalp_bot/offline_market_index.py": "bd9c4be92ee65c2b853abbf8e365079937b41406993da6429dbbf6f7563e82e9",
+      "scalp_bot/offline_scheduler.py": "59482640fd6e779b33207318ab83984b11deba50fd978cb326784836883b2952",
+      "scalp_bot/offline_segment.py": "57d5c6af0bc789dfb8884399c4c03e3a412e212604aeb8a9dcf0faf85442605f",
+      "scalp_bot/offline_study.py": "df4d9152265493f495e0854075848a43fe275cc379449914ec1d72106fff5cd7",
+      "scalp_bot/offline_trade_diagnosis.py": "6a9b8a01a740cc36aaa566c8a1614f7d759edc0c119737fc8d4938ed5e93e6fa",
+      "scalp_bot/offline_transport.py": "15bafda4fbaea59c513dfd57055f3df05ddfd7124b6db856a8251276790ba74c",
+      "scalp_bot/opportunity_review.py": "3900c23cee6a53406731726824e5632a6bbd00d94357b8b6fa6a85647e04329e",
+      "scalp_bot/paper.py": "f4b092b956a8b68b736b3a11ecee25f9f2f72df3a6f9c0d2c192abb2836f2c56",
+      "scalp_bot/parallel_scenarios.py": "ad9b397ce4d8bdd4039a0ba8870971028445a9e1c54ea27ef57ae9d83fe1bfed",
+      "scalp_bot/performance_matrix.py": "04f490bb29defa1bb7947e26c6204388447ceb5d9a7cc0f721ab9c64735a7aec",
+      "scalp_bot/pipeline_evidence.py": "2a366d3b8ffcc7b7231d0f6cb5a7d771dfca704216d52eb9c2d79f3ed37c36d5",
+      "scalp_bot/preflight.py": "70bcd4e1a2c327d180617adfb1ad72e6645b4d2aa3f84dd67ad0c7a1d1bfc172",
+      "scalp_bot/raw_session_archive.py": "bf5def2861b15c0900dcaa195022b2a9d8cfced7da1a0e5eb8f794dac5ef0bb1",
+      "scalp_bot/recorder.py": "70f2d9914042fe1bf431a9ad4dcaef2b8d6f79a2299f235a4b13571789365f54",
+      "scalp_bot/research.py": "55e9863d238cb5e73441d1e085b29f61582fb1526368b36b06789c35e4272e97",
+      "scalp_bot/research_dataset.py": "f5935d6c7eabaee92036cb3afbe8470be8770df2b02f273fd96ad6b25d43ec62",
+      "scalp_bot/research_journal.py": "a7ff7d5efbada4c081983d009de412e6cc2249b7c79cbfe12db2ffd02863c9e6",
+      "scalp_bot/research_policy.py": "f6f661e96e8b82000701e73ac34ecb378f15924da11c1db5ac0ce386bddbf2d2",
+      "scalp_bot/risk.py": "baa387c93c52e5d02bcb3006bfa704476e44eb9f2b118da4c26d34b7ba991f3d",
+      "scalp_bot/run_manifest.py": "87bd1dc6c7f5e88ef6f36f61506a61288a10cd855732dfe953d8893a08bb92cf",
+      "scalp_bot/runtime_clock.py": "60cbd5e76b5cfe4d561264c2c86536c20000b1e36486cc4111fae9d48470a378",
+      "scalp_bot/scenario.py": "fde0d0416e98ac4a88ba7b105fa1db27392d84c1486068638047192aaa4dbdb3",
+      "scalp_bot/scenario_episodes.py": "04d1e182cf1e42954c0d620598bf000e362370cd295fbeee56ca1f728d9d7dbc",
+      "scalp_bot/scenario_identity.py": "14f0d7cfcc7eca07f9f4ce8b39e01309d1f18ba5136e2f16bfb8d33c5e0bfee3",
+      "scalp_bot/scenario_runtime.py": "4baa145f192e21fd79912111607297004df9b2607c7308e6bfc45941e6eea4e8",
+      "scalp_bot/segment_registry.py": "a389e70e16c2aa9ac8be28fd7f73102a9b0a718a79167f0ac88009d8d4b7d00b",
+      "scalp_bot/session_validation.py": "9f680b77bc29efbbfa4fde26a3ac58b0c6ab81433a24ba736114e7a8985b8c8e",
+      "scalp_bot/setup_segments.py": "7435bf6a49fe9bc551bde5e9b34262f531cbc1d4e1192eba4961e7e942da151b",
+      "scalp_bot/source_await.py": "4744b8197fdeeb3b4247d86c7aa2d7fa2ef8212afdf12ff741912267d863b986",
+      "scalp_bot/source_failure.py": "17090aa96b985f694b1b8412edab4cae9d2e20943f7183fff9db5367f10ffc84",
+      "scalp_bot/stability_validation.py": "64ce9f403b83e2555b70b40ef4679a4e422a6a7910206bbbd943e1e20bcce651",
+      "scalp_bot/strategies.py": "f2006cd88ce36fe9095e071ec25dc0c2786c3c9468cdaacc85275ca90493e24a",
+      "scalp_bot/strategy/__init__.py": "78a1c72f81e3b663fb2a9b638533305257aeb805b42402d3298e167ae25f0632",
+      "scalp_bot/strategy/base.py": "b72aa2880b537102f81aa36f89eea077fa28706d0fb35d476ac57fe2197d376b",
+      "scalp_bot/strategy/breakout.py": "b5e8a4e37426bc37a38e42b19d8c7f8ba08b04718e92b6712c98e723e8970f44",
+      "scalp_bot/strategy/common.py": "afcb4dd168461e10a08adb56123be48f8c91fbf954b35eae03adea614fe0fc12",
+      "scalp_bot/strategy/density.py": "b6c33e4cccd13a5b3496d470245854186f07c79a6e86a466963236779ee365b4",
+      "scalp_bot/strategy/flow.py": "2fc7cf0fdc59a1f59b64b971ae5ca73d728912462a156cb806a7055b0313d558",
+      "scalp_bot/strategy/flow_context.py": "674d76947e54d7e73acd1d97300c84287e9ecafd89f7a0a43b500317d43949e8",
+      "scalp_bot/strategy/freshness.py": "a4b8823fa94b6fdfb75d4586e3647e80c7db3b211c969d396586f4a64c0b6ec0",
+      "scalp_bot/strategy/lifecycle.py": "b03bf8b5264ff01c3528d10a622a76079596eb8fd5840b3914ae27d2ca18cf19",
+      "scalp_bot/strategy/liquidity.py": "1d78af5587b27d62524d956abcef4e95b58cb734aa621b20f310fb0584ca9ab0",
+      "scalp_bot/strategy/liquidity_evidence.py": "b1b841a9f84e5e1d08d66763443f9949b3f8ba4145e2be827a61e1a23c8d85a3",
+      "scalp_bot/strategy/market_context.py": "470045f08d1877d488b8df2dc2aff6f9b4ac16352ffed1ad1828446ae80c2198",
+      "scalp_bot/strategy/playbook_context.py": "daa3abca32949404ed003c157567517a8fdb33741b7958b7f37a2aec612a6fc5",
+      "scalp_bot/strategy/position_policy.py": "3efd9e3e5190fa40b124933f39ca9deaecbb0c2fd4d381ebddb403bead031a0f",
+      "scalp_bot/strategy/pre_state.py": "47f04710fd82f317b0445191902765584302fe5126eeecebc13dd3e878f9aef8",
+      "scalp_bot/strategy/preparation.py": "ccde5fef3de808facf1b076e768d4ccf75caebefa401fe3a4a618ed3fc6f3378",
+      "scalp_bot/strategy/price_action_hypothesis.py": "f61c77847c3347bf59d421eef92dcfd9b4079140abc0350ca8d787df081fa83b",
+      "scalp_bot/strategy/regime.py": "74ff66b4970f8884cab5eae930e38e5f685024131e5536c286a8a08c9f862ff5",
+      "scalp_bot/strategy/rejection_response.py": "6c018c3186ffd1b6458473104d4e313013085a4bdc735ce25d57705a96fcd464",
+      "scalp_bot/strategy/semantic_arbiter.py": "3f33cb2a7e023ec3d29adedbda4a96fd308088562af2739e293a5b610abd9a4f",
+      "scalp_bot/strategy/structure.py": "f465e1ce3573a82f5bddaf1327a1392860a1985a3201c1619bb3d01b799061ff",
+      "scalp_bot/strategy/targets.py": "8ba08b7a4aea71aff6b398680374856c0d3eeb6f1b705c0c7d9dd40aaa50f641",
+      "scalp_bot/strategy/trend_structure.py": "75927f5764c8b3a497265cc5c817af59c9239f2cb6ef82e741fc98cf383771fe",
+      "scalp_bot/strategy/weak_level_rejection.py": "b29cb9105a5d757b37764df96f68261477fefbc1889b4b54f7c3d3783ac19172",
+      "scalp_bot/strategy_policy.py": "a7be435589e39bdd5bd1331e1fa30164896e3dcf130190653bded1d3fe80bf6d",
+      "scalp_bot/whole_runtime_replay.py": "7dc581196cd1df8f64765ce08359a3a7e06f8b42807141ea47890f399e0cb93f",
+      "pyproject.toml": "a24463a2e5c293467602d5f59e20ebc5e45cc06fb4132994a93148916b36ff7f"
+    },
+    "gitHead": "8bf2990839b436f26c4706b95e873dace8c1c687",
+    "trackedDirty": true,
+    "scope": "source_on_disk_at_run_start_not_loaded_bytecode"
+  },
+  "config": {
+    "bybit_rest_url": "https://api.bybit.com",
+    "bybit_rest_fallback_urls": "https://api.bytick.com",
+    "bybit_public_ws_url": "wss://stream.bybit.com/v5/public/linear",
+    "bybit_private_recv_window_ms": 5000,
+    "fee_rate_mode": "account_if_available",
+    "exchange_clock_enabled": false,
+    "clock_sync_interval_seconds": 20.0,
+    "clock_max_rtt_ms": 400.0,
+    "clock_max_sync_age_seconds": 60.0,
+    "clock_max_uncertainty_ms": 250.0,
+    "clock_wall_jump_ms": 250.0,
+    "clock_drift_ppm": 50.0,
+    "trade_receipt_stale_seconds": 5.0,
+    "start_balance": 1000.0,
+    "e01_breakout_obstacle_veto": false,
+    "e06_conditional_breakout_hold": false,
+    "min_turnover_usd": 150000000.0,
+    "liquid_universe_size": 30,
+    "working_symbols": 6,
+    "max_active_symbols": 12,
+    "active_keep_rank": 12,
+    "active_symbol_min_seconds": 600.0,
+    "active_symbol_idle_timeout_seconds": 300.0,
+    "activity_window_minutes": 5,
+    "activity_correlation_window_minutes": 60,
+    "activity_benchmark_symbol": "BTCUSDT",
+    "scanner_interval_seconds": 60.0,
+    "activity_request_concurrency": 2,
+    "activity_request_pause_seconds": 0.2,
+    "bootstrap_1m_candles": 720,
+    "bootstrap_5m_candles": 576,
+    "bootstrap_15m_candles": 480,
+    "bootstrap_1h_candles": 336,
+    "rest_request_min_interval_seconds": 0.25,
+    "rest_rate_limit_retries": 6,
+    "rest_rate_limit_backoff_seconds": 1.0,
+    "rest_rate_limit_max_backoff_seconds": 8.0,
+    "empty_startup_rescan_seconds": 10.0,
+    "market_preflight_timeout_seconds": 30.0,
+    "min_net_profit_usd": 1.0,
+    "min_net_profit_equity_fraction": 0.001,
+    "enforce_min_net_profit_gate": true,
+    "min_net_reward_risk": 1.15,
+    "enforce_net_reward_risk_gate": true,
+    "absolute_min_net_reward_risk": 1.0,
+    "risk_fraction": 0.005,
+    "max_trade_all_in_loss_fraction": 0.0125,
+    "max_total_risk_fraction": 0.02,
+    "max_leverage": 10.0,
+    "max_position_leverage": 5.0,
+    "max_open_positions": 4,
+    "max_pending_entries": 4,
+    "max_position_exposure_fraction": 1.0,
+    "max_daily_loss_fraction": 0.03,
+    "enforce_session_loss_limit": false,
+    "trend_structure_enabled": false,
+    "price_action_hypothesis_enabled": false,
+    "research_rejection_response_policy": "legacy",
+    "weak_level_rejection_enabled": true,
+    "density_enabled": true,
+    "breakout_enabled": true,
+    "staged_entries_enabled": true,
+    "breakout_staged_entries_enabled": false,
+    "weak_level_rejection_staged_entries_enabled": false,
+    "breakout_probe_risk_fraction": 0.35,
+    "weak_level_rejection_probe_risk_fraction": 0.3,
+    "breakout_retest_tolerance_bps": 3.0,
+    "breakout_retest_response_min_bps": 2.0,
+    "breakout_hold_without_retest_seconds": 8.0,
+    "breakout_absorption_efficiency_threshold": 0.35,
+    "breakout_min_directional_response_bps": 2.0,
+    "weak_level_rejection_micro_response_min_bps": 1.5,
+    "weak_level_rejection_micro_response_min_seconds": 0.5,
+    "weak_level_rejection_micro_response_max_seconds": 6.0,
+    "strategy_expectancy_min_samples": 30,
+    "enforce_strategy_expectancy_gate": false,
+    "segment_expectancy_mode": "shadow",
+    "segment_expectancy_min_samples": 100,
+    "economic_calibration_min_group_samples": 20,
+    "economic_calibration_min_segment_samples": 8,
+    "research_policy_mode": "off",
+    "research_policy_file": "",
+    "trend_structure_min_expectancy_r": 0.0,
+    "weak_level_rejection_min_expectancy_r": 0.0,
+    "density_min_expectancy_r": 0.0,
+    "breakout_min_expectancy_r": 0.0,
+    "max_entry_drift_bps": 8.0,
+    "taker_fee_rate": 0.00055,
+    "maker_fee_rate": 0.0002,
+    "slippage_bps": 1.0,
+    "maker_fill_confirmation_bps": 0.5,
+    "maker_queue_ahead_fraction": 0.5,
+    "passive_entry_enabled": false,
+    "passive_entry_timeout_seconds": 15.0,
+    "max_winner_cost_share": 0.35,
+    "enforce_winner_cost_share_gate": false,
+    "min_first_take_move_pct": 0.003,
+    "enforce_min_first_take_move_gate": false,
+    "max_stop_cost_share": 1.0,
+    "enforce_stop_cost_share_gate": false,
+    "stop_depth_stress_multiplier": 2.0,
+    "paper_missing_depth_penalty_bps": 25.0,
+    "partial_take_enabled": true,
+    "partial_take_at_r": 1.0,
+    "partial_take_fraction": 0.7,
+    "trend_structure_partial_take_fraction": 0.5,
+    "weak_level_rejection_partial_take_fraction": 0.3,
+    "density_partial_take_fraction": 0.7,
+    "breakout_partial_take_fraction": 0.3,
+    "runner_target_r": 2.5,
+    "breakeven_buffer_bps": 1.0,
+    "no_follow_through_seconds": 20.0,
+    "trend_structure_no_follow_through_seconds": 45.0,
+    "weak_level_rejection_no_follow_through_seconds": 45.0,
+    "density_no_follow_through_seconds": 20.0,
+    "breakout_no_follow_through_seconds": 120.0,
+    "no_follow_through_max_mfe_r": 0.25,
+    "early_cut_at_r": 0.45,
+    "setup_rearm_seconds": 20.0,
+    "setup_reset_wait_seconds": 10.0,
+    "evaluation_idle_interval_seconds": 0.8,
+    "evaluation_engaged_interval_seconds": 0.2,
+    "arbiter_interval_seconds": 0.25,
+    "strategy_invalidation_grace_seconds": 0.5,
+    "market_context_event_interval_seconds": 10.0,
+    "market_stale_seconds": 3.0,
+    "book_stale_seconds": 1.5,
+    "deep_book_stale_seconds": 1.5,
+    "deep_book_max_skew_seconds": 0.5,
+    "confirmed_candle_stale_seconds": 0.0,
+    "trade_buffer_seconds": 90,
+    "orderbook_depth": 1000,
+    "fast_orderbook_depth": 50,
+    "deep_orderbook_depth": 1000,
+    "event_driven_evaluation_enabled": true,
+    "event_evaluation_min_interval_seconds": 0.05,
+    "market_queue_size": 512,
+    "market_queue_put_timeout_seconds": 0.05,
+    "market_queue_max_lag_seconds": 0.5,
+    "prometheus_enabled": true,
+    "otel_enabled": false,
+    "otel_service_name": "scalp-bot",
+    "otel_exporter_otlp_endpoint": "http://127.0.0.1:4318",
+    "otel_trace_sample_ratio": 1.0,
+    "fast_event_min_mid_move_bps": 0.25,
+    "fast_event_min_spread_change_bps": 0.25,
+    "fast_event_min_ofi_fraction": 0.02,
+    "density_min_wall_notional_usd": 25000.0,
+    "density_strength_multiple": 4.0,
+    "density_turnover_floor_fraction": 0.01,
+    "density_neighbor_window_levels": 20,
+    "density_max_distance_pct": 0.05,
+    "research_frame_seconds": 1.0,
+    "research_recent_trades": 250,
+    "replay_recent_trades": 250,
+    "research_trade_delta_enabled": false,
+    "replay_trade_delta_enabled": false,
+    "recorder_queue_size": 8192,
+    "recorder_critical_enqueue_timeout_seconds": 0.01,
+    "run_label": "paper-v3-scalp-econ-4h",
+    "paper_run_duration_seconds": 14400.0,
+    "replay_engaged_frame_seconds": 1.0,
+    "replay_idle_frame_seconds": 5.0,
+    "replay_book_depth": 16,
+    "session_dir": "whole-runtime-offline-v1"
+  },
+  "runtime": {
+    "python": "3.13.15",
+    "implementation": "CPython",
+    "system": "Windows",
+    "machine": "AMD64",
+    "packages": [
+      {
+        "name": "annotated-doc",
+        "version": "0.0.5"
+      },
+      {
+        "name": "annotated-types",
+        "version": "0.8.0"
+      },
+      {
+        "name": "anyio",
+        "version": "4.15.1"
+      },
+      {
+        "name": "catboost",
+        "version": "1.2.10"
+      },
+      {
+        "name": "certifi",
+        "version": "2026.7.22"
+      },
+      {
+        "name": "charset-normalizer",
+        "version": "3.5.1"
+      },
+      {
+        "name": "click",
+        "version": "8.5.0"
+      },
+      {
+        "name": "cloudpickle",
+        "version": "3.1.2"
+      },
+      {
+        "name": "colorama",
+        "version": "0.4.6"
+      },
+      {
+        "name": "contourpy",
+        "version": "1.4.0"
+      },
+      {
+        "name": "cycler",
+        "version": "0.12.1"
+      },
+      {
+        "name": "fastapi",
+        "version": "0.141.1"
+      },
+      {
+        "name": "fonttools",
+        "version": "4.66.0"
+      },
+      {
+        "name": "googleapis-common-protos",
+        "version": "1.75.3"
+      },
+      {
+        "name": "graphviz",
+        "version": "0.21"
+      },
+      {
+        "name": "greenlet",
+        "version": "3.5.6"
+      },
+      {
+        "name": "h11",
+        "version": "0.16.0"
+      },
+      {
+        "name": "httpcore",
+        "version": "1.0.9"
+      },
+      {
+        "name": "httptools",
+        "version": "0.8.0"
+      },
+      {
+        "name": "httpx",
+        "version": "0.28.1"
+      },
+      {
+        "name": "idna",
+        "version": "3.20"
+      },
+      {
+        "name": "iniconfig",
+        "version": "2.3.0"
+      },
+      {
+        "name": "joblib",
+        "version": "1.6.0"
+      },
+      {
+        "name": "kiwisolver",
+        "version": "1.5.1"
+      },
+      {
+        "name": "matplotlib",
+        "version": "3.11.2"
+      },
+      {
+        "name": "msgspec",
+        "version": "0.21.1"
+      },
+      {
+        "name": "narwhals",
+        "version": "2.26.0"
+      },
+      {
+        "name": "numpy",
+        "version": "2.2.6"
+      },
+      {
+        "name": "opentelemetry-api",
+        "version": "1.44.0"
+      },
+      {
+        "name": "opentelemetry-exporter-otlp-proto-common",
+        "version": "1.44.0"
+      },
+      {
+        "name": "opentelemetry-exporter-otlp-proto-http",
+        "version": "1.44.0"
+      },
+      {
+        "name": "opentelemetry-proto",
+        "version": "1.44.0"
+      },
+      {
+        "name": "opentelemetry-sdk",
+        "version": "1.44.0"
+      },
+      {
+        "name": "opentelemetry-semantic-conventions",
+        "version": "0.65b0"
+      },
+      {
+        "name": "packaging",
+        "version": "26.3"
+      },
+      {
+        "name": "pandas",
+        "version": "3.0.6"
+      },
+      {
+        "name": "pillow",
+        "version": "12.3.0"
+      },
+      {
+        "name": "pip",
+        "version": "26.2.1"
+      },
+      {
+        "name": "plotly",
+        "version": "7.1.0"
+      },
+      {
+        "name": "pluggy",
+        "version": "1.6.0"
+      },
+      {
+        "name": "prometheus_client",
+        "version": "0.26.0"
+      },
+      {
+        "name": "protobuf",
+        "version": "7.36.2"
+      },
+      {
+        "name": "pydantic",
+        "version": "2.13.5"
+      },
+      {
+        "name": "pydantic-settings",
+        "version": "2.15.0"
+      },
+      {
+        "name": "pydantic_core",
+        "version": "2.46.5"
+      },
+      {
+        "name": "Pygments",
+        "version": "2.21.0"
+      },
+      {
+        "name": "pyparsing",
+        "version": "3.3.3"
+      },
+      {
+        "name": "pytest",
+        "version": "8.4.2"
+      },
+      {
+        "name": "pytest-asyncio",
+        "version": "1.4.0"
+      },
+      {
+        "name": "python-dateutil",
+        "version": "2.9.0.post0"
+      },
+      {
+        "name": "python-dotenv",
+        "version": "1.2.3"
+      },
+      {
+        "name": "PyYAML",
+        "version": "6.0.3"
+      },
+      {
+        "name": "requests",
+        "version": "2.34.2"
+      },
+      {
+        "name": "scalp-bot",
+        "version": "0.2.0"
+      },
+      {
+        "name": "scikit-learn",
+        "version": "1.8.0"
+      },
+      {
+        "name": "scipy",
+        "version": "1.18.1"
+      },
+      {
+        "name": "six",
+        "version": "1.17.0"
+      },
+      {
+        "name": "starlette",
+        "version": "1.6.0"
+      },
+      {
+        "name": "threadpoolctl",
+        "version": "3.7.0"
+      },
+      {
+        "name": "typing-inspection",
+        "version": "0.4.4"
+      },
+      {
+        "name": "typing_extensions",
+        "version": "4.16.0"
+      },
+      {
+        "name": "tzdata",
+        "version": "2026.4"
+      },
+      {
+        "name": "urllib3",
+        "version": "2.8.0"
+      },
+      {
+        "name": "uvicorn",
+        "version": "0.53.0"
+      },
+      {
+        "name": "watchfiles",
+        "version": "1.3.0"
+      },
+      {
+        "name": "websockets",
+        "version": "15.0.1"
+      },
+      {
+        "name": "zstandard",
+        "version": "0.25.0"
+      }
+    ]
+  },
+  "provenance": {
+    "sourceSha256": "702ce8a6d736f04cb220756824ad3eac914c27cc8bc5b92a44e1a89ec5506371",
+    "configSha256": "a1bbc2ff6b2822597a29348890ebd16ccdaa560a2895338af9915d083d840a78",
+    "runtimeSha256": "985d0d78c69938527e37a534fc04afd97cb0b440a5b47a367bd9bad0e27ae29c",
+    "schemaSha256": "e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c"
+  }
+}

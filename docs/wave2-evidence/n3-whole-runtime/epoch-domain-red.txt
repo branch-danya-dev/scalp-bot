@@ -1,0 +1,48 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_____________ test_transport_epoch_is_not_symbol_selection_epoch ______________
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-539/test_transport_epoch_is_not_sy0')
+
+    def test_transport_epoch_is_not_symbol_selection_epoch(tmp_path):
+        with writer_at(tmp_path/'epochs.gz') as writer:
+            snap = snapshot()
+            worker = InferenceWorker(tmp_path,native_endpoint=writer.endpoint('v2','parent'))
+            source = dict(capture_id=snap.ref.capture_id,symbol=snap.ref.symbol,
+                epoch=7,source_sequence=snap.ref.source_sequence,event_id='bybit:1')
+            task = writer.endpoint('v2','parent').open_task('independent-epochs','request',
+                source=source,inputs=dict(ref=asdict(snap.ref)))
+            task.start()
+            for stage in PIPELINE[:3]:task.boundary(stage)
+            worker.activate(snap.ref.symbol,snap.ref.selection_epoch)
+            try:
+>               assert worker.submit(snap,'long',native_task=task)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\ml\test_native_v5_worker.py:121: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <scalp_bot.ml.worker.InferenceWorker object at 0x000002BA25CDD940>
+snapshot = FeatureSnapshot(ref=SnapshotRef(capture_id='test', symbol='AAA', selection_epoch=1, source_sequence=1, market_time_ms=....0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0))
+side = 'long'
+
+    def submit(self,snapshot,side, *, feature_ready_ns=None, probe_queued_ns=None, probe_queue_depth=None,
+               native_task=None):
+        if self.native_endpoint is not None and native_task is None:
+            raise ValueError("v5 worker requires prospectively opened source-bound request")
+        if native_task is not None:
+            if self.native_endpoint is None:
+                raise ValueError("v5 request requires shared worker sequencer")
+            expected = native_task.source or {}
+            if (native_task.endpoint.module_id != "v2" or native_task.endpoint.ring is not self.native_endpoint.ring
+                    or expected.get("capture_id") != snapshot.ref.capture_id
+                    or expected.get("symbol") != snapshot.ref.symbol
+                    or expected.get("epoch") != snapshot.ref.selection_epoch
+                    or expected.get("source_sequence") != snapshot.ref.source_sequence):
+>               raise ValueError("v5 request/source ownership mismatch")
+E               ValueError: v5 request/source ownership mismatch
+
+scalp_bot\ml\worker.py:229: ValueError
+=========================== short test summary info ===========================
+FAILED tests/ml/test_native_v5_worker.py::test_transport_epoch_is_not_symbol_selection_epoch
+1 failed, 3 deselected in 0.33s

@@ -1,0 +1,73 @@
+{
+  "sourceSha256": "e0937c93c3bf27fb6021551af4609ba409534543c7103aa9f2ffe71898c3868d",
+  "externalSourceSha256": "64ea58f5e3339b285f8237ef5763a00a8cfb32017943c854cc3e55ae6432cb9e",
+  "externalConnections": {
+    "binance": 3,
+    "okx": 2
+  },
+  "ordinaryHashes": {
+    "decision": "6f87f7feaf00b23d3d5a350252543a6312d4ba114d006bc087bbf82863baffd4",
+    "admission": "6a15edcbd47d8697cf225d5a63da2d5f7e0e2afea43c3a317dcac5b909663472",
+    "execution": "5a03e5bb827946ba9e06ceee5b9e0d3c1cb51035d320d8144f4f19754f5319d6",
+    "portfolio": "e627ad8e519073e8560b671ab0e541d1b05da759da124a7bc041a5164c4c85e2"
+  },
+  "labelSha256": "44b8ba17d198058ddae49092539a6dbc484c1481f30f5534ca97dca324221146",
+  "eventCounts": {
+    "symbol_activated": 1,
+    "scanner_update": 1,
+    "transport_diagnostics": 8,
+    "market_context_changed": 105,
+    "strategy_state_transition": 12,
+    "decision": 12,
+    "scenario_transition": 12,
+    "research_frame": 25,
+    "market_frame": 25,
+    "bot_started": 1,
+    "shadow_features": 3,
+    "pipeline_worker": 6,
+    "shadow_forecast": 6,
+    "entry_freshness_changed": 1,
+    "admission_fire": 1,
+    "trade_opened": 1,
+    "setup_consumed": 1,
+    "trade_closed": 1,
+    "run_summary": 1,
+    "bot_stopped": 1
+  },
+  "researchFailure": null,
+  "writer": {
+    "background": false,
+    "queuedRows": 7525,
+    "writtenRows": 7525,
+    "pendingRows": 0,
+    "queueDepth": 0,
+    "queueCapacity": 8192,
+    "droppedRows": 0,
+    "droppedBulkRows": 0,
+    "droppedCriticalRows": 0,
+    "writerError": null
+  },
+  "probeCounts": {
+    "submitted": 6,
+    "forecasts": 6,
+    "probability_abstention": 6
+  },
+  "forecastSha256": "29de1c802452fabbc474e963d30649a33ac64c44553e984da12e5d8da30aa26f",
+  "workerFailure": null,
+  "workerExchangeImported": false,
+  "closedTrades": 1,
+  "prepared": 1,
+  "executableLabels": 1,
+  "labels": [
+    {
+      "identity": "fd36936f2cec5afcef162b94e01b330297a2de68427cb0f43558233637d9cc50",
+      "planHash": "362ead63b93ad0c86c57db267755cbd19a0f59759f5b2a75a866861bf538b506",
+      "sourcePlanIdentity": "e251f2431c789ec5b965d90fa93ed1645d287f2975e71b914d58febf434b91b4",
+      "executable": true,
+      "censor_reason": null,
+      "exit_reason": "stop",
+      "policyHash": "7629a46a022b04a1a5b8e798c0acb88b476f019e9abdf032add3d7e989af347d"
+    }
+  ],
+  "zeroResidualExposure": true
+}

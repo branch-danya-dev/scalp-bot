@@ -1,0 +1,34 @@
+FFF                                                                      [100%]
+================================== FAILURES ===================================
+_____ test_actual_coroutine_roots_repeat_with_nested_await_and_callbacks ______
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-529/test_actual_coroutine_roots_re0')
+
+    async def test_actual_coroutine_roots_repeat_with_nested_await_and_callbacks(tmp_path):
+>       from scalp_bot.whole_runtime_replay import WholeRuntimeReplayCoordinator
+E       ModuleNotFoundError: No module named 'scalp_bot.whole_runtime_replay'
+
+tests\test_whole_runtime_replay.py:42: ModuleNotFoundError
+___________________ test_wrong_owned_clock_is_first_failure ___________________
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-529/test_wrong_owned_clock_is_firs0')
+
+    async def test_wrong_owned_clock_is_first_failure(tmp_path):
+>       from scalp_bot.whole_runtime_replay import WholeRuntimeReplayCoordinator
+E       ModuleNotFoundError: No module named 'scalp_bot.whole_runtime_replay'
+
+tests\test_whole_runtime_replay.py:56: ModuleNotFoundError
+______ test_unknown_parent_and_duplicate_terminal_fail_before_execution _______
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-529/test_unknown_parent_and_duplic0')
+
+    async def test_unknown_parent_and_duplicate_terminal_fail_before_execution(tmp_path):
+>       from scalp_bot.whole_runtime_replay import WholeRuntimeReplayCoordinator
+E       ModuleNotFoundError: No module named 'scalp_bot.whole_runtime_replay'
+
+tests\test_whole_runtime_replay.py:67: ModuleNotFoundError
+=========================== short test summary info ===========================
+FAILED tests/test_whole_runtime_replay.py::test_actual_coroutine_roots_repeat_with_nested_await_and_callbacks
+FAILED tests/test_whole_runtime_replay.py::test_wrong_owned_clock_is_first_failure
+FAILED tests/test_whole_runtime_replay.py::test_unknown_parent_and_duplicate_terminal_fail_before_execution
+3 failed in 0.19s

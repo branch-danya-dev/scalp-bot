@@ -1,0 +1,44 @@
+{
+  "sourceSha256": "eb9e533eee0f3a987ebef91e29fd09f4e4a463c5b43dd49bfeca1a1753177ec2",
+  "ordinaryHashes": {
+    "decision": "df0c2d093d84010bf8261e5da851776f7ff0d98a449afd6bc1456395f486a56b",
+    "admission": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "execution": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "portfolio": "12f0506429059af8723b397671771c68c4d60d1d6600accffcb069e84c69b918"
+  },
+  "labelSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "eventCounts": {
+    "symbol_activated": 1,
+    "scanner_update": 1,
+    "transport_diagnostics": 8,
+    "market_context_changed": 2,
+    "strategy_state_transition": 6,
+    "decision": 6,
+    "scenario_transition": 6,
+    "research_frame": 1,
+    "market_frame": 1,
+    "bot_started": 1,
+    "run_summary": 1,
+    "bot_stopped": 1
+  },
+  "researchFailure": null,
+  "writer": {
+    "background": false,
+    "queuedRows": 442,
+    "writtenRows": 442,
+    "pendingRows": 0,
+    "queueDepth": 0,
+    "queueCapacity": 8192,
+    "droppedRows": 0,
+    "droppedBulkRows": 0,
+    "droppedCriticalRows": 0,
+    "writerError": null
+  },
+  "probeCounts": {},
+  "forecastSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "workerFailure": null,
+  "workerExchangeImported": false
+}
+CLOSED 0 PREPARED 0 LABELS 0
+REPLAY 0 {'schema': 'whole-runtime-v5-report', 'variant': 'F', 'populationSha256': 'c95e337ef26ec0b63ba6b74c293167723440c5949ce7d32771498ba6d1611f8c', 'provenance': {'sourceSha256': '39b9cd9104db64ca06edf1f52b967cc890ee34688748d0f38803ef4ae8de8645', 'configSha256': '7fcbaa0539984bfbe8bf45b69b4442d697ce244584edf4f4efeaa7403e9b7c43', 'runtimeSha256': '985d0d78c69938527e37a534fc04afd97cb0b440a5b47a367bd9bad0e27ae29c', 'schemaSha256': 'e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c'}, 'consumed': 2191, 'counts': {'task_open': 336, 'task_start': 336, 'boundary': 577, 'clock': 606, 'task_end': 336}, 'excludedOwnedTokens': 0, 'excludedModules': [], 'leftovers': 0, 'accountingComplete': True, 'semanticReplay': 'MET', 'productionCoverage': False, 'controlledW20': 'NOT_MET', 'timingScope': 'owned coroutine replay; coordination time is not production incremental cost', 'replayIPCReceipts': [{'pid': 1300, 'exitCode': 0, 'joined': True, 'relayJoined': True, 'remoteTokensConsumed': 6, 'modelHashes': {'model.cbm': 'a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2', 'manifest.json': '15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3'}}], 'ordinaryParity': True, 'sourceParity': True, 'labelParity': True, 'forecastParity': True}
+REPLAY 1 {'schema': 'whole-runtime-v5-report', 'variant': 'F', 'populationSha256': 'c95e337ef26ec0b63ba6b74c293167723440c5949ce7d32771498ba6d1611f8c', 'provenance': {'sourceSha256': '39b9cd9104db64ca06edf1f52b967cc890ee34688748d0f38803ef4ae8de8645', 'configSha256': '7fcbaa0539984bfbe8bf45b69b4442d697ce244584edf4f4efeaa7403e9b7c43', 'runtimeSha256': '985d0d78c69938527e37a534fc04afd97cb0b440a5b47a367bd9bad0e27ae29c', 'schemaSha256': 'e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c'}, 'consumed': 2191, 'counts': {'task_open': 336, 'task_start': 336, 'boundary': 577, 'clock': 606, 'task_end': 336}, 'excludedOwnedTokens': 0, 'excludedModules': [], 'leftovers': 0, 'accountingComplete': True, 'semanticReplay': 'MET', 'productionCoverage': False, 'controlledW20': 'NOT_MET', 'timingScope': 'owned coroutine replay; coordination time is not production incremental cost', 'replayIPCReceipts': [{'pid': 15476, 'exitCode': 0, 'joined': True, 'relayJoined': True, 'remoteTokensConsumed': 6, 'modelHashes': {'model.cbm': 'a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2', 'manifest.json': '15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3'}}], 'ordinaryParity': True, 'sourceParity': True, 'labelParity': True, 'forecastParity': True}

@@ -1,0 +1,126 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+______ test_unowned_deadline_during_park_fails_with_exact_pending_token _______
+
+tmp_path = WindowsPath('C:/Users/workingspace/AppData/Local/Temp/pytest-of-workingspace/pytest-545/test_unowned_deadline_during_p0')
+
+    async def test_unowned_deadline_during_park_fails_with_exact_pending_token(tmp_path):
+        """Known architectural boundary: a wall timer cannot cancel a sync slice.
+    
+        Recording blocks only this test's event loop to force the interleave. Replay
+        stays nonblocking, so the unmanaged wait_for timer fires inside stack parking.
+        This must remain a diagnosed hard FAIL until deadlines have owned dispatch.
+        """
+        from threading import Thread
+        import time
+        from scalp_bot.native_v5 import OwnedClock
+        from scalp_bot.whole_runtime_replay import WholeRuntimeReplayCoordinator
+        remotes = []
+        async def root(dispatch, output):
+            async def child():
+                remote = dispatch.writer.endpoint('v2','reply-relay').open_task(
+                    'remote-deadline-test','runtime',parent_task_id=dispatch.owner().task_id)
+                coordinator = getattr(dispatch,'coordinator',None)
+                if coordinator is None:
+                    def recorded():
+                        time.sleep(.04)
+                        remote.start()
+                        OwnedClock(remote,dispatch.source_clock).time()
+                        remote.end()
+                    thread = Thread(target=recorded)
+                    thread.start()
+                    thread.join(1)
+                    assert not thread.is_alive()
+                else:
+                    async def replayed():
+                        await asyncio.sleep(.04)
+                        await coordinator.consume(remote.task_id,'task_start',{},producer='reply-relay')
+                        await coordinator.consume(remote.task_id,'clock',clock_method='time',producer='reply-relay')
+                        await coordinator.consume(remote.task_id,'task_end',dict(reason='completed',outputs={}),producer='reply-relay')
+                    remotes.append(asyncio.create_task(replayed()))
+                dispatch.clock().time()
+            await asyncio.wait_for(dispatch.create_task(child(),name='timed-child'),.01)
+        tape, _ = await record(tmp_path,root)
+        replay = WholeRuntimeReplayCoordinator(tape,timeout_seconds=1)
+        try:
+            with pytest.raises(NativeTapeError,match='cancelled during replay coordination; next token'):
+>               await replay.run(lambda d:root(d,[]))
+
+tests\test_whole_runtime_replay.py:221: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scalp_bot\whole_runtime_replay.py:333: in run
+    raise self.poison(exc)
+scalp_bot\whole_runtime_replay.py:322: in run
+    await self.dispatch.run(factory(self.dispatch), name=name, module=module)
+scalp_bot\native_dispatch.py:222: in run
+    return await self.create_task(coroutine, name=name, module=module, root=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\whole_runtime_replay.py:101: in run
+    return await _stackful(awaitable, self.coordinator)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\whole_runtime_replay.py:61: in _stackful
+    result = stack.throw(exc)
+             ^^^^^^^^^^^^^^^^
+scalp_bot\whole_runtime_replay.py:39: in execute
+    yielded = iterator.throw(error) if error is not None else iterator.send(value)
+              ^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\native_dispatch.py:193: in run
+    return await stepped()
+           ^^^^^^^^^^^^^^^
+scalp_bot\native_dispatch.py:128: in _terminal
+    native.end(reason=reason)
+scalp_bot\native_v5.py:221: in end
+    return self.emit("task_end", dict(reason=reason, outputs={} if outputs is None else outputs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\native_v5.py:215: in emit
+    return self.endpoint.ring.put([self.endpoint.module_id, self.endpoint.producer,
+scalp_bot\whole_runtime_replay.py:77: in put
+    return self.coordinator.observe(payload, observation[0] if observation is not None else None)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\whole_runtime_replay.py:258: in observe
+    raise self.poison(exc)
+scalp_bot\whole_runtime_replay.py:250: in observe
+    result = self._consume(payload, method)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\whole_runtime_replay.py:210: in _consume
+    raise self.failure
+scalp_bot\native_dispatch.py:156: in stepped
+    native.boundary("dispatch_resume", dict(index=serial,
+scalp_bot\native_v5.py:219: in boundary
+    def boundary(self, name, value=None): return self.emit("boundary", dict(name=name, value={} if value is None else value))
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\native_v5.py:215: in emit
+    return self.endpoint.ring.put([self.endpoint.module_id, self.endpoint.producer,
+scalp_bot\whole_runtime_replay.py:77: in put
+    return self.coordinator.observe(payload, observation[0] if observation is not None else None)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\whole_runtime_replay.py:258: in observe
+    raise self.poison(exc)
+scalp_bot\whole_runtime_replay.py:250: in observe
+    result = self._consume(payload, method)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scalp_bot\whole_runtime_replay.py:210: in _consume
+    raise self.failure
+scalp_bot\native_dispatch.py:165: in stepped
+    value = yield yielded
+            ^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def execute():
+        iterator = awaitable.__await__()
+        value, error = None, None
+        try:
+            while True:
+                try:
+                    yielded = iterator.throw(error) if error is not None else iterator.send(value)
+                except StopIteration as done:
+                    return done.value
+                try:
+>                   value = host.switch(_Suspension(yielded))
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E                   asyncio.exceptions.CancelledError
+
+scalp_bot\whole_runtime_replay.py:43: CancelledError
+=========================== short test summary info ===========================
+FAILED tests/test_whole_runtime_replay.py::test_unowned_deadline_during_park_fails_with_exact_pending_token
+1 failed, 8 deselected in 0.33s

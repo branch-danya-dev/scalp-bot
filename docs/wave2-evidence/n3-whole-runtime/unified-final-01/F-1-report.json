@@ -1,0 +1,66 @@
+{
+  "schema": "whole-runtime-v5-report",
+  "variant": "F",
+  "populationSha256": "8592e27eb7fe1b35f1925c80a2a68ba9e2bc4b3fffe39678fdafe262c961d129",
+  "provenance": {
+    "sourceSha256": "ec98fcac27f0e52fee7bcd22b6444219d48a6a0990029d7c958d2e7530ce4d8b",
+    "configSha256": "e1a47dddf3c27dda0b3dd7732fb1666db0dd8d9ff38d215066f5babebb069743",
+    "runtimeSha256": "985d0d78c69938527e37a534fc04afd97cb0b440a5b47a367bd9bad0e27ae29c",
+    "schemaSha256": "e6fcd9fdfcd415704c16746a0ea8e0ac25adaad3349de96ddc09821ff2911e5c"
+  },
+  "consumed": 43888,
+  "counts": {
+    "task_open": 5837,
+    "task_start": 5837,
+    "boundary": 11456,
+    "clock": 14921,
+    "task_end": 5837
+  },
+  "excludedOwnedTokens": 0,
+  "excludedModules": [],
+  "leftovers": 0,
+  "accountingComplete": true,
+  "semanticReplay": "MET",
+  "productionCoverage": false,
+  "controlledW20": "NOT_MET",
+  "timingScope": "owned coroutine replay; coordination time is not production incremental cost",
+  "replayIPCReceipts": [
+    {
+      "pid": 18924,
+      "exitCode": 0,
+      "joined": true,
+      "relayJoined": true,
+      "remoteTokensConsumed": 86,
+      "modelHashes": {
+        "model.cbm": "a9bb5445db534b93bc6a246150c5c959ae58318b9139311da85b5e7ea05888d2",
+        "manifest.json": "15b55fa2c360729cebb37d8cb9cbe432249907873d7016b3b81929df173082f3"
+      }
+    }
+  ],
+  "repeat": 1,
+  "parity": {
+    "checks": {
+      "ordinary": true,
+      "source": true,
+      "externalSource": true,
+      "label": true,
+      "childOutputAndAdapter": true,
+      "probeCounts": true
+    },
+    "passed": true,
+    "ordinaryHashes": {
+      "decision": "83aeb78e81920a413ee6f1cdb17cbfe235912b059d4d6ce1b3a73f4f010bad34",
+      "admission": "b0e4da3467c8c88e68e63ded010f4b3de7acb7ca4c260ac35aed15fdb7d5a666",
+      "execution": "093259c6be19a344750789ba5c06c1e3e04434c57d13b6d173cf16d5cf102dee",
+      "portfolio": "8806b9cfda469492fe6a12e31e6c2123c22eb96c0868d5c752a2fbf941e8bc04"
+    },
+    "sourceSha256": "2929231eb98e841da51132a076103cf868c348056c71fa5d0dda031f6ba067b5",
+    "labelSha256": "5e0e6cbeaf225c2e51a02f1aefa0f5467112c59c30efb539c92ac1bbb49101d3",
+    "forecastSha256": "270a7e9808e21b474419e9fc1576b6ea944cff7d3bca84224ec917cab5a2eb77",
+    "exclusions": {
+      "label": null,
+      "forecast": null,
+      "externalSource": null
+    }
+  }
+}
