@@ -1126,7 +1126,8 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
             self._record_input("manifest", None, {"phase": "capture", "manifest": build_run_manifest(
                 self.config, self.strategy_enabled,
                 code=code_provenance(Path(__file__).resolve().parents[1]),
-                policy=self.research_policy.public())})
+                policy=self.research_policy.public(),
+                manifest_id=native_dispatch.identifier('capture_manifest') if native_dispatch is not None else None)})
             self._record_input("policy_snapshot", None, {
                 "mode": self.research_policy.mode.value,
                 "manifest": self.research_policy.manifest,
@@ -1396,7 +1397,8 @@ class TradingEngine(ScenarioRuntime, AdmissionEngine, MarketRuntime):
 
     def _build_trading_manifest(self):
         return build_run_manifest(self.config, self.strategy_enabled,
-            code=code_provenance(Path(__file__).resolve().parents[1]), policy=self.research_policy.public())
+            code=code_provenance(Path(__file__).resolve().parents[1]), policy=self.research_policy.public(),
+            manifest_id=self.native_dispatch.identifier('run_manifest') if self.native_dispatch is not None else None)
 
     def _launch_run_timer(self):
         self._paper_timer_task = self._native_task(self._paper_run_timer(), name="paper-run-timer")

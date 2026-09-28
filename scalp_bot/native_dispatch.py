@@ -65,6 +65,7 @@ class NativeDispatch:
         self.current = ContextVar(f"native_owner_{id(self)}", default=None)
         self.serial = Counter()
         self.tasks = {}
+        self.identifiers = Counter()
         self.failure = None
         self.task_failures = []
 
@@ -182,7 +183,7 @@ class NativeDispatch:
         async def run():
             return await stepped()
 
-        task = asyncio.create_task(run(), name=name)
+        task = self._schedule(run(), name=name)
         self.tasks[task] = native
 
         def completed(finished):
@@ -199,8 +200,14 @@ class NativeDispatch:
                 # must not accumulate with every market socket receive.
                 if isinstance(finished.exception(), NativeTapeError) and not self.task_failures:
                     self.task_failures.append(finished.exception())
-        task.add_done_callback(completed)
+        task.add_done_callback(lambda finished: self._callback(completed, finished))
         return task
+
+    def _schedule(self, coroutine, *, name):
+        return asyncio.create_task(coroutine, name=name)
+
+    def _callback(self, callback, finished):
+        callback(finished)
 
     async def run(self, coroutine, *, name="session", module="core"):
         return await self.create_task(coroutine, name=name, module=module, root=True)
@@ -230,10 +237,21 @@ class NativeDispatch:
                 owner.active = False
                 self.current.reset(token)
                 native.end(reason=reason)
-        task.add_done_callback(completed)
+        task.add_done_callback(lambda finished: self._callback(completed, finished))
 
     def boundary(self, name, value=None):
         return self.owner().boundary(name, value)
+
+    def identifier(self, name):
+        """Capture-bound metadata identity, independent of disabled modules."""
+        from .manifest_validation import fingerprint
+        owner = self.owner()
+        key = owner.endpoint.module_id, name
+        self.identifiers[key] += 1
+        value = fingerprint(dict(capture=self.ingress.capture_id, module=key[0],
+            name=name, ordinal=self.identifiers[key]))[:32]
+        self.boundary('native_identity', dict(name=name, value=value))
+        return value
 
     def accept_ingress(self, lane, symbol, *, epoch=0, event_id=None, payload=None):
         identity = self.ingress.accept(lane, symbol, epoch=epoch, event_id=event_id)

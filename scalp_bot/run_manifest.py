@@ -70,7 +70,7 @@ def code_provenance(root: Path) -> dict:
 
 
 def build_run_manifest(config: Settings, strategies: dict[str, bool], *,
-                       code: dict, policy: dict) -> dict:
+                       code: dict, policy: dict, manifest_id: str | None = None) -> dict:
     values = {name: getattr(config, name) for name in sorted(PUBLIC_CONFIG_FIELDS)}
     # Fail closed if a reviewed public field is changed to a secret/nonprimitive type.
     if any(type(value) not in (str, int, float, bool, type(None)) for value in values.values()):
@@ -92,5 +92,9 @@ def build_run_manifest(config: Settings, strategies: dict[str, bool], *,
             "excludedConfigFields": sorted(SECRET_CONFIG_FIELDS),
             "unclassifiedConfigFields": sorted(set(type(config).model_fields) - PUBLIC_CONFIG_FIELDS - SECRET_CONFIG_FIELDS)}
     body["manifestSha256"] = fingerprint(body)
-    body["manifestId"] = uuid4().hex
+    if manifest_id is not None:
+        from .manifest_validation import valid_digest
+        if not valid_digest(manifest_id, 32):
+            raise ValueError('invalid native manifest identity')
+    body["manifestId"] = uuid4().hex if manifest_id is None else manifest_id
     return body
