@@ -298,7 +298,9 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
 
     # Partition once. Keep each side's original order and built-in sum:
     # cumulative totals/subtraction or += would change floating-point results.
-    buckets = {seconds: ([], [], []) for seconds in (5, 15, 60)}
+    rows5, buys5, sells5 = [], [], []
+    rows15, buys15, sells15 = [], [], []
+    rows60, buys60, sells60 = [], [], []
     previous = []
     cutoff_5, cutoff_15 = now_ms - 5000, now_ms - 15000
     cutoff_20, cutoff_60 = now_ms - 20000, now_ms - 60000
@@ -308,16 +310,28 @@ def compute_trade_flow(trades: list[TradeTick], now_ms: int | None = None) -> di
             continue
         notional = trade.notional
         side = trade.side.lower()
-        windows = (60, 15, 5) if ts >= cutoff_5 else (60, 15) if ts >= cutoff_15 else (60,)
-        for seconds in windows:
-            rows, buys, sells = buckets[seconds]
-            rows.append(trade)
+        rows60.append(trade)
+        if side == "buy":
+            buys60.append(notional)
+        elif side == "sell":
+            sells60.append(notional)
+        if ts >= cutoff_15:
+            rows15.append(trade)
             if side == "buy":
-                buys.append(notional)
+                buys15.append(notional)
             elif side == "sell":
-                sells.append(notional)
+                sells15.append(notional)
+        if ts >= cutoff_5:
+            rows5.append(trade)
+            if side == "buy":
+                buys5.append(notional)
+            elif side == "sell":
+                sells5.append(notional)
         if cutoff_20 <= ts < cutoff_5:
             previous.append(notional)
+
+    buckets = {5: (rows5, buys5, sells5), 15: (rows15, buys15, sells15),
+               60: (rows60, buys60, sells60)}
 
     def window_stats(seconds: int) -> dict:
         rows, buys, sells = buckets[seconds]

@@ -12,9 +12,10 @@ import json
 import math
 import os
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
+
+import msgspec
 
 from .manifest_validation import fingerprint, check_manifest, valid_digest
 from .runtime_clock import RuntimeClock
@@ -92,6 +93,7 @@ def _candles(value):
 MARKET_FIELDS = ("topic", "type", "ts", "cts", "data", "receipt_wall_ns",
                  "receipt_mono_ns", "parsed_mono_ns", "processor_started_mono_ns",
                  "event_id", "queue_depth", "queue_lag_ms")
+_CLOCK_KEY_BYTES = sum(sys.getsizeof(key) for key in ("scopeId", "method", "value"))
 
 
 def _finite(value: object) -> bool:
@@ -270,16 +272,20 @@ def detach_json(value):
     raise ValueError("input journal requires finite JSON data")
 
 
-@dataclass(slots=True)
-class JournalHashChain:
+class JournalHashChain(msgspec.Struct, gc=False):
+    # Strings only; no back-reference to any row, recorder or runtime.
     previous_hash: str | None = None
 
 
-@dataclass(slots=True)
-class DeferredJournalRow:
+class DeferredJournalRow(msgspec.Struct, gc=False):
+    # Owned detached JSON plus a scalar hash chain: this graph is acyclic.
     row: dict
     chain: JournalHashChain
     retained_bytes: int
+
+    @property
+    def kind(self):
+        return self.row['kind']
 
     def resolve(self):
         # Exactly one FIFO writer owns the chain. Sequence/count stay assigned
@@ -290,9 +296,49 @@ class DeferredJournalRow:
         return self.row
 
 
+class DeferredClockRow(msgspec.Struct, gc=False):
+    """Scalar-only producer record; construct JSON containers on the writer.
+
+    gc=False is confined to these owned acyclic capture holders. The engine's
+    GC policy is untouched. No owner/recorder/mutable market reference is kept.
+    """
+    wall: int | float
+    mono: int
+    sequence: int
+    method: str
+    value: int | float
+    scope_id: int | None
+    chain: JournalHashChain
+    retained_bytes: int
+    _resolved: dict | None = None
+
+    @property
+    def kind(self):
+        return 'clock_read'
+
+    @property
+    def row(self):
+        if self._resolved is None:
+            self._resolved = dict(schema=SCHEMA, sequence=self.sequence,
+                previousHash=self.chain.previous_hash, kind='clock_read', symbol=None,
+                processingWallSeconds=self.wall, processingMonoNs=self.mono,
+                body=dict(method=self.method, value=self.value, scopeId=self.scope_id))
+        return self._resolved
+
+    def resolve(self):
+        row = self.row
+        row['previousHash'] = self.chain.previous_hash
+        row['hash'] = fingerprint(row)
+        self.chain.previous_hash = row['hash']
+        return row
+
+
+DEFERRED_ROWS = (DeferredJournalRow, DeferredClockRow)
+
+
 def resolve_journal_row(row):
     payload = row.get("payload")
-    if isinstance(payload, DeferredJournalRow):
+    if isinstance(payload, DEFERRED_ROWS):
         row["payload"] = payload.resolve()
     return row
 
@@ -313,17 +359,29 @@ class InputJournal:
         if kind not in KINDS or not valid_body(kind, symbol, body):
             raise ValueError("unsupported input journal body")
         # Detach BEFORE enqueueing: the engine may mutate the message later.
-        detached, retained = detach_json(body)
+        if kind == "clock_read" and type(body["method"]) is str:
+            # Full validation above guarantees three scalar fields. No mutable
+            # references survive this copy; keep the same conservative charge.
+            detached = None
+            retained = (sys.getsizeof(body) + _CLOCK_KEY_BYTES
+                + sys.getsizeof(body['method']) + sys.getsizeof(body['value'])
+                + sys.getsizeof(body['scopeId']))
+        else:
+            detached, retained = detach_json(body)
         wall, mono = self.clock.time(), self.clock.perf_counter_ns()
         if not _finite(wall) or not _uint(mono):
             raise ValueError("invalid processing clock observation")
-        row = {"schema": SCHEMA, "sequence": self.sequence + 1,
-               "previousHash": self.previous_hash, "kind": kind, "symbol": symbol,
-               "processingWallSeconds": wall, "processingMonoNs": mono, "body": detached}
         # Advance even if the bounded recorder drops a row. The next row/footer
         # then exposes that loss instead of numbering the surviving rows anew.
         self.sequence += 1
-        deferred = DeferredJournalRow(row, self.chain, retained + 2048)
+        if detached is None:
+            deferred = DeferredClockRow(wall, mono, self.sequence, body['method'], body['value'],
+                body['scopeId'], self.chain, retained + 2048)
+        else:
+            row = {"schema": SCHEMA, "sequence": self.sequence,
+                   "previousHash": self.previous_hash, "kind": kind, "symbol": symbol,
+                   "processingWallSeconds": wall, "processingMonoNs": mono, "body": detached}
+            deferred = DeferredJournalRow(row, self.chain, retained + 2048)
         asynchronous = bool(getattr(getattr(self.record, "__self__", None), "defer_journal_hashes", False))
         self.record(EVENT, symbol, deferred if asynchronous else deferred.resolve())
 

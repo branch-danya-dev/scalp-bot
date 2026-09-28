@@ -105,7 +105,9 @@ def assess_smoke(result):
         or health.get('droppedCriticalRows') or health.get('droppedRows')
         or health.get('inputAccepted') != health.get('inputWritten')
         or result.get('wave2', {}).get('failure')
-        or result.get('wave2', {}).get('writer', {}).get('error'))
+        or result.get('wave2', {}).get('writer', {}).get('error')
+        or result.get('transport', {}).get('backpressureEvents')
+        or result.get('transport', {}).get('discardedMessages'))
     latencies = result.get('latencyMs', {})
     stages = {k: ('NOT_TESTED' if latencies.get(k, {}).get('p99') is None else
         'MET' if latencies[k]['p99'] <= limit else 'NOT_MET') for k, limit in
@@ -114,6 +116,38 @@ def assess_smoke(result):
     return dict(integrity='INVALID' if invalid else 'REQUIRES_HASH_CHAIN_CHECK', naturalFill=fills,
         latency=stages, status='INVALID' if invalid else 'NOT_MET' if 'NOT_MET' in stages.values()
         else 'INCONCLUSIVE' if fills != 'MET' or 'NOT_TESTED' in stages.values() else 'REQUIRES_PATH_AND_CHAIN_REVIEW')
+
+
+def monitor_transport(journal):
+    # Transport diagnostics bypass _emit; observe the canonical journal path.
+    counts = dict(backpressureEvents=0, discardedMessages=0)
+    append = journal.append
+    def observed(kind, symbol, body):
+        append(kind, symbol, body)
+        if kind == 'transport':
+            counts['backpressureEvents'] += int(body.get('errorType') == 'MarketDataBackpressureError')
+            counts['discardedMessages'] += body.get('discarded', 0)
+    journal.append = observed
+    return counts
+
+
+async def wait_for_capture(bot, recorder, research, seconds, transport=None):
+    deadline = time.monotonic() + seconds
+    while True:
+        health = recorder.health()
+        supplemental = research.health() if research else {}
+        failure = (recorder.inputs.error or health.get('writerError')
+            or ('session rows dropped' if health.get('droppedRows') else None)
+            or supplemental.get('failure') or supplemental.get('writer', {}).get('error')
+            or ('transport backpressure/loss' if transport and any(transport.values()) else None))
+        if failure:
+            if bot.running:
+                bot.set_running(False)
+            raise RuntimeError('capture recording failed: ' + str(failure))
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return
+        await asyncio.sleep(min(.1, remaining))
 
 
 async def main(output, seconds, shadow_model, wave2=False):
@@ -135,6 +169,7 @@ async def main(output, seconds, shadow_model, wave2=False):
     bot = TradingEngine(cfg, recorder=recorder, rest_client=PublicRest(cfg),
                         capture_inputs=True, configure_observability=False, prepared_collector=prepared)
     assert type(bot.broker) is PaperBroker
+    transport = monitor_transport(bot.input_journal)
     research = None
     if wave2:
         from scalp_bot.ml.wave2 import Wave2Observer
@@ -196,13 +231,15 @@ async def main(output, seconds, shadow_model, wave2=False):
         await asyncio.wait_for(bot.start(),120)
         deadline=time.monotonic()+120
         while bot.start_block_reason() and time.monotonic()<deadline:
+            await wait_for_capture(bot, recorder, research, 0, transport)
             await asyncio.sleep(1)
         reason=bot.start_block_reason()
         if reason:
             raise RuntimeError('smoke startup blocked: '+reason)
+        await wait_for_capture(bot, recorder, research, 0, transport)
         bot.set_running(True); launched=time.time()
         print('paper smoke started',flush=True)
-        await asyncio.sleep(seconds)
+        await wait_for_capture(bot, recorder, research, seconds, transport)
     except Exception as exc:
         failure=f'{type(exc).__name__}: {exc}'
     finally:
@@ -218,8 +255,10 @@ async def main(output, seconds, shadow_model, wave2=False):
             await research.close(time.perf_counter_ns())
         health=recorder.health()
         health.update(inputWriterError=recorder.inputs.error,inputAccepted=recorder.inputs.accepted,inputWritten=recorder.inputs.written)
+        health['inputDiagnostics'] = recorder.inputs.health()
         result=dict(sourceManifest=recorder.inputs.manifest,startedWall=started,launchedWall=launched,
             endedWall=time.time(),configuredSeconds=seconds,error=failure,eventCounts=dict(counts),errors=errors,
+            transport=transport,
             naturalFills=sum(v['tradesOpened'] for v in bot.strategy_stats.values()),
             causalPreparedSnapshots=prepared.count,
             closedTrades=bot.broker.closed_trades,writerHealth=health,

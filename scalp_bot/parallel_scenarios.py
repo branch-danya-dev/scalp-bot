@@ -73,7 +73,8 @@ class ParallelScenarioRouter(ScenarioRouter):
 
     def context_for(self, context, symbol, strategy):
         s = self.scenario_for(symbol, strategy)
-        return replace(context, scenario=deepcopy(s.public()) if s and s.state not in TERMINAL else None) if context else None
+        # Scenario.public already detaches every mutable field from its owner.
+        return replace(context, scenario=s.public() if s and s.state not in TERMINAL else None) if context else None
 
     def accept_decision(self, symbol, decision, now, book):
         child = self.children[decision.strategy]

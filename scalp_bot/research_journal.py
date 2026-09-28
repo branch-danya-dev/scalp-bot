@@ -35,7 +35,8 @@ class ResearchJournal:
 
     def health(self):
         return dict(error=self.writer.error, accepted=self.writer.accepted, written=self.writer.written,
-            pendingBytes=self.writer.pending_bytes, complete=self.closed and not self.writer.error)
+            pendingBytes=self.writer.pending_bytes, complete=self.closed and not self.writer.error,
+            diagnostics=self.writer.health())
 
 
 def read_research(path):
