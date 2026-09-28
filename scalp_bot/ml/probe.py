@@ -17,7 +17,9 @@ class ShadowProbe:
         self.clock = native_dispatch.clock() if native_dispatch is not None else time
         self.pending_native = {}
         self.endpoint = native_dispatch.writer.endpoint("v2", "parent") if native_dispatch is not None else None
-        self.worker = InferenceWorker(model, trace=self._timed, native_endpoint=self.endpoint, clock=self.clock)
+        from .native_runtime import NativeWorkerRuntime
+        self.worker = InferenceWorker(model, trace=self._timed, native_endpoint=self.endpoint, clock=self.clock,
+            native_runtime=NativeWorkerRuntime(native_dispatch) if native_dispatch is not None else None)
         self.adapter = ShadowAdapter(json.loads((Path(model)/'manifest.json').read_text()))
         self.source, self.current, self.grid = {}, {}, {}
         self.queue = deque(maxlen=32)

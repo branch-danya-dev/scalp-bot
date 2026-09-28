@@ -47,6 +47,8 @@ class _ActorRPC:
 
     def _parent(self, payload, method):
         c = self.coordinator
+        if hasattr(c, 'observe'):
+            return c.observe(payload, method)
         if c is None or c.index >= len(c.rows):
             raise NativeTapeError("unexpected parent replay observation")
         if c.failure:

@@ -82,7 +82,8 @@ def decode(venue, raw, *, capture_id, symbol, epoch, spec, receipt_wall_ms, rece
 
 
 class PublicCrossVenueService:
-    def __init__(self, runtime, journal, *, clock=time, native_dispatch=None):
+    def __init__(self, runtime, journal, *, clock=time, native_dispatch=None,
+                 client_factory=None, connect_factory=None):
         self.runtime, self.journal, self.clock = runtime, journal, clock
         self.native_dispatch = native_dispatch
         if native_dispatch is not None:
@@ -92,6 +93,8 @@ class PublicCrossVenueService:
         self.epochs = {}
         self.closed = False
         self.retired = set()
+        self.client_factory = client_factory
+        self.connect_factory = connect_factory
 
     def _record(self, kind, payload):
         if self.native_dispatch is not None:
@@ -103,7 +106,7 @@ class PublicCrossVenueService:
         return await asyncio.wait_for(task, timeout)
 
     async def start(self):
-        async with httpx.AsyncClient(timeout=10, trust_env=False, follow_redirects=False) as client:
+        async with (self.client_factory or httpx.AsyncClient)(timeout=10, trust_env=False, follow_redirects=False) as client:
             for venue, url in (("binance", BINANCE_REST), ("okx", OKX_REST)):
                 try:
                     response = await client.get(url, params={"instType": "SWAP"} if venue == "okx" else None)
@@ -147,7 +150,7 @@ class PublicCrossVenueService:
             try:
                 streams = f"{symbol.lower()}@depth5@100ms/{symbol.lower()}@aggTrade"
                 url = BINANCE_WS+"?streams="+streams if venue == "binance" else OKX_WS
-                async with websockets.connect(url, open_timeout=10, close_timeout=2, max_queue=16,
+                async with (self.connect_factory or websockets.connect)(url, open_timeout=10, close_timeout=2, max_queue=16,
                         max_size=1_048_576, proxy=None, ping_interval=20, ping_timeout=20) as ws:
                     if venue == "okx":
                         await ws.send(json.dumps(dict(op="subscribe", args=[dict(channel=c, instId=spec["instrument"])

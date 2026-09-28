@@ -15,13 +15,20 @@ async def test_whole_production_source_task_graph_replays(tmp_path):
         await dispatch.join()
     tape = read_native_tape(tmp_path/'tape.gz')
     expected = population.result()
-    for i in range(2):
-        replay = WholeRuntimePopulation(tmp_path/f'replay-{i}',trade_path=False)
-        coordinator = WholeRuntimeReplayCoordinator(tape,timeout_seconds=5)
+    from scalp_bot.ml.whole_runtime_acceptance import coverage
+    proof = coverage(tape,expected)
+    assert proof['status'] == 'NOT_MET'
+    assert proof['checks']['nativeSources']
+    assert not proof['checks']['executableLabel']
+    assert not proof['checks']['realForecasts']
+    for variant in 'ABCDEF':
+        replay = WholeRuntimePopulation(tmp_path/f'replay-{variant}',trade_path=False,variant=variant)
+        coordinator = WholeRuntimeReplayCoordinator(tape,timeout_seconds=5,variant=variant)
         report = await coordinator.run(replay.run)
         actual = replay.result()
         assert actual['sourceSha256'] == expected['sourceSha256']
         assert actual['ordinaryHashes'] == expected['ordinaryHashes']
         assert actual['labelSha256'] == expected['labelSha256']
-        assert report['consumed'] == len(tape.events)
+        assert report['consumed'] + report['excludedOwnedTokens'] == len(tape.events)
+        assert report['leftovers'] == 0
         assert not report['productionCoverage']

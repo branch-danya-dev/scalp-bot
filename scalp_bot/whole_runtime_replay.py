@@ -83,7 +83,8 @@ class _ReplayWriter:
         self.ring = _ReplayRing(coordinator)
 
     def endpoint(self, module, producer):
-        return NativeEndpoint(self.ring, module, producer)
+        ring = self.ring.coordinator.external_endpoints.get((module, producer), self.ring)
+        return NativeEndpoint(ring, module, producer)
 
 
 class _ReplayDispatch(NativeDispatch):
@@ -155,6 +156,7 @@ class WholeRuntimeReplayCoordinator:
         self.failure = None
         self.ipc_receipts = []
         self.counts = Counter()
+        self.external_endpoints = {}
         self.dispatch = _ReplayDispatch(self)
         self.started = False
         self._advance()
@@ -249,20 +251,47 @@ class WholeRuntimeReplayCoordinator:
                 stack = getcurrent()
                 if stack not in self.stacks:
                     raise NativeTapeError('cross-actor observation outside a replay suspension boundary')
-                # Await inside the replay stack, forwarding its Future to the
-                # actual asyncio Task. This is an event-driven wait, not a poll.
-                iterator = self._turn((payload[2], payload[1])).__await__()
-                value, error = None, None
-                while True:
-                    try:
-                        yielded = iterator.throw(error) if error is not None else iterator.send(value)
-                    except StopIteration:
-                        break
-                    try:
-                        value = stack.parent.switch(_Suspension(yielded))
-                        error = None
-                    except BaseException as exc:
-                        value, error = None, exc
+                self.suspend(self._turn((payload[2], payload[1])))
+        except BaseException as exc:
+            raise self.poison(exc)
+
+    def suspend(self, awaitable):
+        """Explicit IO/join boundary; never move the runtime to another thread."""
+        from greenlet import getcurrent
+        stack = getcurrent()
+        if stack not in self.stacks:
+            awaitable.close()
+            raise NativeTapeError('IO wait outside replay suspension boundary')
+        iterator = awaitable.__await__()
+        value, error = None, None
+        try:
+            while True:
+                try:
+                    yielded = iterator.throw(error) if error is not None else iterator.send(value)
+                except StopIteration as done:
+                    return done.value
+                try:
+                    value = stack.parent.switch(_Suspension(yielded))
+                    error = None
+                except BaseException as exc:
+                    value, error = None, exc
+        finally:
+            iterator.close()
+
+    def worker_input(self, native, name):
+        """Replay only recorded nondeterministic IPC availability, never outputs."""
+        if name not in ('worker_reply_available', 'worker_process_state'):
+            raise NativeTapeError('unsupported worker control input')
+        actor = native.task_id, native.endpoint.producer
+        try:
+            while self.current is not None and self._actor(self.current) != actor:
+                self.suspend(self._turn(actor))
+            row = self.current
+            if row is None or row['kind'] != 'boundary' or row['data']['name'] != name:
+                raise NativeTapeError(f'missing worker control input: {name}')
+            value = row['data']['value']
+            native.boundary(name, value)
+            return value
         except BaseException as exc:
             raise self.poison(exc)
 

@@ -11,13 +11,13 @@ from dataclasses import asdict
 import json
 from pathlib import Path
 
-from ..config import Settings
 from ..domain import Candidate, Candle
 from ..engine import TradingEngine
 from ..instrument import InstrumentSpec
 from ..manifest_validation import fingerprint
 from ..native_controlled import VARIANTS
 from ..recorder import SessionRecorder
+from ..run_manifest import _ManifestSettings
 from .prepared_dataset import PreparedDatasetCollector
 from .wave2 import Wave2Observer
 
@@ -39,6 +39,8 @@ class WireSources:
         self.connected = asyncio.Event()
         self.raw = []
         self.book_sequence = 0
+        self.cross_connections = {}
+        self.external_raw = []
 
     async def active_candidates(self):
         await asyncio.sleep(0)
@@ -78,6 +80,61 @@ class WireSources:
 
     async def close(self):
         pass
+
+    def cross_client(self,**kwargs):
+        sources = self
+        class Client:
+            async def __aenter__(self): return self
+            async def __aexit__(self,*args): pass
+            async def get(self,url,**kwargs):
+                await asyncio.sleep(0)
+                if 'binance' in url:
+                    payload = dict(symbols=[dict(symbol=SYMBOL,baseAsset='AAA',quoteAsset='USDT',
+                        marginAsset='USDT',contractType='PERPETUAL',status='TRADING')])
+                else:
+                    payload = dict(data=[dict(instType='SWAP',ctType='linear',settleCcy='USDT',
+                        state='live',instId='AAA-USDT-SWAP',ctValCcy='AAA',ctVal='1',ctMult='1')])
+                sources.dispatch.boundary('offline_external_instruments',dict(url=url,payload=payload))
+                sources.external_raw.append(dict(url=url,payload=payload))
+                class Response:
+                    def raise_for_status(self): pass
+                    def json(self): return payload
+                return Response()
+        return Client()
+
+    def cross_connect(self,url,**kwargs):
+        sources = self
+        venue = 'binance' if 'binance' in url else 'okx'
+        sources.cross_connections[venue] = sources.cross_connections.get(venue,0)+1
+        connection = sources.cross_connections[venue]
+        class Socket:
+            def __init__(self):
+                self.queue = asyncio.Queue()
+            async def __aenter__(self):
+                wall = sources.clock.time_ns()//1_000_000
+                if venue == 'binance':
+                    rows = [dict(e='depthUpdate',s=SYMBOL,T=wall,u=connection,
+                        b=[['100.48','10000']],a=[['100.51','10000']]),
+                        dict(e='aggTrade',s=SYMBOL,T=wall,a=connection,p='100.49',q='10',m=False)]
+                else:
+                    rows = [dict(arg=dict(instId='AAA-USDT-SWAP',channel='books5'),data=[dict(
+                        ts=str(wall),seqId=connection,bids=[['100.48','10000']],asks=[['100.51','10000']])]),
+                        dict(arg=dict(instId='AAA-USDT-SWAP',channel='trades'),data=[dict(
+                            ts=str(wall),tradeId=str(connection),px='100.49',sz='10',side='buy')])]
+                for row in rows:
+                    sources.dispatch.boundary('offline_external_wire',dict(venue=venue,payload=row))
+                    sources.external_raw.append(dict(venue=venue,payload=row))
+                    self.queue.put_nowait(json.dumps(row))
+                if connection == 1:
+                    self.queue.put_nowait(ConnectionError('controlled_offline_reconnect'))
+                return self
+            async def __aexit__(self,*args): pass
+            async def send(self,*args,**kwargs): pass
+            async def recv(self):
+                value = await self.queue.get()
+                if isinstance(value,Exception):raise value
+                return value
+        return Socket()
 
     def connect(self, *args, **kwargs):
         sources = self
@@ -121,13 +178,48 @@ class WireSources:
 
 
 class WholeRuntimePopulation:
-    def __init__(self, directory, *, variant='F', trade_path=True):
+    def __init__(self, directory, *, variant='F', trade_path=True, model_dir=None):
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True)
         self.variant, self.trade_path = variant, trade_path
         # Risk/economics/cadence/queue configuration remains the production default.
-        self.config = Settings(_env_file=None, session_dir='whole-runtime-offline-v1', otel_enabled=False)
+        self.config = _ManifestSettings(_env_file=None, session_dir='whole-runtime-offline-v1',
+            exchange_clock_enabled=True, otel_enabled=False)
         self.engine = self.observer = self.sources = None
+        self.model_dir = model_dir
+        self.probe = None
+
+    async def _probe_lifetime(self,dispatch,ready,stop,finished):
+        from collections import defaultdict
+        from .probe import ShadowProbe
+        self.stages = defaultdict(list)
+        self.probe = probe = ShadowProbe(self.engine,self.model_dir,self.stages,native_dispatch=dispatch)
+        heartbeat = dispatch.create_task(probe.heartbeat(stop),name='shadow-heartbeat',module='v2')
+        try:
+            probe.start()
+            await probe.wait_ready()
+            ready.set()
+            await stop.wait()
+        finally:
+            stop.set()
+            try:
+                await heartbeat
+                probe.close()
+            finally:
+                ready.set()
+                finished.set()
+
+    async def _cross_lifetime(self,ready,stop,finished):
+        try:
+            await self.observer.start()
+            self.observer.watch((SYMBOL,))
+            ready.set()
+            await stop.wait()
+            self.observer.watch(())
+            await self.observer.service.close()
+        finally:
+            ready.set()
+            finished.set()
 
     async def run(self, dispatch):
         self.sources = sources = WireSources(dispatch)
@@ -135,14 +227,37 @@ class WholeRuntimePopulation:
         recorder.path = self.directory/(CAPTURE_ID+'.jsonl')
         observer = self.observer = Wave2Observer(self.directory/'research.gz', recorder.path.name,
             self.config, {}, native_dispatch=dispatch, modules=VARIANTS[self.variant])
-        collector = PreparedDatasetCollector(self.directory/'prepared.jsonl') if 'v3' in VARIANTS[self.variant] else None
+        observer.service.client_factory = sources.cross_client
+        observer.service.connect_factory = sources.cross_connect
+        # PR60 already exposes this collector. Shared capture inputs stay in
+        # core; E adds the executable frozen-plan hooks to that same population.
+        collector = PreparedDatasetCollector(self.directory/'prepared.jsonl')
         class Engine(TradingEngine):
             def _market_stream_options(self):
                 return dict(super()._market_stream_options(), connect_factory=sources.connect)
         self.engine = engine = Engine(self.config, recorder=recorder, rest_client=sources,
             capture_inputs=True, prepared_collector=collector, research_observer=observer,
             configure_observability=False, native_dispatch=dispatch)
+        ready,stop,finished = asyncio.Event(),asyncio.Event(),asyncio.Event()
+        cross_ready,cross_finished = asyncio.Event(),asyncio.Event()
+        cross_task = None
+        if 'cross_venue' in VARIANTS[self.variant]:
+            cross_task = dispatch.create_task(self._cross_lifetime(cross_ready,stop,cross_finished),
+                name='cross-venue-lifetime',module='cross_venue')
+        else:
+            asyncio.get_running_loop().call_soon(cross_ready.set)
+        probe_task = None
+        if self.model_dir is not None and 'v2' in VARIANTS[self.variant]:
+            probe_task = dispatch.create_task(self._probe_lifetime(dispatch,ready,stop,finished),
+                name='shadow-probe-lifetime',module='v2')
+        else:
+            asyncio.get_running_loop().call_soon(ready.set)
         try:
+            # One actual gather boundary in every projection, including when
+            # an optional module is absent or has already become ready.
+            await asyncio.gather(ready.wait(),cross_ready.wait())
+            if probe_task is not None and probe_task.done():
+                await probe_task
             await engine.start()
             await sources.connected.wait()
             sources.market(1,100.16,initial=True)
@@ -163,15 +278,20 @@ class WholeRuntimePopulation:
             else:
                 await asyncio.sleep(.3)
         finally:
+            stop.set()
+            await asyncio.gather(probe_task if probe_task is not None else asyncio.sleep(0),
+                cross_task if cross_task is not None else asyncio.sleep(0))
             await engine.close()
             await observer.close(engine.clock.perf_counter_ns())
             if collector is not None:
                 collector.close()
         self.raw = sources.raw
         (self.directory/'source.json').write_text(json.dumps(self.raw,indent=2)+'\n',encoding='utf-8')
+        (self.directory/'external-source.json').write_text(json.dumps(sources.external_raw,indent=2)+'\n',encoding='utf-8')
 
     def result(self):
         from ..research_journal import read_research
+        from ..pipeline_evidence import quantiles
         engine = self.engine
         rows = [json.loads(line) for line in engine.recorder.path.read_text(encoding='utf-8').splitlines()]
         events = [dict(event=r['event'],symbol=r['symbol'],payload=r['payload']) for r in rows if r['event'] != 'replay_input']
@@ -185,7 +305,15 @@ class WholeRuntimePopulation:
         labels = [r['body'] for r in research if r['kind']=='prepared_label']
         prepared = [r['body'] for r in research if r['kind']=='prepared']
         return dict(sourceSha256=fingerprint(self.raw),ordinary=ordinary,
+            externalSourceSha256=fingerprint(self.sources.external_raw),
+            externalConnections=self.sources.cross_connections,
             ordinaryHashes={k:fingerprint(v) for k,v in ordinary.items()},
             labelSha256=fingerprint(labels), labels=labels,prepared=prepared,
             eventCounts=dict(__import__('collections').Counter(r['event'] for r in events)),
-            researchFailure=self.observer.failure, writer=engine.recorder.health())
+            researchFailure=self.observer.failure, writer=engine.recorder.health(),
+            probeCounts=dict(self.probe.counts) if self.probe else None,
+            forecastSha256=fingerprint([r for r in events if r['event']=='shadow_forecast']),
+            workerFailure=self.probe.worker.failed if self.probe else None,
+            workerExchangeImported=self.probe.worker.info.get('exchange_imported') if self.probe else None,
+            recordedDiagnosticStages={k:quantiles(v) for k,v in self.stages.items()} if self.probe else None,
+            pipelineRecords=[r['payload'] for r in events if r['event']=='pipeline_worker'])

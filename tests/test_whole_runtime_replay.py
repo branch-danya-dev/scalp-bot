@@ -132,3 +132,47 @@ async def test_disabled_owned_scope_projection_and_leftovers(tmp_path):
     assert report['accountingComplete']
     with pytest.raises(NativeTapeError, match='disabled module'):
         await WholeRuntimeReplayCoordinator(tape, variant='A').run(lambda d:root(d,[]))
+
+
+async def test_divergent_suspend_closes_coroutine_before_owner_is_reset(tmp_path):
+    from scalp_bot.whole_runtime_replay import WholeRuntimeReplayCoordinator
+    async def captured(dispatch, output):
+        dispatch.clock().time()
+    tape, _ = await record(tmp_path,captured)
+    cleaned = []
+    async def divergent(dispatch):
+        try:
+            await asyncio.sleep(0)
+        finally:
+            cleaned.append(dispatch.owner().task_id)
+    replay = WholeRuntimeReplayCoordinator(tape)
+    with pytest.raises(NativeTapeError,match='first divergence'):
+        await replay.run(divergent)
+    assert cleaned == ['runtime:core:1:session']
+    assert not replay.stacks
+
+
+async def test_undeclared_runtime_root_hard_fails(tmp_path):
+    from scalp_bot.whole_runtime_replay import WholeRuntimeReplayCoordinator
+    async def captured(dispatch, output):
+        dispatch.clock().time()
+    tape, _ = await record(tmp_path,captured)
+    async def wrong(dispatch):
+        await dispatch.create_task(asyncio.sleep(0),name='undeclared')
+    with pytest.raises(NativeTapeError,match='unknown replay owner'):
+        await WholeRuntimeReplayCoordinator(tape).run(wrong)
+
+
+async def test_impossible_resume_has_bounded_failure_and_no_live_stack(tmp_path):
+    from scalp_bot.whole_runtime_replay import WholeRuntimeReplayCoordinator
+    async def captured(dispatch, output):
+        await asyncio.sleep(0)
+        dispatch.clock().time()
+    tape, _ = await record(tmp_path,captured)
+    async def wrong(dispatch):
+        await asyncio.Event().wait()
+        dispatch.clock().time()
+    replay = WholeRuntimeReplayCoordinator(tape,timeout_seconds=.03)
+    with pytest.raises(NativeTapeError):
+        await asyncio.wait_for(replay.run(wrong),1)
+    assert not replay.stacks

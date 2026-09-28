@@ -146,12 +146,12 @@ class NativeDispatch:
             owner = _Owner(native, _execution())
             token = dispatch.current.set(owner)
             state["started"] = True
-            native.start()
             iterator = coroutine.__await__()
             value, error, serial = None, None, 0
             reason = "completed"
             failure = None
             try:
+                native.start()
                 while True:
                     native.boundary("dispatch_resume", dict(index=serial,
                         outcome=type(error).__name__ if error is not None else "ready"))
@@ -175,10 +175,19 @@ class NativeDispatch:
                 failure = exc
                 raise
             finally:
-                owner.active = False
-                dispatch.current.reset(token)
-                state["ended"] = True
-                dispatch._terminal(native, reason, failure)
+                try:
+                    # A dispatch observation can fail between iterator sends.
+                    # Close its suspended frame while task ownership is valid;
+                    # GC must never execute its cleanup under a later task.
+                    iterator.close()
+                except BaseException:
+                    if failure is None:
+                        raise
+                finally:
+                    owner.active = False
+                    dispatch.current.reset(token)
+                    state["ended"] = True
+                    dispatch._terminal(native, reason, failure)
 
         async def run():
             return await stepped()

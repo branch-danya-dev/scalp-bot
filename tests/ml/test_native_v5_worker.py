@@ -104,3 +104,23 @@ def test_poisoned_tape_still_joins_worker_and_relay(tmp_path):
     assert not worker.process.is_alive() and not worker.receiver.is_alive()
     assert worker.native_error
     with pytest.raises(ValueError): read_native_tape(tmp_path/"poisoned.gz")
+
+
+def test_transport_epoch_is_not_symbol_selection_epoch(tmp_path):
+    with writer_at(tmp_path/'epochs.gz') as writer:
+        snap = snapshot()
+        worker = InferenceWorker(tmp_path,native_endpoint=writer.endpoint('v2','parent'))
+        source = dict(capture_id=snap.ref.capture_id,symbol=snap.ref.symbol,
+            epoch=7,source_sequence=snap.ref.source_sequence,event_id='bybit:1')
+        task = writer.endpoint('v2','parent').open_task('independent-epochs','request',
+            source=source,inputs=dict(ref=asdict(snap.ref)))
+        task.start()
+        for stage in PIPELINE[:3]:task.boundary(stage)
+        worker.activate(snap.ref.symbol,snap.ref.selection_epoch)
+        try:
+            assert worker.submit(snap,'long',native_task=task)
+            assert worker.active[snap.ref.symbol] == snap.ref.selection_epoch == 1
+            assert task.source['epoch'] == 7
+        finally:
+            worker.close()
+    assert read_native_tape(tmp_path/'epochs.gz').counts['task_end'] == 1
