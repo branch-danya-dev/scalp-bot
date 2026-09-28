@@ -6,7 +6,9 @@ locally recomputing a prediction. This bridge does not claim whole-engine
 coverage: a production dispatcher must grant each parent slice before entry.
 """
 import asyncio
+import hashlib
 import multiprocessing as mp
+from pathlib import Path
 from queue import Empty
 
 from ..manifest_validation import fingerprint
@@ -72,8 +74,13 @@ class _ActorRPC:
 
 
 class NativeChildReplayBridge:
-    def __init__(self, coordinator, model_dir, *, producer="parent", target=None):
+    def __init__(self, coordinator, model_dir, *, producer="parent", target=None, expected_model_hashes=None):
         self.coordinator = coordinator
+        self.model_dir = Path(model_dir)
+        self.expected_model_hashes = expected_model_hashes
+        if target is None and expected_model_hashes is None:
+            raise NativeTapeError("real V2 replay requires recorded model/manifest hashes")
+        self._check_model()
         self.rpc = _ActorRPC(coordinator, producer)
         endpoint = NativeEndpoint(self.rpc, "v2", producer)
         self.worker = InferenceWorker(model_dir, native_endpoint=endpoint,
@@ -82,6 +89,15 @@ class NativeChildReplayBridge:
         self.server = None
         self.requests = set()
         self.consumed = 0
+
+    def _check_model(self):
+        if self.expected_model_hashes is not None:
+            if set(self.expected_model_hashes) != {"model.cbm", "manifest.json"}:
+                raise NativeTapeError("incomplete replay model provenance")
+            actual = {name:hashlib.sha256((self.model_dir/name).read_bytes()).hexdigest()
+                for name in self.expected_model_hashes}
+            if actual != self.expected_model_hashes:
+                raise NativeTapeError("replay model/manifest hash mismatch")
 
     async def _observe(self, payload, method):
         module, producer, task, parent, source, kind, data = payload
@@ -172,6 +188,7 @@ class NativeChildReplayBridge:
             raise NativeTapeError("replay child/relay not joined")
         if self.worker.native_error or self.worker.process.exitcode != 0:
             raise NativeTapeError(self.worker.native_error or "replay child exited abnormally")
+        self._check_model()
         self.coordinator.ipc_receipts.append(dict(pid=self.worker.process.pid,
             exitCode=self.worker.process.exitcode, joined=True, relayJoined=True,
-            remoteTokensConsumed=self.consumed))
+            remoteTokensConsumed=self.consumed, modelHashes=self.expected_model_hashes))

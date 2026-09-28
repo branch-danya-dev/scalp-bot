@@ -164,7 +164,8 @@ class FixtureRuntime:
         ref = SnapshotRef(**inputs["ref"])
         snapshot = FeatureSnapshot(ref, tuple(inputs["names"]), tuple(inputs["values"]))
         metadata = json.loads((Path(self.model_dir)/"manifest.json").read_text())
-        bridge = NativeChildReplayBridge(ctx.coordinator, self.model_dir, producer=ctx.producer)
+        bridge = NativeChildReplayBridge(ctx.coordinator, self.model_dir, producer=ctx.producer,
+            expected_model_hashes=inputs["modelHashes"])
         try:
             await bridge.start()
             for stage in PIPELINE[:3]:
@@ -273,7 +274,8 @@ async def capture_fixture(path, *, model_dir=None, freeze=None):
                 ref = SnapshotRef("native-v5-fixture", "AAAUSDT", 1, 4, now, time.perf_counter_ns(), "perf_counter", FEATURE_SCHEMA)
                 snapshot = FeatureSnapshot(ref, FEATURE_NAMES, (0.,)*len(FEATURE_NAMES))
                 # These are synthetic features, not a natural trading setup.
-                inputs = dict(ref=asdict(ref), names=list(snapshot.names), values=list(snapshot.values), side=side)
+                inputs = dict(ref=asdict(ref), names=list(snapshot.names), values=list(snapshot.values), side=side,
+                    modelHashes=freeze["config"]["model"])
                 task = endpoint.open_task("request-"+str(index), "request", parent_task_id="1", source=source, inputs=inputs)
                 task.start()
                 for stage in PIPELINE[:3]: task.boundary(stage)

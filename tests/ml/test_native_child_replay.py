@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import asdict
 import time
+import pytest
 
 from scalp_bot.ml.contracts import FeatureSnapshot, SnapshotRef
 from scalp_bot.ml.native_bridge import NativeChildReplayBridge
@@ -9,6 +10,16 @@ from scalp_bot.native_controlled import NativeControlledDriver
 from scalp_bot.native_v5 import PIPELINE, OwnedClock, read_native_tape
 from test_native_v5_worker import test_child, writer_at, request
 from test_worker_shadow import snapshot, poll_until
+
+
+def test_real_bridge_rejects_missing_or_wrong_model_provenance(tmp_path):
+    from scalp_bot.native_v5 import NativeTapeError
+    with pytest.raises(NativeTapeError, match="requires recorded"):
+        NativeChildReplayBridge(None, tmp_path)
+    (tmp_path/"model.cbm").write_bytes(b"model")
+    (tmp_path/"manifest.json").write_text("{}")
+    with pytest.raises(NativeTapeError, match="hash mismatch"):
+        NativeChildReplayBridge(None, tmp_path, expected_model_hashes={"model.cbm":"a"*64, "manifest.json":"b"*64})
 
 
 async def test_real_spawn_replay_consumes_child_and_relay_clocks_without_blocking_loop(tmp_path):
